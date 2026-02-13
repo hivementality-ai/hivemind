@@ -1,0 +1,99 @@
+<div class="min-h-screen bg-gray-900 text-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold mb-2">Cost Budgets</h1>
+      <p class="text-gray-400">Monitor and control agent spending</p>
+    </div>
+    
+    <!-- Period Toggle -->
+    <div class="mb-6 flex gap-2">
+      <%= link_to "Daily", budgets_path(period: "daily"), 
+          class: "px-4 py-2 rounded-lg #{@period_type == 'daily' ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}" %>
+      <%= link_to "Weekly", budgets_path(period: "weekly"), 
+          class: "px-4 py-2 rounded-lg #{@period_type == 'weekly' ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}" %>
+      <%= link_to "Monthly", budgets_path(period: "monthly"), 
+          class: "px-4 py-2 rounded-lg #{@period_type == 'monthly' ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}" %>
+    </div>
+    
+    <!-- Budget Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <% @agents.each do |agent| %>
+        <% budget = agent.agent_budgets.find_by(period: @period_type) %>
+        <div class="bg-gray-800 rounded-lg p-6">
+          <div class="flex items-start justify-between mb-4">
+            <div>
+              <h3 class="text-xl font-bold mb-1"><%= agent.name %></h3>
+              <p class="text-sm text-gray-400"><%= agent.role %></p>
+            </div>
+            <%= link_to "Edit", edit_budget_path(agent_id: agent.id, period_type: @period_type), 
+                class: "text-sm text-blue-400 hover:text-blue-300" %>
+          </div>
+          
+          <% if budget %>
+            <div class="space-y-3">
+              <!-- Progress Bar -->
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-400">Spent</span>
+                  <span class="font-semibold">
+                    <%= number_to_currency(budget.spent_cents / 100.0) %> / 
+                    <%= number_to_currency(budget.limit_cents / 100.0) %>
+                  </span>
+                </div>
+                <div class="w-full bg-gray-700 rounded-full h-3">
+                  <% 
+                    percentage = budget.percentage_used
+                    color = if percentage >= 100
+                              "bg-red-600"
+                            elsif percentage >= 80
+                              "bg-yellow-600"
+                            else
+                              "bg-green-600"
+                            end
+                  %>
+                  <div class="<%= color %> h-3 rounded-full transition-all" 
+                       style="width: <%= [percentage, 100].min %>%"></div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1"><%= percentage %>% used</p>
+              </div>
+              
+              <!-- Stats -->
+              <div class="grid grid-cols-2 gap-2 text-sm">
+                <div class="bg-gray-900 p-2 rounded">
+                  <p class="text-gray-500 text-xs">Remaining</p>
+                  <p class="font-semibold"><%= number_to_currency(budget.remaining_cents / 100.0) %></p>
+                </div>
+                <div class="bg-gray-900 p-2 rounded">
+                  <p class="text-gray-500 text-xs">Period</p>
+                  <p class="font-semibold"><%= @period_type.titleize %></p>
+                </div>
+              </div>
+              
+              <% if budget.exceeded? %>
+                <div class="bg-red-900/30 border border-red-600 rounded p-2 text-sm">
+                  🚫 Budget exceeded
+                </div>
+              <% elsif budget.warning_threshold? %>
+                <div class="bg-yellow-900/30 border border-yellow-600 rounded p-2 text-sm">
+                  ⚠️ Approaching limit
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="text-center py-4">
+              <p class="text-gray-500 text-sm mb-2">No budget set</p>
+              <%= link_to "Set Budget", edit_budget_path(agent_id: agent.id, period_type: @period_type), 
+                  class: "text-blue-400 hover:text-blue-300 text-sm" %>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+    
+    <% if @agents.empty? %>
+      <div class="text-center py-12">
+        <p class="text-gray-400">No agents yet. Create one to set budgets.</p>
+      </div>
+    <% end %>
+  </div>
+</div>

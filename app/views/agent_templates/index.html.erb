@@ -1,0 +1,47 @@
+<div class="min-h-screen bg-gray-900 text-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold mb-2">Agent Templates</h1>
+      <p class="text-gray-400">Deploy pre-configured AI agents in seconds</p>
+    </div>
+    
+    <!-- Category Filter -->
+    <div class="mb-6 flex flex-wrap gap-2">
+      <%= link_to "All", agent_templates_path, class: "px-4 py-2 rounded-lg #{params[:category].blank? ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}" %>
+      <% @categories.each do |category| %>
+        <%= link_to category.titleize, agent_templates_path(category: category), 
+            class: "px-4 py-2 rounded-lg #{params[:category] == category ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}" %>
+      <% end %>
+    </div>
+    
+    <!-- Template Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <% @templates.each do |template| %>
+        <div class="bg-gray-800 rounded-lg p-6 hover:bg-gray-750 transition">
+          <div class="flex items-start justify-between mb-4">
+            <div class="text-4xl"><%= template.icon || "🤖" %></div>
+            <% if template.featured %>
+              <span class="px-2 py-1 bg-yellow-600 text-xs rounded">Featured</span>
+            <% end %>
+          </div>
+          
+          <h3 class="text-xl font-bold mb-2"><%= template.name %></h3>
+          <p class="text-gray-400 text-sm mb-3"><%= template.role %></p>
+          <p class="text-gray-300 mb-4 line-clamp-3"><%= template.description %></p>
+          
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-gray-500 uppercase"><%= template.category %></span>
+            <%= link_to "Deploy", agent_template_path(template), 
+                class: "px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium" %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+    
+    <% if @templates.empty? %>
+      <div class="text-center py-12">
+        <p class="text-gray-400">No templates found in this category.</p>
+      </div>
+    <% end %>
+  </div>
+</div>

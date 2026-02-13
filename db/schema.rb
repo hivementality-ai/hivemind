@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_13_170500) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_13_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -23,6 +23,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_170500) do
     t.decimal "spent_cents"
     t.datetime "updated_at", null: false
     t.index ["agent_id"], name: "index_agent_budgets_on_agent_id"
+  end
+
+  create_table "agent_templates", force: :cascade do |t|
+    t.string "author"
+    t.string "category", null: false
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.boolean "featured", default: false
+    t.string "icon"
+    t.jsonb "model_config", default: {}, null: false
+    t.string "name", null: false
+    t.string "role", null: false
+    t.text "soul_md"
+    t.text "system_prompt"
+    t.jsonb "tools_config", default: {}, null: false
+    t.datetime "updated_at", null: false
+    t.string "version", default: "1.0.0"
+    t.index ["category"], name: "index_agent_templates_on_category"
+    t.index ["featured"], name: "index_agent_templates_on_featured"
   end
 
   create_table "agents", force: :cascade do |t|

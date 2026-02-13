@@ -1,38 +1,45 @@
 # frozen_string_literal: true
 
+# AgentBudget - Cost tracking and limits per agent
 class AgentBudget < ApplicationRecord
   belongs_to :agent
-
-  validates :period, presence: true, inclusion: { in: %w[daily weekly monthly] }
-  validates :limit_cents, presence: true, numericality: { greater_than: 0 }
-
-  scope :active, -> { where("reset_at > ?", Time.current) }
-
-  after_initialize :set_defaults
-
+  
+  PERIOD_TYPES = %w[daily weekly monthly].freeze
+  
+  validates :period, presence: true
+  validates :limit_cents, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
+  validates :spent_cents, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
+  
+  # Alias for compatibility with services
+  alias_attribute :period_type, :period
+  
   def remaining_cents
-    (limit_cents || 0) - (spent_cents || 0)
+    return 0 unless limit_cents
+    limit_cents - (spent_cents || 0)
   end
-
-  def exceeded?
-    remaining_cents <= 0
-  end
-
-  def warning_threshold?
-    return false if limit_cents.nil? || limit_cents.zero?
-
-    (spent_cents || 0) >= (limit_cents * 0.8)
-  end
-
-  def usage_percentage
+  
+  def percentage_used
     return 0 if limit_cents.nil? || limit_cents.zero?
-
-    ((spent_cents || 0) / limit_cents * 100).round(1)
+    (((spent_cents || 0).to_f / limit_cents) * 100).round(1)
   end
-
-  private
-
-  def set_defaults
-    self.spent_cents ||= 0
+  
+  def exceeded?
+    return false unless limit_cents
+    (spent_cents || 0) >= limit_cents
+  end
+  
+  def warning_threshold?
+    percentage_used >= 80
+  end
+  
+  def alert_sent?
+    false # Can be extended with a flag if needed
+  end
+  
+  def reset!
+    update!(
+      spent_cents: 0,
+      reset_at: Time.current
+    )
   end
 end

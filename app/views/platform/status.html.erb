@@ -1,0 +1,130 @@
+<div class="min-h-screen bg-gray-900 text-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold mb-2">Platform Status</h1>
+      <p class="text-gray-400">Monitor and manage system services</p>
+    </div>
+    
+    <!-- Container Status Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <% @services.each do |service| %>
+        <div class="bg-gray-800 rounded-lg p-6">
+          <div class="flex items-start justify-between mb-4">
+            <div>
+              <h3 class="text-xl font-bold mb-1"><%= service[:name].titleize %></h3>
+              <div class="flex items-center gap-2">
+                <% 
+                  status_color = case service[:status]
+                                 when :running then "bg-green-500"
+                                 when :stopped then "bg-red-500"
+                                 else "bg-gray-500"
+                                 end
+                %>
+                <span class="inline-block w-2 h-2 rounded-full <%= status_color %>"></span>
+                <span class="text-sm text-gray-400"><%= service[:status].to_s.titleize %></span>
+              </div>
+            </div>
+            
+            <% 
+              health_emoji = case service[:health]
+                            when :healthy then "✅"
+                            when :unhealthy then "❌"
+                            when :starting then "⏳"
+                            else "❓"
+                            end
+            %>
+            <span class="text-2xl"><%= health_emoji %></span>
+          </div>
+          
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-gray-400">Health</span>
+              <span class="font-medium"><%= service[:health].to_s.titleize %></span>
+            </div>
+          </div>
+          
+          <% if current_user.admin? && %w[workspace browser connector].include?(service[:name]) %>
+            <div class="mt-4 pt-4 border-t border-gray-700">
+              <%= button_to "Restart", 
+                  platform_restart_path(service: service[:name]), 
+                  method: :post,
+                  data: { 
+                    turbo_confirm: "Restart #{service[:name]} service?" 
+                  },
+                  class: "w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium" %>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+    
+    <!-- Connection Info -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div class="bg-gray-800 rounded-lg p-6">
+        <h2 class="text-xl font-bold mb-4">Redis Connection</h2>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between">
+            <span class="text-gray-400">URL</span>
+            <span class="font-mono text-xs"><%= ENV["REDIS_URL"] || "redis://localhost:6379" %></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-400">Status</span>
+            <% 
+              redis_connected = begin
+                Redis.new(url: ENV["REDIS_URL"] || "redis://localhost:6379").ping == "PONG"
+              rescue
+                false
+              end
+            %>
+            <span class="<%= redis_connected ? 'text-green-400' : 'text-red-400' %>">
+              <%= redis_connected ? "Connected" : "Disconnected" %>
+            </span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="bg-gray-800 rounded-lg p-6">
+        <h2 class="text-xl font-bold mb-4">PostgreSQL Connection</h2>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between">
+            <span class="text-gray-400">Database</span>
+            <span class="font-mono text-xs"><%= ActiveRecord::Base.connection.current_database %></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-400">Status</span>
+            <% 
+              db_connected = begin
+                ActiveRecord::Base.connection.active?
+              rescue
+                false
+              end
+            %>
+            <span class="<%= db_connected ? 'text-green-400' : 'text-red-400' %>">
+              <%= db_connected ? "Connected" : "Disconnected" %>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Admin Actions -->
+    <% if current_user.admin? %>
+      <div class="bg-gray-800 rounded-lg p-6">
+        <h2 class="text-xl font-bold mb-4">System Actions</h2>
+        <div class="flex flex-wrap gap-4">
+          <%= button_to "Clear All Cache", 
+              platform_clear_cache_path, 
+              method: :post,
+              data: { turbo_confirm: "Clear all caches?" },
+              class: "px-6 py-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-medium" %>
+          
+          <%= button_to "Clear Rails Cache", 
+              platform_clear_cache_path(cache_type: "rails"), 
+              method: :post,
+              data: { turbo_confirm: "Clear Rails cache?" },
+              class: "px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium" %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>
