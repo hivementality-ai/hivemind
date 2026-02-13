@@ -1,0 +1,66 @@
+<div class="min-h-screen bg-surface-base text-white">
+  <!-- Header -->
+  <div class="bg-surface-card border-b border-border-default px-6 py-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <%= link_to "← Dashboard", dashboard_path, class: "text-text-muted hover:text-white transition" %>
+        <h1 class="text-3xl font-bold">Agents</h1>
+      </div>
+      <div>
+        <%= link_to "New Agent", new_agent_path, class: "px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition" %>
+      </div>
+    </div>
+  </div>
+
+  <div class="container mx-auto px-6 py-8">
+    <div class="bg-surface-card rounded-lg border border-border-default">
+      <table class="min-w-full divide-y divide-border-default">
+        <thead>
+          <tr class="bg-surface-raised">
+            <th class="px-6 py-3 text-left text-xs font-medium text-text-primary uppercase tracking-wider">Name</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-text-primary uppercase tracking-wider">Role</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-text-primary uppercase tracking-wider">Team</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-text-primary uppercase tracking-wider">Status</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-text-primary uppercase tracking-wider">Model</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-text-primary uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-border-default">
+          <% @agents.each do |agent| %>
+            <tr class="hover:bg-surface-raised transition">
+              <td class="px-6 py-4 whitespace-nowrap">
+                <%= link_to agent.name, agent_path(agent), class: "text-brand-light hover:text-brand-light font-medium" %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-text-primary">
+                <%= agent.role&.titleize || "-" %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-text-primary">
+                <%= agent.team&.name || "-" %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <% status = agent.status || "idle" %>
+                <span class="px-2 py-1 rounded-full text-xs font-medium <%= status == "active" ? "bg-green-900 text-green-300" : status == "thinking" ? "bg-yellow-900 text-yellow-300" : "bg-surface-raised text-text-primary" %>">
+                  <%= status.titleize %>
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-text-primary">
+                <%= agent.model_provider %>/<%= agent.llm_model %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <%= link_to "Edit", edit_agent_path(agent), class: "text-brand-light hover:text-brand-light mr-3" %>
+                <%= link_to "Delete", agent_path(agent), data: { turbo_method: :delete, turbo_confirm: "Are you sure?" }, class: "text-red-400 hover:text-red-300" %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+
+      <% if @agents.empty? %>
+        <div class="text-center py-12">
+          <p class="text-text-muted mb-4">No agents yet</p>
+          <%= link_to "Create your first agent", new_agent_path, class: "px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition inline-block" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

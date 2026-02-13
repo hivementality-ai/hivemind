@@ -1,0 +1,104 @@
+<div class="max-w-2xl mx-auto px-6 py-8">
+  <%= link_to "← Channels", channels_path, class: "text-brand-light hover:text-brand-light text-sm" %>
+
+  <h1 class="text-2xl font-bold text-white mt-4 mb-8">
+    <%= channel.new_record? ? "Add Channel" : "Edit #{channel.name}" %>
+  </h1>
+
+  <%= form_with model: channel, class: "space-y-6" do |f| %>
+    <% if channel.errors.any? %>
+      <div class="bg-red-900/30 border border-red-600 rounded-lg p-4">
+        <% channel.errors.full_messages.each do |msg| %>
+          <p class="text-red-300 text-sm"><%= msg %></p>
+        <% end %>
+      </div>
+    <% end %>
+
+    <div>
+      <%= f.label :name, class: "block text-text-primary text-sm font-medium mb-1" %>
+      <%= f.text_field :name, placeholder: "My Discord Server",
+          class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand" %>
+    </div>
+
+    <div>
+      <%= f.label :channel_type, "Platform", class: "block text-text-primary text-sm font-medium mb-1" %>
+      <%= f.select :channel_type,
+          [["Discord", "discord"], ["Slack", "slack"], ["Telegram", "telegram"], ["WhatsApp", "whatsapp"], ["Signal", "signal"]],
+          { prompt: "Select platform..." },
+          class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand" %>
+    </div>
+
+    <div>
+      <%= f.label :enabled, class: "flex items-center gap-3 cursor-pointer" do %>
+        <%= f.check_box :enabled, class: "w-5 h-5 rounded bg-surface-raised border-border-default text-brand focus:ring-brand" %>
+        <span class="text-text-primary">Enabled</span>
+      <% end %>
+    </div>
+
+    <hr class="border-border-default">
+
+    <div>
+      <h3 class="text-white font-semibold mb-3">📨 Message Routing</h3>
+      <p class="text-text-faint text-sm mb-4">Where should incoming messages go? Users can override with @mentions.</p>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Default Team</label>
+          <select name="channel[config][default_team_id]"
+                  class="w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand">
+            <option value="">No default team</option>
+            <% Team.order(:name).each do |team| %>
+              <option value="<%= team.id %>" <%= 'selected' if channel.config&.dig("default_team_id").to_s == team.id.to_s %>>
+                <%= team.name %> (<%= team.agents.count %> agents)
+              </option>
+            <% end %>
+          </select>
+          <p class="text-gray-600 text-xs mt-1">All agents on this team will see and respond to messages</p>
+        </div>
+
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Or Default Agent (if no team)</label>
+          <select name="channel[config][default_agent_id]"
+                  class="w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand">
+            <option value="">No default agent</option>
+            <% Agent.visible.enabled.order(:name).each do |agent| %>
+              <option value="<%= agent.id %>" <%= 'selected' if channel.config&.dig("default_agent_id").to_s == agent.id.to_s %>>
+                <%= agent.name %> — <%= agent.role %>
+              </option>
+            <% end %>
+          </select>
+          <p class="text-gray-600 text-xs mt-1">Used only if no default team is set</p>
+        </div>
+      </div>
+    </div>
+
+    <hr class="border-border-default">
+
+    <div>
+      <h3 class="text-white font-semibold mb-3">Credentials</h3>
+      <p class="text-text-faint text-sm mb-4">Stored encrypted in the vault. Leave blank to keep existing.</p>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Bot Token / Access Token</label>
+          <%= text_field_tag "credentials[bot_token]", nil, placeholder: "Enter token...",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand",
+              autocomplete: "off" %>
+        </div>
+
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Webhook Secret / Signing Secret</label>
+          <%= text_field_tag "credentials[webhook_secret]", nil, placeholder: "Optional...",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand",
+              autocomplete: "off" %>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3 pt-4">
+      <%= link_to "Cancel", channels_path, class: "px-6 py-3 bg-surface-raised hover:bg-surface-overlay text-white rounded-lg transition" %>
+      <%= f.submit channel.new_record? ? "Create Channel" : "Update Channel",
+          class: "px-6 py-3 bg-brand hover:bg-brand-dark text-white font-medium rounded-lg transition cursor-pointer" %>
+    </div>
+  <% end %>
+</div>

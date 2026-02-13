@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Brand amber — matches landing page */
+  --color-brand: #F59E0B;
+  --color-brand-light: #FBBF24;
+  --color-brand-dark: #D97706;
+  --color-brand-glow: rgba(245, 158, 11, 0.15);
+
+  /* Dark surfaces — matches landing page */
+  --color-surface-base: #0A0A0F;
+  --color-surface-card: #111118;
+  --color-surface-raised: #16161F;
+  --color-surface-overlay: #1C1C27;
+
+  /* Text */
+  --color-text-primary: #E5E7EB;
+  --color-text-muted: #9CA3AF;
+  --color-text-faint: #6B7280;
+
+  /* Borders */
+  --color-border-default: #1E1E2A;
+  --color-border-subtle: rgba(245, 158, 11, 0.12);
+}

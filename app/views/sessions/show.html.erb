@@ -1,0 +1,141 @@
+<div class="flex flex-col h-[calc(100vh-4rem)]" data-controller="chat" data-chat-session-id-value="<%= @session.id %>" data-chat-agent-name-value="<%= @agent.name %>" data-chat-agent-initial-value="<%= @agent.name[0].upcase %>" data-chat-message-url-value="<%= message_session_path(@session) %>" data-chat-csrf-value="<%= form_authenticity_token %>">
+  <!-- Header -->
+  <div class="flex items-center gap-4 px-6 py-4 border-b border-border-default bg-surface-card/50 flex-shrink-0">
+    <%= link_to sessions_path, class: "text-text-muted hover:text-white transition" do %>
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+    <% end %>
+    <div class="w-10 h-10 bg-brand rounded-lg flex items-center justify-center text-white font-bold">
+      <%= @agent.name[0].upcase %>
+    </div>
+    <div>
+      <h1 class="text-white font-semibold"><%= @agent.name %></h1>
+      <p class="text-text-muted text-xs"><%= @agent.role %> · <%= @agent.llm_model %> · <%= @agent.model_provider %></p>
+    </div>
+    <div class="ml-auto text-text-faint text-xs" data-chat-target="tokenCount">
+      <%= @messages.size %> messages
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4" data-chat-target="messages" id="messages">
+    <% if @messages.empty? %>
+      <div class="flex items-center justify-center h-full" data-chat-target="emptyState">
+        <div class="text-center">
+          <%= hivemind_logo(size: "w-16 h-16 mx-auto mb-4", css: "text-amber-400/60") %>
+          <h2 class="text-xl font-semibold text-white mb-2">Start chatting with <%= @agent.name %></h2>
+          <p class="text-text-muted max-w-md">
+            <%= @agent.system_prompt&.truncate(200) || "This agent is ready to help." %>
+          </p>
+        </div>
+      </div>
+    <% end %>
+
+    <% @messages.each_with_index do |msg, idx| %>
+      <% if msg["role"] == "user" %>
+        <div class="flex justify-end">
+          <div class="max-w-2xl">
+            <div class="bg-brand rounded-2xl rounded-br-md px-4 py-3 text-white">
+              <% if msg["images"].present? %>
+                <div class="flex flex-wrap gap-2 mb-2">
+                  <% msg["images"].each do |img| %>
+                    <% attachment = @attachments[idx] %>
+                    <% if attachment&.file&.attached? %>
+                      <%= image_tag rails_blob_path(attachment.file, only_path: true),
+                          class: "max-w-xs max-h-64 rounded-lg cursor-pointer hover:opacity-90 transition",
+                          loading: "lazy" %>
+                    <% else %>
+                      <div class="bg-brand-dark rounded-lg px-3 py-2 text-sm"><%= img["filename"] %></div>
+                    <% end %>
+                  <% end %>
+                </div>
+              <% end %>
+              <p class="whitespace-pre-wrap"><%= msg["content"] %></p>
+            </div>
+          </div>
+        </div>
+      <% elsif msg["role"] == "assistant" %>
+        <div class="flex justify-start">
+          <div class="max-w-2xl">
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
+                <%= @agent.name[0].upcase %>
+              </div>
+              <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
+                <div class="whitespace-pre-wrap chat-content"><%= msg["content"] %></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+
+  <!-- Streaming indicator -->
+  <div class="px-6 hidden" data-chat-target="thinking">
+    <div class="flex items-start gap-3">
+      <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+        <%= @agent.name[0].upcase %>
+      </div>
+      <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-text-muted">
+        <div class="flex gap-1">
+          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Image preview area -->
+  <div class="px-6 hidden" data-chat-target="imagePreview">
+    <div class="flex items-center gap-2 bg-surface-card border border-border-default rounded-lg px-3 py-2">
+      <div class="flex gap-2 flex-wrap" data-chat-target="imageThumbs"></div>
+      <button data-action="click->chat#clearImages" class="text-text-muted hover:text-red-400 ml-auto">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- File preview area -->
+  <div class="px-6 hidden" data-chat-target="attachPreview">
+    <div class="flex items-center gap-2 bg-surface-card border border-border-default rounded-lg px-3 py-2">
+      <div class="flex gap-2 flex-wrap" data-chat-target="attachList"></div>
+      <button data-action="click->chat#clearFiles" class="text-text-muted hover:text-red-400 ml-auto">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="px-6 py-4 border-t border-border-default bg-surface-card/50 flex-shrink-0"
+       data-action="dragover->chat#dragOver dragdrop->chat#drop dragleave->chat#dragLeave">
+    <div class="flex gap-3 items-end">
+      <!-- File upload button -->
+      <label class="px-3 py-3 text-text-muted hover:text-white cursor-pointer transition flex-shrink-0" title="Attach files">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+        </svg>
+        <input type="file" accept="image/*,.txt,.md,.csv,.json,.xml,.html,.pdf,.doc,.docx,.xls,.xlsx,.yaml,.yml,.log,.py,.rb,.js,.ts,.sh,.sql,.env,.cfg,.ini,.toml" multiple class="hidden"
+               data-chat-target="fileInput"
+               data-action="change->chat#handleFiles">
+      </label>
+
+      <textarea data-chat-target="input"
+                data-action="keydown->chat#handleKeydown input->chat#autoResize paste->chat#handlePaste"
+                class="flex-1 px-4 py-3 bg-surface-raised border border-border-default rounded-xl text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent resize-none"
+                placeholder="Message <%= @agent.name %>..."
+                rows="1"
+                autofocus></textarea>
+      <button data-chat-target="sendBtn" data-action="click->chat#send"
+              class="px-6 py-3 bg-brand hover:bg-brand-dark text-white font-medium rounded-xl transition cursor-pointer flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+        Send
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,83 @@
+<div class="min-h-screen bg-surface-base p-6">
+  <div class="max-w-4xl mx-auto">
+    <div class="flex items-center gap-4 mb-8">
+      <%= link_to tools_path, class: "text-text-muted hover:text-white transition" do %>
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      <% end %>
+      <h1 class="text-2xl font-bold text-white"><%= @tool.name %></h1>
+      <span class="text-xs px-2 py-1 rounded-full <%= @tool.enabled? ? 'bg-green-900/50 text-green-300' : 'bg-surface-raised text-text-muted' %>">
+        <%= @tool.enabled? ? "enabled" : "disabled" %>
+      </span>
+    </div>
+
+    <!-- Tool Info -->
+    <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+      <div class="grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <span class="text-text-faint">Executor</span>
+          <p class="text-white"><%= @tool.executor_type %></p>
+        </div>
+        <div>
+          <span class="text-text-faint">Requires Approval</span>
+          <p class="text-white"><%= @tool.requires_approval? ? "Yes" : "No" %></p>
+        </div>
+        <div class="col-span-2">
+          <span class="text-text-faint">Description</span>
+          <p class="text-gray-200 mt-1"><%= @tool.description %></p>
+        </div>
+        <div class="col-span-2">
+          <span class="text-text-faint">Parameters Schema</span>
+          <pre class="bg-surface-base rounded-lg p-3 mt-1 text-xs text-text-primary overflow-x-auto"><%= JSON.pretty_generate(@tool.parameters_schema) %></pre>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-4">
+        <%= link_to "Edit", edit_tool_path(@tool), class: "px-4 py-2 bg-brand hover:bg-brand-dark rounded-lg text-white text-sm transition" %>
+        <% unless @tool.builtin? %>
+          <%= link_to "Delete", tool_path(@tool), data: { turbo_method: :delete, turbo_confirm: "Delete this tool?" }, class: "px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white text-sm transition" %>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Execution History -->
+    <div class="bg-surface-card rounded-xl border border-border-default">
+      <div class="px-6 py-4 border-b border-border-default">
+        <h2 class="text-lg font-semibold text-white">Execution History (<%= @executions.size %>)</h2>
+      </div>
+      <div class="divide-y divide-border-default">
+        <% if @executions.empty? %>
+          <div class="px-6 py-8 text-center text-text-muted">No executions yet</div>
+        <% end %>
+        <% @executions.each do |exec| %>
+          <div class="px-6 py-4">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-3">
+                <span class="w-2 h-2 rounded-full
+                  <%= { 'completed' => 'bg-green-400', 'failed' => 'bg-red-400', 'running' => 'bg-yellow-400' }[exec.status] || 'bg-gray-400' %>"></span>
+                <span class="text-white text-sm font-medium"><%= exec.agent.name %></span>
+                <span class="text-text-faint text-xs"><%= exec.created_at.strftime("%b %d, %I:%M %p") %></span>
+                <% if exec.duration_ms %>
+                  <span class="text-text-faint text-xs"><%= exec.duration_ms %>ms</span>
+                <% end %>
+              </div>
+              <span class="text-xs px-2 py-0.5 rounded-full
+                <%= exec.status == 'completed' ? 'bg-green-900/50 text-green-300' : 'bg-red-900/50 text-red-300' %>">
+                <%= exec.status %>
+              </span>
+            </div>
+            <div class="bg-surface-base rounded-lg p-3 text-xs font-mono">
+              <p class="text-brand-light mb-1">Input: <%= exec.input.to_json.truncate(200) %></p>
+              <% if exec.output.present? %>
+                <p class="text-green-300 whitespace-pre-wrap"><%= exec.output.truncate(500) %></p>
+              <% end %>
+              <% if exec.error.present? %>
+                <p class="text-red-300"><%= exec.error.truncate(300) %></p>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

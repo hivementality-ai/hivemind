@@ -1,0 +1,72 @@
+<div class="max-w-3xl mx-auto py-8 px-4">
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-white">Edit <%= @integration.name %></h1>
+  </div>
+
+  <div class="bg-surface-card/50 border border-border-default/50 rounded-xl p-6">
+    <%= form_with model: @integration, url: api_integration_path(@integration), method: :patch, local: true, html: { multipart: true } do |f| %>
+      <% if @integration.errors.any? %>
+        <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4">
+          <% @integration.errors.full_messages.each do |msg| %>
+            <p class="text-red-400 text-sm"><%= msg %></p>
+          <% end %>
+        </div>
+      <% end %>
+
+      <div class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-text-primary mb-1">API Name</label>
+            <%= f.text_field :name, class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white focus:border-amber-500 outline-none" %>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-text-primary mb-1">Base URL</label>
+            <%= f.url_field :base_url, class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white focus:border-amber-500 outline-none" %>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-text-primary mb-1">Description</label>
+          <%= f.text_area :description, rows: 2, class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white focus:border-amber-500 outline-none" %>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-text-primary mb-1">Re-upload Spec (optional — replaces existing)</label>
+          <input type="file" name="spec_file" accept=".json,.yaml,.yml"
+                 class="w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-text-muted file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-amber-500/10 file:text-amber-500">
+        </div>
+
+        <hr class="border-border-default">
+
+        <div>
+          <label class="block text-sm font-medium text-text-primary mb-2">Authentication</label>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+            <% %w[none api_key bearer basic].each do |auth| %>
+              <label class="flex items-center gap-2 bg-surface-base border border-border-default rounded-lg px-3 py-2 cursor-pointer hover:border-amber-500/30 has-[:checked]:border-amber-500">
+                <input type="radio" name="auth_type" value="<%= auth %>" <%= 'checked' if @integration.auth_type == auth %> class="text-amber-500">
+                <span class="text-sm text-text-primary capitalize"><%= auth.tr('_', ' ') %></span>
+              </label>
+            <% end %>
+          </div>
+          <div>
+            <label class="block text-sm text-text-muted mb-1">Update API Key / Token (leave blank to keep current)</label>
+            <input type="password" name="api_key" placeholder="<%= @integration.api_key.present? ? '••••••••' : 'Not set' %>"
+                   class="w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white placeholder-text-faint focus:border-amber-500 outline-none">
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <label class="block text-sm font-medium text-text-primary">Enabled</label>
+          <%= f.check_box :enabled, class: "rounded bg-surface-base border-border-default text-amber-500 focus:ring-amber-500" %>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-2">
+          <%= link_to "Cancel", api_integration_path(@integration), class: "px-4 py-2 text-text-muted hover:text-white transition" %>
+          <button type="submit" class="px-6 py-2 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400 transition">
+            Save Changes
+          </button>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

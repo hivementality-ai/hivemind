@@ -1,0 +1,52 @@
+<div class="max-w-6xl mx-auto py-8 px-4">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-white">API Integrations</h1>
+      <p class="text-text-muted mt-1">Connect external APIs — upload a spec, store keys, let agents call endpoints.</p>
+    </div>
+    <div class="flex gap-3">
+      <%= link_to new_api_integration_path, class: "px-4 py-2 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400 transition" do %>
+        + Add API
+      <% end %>
+    </div>
+  </div>
+
+  <% if @integrations.any? %>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <% @integrations.each do |api| %>
+        <%= link_to api_integration_path(api), class: "block bg-surface-card/50 border border-border-default/50 rounded-xl p-5 hover:border-amber-500/30 hover:bg-surface-card transition group" do %>
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                <%= icon_tag(:api, size: 16, class: "text-amber-500") rescue "<span class='text-amber-500 text-xs font-bold'>API</span>".html_safe %>
+              </div>
+              <h3 class="text-white font-semibold"><%= api.name %></h3>
+            </div>
+            <span class="px-2 py-0.5 text-xs rounded-full <%= api.enabled? ? 'bg-green-500/10 text-green-400' : 'bg-surface-raised text-text-muted' %>">
+              <%= api.enabled? ? "Active" : "Disabled" %>
+            </span>
+          </div>
+
+          <p class="text-text-muted text-sm mb-3 line-clamp-2"><%= api.description || api.base_url %></p>
+
+          <div class="flex items-center gap-4 text-xs text-text-faint">
+            <span><%= api.endpoints&.size || 0 %> endpoints</span>
+            <span class="capitalize"><%= api.auth_type %> auth</span>
+            <span class="uppercase"><%= api.spec_format %></span>
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="text-center py-16 bg-surface-card/30 rounded-xl border border-border-default/50">
+      <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+        <svg class="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/>
+        </svg>
+      </div>
+      <h3 class="text-white font-semibold text-lg mb-2">No API integrations yet</h3>
+      <p class="text-text-muted mb-4">Upload an OpenAPI/Swagger spec or manually configure an API.</p>
+      <%= link_to "Add Your First API", new_api_integration_path, class: "inline-block px-4 py-2 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400 transition" %>
+    </div>
+  <% end %>
+</div>

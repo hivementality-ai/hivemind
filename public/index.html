@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hivemind — Multi-Agent AI Team Platform</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <meta name="description" content="Deploy AI agent teams that collaborate, delegate, and get work done. Open-source, self-hosted, built on Rails 8.">
+  <meta property="og:title" content="Hivemind — Multi-Agent AI Team Platform">
+  <meta property="og:description" content="Deploy AI agent teams that collaborate, delegate, and get work done.">
+  <meta property="og:image" content="/brand/logo.svg">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --amber: #F59E0B;
+      --amber-light: #FBBF24;
+      --amber-dark: #D97706;
+      --amber-glow: rgba(245, 158, 11, 0.15);
+      --bg: #0A0A0F;
+      --bg-card: #111118;
+      --bg-card-hover: #16161F;
+      --text: #E5E7EB;
+      --text-muted: #9CA3AF;
+      --border: rgba(245, 158, 11, 0.12);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ---- Animated hex grid background ---- */
+    .hex-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .hex-bg svg { width: 100%; height: 100%; opacity: 0.04; }
+
+    /* ---- Nav ---- */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+      backdrop-filter: blur(20px);
+      background: rgba(10, 10, 15, 0.8);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: 1200px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 2rem;
+    }
+    .nav-logo { display: flex; align-items: center; gap: 0.5rem; text-decoration: none; }
+    .nav-logo svg { height: 32px; }
+    .nav-logo span { font-weight: 800; font-size: 1.25rem; color: white; letter-spacing: -0.5px; }
+    .nav-links { display: flex; gap: 2rem; align-items: center; }
+    .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
+    .nav-links a:hover { color: white; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.6rem 1.4rem; border-radius: 8px; font-weight: 600; font-size: 0.9rem;
+      text-decoration: none; transition: all 0.2s; border: none; cursor: pointer;
+    }
+    .btn-primary {
+      background: var(--amber); color: #000;
+    }
+    .btn-primary:hover { background: var(--amber-light); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(245,158,11,0.3); }
+    .btn-outline {
+      border: 1px solid var(--border); color: var(--text); background: transparent;
+    }
+    .btn-outline:hover { border-color: var(--amber); color: var(--amber); }
+
+    /* ---- Hero ---- */
+    .hero {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      text-align: center;
+      padding: 8rem 2rem 4rem;
+    }
+    .hero-glow {
+      position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
+      width: 800px; height: 800px;
+      background: radial-gradient(circle, rgba(245,158,11,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-content { max-width: 800px; position: relative; }
+    .hero-logo { width: 96px; height: 96px; margin: 0 auto 2rem; animation: float 6s ease-in-out infinite; }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+    .hero h1 {
+      font-size: clamp(2.5rem, 6vw, 4.5rem); font-weight: 900; letter-spacing: -2px;
+      line-height: 1.1; margin-bottom: 1.5rem;
+    }
+    .hero h1 .amber { color: var(--amber); }
+    .hero p { font-size: 1.25rem; color: var(--text-muted); max-width: 600px; margin: 0 auto 2.5rem; line-height: 1.7; }
+    .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      margin-bottom: 2rem; padding: 0.4rem 1rem; border-radius: 100px;
+      border: 1px solid var(--border); font-size: 0.8rem; color: var(--amber);
+      background: rgba(245,158,11,0.05);
+    }
+
+    /* ---- Features grid ---- */
+    section { position: relative; z-index: 1; }
+    .section-pad { padding: 6rem 2rem; max-width: 1200px; margin: 0 auto; }
+    .section-label {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;
+      color: var(--amber); margin-bottom: 0.75rem;
+    }
+    .section-title {
+      font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; letter-spacing: -1px; margin-bottom: 1rem;
+    }
+    .section-sub { color: var(--text-muted); font-size: 1.1rem; max-width: 600px; margin-bottom: 3rem; }
+
+    .features-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+    }
+    .feature-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 2rem; transition: all 0.3s;
+    }
+    .feature-card:hover {
+      border-color: rgba(245,158,11,0.3); background: var(--bg-card-hover);
+      transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    }
+    .feature-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      background: var(--amber-glow); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 1.25rem; font-size: 1.5rem;
+    }
+    .feature-icon svg { width: 24px; height: 24px; stroke: var(--amber); fill: none; stroke-width: 1.5; }
+    .feature-card h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .feature-card p { color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
+
+    /* ---- Architecture ---- */
+    .arch-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem; margin-top: 2rem;
+    }
+    .arch-item {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 1.5rem; text-align: center;
+    }
+    .arch-item .num { font-size: 2rem; font-weight: 900; color: var(--amber); }
+    .arch-item .label { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+    /* ---- Code block ---- */
+    .code-section { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; }
+    .code-block {
+      background: #0D0D14; border: 1px solid var(--border); border-radius: 16px;
+      overflow: hidden; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85rem;
+    }
+    .code-header {
+      padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .code-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .code-dot.r { background: #EF4444; } .code-dot.y { background: #F59E0B; } .code-dot.g { background: #22C55E; }
+    .code-body { padding: 1.25rem; line-height: 1.8; }
+    .code-body .comment { color: #6B7280; }
+    .code-body .keyword { color: #C084FC; }
+    .code-body .string { color: #34D399; }
+    .code-body .fn { color: #60A5FA; }
+    .code-body .amber { color: var(--amber); }
+
+    /* ---- Tools showcase ---- */
+    .tools-wrap { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.5rem; }
+    .tool-pill {
+      padding: 0.4rem 0.9rem; border-radius: 100px; font-size: 0.8rem; font-weight: 500;
+      border: 1px solid var(--border); color: var(--text-muted);
+      background: var(--bg-card); transition: all 0.2s;
+    }
+    .tool-pill:hover { border-color: var(--amber); color: var(--amber); }
+
+    /* ---- CTA ---- */
+    .cta-section {
+      text-align: center; padding: 6rem 2rem;
+      background: linear-gradient(180deg, transparent, rgba(245,158,11,0.03), transparent);
+    }
+    .cta-section h2 { font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; letter-spacing: -1px; margin-bottom: 1rem; }
+    .cta-section p { color: var(--text-muted); font-size: 1.1rem; margin-bottom: 2rem; }
+
+    /* ---- Footer ---- */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 3rem 2rem; text-align: center;
+      color: var(--text-muted); font-size: 0.85rem;
+    }
+    footer a { color: var(--amber); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 768px) {
+      .code-section { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+      .section-pad { padding: 4rem 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Hex grid background -->
+<div class="hex-bg">
+  <svg viewBox="0 0 1200 800">
+    <defs>
+      <pattern id="hexgrid" width="60" height="52" patternUnits="userSpaceOnUse" patternTransform="rotate(0)">
+        <path d="M30 0L56 15V37L30 52L4 37V15Z" fill="none" stroke="#F59E0B" stroke-width="0.5"/>
+      </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#hexgrid)"/>
+  </svg>
+</div>
+
+<!-- Nav -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">
+      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M32 4L56 18V46L32 60L8 46V18L32 4Z" stroke="#F59E0B" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M32 16L41 21V31L32 36L23 31V21L32 16Z" stroke="#F59E0B" stroke-width="1.5" stroke-linejoin="round" opacity="0.85"/>
+        <path d="M20 30L29 35V45L20 50L11 45V35L20 30Z" stroke="#F59E0B" stroke-width="1.5" stroke-linejoin="round" opacity="0.6"/>
+        <path d="M44 30L53 35V45L44 50L35 45V35L44 30Z" stroke="#F59E0B" stroke-width="1.5" stroke-linejoin="round" opacity="0.6"/>
+      </svg>
+      <span>Hivemind</span>
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#tools">Tools</a>
+      <a href="https://github.com/MatthewSuttles/hivemind" target="_blank">GitHub</a>
+      <a href="/users/sign_in" class="btn btn-primary">Launch App</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-content">
+    <div class="hero-badge">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg>
+      Open Source &middot; Self-Hosted &middot; Rails 8
+    </div>
+    <div class="hero-logo">
+      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" width="96" height="96">
+        <path d="M32 4L56 18V46L32 60L8 46V18L32 4Z" stroke="#F59E0B" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M32 16L41 21V31L32 36L23 31V21L32 16Z" stroke="#F59E0B" stroke-width="1.5" stroke-linejoin="round" opacity="0.85"/>
+        <path d="M20 30L29 35V45L20 50L11 45V35L20 30Z" stroke="#F59E0B" stroke-width="1.5" stroke-linejoin="round" opacity="0.6"/>
+        <path d="M44 30L53 35V45L44 50L35 45V35L44 30Z" stroke="#F59E0B" stroke-width="1.5" stroke-linejoin="round" opacity="0.6"/>
+      </svg>
+    </div>
+    <h1>AI agents that work<br><span class="amber">as a team.</span></h1>
+    <p>Deploy autonomous agent teams that collaborate, delegate tasks, and use 24 built-in tools — all on your own infrastructure. No API keys leaving your network.</p>
+    <div class="hero-actions">
+      <a href="https://github.com/MatthewSuttles/hivemind" class="btn btn-primary" target="_blank">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        View on GitHub
+      </a>
+      <a href="#features" class="btn btn-outline">Explore Features</a>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section id="features">
+  <div class="section-pad">
+    <div class="section-label">Capabilities</div>
+    <h2 class="section-title">Everything you need for AI teams.</h2>
+    <p class="section-sub">From single-agent chat to multi-agent orchestration with real-time collaboration.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        </div>
+        <h3>Agent Teams</h3>
+        <p>Group agents into teams with shared context. Agents collaborate via @mentions in team chat, delegating and building on each other's work.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        </div>
+        <h3>Team Chat</h3>
+        <p>Real-time group conversations. @mention agents to pull them in, or @team to get everyone's take. Agents can chain-react to each other.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3>Self-Hosted & Secure</h3>
+        <p>Everything runs on your infrastructure. API keys never leave your network. Vault-encrypted secrets, audit logging, and sandboxed execution.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        </div>
+        <h3>5-Platform Messaging</h3>
+        <p>Connect Discord, Slack, Telegram, WhatsApp, and Signal. Inbound webhooks route messages to the right agents automatically.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        </div>
+        <h3>24 Built-in Tools</h3>
+        <p>Shell, file ops, web search, browser automation, cron, TTS, Gmail, cloud storage, vision — agents come equipped out of the box.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+        </div>
+        <h3>Sub-Agent Orchestration</h3>
+        <p>Three tiers of collaboration: synchronous delegation, async sub-agents, and conversational team chat. Agents pick the right mode.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 118 2.83"/><path d="M22 12A10 10 0 0012 2v10z"/></svg>
+        </div>
+        <h3>Analytics & Budgets</h3>
+        <p>Track token usage, cost, and performance per agent. Set spending limits with real-time budget enforcement.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        <h3>Multi-Provider</h3>
+        <p>Run Anthropic Claude, OpenAI GPT, or local Ollama models. Mix and match per agent — use the right model for each job.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <h3>Autonomous Heartbeat</h3>
+        <p>A hidden system agent that runs on schedule — checking email, calendar, notifications. Agents write tasks to its checklist.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Architecture -->
+<section id="architecture" style="background: linear-gradient(180deg, transparent, rgba(245,158,11,0.02), transparent);">
+  <div class="section-pad">
+    <div class="section-label">Architecture</div>
+    <h2 class="section-title">Production-grade from day one.</h2>
+    <p class="section-sub">Docker-native, seven containers, zero compromises.</p>
+    <div class="arch-grid">
+      <div class="arch-item">
+        <div class="num">7</div>
+        <div class="label">Docker Containers</div>
+      </div>
+      <div class="arch-item">
+        <div class="num">33</div>
+        <div class="label">Database Tables</div>
+      </div>
+      <div class="arch-item">
+        <div class="num">24</div>
+        <div class="label">Built-in Tools</div>
+      </div>
+      <div class="arch-item">
+        <div class="num">10</div>
+        <div class="label">Agent Templates</div>
+      </div>
+      <div class="arch-item">
+        <div class="num">5</div>
+        <div class="label">Messaging Platforms</div>
+      </div>
+    </div>
+
+    <div class="code-section" style="margin-top: 3rem;">
+      <div>
+        <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem;">Five minutes to first agent.</h3>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem; line-height: 1.7;">Clone, configure, compose up. The in-app setup wizard walks you through account creation, provider keys, and your first team. No YAML wrangling required.</p>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+          <span class="tool-pill">Rails 8</span>
+          <span class="tool-pill">PostgreSQL + pgvector</span>
+          <span class="tool-pill">Redis</span>
+          <span class="tool-pill">Sidekiq</span>
+          <span class="tool-pill">ActionCable</span>
+          <span class="tool-pill">Playwright</span>
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-dot r"></span>
+          <span class="code-dot y"></span>
+          <span class="code-dot g"></span>
+          <span style="color: var(--text-muted); font-size: 0.8rem; margin-left: 0.5rem;">terminal</span>
+        </div>
+        <div class="code-body">
+          <span class="comment"># Clone &amp; configure</span><br>
+          <span class="fn">git</span> clone https://github.com/MatthewSuttles/hivemind<br>
+          <span class="fn">cd</span> hivemind<br>
+          <span class="fn">cp</span> .env.example .env<br>
+          <br>
+          <span class="comment"># Launch the full stack</span><br>
+          <span class="fn">docker</span> compose up -d<br>
+          <br>
+          <span class="comment"># Visit localhost:3001</span><br>
+          <span class="comment"># Setup wizard handles the rest</span><br>
+          <span class="amber">→</span> <span class="string">Hivemind is running.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Tools -->
+<section id="tools">
+  <div class="section-pad">
+    <div class="section-label">Toolbox</div>
+    <h2 class="section-title">24 tools. Zero configuration.</h2>
+    <p class="section-sub">Every agent gets access to a full toolkit. Assign per-agent, or let them all use everything.</p>
+    <div class="tools-wrap">
+      <span class="tool-pill">shell</span>
+      <span class="tool-pill">file_read</span>
+      <span class="tool-pill">file_write</span>
+      <span class="tool-pill">file_edit</span>
+      <span class="tool-pill">web_search</span>
+      <span class="tool-pill">web_fetch</span>
+      <span class="tool-pill">browser</span>
+      <span class="tool-pill">memory_search</span>
+      <span class="tool-pill">image</span>
+      <span class="tool-pill">cron</span>
+      <span class="tool-pill">message</span>
+      <span class="tool-pill">heartbeat_write</span>
+      <span class="tool-pill">delegate</span>
+      <span class="tool-pill">spawn</span>
+      <span class="tool-pill">spawn_status</span>
+      <span class="tool-pill">sessions_list</span>
+      <span class="tool-pill">sessions_send</span>
+      <span class="tool-pill">sessions_history</span>
+      <span class="tool-pill">session_status</span>
+      <span class="tool-pill">agents_list</span>
+      <span class="tool-pill">gateway</span>
+      <span class="tool-pill">tts</span>
+      <span class="tool-pill">gmail</span>
+      <span class="tool-pill">cloud_storage</span>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <h2>Your AI team is waiting.</h2>
+  <p>Self-hosted, open-source, and ready in five minutes.</p>
+  <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+    <a href="https://github.com/MatthewSuttles/hivemind" class="btn btn-primary" target="_blank">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+      Get Started
+    </a>
+    <a href="https://github.com/MatthewSuttles/hivemind/blob/main/README.md" class="btn btn-outline" target="_blank">Read the Docs</a>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div style="max-width: 1200px; margin: 0 auto;">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 1rem;">
+      <svg viewBox="0 0 64 64" fill="none" width="24" height="24">
+        <path d="M32 4L56 18V46L32 60L8 46V18L32 4Z" stroke="#F59E0B" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M32 16L41 21V31L32 36L23 31V21L32 16Z" stroke="#F59E0B" stroke-width="1.5" stroke-linejoin="round" opacity="0.85"/>
+      </svg>
+      <span style="font-weight: 700; color: white;">Hivemind</span>
+    </div>
+    <p>Built with Rails 8, caffeine, and a mild obsession with hexagons.</p>
+    <p style="margin-top: 0.5rem;">
+      <a href="https://github.com/MatthewSuttles/hivemind">GitHub</a> &middot;
+      <a href="https://github.com/MatthewSuttles/hivemind/issues">Issues</a> &middot;
+      MIT License
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

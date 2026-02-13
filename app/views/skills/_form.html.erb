@@ -1,0 +1,80 @@
+<%= form_with(model: skill, class: "space-y-6") do |form| %>
+  <% if skill.errors.any? %>
+    <div class="bg-red-900/50 border border-red-600 text-red-200 p-4 rounded-lg">
+      <ul class="list-disc list-inside text-sm">
+        <% skill.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="bg-surface-card rounded-xl border border-border-default p-6">
+    <h2 class="text-lg font-semibold text-white mb-4">Skill Details</h2>
+    <div class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <%= form.label :name, class: "block text-sm font-medium text-text-primary mb-1" %>
+          <%= form.text_field :name, placeholder: "e.g. github, weather, trello",
+              class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
+        </div>
+        <div>
+          <%= form.label :category, class: "block text-sm font-medium text-text-primary mb-1" %>
+          <%= form.select :category,
+              options_for_select(Skill::CATEGORIES.map { |c| [c.titleize, c] }, skill.category),
+              { include_blank: "— Select Category —" },
+              { class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand" } %>
+        </div>
+      </div>
+
+      <div>
+        <%= form.label :description, class: "block text-sm font-medium text-text-primary mb-1" %>
+        <%= form.text_field :description, placeholder: "Brief description of what this skill teaches the agent",
+            class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <%= form.label :content, "Instructions", class: "block text-sm font-medium text-text-primary" %>
+          <span class="text-text-faint text-xs">Markdown supported. This gets injected into the agent's system prompt.</span>
+        </div>
+        <%= form.text_area :content,
+            rows: 20,
+            placeholder: "# Skill Name\n\nInstructions for the agent on how to use this skill...\n\n## When to use\n- Trigger conditions\n\n## How to use\n- Step-by-step instructions\n- Tool calls to make\n- Expected outputs",
+            class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm leading-relaxed resize-y" %>
+      </div>
+
+      <!-- Required Tools -->
+      <div>
+        <label class="block text-sm font-medium text-text-primary mb-2">Required Tools</label>
+        <p class="text-text-faint text-xs mb-3">When this skill is assigned to an agent, these tools are automatically added. Removing the skill removes these tools (unless the agent has them independently).</p>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+          <% Tool.enabled.order(:name).each do |tool| %>
+            <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-raised/30 hover:bg-surface-raised/60 transition cursor-pointer">
+              <%= check_box_tag "skill[tool_ids][]", tool.id,
+                  skill.tool_ids.include?(tool.id),
+                  class: "w-4 h-4 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay" %>
+              <span class="text-text-primary text-xs truncate"><%= tool.name %></span>
+            </label>
+          <% end %>
+        </div>
+        <%= hidden_field_tag "skill[tool_ids][]", "" %>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <%= form.check_box :enabled, class: "w-4 h-4 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay" %>
+        <%= form.label :enabled, "Enabled", class: "text-text-primary text-sm" %>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-4">
+    <%= form.submit skill.persisted? ? "Save Changes" : "Create Skill",
+        class: "px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg transition cursor-pointer" %>
+    <% if skill.persisted? %>
+      <%= link_to "Cancel", skill_path(skill), class: "px-6 py-3 text-text-muted hover:text-white transition" %>
+    <% else %>
+      <%= link_to "Cancel", skills_path, class: "px-6 py-3 text-text-muted hover:text-white transition" %>
+    <% end %>
+  </div>
+<% end %>

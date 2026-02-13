@@ -1,0 +1,41 @@
+# frozen_string_literal: true
+
+module Tools
+  class FileReadExecutor < BaseExecutor
+    MAX_SIZE = 100_000
+    WORKSPACE_ROOT = "/workspace"
+
+    def call
+      path = input["path"].to_s.strip
+      return ServiceResponse.failure(error: "No path provided") if path.empty?
+
+      # Resolve relative paths against workspace
+      full_path = path.start_with?("/") ? path : File.join(WORKSPACE_ROOT, path)
+
+      # Security: must be within workspace
+      unless full_path.start_with?(WORKSPACE_ROOT)
+        return ServiceResponse.failure(error: "Access denied: path must be within /workspace")
+      end
+
+      unless File.exist?(full_path)
+        return ServiceResponse.failure(error: "File not found: #{path}")
+      end
+
+      raw = File.binread(full_path, MAX_SIZE)
+
+      # Ensure valid UTF-8 — binary files must not go into PG text columns
+      content = raw.force_encoding("UTF-8")
+      unless content.valid_encoding?
+        content = raw.encode("UTF-8", "ASCII-8BIT", invalid: :replace, undef: :replace, replace: "")
+                     .gsub(/[^[:print:]\s]/, "")
+        if content.strip.length < 50
+          return ServiceResponse.failure(error: "File appears to be binary (#{File.extname(full_path)}). Try the .extracted.txt version if available, or use a different tool to process this file type.")
+        end
+      end
+
+      ServiceResponse.success(data: { output: content, exit_code: 0 })
+    rescue StandardError => e
+      ServiceResponse.failure(error: "Read failed: #{e.message}")
+    end
+  end
+end

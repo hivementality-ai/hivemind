@@ -1,0 +1,353 @@
+# frozen_string_literal: true
+
+class ChatStreamJob < ApplicationJob
+  queue_as :default
+
+  def perform(session_id, user_message, attachment_ids = [])
+    session = Session.find(session_id)
+    agent = session.agent
+    channel = "session_#{session.id}"
+
+    # ── Hashtag Actions ──────────────────────────────────────────
+    hashtag_result = HashtagActions::Processor.call(
+      message: user_message,
+      agent: agent,
+      session: session
+    )
+
+    if hashtag_result.bypass_llm
+      # Actions handled everything — broadcast response and return
+      session.append_transcript({ "role" => "user", "content" => user_message, "timestamp" => Time.current.iso8601 })
+      ActionCable.server.broadcast(channel, { type: "user_message", content: user_message })
+
+      response = hashtag_result.response
+      session.append_transcript({ "role" => "assistant", "content" => response, "timestamp" => Time.current.iso8601 })
+      ActionCable.server.broadcast(channel, { type: "token", content: response })
+      ActionCable.server.broadcast(channel, { type: "done", content: response })
+      return
+    end
+
+    # Use cleaned message (hashtags stripped) for LLM
+    effective_message = hashtag_result.clean_message.presence || user_message
+
+    # Load attachments (images + documents)
+    attachments = attachment_ids.present? ? ChatAttachment.where(id: attachment_ids) : []
+    image_attachments = attachments.select(&:image?)
+    doc_attachments = attachments.select(&:document?)
+
+    # Save documents to workspace and tell agent the paths
+    if doc_attachments.any?
+      saved_paths = save_docs_to_workspace(doc_attachments)
+      if saved_paths.any?
+        file_list = saved_paths.map do |f|
+          line = "  - #{f[:path]} (#{f[:filename]}, #{f[:size]})"
+          line += " — #{f[:note]}" if f[:note]
+          line
+        end.join("\n")
+        effective_message = "#{effective_message}\n\n[Attached Files — saved to workspace]\n#{file_list}\n\nUse the file_read tool to read these files."
+      end
+    end
+
+    # Build transcript entry (with image/file refs)
+    transcript_entry = { "role" => "user", "content" => user_message, "timestamp" => Time.current.iso8601 }
+    if image_attachments.any?
+      transcript_entry["images"] = image_attachments.map do |a|
+        { "attachment_id" => a.id, "content_type" => a.content_type, "filename" => a.filename }
+      end
+      # Update attachment message_index
+      message_index = (session.transcript || []).size
+      image_attachments.each { |a| a.update(message_index: message_index) }
+    end
+    if doc_attachments.any?
+      transcript_entry["files"] = doc_attachments.map do |a|
+        { "attachment_id" => a.id, "content_type" => a.content_type, "filename" => a.filename, "byte_size" => a.byte_size }
+      end
+    end
+
+    session.transcript << transcript_entry
+    session.save!
+
+    # Broadcast user message (with image URLs + file info for display)
+    broadcast_data = { type: "user_message", content: user_message }
+    if doc_attachments.any?
+      broadcast_data[:files] = doc_attachments.map do |a|
+        { filename: a.filename, content_type: a.content_type, byte_size: a.byte_size }
+      end
+    end
+    if image_attachments.any?
+      broadcast_data[:images] = image_attachments.map do |a|
+        { id: a.id, filename: a.filename, url: rails_blob_url(a) }
+      end
+    end
+    ActionCable.server.broadcast(channel, broadcast_data)
+
+    # Resolve provider
+    resolver = Providers::Resolver.call(provider_name: agent.model_provider, agent:)
+    unless resolver.success?
+      ActionCable.server.broadcast(channel, { type: "error", content: resolver.error })
+      return
+    end
+
+    adapter = resolver.data[:adapter]
+
+    # Build messages for LLM (with vision content + hashtag addons)
+    messages = build_messages(session:, agent:, current_images: image_attachments, prompt_addons: hashtag_result.prompt_addons)
+
+    # If there's a hashtag response to prepend (non-bypass actions), broadcast it
+    if hashtag_result.response.present?
+      ActionCable.server.broadcast(channel, { type: "token", content: "#{hashtag_result.response}\n\n---\n\n" })
+    end
+
+    # Resolve tools
+    tools = resolve_tools(agent)
+
+    begin
+      # Build LLM options (with thinking if enabled)
+      llm_options = { model: agent.llm_model, max_tokens: 8192 }
+      if agent.thinking_enabled?
+        llm_options[:thinking_enabled] = true
+        llm_options[:thinking_budget_tokens] = agent.thinking_budget_tokens || 10_000
+      end
+
+      thinking_content = nil
+      show_thinking = agent.thinking_enabled? && agent.thinking_visibility == "debug"
+
+      if tools.any?
+        result = Agents::ToolLoop.call(
+          adapter:,
+          agent:,
+          session:,
+          messages:,
+          tools:,
+          channel:,
+          options: llm_options
+        )
+        full_content = result&.data&.dig(:content).to_s
+        thinking_content = result&.data&.dig(:thinking)
+      else
+        full_content = +""
+        full_thinking = +""
+        result = adapter.chat(
+          messages:,
+          options: llm_options
+        ) do |chunk|
+          case chunk[:type]
+          when "thinking_start"
+            ActionCable.server.broadcast(channel, { type: "thinking_start" }) if show_thinking
+          when "thinking"
+            full_thinking << chunk[:content] if chunk[:content]
+            ActionCable.server.broadcast(channel, { type: "thinking", content: chunk[:content] }) if show_thinking
+          when "thinking_stop"
+            ActionCable.server.broadcast(channel, { type: "thinking_stop" }) if show_thinking
+          when "content"
+            if chunk[:content]
+              full_content << chunk[:content]
+              ActionCable.server.broadcast(channel, { type: "token", content: chunk[:content] })
+            end
+          end
+        end
+
+        thinking_content = full_thinking.presence
+
+        if full_content.empty? && result&.success?
+          full_content = result.data[:content].to_s
+          thinking_content ||= result.data[:thinking]
+          ActionCable.server.broadcast(channel, { type: "token", content: full_content })
+        end
+      end
+
+      # Append assistant response (thinking stored as metadata, not visible content)
+      session.reload
+      transcript_entry = { "role" => "assistant", "content" => full_content, "timestamp" => Time.current.iso8601 }
+      transcript_entry["thinking"] = thinking_content if thinking_content.present?
+      session.transcript << transcript_entry
+      session.save!
+
+      # Track usage
+      usage = result&.data&.dig(:usage) || {}
+      track_usage(agent:, session:, usage:)
+
+      # Store memory
+      store_memory(agent:, session:, user_message:, assistant_response: full_content)
+
+      ActionCable.server.broadcast(channel, { type: "done", content: full_content })
+
+    rescue StandardError => e
+      ActionCable.server.broadcast(channel, { type: "error", content: "Error: #{e.message}" })
+      Rails.logger.error("ChatStreamJob error: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")
+    end
+  end
+
+  private
+
+  def rails_blob_url(attachment)
+    return nil unless attachment.file.attached?
+
+    Rails.application.routes.url_helpers.rails_blob_path(attachment.file, only_path: true)
+  end
+
+  def resolve_tools(agent)
+    assigned = agent.agent_tools.includes(:tool).map(&:tool).select(&:enabled?)
+    return assigned if assigned.any?
+
+    Tool.enabled.builtin.to_a
+  end
+
+  def build_messages(session:, agent:, current_images: [], prompt_addons: [])
+    messages = []
+
+    # System prompt
+    system_prompt = agent.full_system_prompt.presence || "You are #{agent.name}, a helpful AI assistant."
+
+    memory_context = recall_memories(agent:, session:)
+    if memory_context.present?
+      system_prompt += "\n\n## Relevant Memories\n#{memory_context}\n\nUse these memories naturally when relevant. Don't mention you're recalling memories."
+    end
+
+    # Inject mood from session metadata
+    if (mood = session.metadata&.dig("mood"))
+      system_prompt += "\n\n## Style Override\nAdjust your communication style: #{mood}"
+    end
+
+    # Inject hashtag action prompt addons
+    prompt_addons.each do |addon|
+      system_prompt += "\n\n#{addon}"
+    end
+
+    messages << { role: "system", content: system_prompt }
+
+    # Add transcript history (last 50 messages)
+    transcript = session.transcript.last(50)
+    transcript.each_with_index do |msg, idx|
+      if msg["role"] == "user" && msg["images"].present? && idx == transcript.size - 1
+        # Current message with images — build multimodal content
+        messages << build_vision_message(msg, current_images)
+      elsif msg["role"] == "user" && msg["images"].present?
+        # Past message with images — just use text (images aren't re-sent)
+        text = msg["content"].to_s
+        text += "\n[User attached #{msg["images"].size} image(s)]" if msg["images"].any?
+        messages << { role: "user", content: text }
+      else
+        messages << { role: msg["role"], content: msg["content"] }
+      end
+    end
+
+    messages
+  end
+
+  def build_vision_message(msg, image_attachments)
+    content_blocks = []
+
+    # Add images first
+    image_attachments.each do |attachment|
+      next unless attachment.image? && attachment.file.attached?
+
+      base64 = attachment.to_base64
+      next unless base64
+
+      content_blocks << {
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: attachment.media_type,
+          data: base64
+        }
+      }
+    end
+
+    # Add text
+    text = msg["content"].to_s
+    content_blocks << { type: "text", text: text } if text.present?
+
+    { role: "user", content: content_blocks }
+  end
+
+  def recall_memories(agent:, session:)
+    last_user_msg = session.transcript.select { |m| m["role"] == "user" }.last
+    return nil unless last_user_msg
+
+    query = last_user_msg["content"].to_s
+    return nil if query.length < 5
+
+    keywords = query.downcase.split(/\s+/).reject { |w| w.length < 4 }.first(5)
+    return nil if keywords.empty?
+
+    memories = keywords.flat_map do |kw|
+      MemoryEntry.where(agent:)
+                 .where("LOWER(content) LIKE ?", "%#{MemoryEntry.sanitize_sql_like(kw)}%")
+                 .order(created_at: :desc)
+                 .limit(3)
+                 .to_a
+    end
+
+    recent = MemoryEntry.where(agent:).order(created_at: :desc).limit(3).to_a
+    all_memories = (memories + recent).uniq(&:id).first(5)
+
+    return nil if all_memories.empty?
+
+    all_memories.map { |m| "- #{m.content.truncate(200)}" }.join("\n")
+  end
+
+  def track_usage(agent:, session:, usage:)
+    return if usage.blank?
+
+    input_tokens = usage[:input_tokens] || 0
+    output_tokens = usage[:output_tokens] || 0
+    cost = CostEstimator.estimate(model: agent.llm_model, input_tokens:, output_tokens:)
+
+    UsageRecord.create(
+      agent:,
+      session:,
+      provider: agent.model_provider,
+      llm_model: agent.llm_model,
+      input_tokens:,
+      output_tokens:,
+      cost_cents: cost
+    )
+  end
+
+  # Cost estimation moved to CostEstimator service
+
+  def save_docs_to_workspace(doc_attachments)
+    upload_dir = "/workspace/uploads/#{Date.current.iso8601}"
+    FileUtils.mkdir_p(upload_dir)
+
+    doc_attachments.filter_map do |doc|
+      next unless doc.file.attached?
+
+      safe_name = doc.filename.to_s.gsub(/[^a-zA-Z0-9._-]/, "_")
+      timestamped = "#{Time.current.strftime('%H%M%S')}_#{safe_name}"
+      path = File.join(upload_dir, timestamped)
+      data = doc.file.download
+
+      File.binwrite(path, data)
+
+      size = doc.byte_size < 1024 ? "#{doc.byte_size}B" : doc.byte_size < 1_048_576 ? "#{(doc.byte_size / 1024.0).round(1)}KB" : "#{(doc.byte_size / 1_048_576.0).round(1)}MB"
+      result = { path: path, filename: doc.filename.to_s, size: size }
+
+      if doc.content_type == "application/pdf"
+        result[:note] = "PDF — use the pdf_read tool (not file_read) to extract text, metadata, or tables"
+      elsif !doc.content_type.to_s.start_with?("text/") && !%w[application/json application/xml].include?(doc.content_type)
+        result[:note] = "Binary file — may not be directly readable with file_read"
+      end
+
+      result
+    rescue StandardError => e
+      Rails.logger.warn("Failed to save doc to workspace: #{e.message}")
+      nil
+    end
+  end
+
+  def store_memory(agent:, session:, user_message:, assistant_response:)
+    return if user_message.length < 20
+
+    MemoryEntry.create(
+      agent:,
+      content: "User asked: #{user_message.truncate(200)}\nAssistant: #{assistant_response.truncate(300)}",
+      source: session,
+      metadata: { session_id: session.id, stored_at: Time.current.iso8601 }
+    )
+  rescue StandardError => e
+    Rails.logger.warn("Memory store failed: #{e.message}")
+  end
+end

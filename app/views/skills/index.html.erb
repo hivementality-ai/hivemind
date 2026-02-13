@@ -1,0 +1,50 @@
+<div class="max-w-7xl mx-auto px-6 py-8">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-white">Skills</h1>
+      <p class="text-text-muted text-sm mt-1">Teach your agents new capabilities. Skills inject instructions into agent prompts.</p>
+    </div>
+    <div class="flex gap-3">
+      <%= form_tag import_skills_path, method: :post, multipart: true, class: "flex items-center gap-2" do %>
+        <%= file_field_tag :file, accept: ".md,.txt",
+            class: "text-sm text-text-muted file:mr-2 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-surface-raised file:text-text-primary hover:file:bg-surface-overlay file:cursor-pointer" %>
+        <%= submit_tag "Import SKILL.md", class: "px-4 py-2 bg-surface-raised hover:bg-surface-overlay text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+      <% end %>
+      <%= link_to "New Skill", new_skill_path, class: "px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition" %>
+    </div>
+  </div>
+
+  <% if @skills.any? %>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <% @skills.each do |skill| %>
+        <%= link_to skill_path(skill), class: "block bg-surface-card rounded-xl border border-border-default hover:border-amber-500/50 transition p-5" do %>
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex-1 min-w-0">
+              <h3 class="text-white font-semibold truncate"><%= skill.name %></h3>
+              <% if skill.category.present? %>
+                <span class="text-xs text-text-faint uppercase tracking-wide"><%= skill.category %></span>
+              <% end %>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0 ml-3">
+              <% if skill.builtin? %>
+                <span class="px-2 py-0.5 text-xs rounded-full bg-brand-glow/50 text-brand-light">bundled</span>
+              <% else %>
+                <span class="px-2 py-0.5 text-xs rounded-full bg-amber-900/50 text-amber-300">custom</span>
+              <% end %>
+              <span class="w-2.5 h-2.5 rounded-full <%= skill.enabled? ? 'bg-green-400' : 'bg-surface-overlay' %>"></span>
+            </div>
+          </div>
+          <p class="text-text-muted text-sm line-clamp-2"><%= skill.description || skill.content.truncate(120) %></p>
+          <div class="mt-3 text-gray-600 text-xs">
+            <%= skill.agents.count %> agent<%= skill.agents.count == 1 ? '' : 's' %> using this
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="bg-surface-card rounded-xl border border-border-default p-12 text-center">
+      <p class="text-text-muted mb-4">No skills yet. Create one or import an OpenClaw SKILL.md file.</p>
+      <%= link_to "Create First Skill", new_skill_path, class: "px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition" %>
+    </div>
+  <% end %>
+</div>

@@ -1,0 +1,78 @@
+<div class="max-w-4xl mx-auto px-6 py-8">
+  <%= link_to "← Skills", skills_path, class: "text-brand-light hover:text-brand-light text-sm" %>
+
+  <div class="mt-4 flex items-start justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-white"><%= @skill.name %></h1>
+      <div class="flex items-center gap-3 mt-2">
+        <% if @skill.category.present? %>
+          <span class="px-2 py-0.5 text-xs rounded-full bg-surface-raised text-text-primary"><%= @skill.category %></span>
+        <% end %>
+        <% if @skill.builtin? %>
+          <span class="px-2 py-0.5 text-xs rounded-full bg-brand-glow/50 text-brand-light">bundled</span>
+        <% end %>
+        <span class="text-sm <%= @skill.enabled? ? 'text-green-400' : 'text-text-faint' %>">
+          <%= @skill.enabled? ? "Enabled" : "Disabled" %>
+        </span>
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <%= button_to @skill.enabled? ? "Disable" : "Enable",
+          toggle_skill_path(@skill), method: :patch,
+          class: "px-4 py-2 text-sm font-medium rounded-lg transition #{@skill.enabled? ? 'bg-surface-raised hover:bg-surface-overlay text-text-primary' : 'bg-green-600 hover:bg-green-700 text-white'}" %>
+      <%= link_to "Export", export_skill_path(@skill),
+          class: "px-4 py-2 bg-surface-raised hover:bg-surface-overlay text-white text-sm font-medium rounded-lg transition" %>
+      <%= link_to "Edit", edit_skill_path(@skill),
+          class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition" %>
+    </div>
+  </div>
+
+  <% if @skill.description.present? %>
+    <p class="text-text-muted mb-6"><%= @skill.description %></p>
+  <% end %>
+
+  <!-- Content -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+    <h2 class="text-base font-semibold text-white mb-4">Instructions</h2>
+    <div class="prose prose-invert prose-sm max-w-none">
+      <pre class="whitespace-pre-wrap text-text-primary text-sm font-mono bg-surface-base rounded-lg p-4 overflow-x-auto"><%= @skill.content %></pre>
+    </div>
+  </div>
+
+  <!-- Required Tools -->
+  <% if @skill.tools.any? %>
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+    <h2 class="text-base font-semibold text-white mb-4">Required Tools</h2>
+    <p class="text-text-faint text-xs mb-3">Automatically added to agents when this skill is assigned.</p>
+    <div class="flex flex-wrap gap-2">
+      <% @skill.tools.order(:name).each do |tool| %>
+        <span class="px-3 py-1 text-sm rounded-full bg-brand-glow/30 text-brand-light"><%= tool.name %></span>
+      <% end %>
+    </div>
+  </div>
+  <% end %>
+
+  <!-- Agents using this skill -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6">
+    <h2 class="text-base font-semibold text-white mb-4">Agents Using This Skill</h2>
+    <% if @skill.agents.any? %>
+      <div class="flex flex-wrap gap-2">
+        <% @skill.agents.each do |agent| %>
+          <%= link_to agent_path(agent), class: "px-3 py-1.5 bg-surface-raised hover:bg-surface-overlay rounded-lg text-text-primary text-sm transition" do %>
+            <%= agent.name %>
+          <% end %>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="text-text-faint text-sm">No agents assigned. Assign skills from the agent edit page.</p>
+    <% end %>
+  </div>
+
+  <% unless @skill.builtin? %>
+    <div class="mt-6 flex justify-end">
+      <%= button_to "Delete Skill", skill_path(@skill), method: :delete,
+          data: { turbo_confirm: "Delete #{@skill.name}?" },
+          class: "px-4 py-2 bg-red-600/20 hover:bg-red-600/40 text-red-400 text-sm font-medium rounded-lg transition" %>
+    </div>
+  <% end %>
+</div>

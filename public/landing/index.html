@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hivemind — Multi-Agent AI Team Platform</title>
+  <meta name="description" content="Deploy, orchestrate, and manage teams of AI agents. Built with Rails 8. Self-hosted. Open source.">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+    @keyframes fade-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-float { animation: float 6s ease-in-out infinite; }
+    .animate-fade-up { animation: fade-up 0.6s ease-out both; }
+    .delay-100 { animation-delay: 100ms; }
+    .delay-200 { animation-delay: 200ms; }
+    .delay-300 { animation-delay: 300ms; }
+    .delay-400 { animation-delay: 400ms; }
+    .delay-500 { animation-delay: 500ms; }
+    .hex-grid { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%23f59e0b' fill-opacity='0.03'%3E%3Cpath d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9zM0 15l12.98-7.5V0h-2v6.35L0 12.69v2.3zm0 18.5L12.98 41v8h-2v-6.85L0 35.81v-2.3zM15 0v7.5L27.99 15H28v-2.31h-.01L17 6.35V0h-2zm0 49v-8l12.99-7.5H28v2.31h-.01L17 42.15V49h-2z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
+  </style>
+</head>
+<body class="bg-gray-950 text-white antialiased hex-grid">
+
+  <!-- Nav -->
+  <nav class="fixed top-0 w-full z-50 bg-gray-950/80 backdrop-blur-xl border-b border-gray-800/50">
+    <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+      <a href="#" class="flex items-center gap-3">
+        <svg class="w-8 h-8 text-amber-400" viewBox="0 0 32 32" fill="none">
+          <path d="M16 2L28 9V23L16 30L4 23V9L16 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M16 8L20.5 10.5V15.5L16 18L11.5 15.5V10.5L16 8Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" opacity="0.8"/>
+          <path d="M10 15L14.5 17.5V22.5L10 25L5.5 22.5V17.5L10 15Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" opacity="0.6"/>
+          <path d="M22 15L26.5 17.5V22.5L22 25L17.5 22.5V17.5L22 15Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" opacity="0.6"/>
+        </svg>
+        <span class="text-xl font-bold">Hivemind</span>
+      </a>
+      <div class="flex items-center gap-6">
+        <a href="#features" class="text-gray-400 hover:text-white transition text-sm">Features</a>
+        <a href="#architecture" class="text-gray-400 hover:text-white transition text-sm">Architecture</a>
+        <a href="#tools" class="text-gray-400 hover:text-white transition text-sm">Tools</a>
+        <a href="https://github.com/MatthewSuttles/hivemind" target="_blank" class="text-gray-400 hover:text-white transition text-sm">GitHub</a>
+        <a href="/users/sign_in" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold rounded-lg transition text-sm">Launch Dashboard</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="min-h-screen flex items-center justify-center px-6 pt-20">
+    <div class="max-w-4xl mx-auto text-center">
+      <div class="animate-fade-up">
+        <div class="animate-float inline-block mb-8">
+          <svg class="w-24 h-24 text-amber-400 mx-auto" viewBox="0 0 64 64" fill="none">
+            <path d="M32 4L56 18V46L32 60L8 46V18L32 4Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M32 16L41 21V31L32 36L23 31V21L32 16Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" opacity="0.85"/>
+            <path d="M20 30L29 35V45L20 50L11 45V35L20 30Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" opacity="0.6"/>
+            <path d="M44 30L53 35V45L44 50L35 45V35L44 30Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" opacity="0.6"/>
+          </svg>
+        </div>
+      </div>
+
+      <h1 class="text-5xl md:text-7xl font-bold tracking-tight mb-6 animate-fade-up delay-100">
+        Your AI agents,<br>
+        <span class="text-amber-400">working together.</span>
+      </h1>
+
+      <p class="text-xl text-gray-400 max-w-2xl mx-auto mb-10 animate-fade-up delay-200">
+        Deploy teams of specialized AI agents that collaborate, delegate, and get things done.
+        Self-hosted. Open source. Built with Rails 8.
+      </p>
+
+      <div class="flex items-center justify-center gap-4 animate-fade-up delay-300">
+        <a href="https://github.com/MatthewSuttles/hivemind" target="_blank"
+           class="px-8 py-4 bg-white text-gray-900 font-semibold rounded-xl hover:bg-gray-100 transition flex items-center gap-2">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          View on GitHub
+        </a>
+        <a href="#features"
+           class="px-8 py-4 border border-gray-700 text-white font-semibold rounded-xl hover:bg-gray-800 transition">
+          Learn more
+        </a>
+      </div>
+
+      <div class="mt-16 text-sm text-gray-600 animate-fade-up delay-400">
+        Rails 8 · PostgreSQL · Redis · Sidekiq · Docker · ActionCable
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features" class="py-32 px-6">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-20">
+        <h2 class="text-4xl font-bold mb-4">Everything you need to run AI teams</h2>
+        <p class="text-gray-400 text-lg max-w-2xl mx-auto">Not just a chatbot. A full platform for deploying, managing, and orchestrating multiple AI agents that work together.</p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-8">
+        <!-- Card 1 -->
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-8 hover:border-amber-500/30 transition group">
+          <div class="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-amber-500/20 transition">
+            <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-3">Agent Teams</h3>
+          <p class="text-gray-400">Create specialized agents with different models, roles, and instructions. Group them into teams that collaborate naturally.</p>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-8 hover:border-amber-500/30 transition group">
+          <div class="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-amber-500/20 transition">
+            <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a2 2 0 01-2-2v-1m0-3V4a2 2 0 012-2h6a2 2 0 012 2v4a2 2 0 01-2 2H9l-4 4V8z"/></svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-3">Team Chat</h3>
+          <p class="text-gray-400">@mention agents in group chat. They respond, collaborate, and chain-react — @mentioning each other when they need help.</p>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-8 hover:border-amber-500/30 transition group">
+          <div class="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-amber-500/20 transition">
+            <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-3">24 Built-in Tools</h3>
+          <p class="text-gray-400">Shell, file ops, web search, browser, cloud storage, Gmail, TTS, vision, cron jobs, messaging — agents can do real work.</p>
+        </div>
+
+        <!-- Card 4 -->
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-8 hover:border-amber-500/30 transition group">
+          <div class="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-amber-500/20 transition">
+            <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-3">5 Messaging Channels</h3>
+          <p class="text-gray-400">Connect Discord, Slack, Telegram, WhatsApp, and Signal. Agents respond to messages from any platform automatically.</p>
+        </div>
+
+        <!-- Card 5 -->
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-8 hover:border-amber-500/30 transition group">
+          <div class="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-amber-500/20 transition">
+            <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-3">Autonomous Heartbeat</h3>
+          <p class="text-gray-400">A system agent runs periodic checks — email, calendar, health monitoring. Agents add tasks to a shared checklist.</p>
+        </div>
+
+        <!-- Card 6 -->
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-8 hover:border-amber-500/30 transition group">
+          <div class="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-amber-500/20 transition">
+            <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-3">Vault-Encrypted Secrets</h3>
+          <p class="text-gray-400">API keys and credentials stored with ActiveRecord Encryption. Per-platform webhook signature verification. Audit logging.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture -->
+  <section id="architecture" class="py-32 px-6 border-t border-gray-800/50">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-20">
+        <h2 class="text-4xl font-bold mb-4">Production-ready architecture</h2>
+        <p class="text-gray-400 text-lg max-w-2xl mx-auto">7-container Docker Compose stack. Everything you need, nothing you don't.</p>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-12 items-center">
+        <div class="space-y-6">
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span class="text-amber-400 font-mono text-sm font-bold">R</span>
+            </div>
+            <div>
+              <h4 class="text-white font-semibold">Rails 8 + Puma</h4>
+              <p class="text-gray-500 text-sm">Mission Control dashboard, API, WebSocket streaming via ActionCable</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span class="text-amber-400 font-mono text-sm font-bold">S</span>
+            </div>
+            <div>
+              <h4 class="text-white font-semibold">Sidekiq</h4>
+              <p class="text-gray-500 text-sm">Background jobs — agent execution, tool loops, heartbeat, cron tasks</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span class="text-amber-400 font-mono text-sm font-bold">P</span>
+            </div>
+            <div>
+              <h4 class="text-white font-semibold">PostgreSQL + pgvector</h4>
+              <p class="text-gray-500 text-sm">29 tables, JSONB transcripts, vector embeddings for memory search</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span class="text-amber-400 font-mono text-sm font-bold">B</span>
+            </div>
+            <div>
+              <h4 class="text-white font-semibold">Playwright Browser</h4>
+              <p class="text-gray-500 text-sm">Headless Chromium for web scraping and screenshot tools</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span class="text-amber-400 font-mono text-sm font-bold">C</span>
+            </div>
+            <div>
+              <h4 class="text-white font-semibold">Connector Sidecar</h4>
+              <p class="text-gray-500 text-sm">Node.js bridge for messaging platforms — WhatsApp via Baileys, extensible</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-8 font-mono text-sm">
+          <div class="text-gray-500 mb-4"># docker-compose.yml</div>
+          <div class="space-y-2 text-gray-300">
+            <div><span class="text-amber-400">services:</span></div>
+            <div class="pl-4"><span class="text-blue-400">rails:</span> <span class="text-gray-500"># Puma on :3001</span></div>
+            <div class="pl-4"><span class="text-blue-400">sidekiq:</span> <span class="text-gray-500"># Background workers</span></div>
+            <div class="pl-4"><span class="text-blue-400">postgres:</span> <span class="text-gray-500"># pgvector:pg17</span></div>
+            <div class="pl-4"><span class="text-blue-400">redis:</span> <span class="text-gray-500"># 7-alpine</span></div>
+            <div class="pl-4"><span class="text-blue-400">browser:</span> <span class="text-gray-500"># Playwright v1.52</span></div>
+            <div class="pl-4"><span class="text-blue-400">workspace:</span> <span class="text-gray-500"># Ubuntu sandbox</span></div>
+            <div class="pl-4"><span class="text-blue-400">connector:</span> <span class="text-gray-500"># Node.js bridge</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tools -->
+  <section id="tools" class="py-32 px-6 border-t border-gray-800/50">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-4xl font-bold mb-4">24 tools, ready to go</h2>
+        <p class="text-gray-400 text-lg">Every agent has access to real capabilities. No sandboxed demos.</p>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">shell</div><div class="text-gray-500 text-xs mt-1">Execute commands</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">file_read</div><div class="text-gray-500 text-xs mt-1">Read files</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">file_write</div><div class="text-gray-500 text-xs mt-1">Write files</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">file_edit</div><div class="text-gray-500 text-xs mt-1">Find & replace</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">web_search</div><div class="text-gray-500 text-xs mt-1">Search the web</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">web_fetch</div><div class="text-gray-500 text-xs mt-1">Fetch URLs</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">browser</div><div class="text-gray-500 text-xs mt-1">Playwright JS</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">image</div><div class="text-gray-500 text-xs mt-1">Vision analysis</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">cloud_storage</div><div class="text-gray-500 text-xs mt-1">Drive, S3, SFTP</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">gmail</div><div class="text-gray-500 text-xs mt-1">Read & send</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">message</div><div class="text-gray-500 text-xs mt-1">5 platforms</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">tts</div><div class="text-gray-500 text-xs mt-1">Text to speech</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">cron</div><div class="text-gray-500 text-xs mt-1">Scheduled tasks</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">memory_search</div><div class="text-gray-500 text-xs mt-1">Recall context</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">delegate</div><div class="text-gray-500 text-xs mt-1">Sync handoff</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">spawn</div><div class="text-gray-500 text-xs mt-1">Async sub-agent</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">sessions_list</div><div class="text-gray-500 text-xs mt-1">View sessions</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">sessions_send</div><div class="text-gray-500 text-xs mt-1">Cross-session</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">heartbeat_write</div><div class="text-gray-500 text-xs mt-1">Checklist tasks</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">agents_list</div><div class="text-gray-500 text-xs mt-1">List teammates</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">gateway</div><div class="text-gray-500 text-xs mt-1">Platform mgmt</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">spawn_status</div><div class="text-gray-500 text-xs mt-1">Track tasks</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">sessions_history</div><div class="text-gray-500 text-xs mt-1">Fetch transcripts</div></div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-center"><div class="text-amber-400 font-semibold text-sm">session_status</div><div class="text-gray-500 text-xs mt-1">Usage stats</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Providers -->
+  <section class="py-32 px-6 border-t border-gray-800/50">
+    <div class="max-w-4xl mx-auto text-center">
+      <h2 class="text-4xl font-bold mb-4">Bring your own models</h2>
+      <p class="text-gray-400 text-lg mb-12">Mix and match providers across your team. Each agent can use a different model.</p>
+
+      <div class="flex items-center justify-center gap-12">
+        <div class="text-center">
+          <div class="w-16 h-16 bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <span class="text-2xl font-bold text-orange-400">A</span>
+          </div>
+          <div class="text-white font-semibold">Anthropic</div>
+          <div class="text-gray-500 text-sm">Claude Opus, Sonnet, Haiku</div>
+        </div>
+        <div class="text-center">
+          <div class="w-16 h-16 bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <span class="text-2xl font-bold text-green-400">O</span>
+          </div>
+          <div class="text-white font-semibold">OpenAI</div>
+          <div class="text-gray-500 text-sm">GPT-4.1, o3, o4-mini</div>
+        </div>
+        <div class="text-center">
+          <div class="w-16 h-16 bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <span class="text-2xl font-bold text-blue-400">L</span>
+          </div>
+          <div class="text-white font-semibold">Ollama</div>
+          <div class="text-gray-500 text-sm">Llama, Mistral, local models</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="py-32 px-6 border-t border-gray-800/50">
+    <div class="max-w-3xl mx-auto text-center">
+      <svg class="w-16 h-16 text-amber-400 mx-auto mb-8" viewBox="0 0 64 64" fill="none">
+        <path d="M32 4L56 18V46L32 60L8 46V18L32 4Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M32 16L41 21V31L32 36L23 31V21L32 16Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" opacity="0.85"/>
+        <path d="M20 30L29 35V45L20 50L11 45V35L20 30Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" opacity="0.6"/>
+        <path d="M44 30L53 35V45L44 50L35 45V35L44 30Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" opacity="0.6"/>
+      </svg>
+      <h2 class="text-4xl font-bold mb-4">Ready to deploy your hive?</h2>
+      <p class="text-gray-400 text-lg mb-10">Clone the repo, run docker compose up, and you're live in under 5 minutes.</p>
+
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-8 font-mono text-left text-sm">
+        <div class="text-gray-500">$ git clone https://github.com/MatthewSuttles/hivemind.git</div>
+        <div class="text-gray-500">$ cd hivemind</div>
+        <div class="text-gray-500">$ cp .env.example .env</div>
+        <div class="text-amber-400">$ docker compose up -d</div>
+        <div class="text-green-400 mt-2"># Open localhost:3001 → setup wizard guides you through the rest</div>
+      </div>
+
+      <a href="https://github.com/MatthewSuttles/hivemind" target="_blank"
+         class="inline-flex items-center gap-2 px-8 py-4 bg-amber-500 hover:bg-amber-400 text-gray-900 font-bold rounded-xl transition text-lg">
+        Get started
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="border-t border-gray-800/50 py-12 px-6">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <svg class="w-6 h-6 text-amber-400" viewBox="0 0 32 32" fill="none">
+          <path d="M16 2L28 9V23L16 30L4 23V9L16 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M16 8L20.5 10.5V15.5L16 18L11.5 15.5V10.5L16 8Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" opacity="0.8"/>
+        </svg>
+        <span class="text-gray-500 text-sm">Hivemind — Open source multi-agent AI platform</span>
+      </div>
+      <a href="https://github.com/MatthewSuttles/hivemind" target="_blank" class="text-gray-500 hover:text-white transition">
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+      </a>
+    </div>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "hivemind-connector",
+  "version": "1.0.0",
+  "description": "Hivemind messaging connector — bridges WhatsApp, Signal, and other platforms to the Hivemind webhook API",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.16",
+    "express": "^4.21.0",
+    "pino": "^9.6.0",
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0"
+  }
+}

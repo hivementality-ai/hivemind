@@ -1,0 +1,199 @@
+<div class="min-h-screen bg-surface-base text-white">
+  <!-- Header -->
+  <div class="bg-surface-card border-b border-border-default px-6 py-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <%= link_to "← Back", dashboard_path, class: "text-text-muted hover:text-white transition" %>
+        <h1 class="text-3xl font-bold"><%= @agent.name %></h1>
+        <% status = @agent.status || "idle" %>
+        <span class="px-3 py-1 rounded-full text-sm font-medium <%= status == "active" ? "bg-green-900 text-green-300" : status == "thinking" ? "bg-yellow-900 text-yellow-300" : "bg-surface-raised text-text-primary" %>">
+          <%= status.titleize %>
+        </span>
+      </div>
+      <div class="flex gap-4">
+        <%= button_to "Chat", sessions_path(agent_id: @agent.id), method: :post, class: "px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition cursor-pointer" %>
+        <%= link_to "Edit", edit_agent_path(@agent), class: "px-4 py-2 bg-brand hover:bg-brand-dark rounded-lg transition" %>
+        <%= link_to "Delete", agent_path(@agent), data: { turbo_method: :delete, turbo_confirm: "Are you sure?" }, class: "px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition" %>
+      </div>
+    </div>
+  </div>
+
+  <div class="container mx-auto px-6 py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Left Column: Agent Info & Stats -->
+      <div class="space-y-6">
+        <!-- Agent Details -->
+        <div class="bg-surface-card rounded-lg p-6 border border-border-default">
+          <h2 class="text-xl font-semibold mb-4">Agent Details</h2>
+          <dl class="space-y-3">
+            <div>
+              <dt class="text-sm text-text-muted">Role</dt>
+              <dd class="text-lg font-medium"><%= @agent.role&.titleize || "No role assigned" %></dd>
+            </div>
+            <% if @agent.team %>
+              <div>
+                <dt class="text-sm text-text-muted">Team</dt>
+                <dd class="text-lg font-medium"><%= @agent.team.name %></dd>
+              </div>
+            <% end %>
+            <div>
+              <dt class="text-sm text-text-muted">Model</dt>
+              <dd class="text-lg font-medium"><%= @agent.model_provider %>/<%= @agent.llm_model %></dd>
+            </div>
+            <div>
+              <dt class="text-sm text-text-muted">Status</dt>
+              <dd class="text-lg font-medium"><%= @agent.enabled? ? "Enabled" : "Disabled" %></dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- Budget Usage -->
+        <div class="bg-surface-card rounded-lg p-6 border border-border-default">
+          <h2 class="text-xl font-semibold mb-4">Today's Usage</h2>
+          <div class="space-y-4">
+            <div>
+              <div class="flex justify-between text-sm mb-2">
+                <span class="text-text-muted">Cost</span>
+                <span class="font-medium text-green-400">$<%= sprintf("%.4f", @usage_today[:total_cost]) %></span>
+              </div>
+              <% budget = @agent.daily_budget_limit || 0 %>
+              <% usage_percent = budget.positive? ? (@usage_today[:total_cost] / budget * 100) : 0 %>
+              <div class="bg-surface-raised rounded-full h-3">
+                <div class="bg-blue-500 h-3 rounded-full" style="width: <%= [usage_percent, 100].min %>%"></div>
+              </div>
+              <div class="text-xs text-text-muted mt-1">
+                <%= usage_percent.round(1) %>% of $<%= sprintf("%.2f", budget) %> limit
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 pt-4 border-t border-border-default">
+              <div>
+                <div class="text-sm text-text-muted">Tokens</div>
+                <div class="text-lg font-medium"><%= number_with_delimiter(@usage_today[:total_tokens]) %></div>
+              </div>
+              <div>
+                <div class="text-sm text-text-muted">Requests</div>
+                <div class="text-lg font-medium"><%= @usage_today[:request_count] %></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pending Approvals -->
+        <% if @pending_approvals.any? %>
+          <div class="bg-surface-card rounded-lg p-6 border border-border-default">
+            <h2 class="text-xl font-semibold mb-4">Pending Approvals</h2>
+            <div class="space-y-3">
+              <% @pending_approvals.each do |approval| %>
+                <div class="bg-surface-raised rounded-lg p-4">
+                  <div class="font-medium"><%= approval.action.titleize %></div>
+                  <div class="text-sm text-text-muted mt-1"><%= approval.resource %></div>
+                  <div class="text-xs text-text-faint mt-2">
+                    <%= time_ago_in_words(approval.requested_at) %> ago
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+
+      <!-- Right Column: Live Transcript & Sessions -->
+      <div class="lg:col-span-2 space-y-6">
+        <!-- Live Transcript -->
+        <div class="bg-surface-card rounded-lg border border-border-default">
+          <div class="px-6 py-4 border-b border-border-default">
+            <h2 class="text-xl font-semibold">Live Transcript</h2>
+          </div>
+          <turbo-stream-from "agent_<%= @agent.id %>_transcript"></turbo-stream-from>
+          <div id="transcript_container" class="p-6 h-96 overflow-y-auto">
+            <div class="text-text-muted text-center py-8">
+              Waiting for agent activity...
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Sessions -->
+        <div class="bg-surface-card rounded-lg border border-border-default">
+          <div class="px-6 py-4 border-b border-border-default">
+            <h2 class="text-xl font-semibold">Recent Sessions</h2>
+          </div>
+          <div class="p-6">
+            <div class="space-y-3">
+              <% @recent_sessions.each do |session| %>
+                <div class="bg-surface-raised rounded-lg p-4">
+                  <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                      <div class="font-medium font-mono text-sm"><%= session.key %></div>
+                      <% if session.metadata["source"] %>
+                        <div class="text-xs text-text-muted mt-1">
+                          Source: <%= session.metadata["source"] %>
+                        </div>
+                      <% end %>
+                    </div>
+                    <div class="text-xs text-text-faint">
+                      <%= time_ago_in_words(session.created_at) %> ago
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+
+              <% if @recent_sessions.empty? %>
+                <div class="text-text-muted text-center py-8">
+                  No sessions yet
+                </div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Agent Tools -->
+        <div class="bg-surface-card rounded-lg border border-border-default mb-6">
+          <div class="px-6 py-4 border-b border-border-default flex items-center justify-between">
+            <h2 class="text-xl font-semibold">Tools</h2>
+            <% if @agent.tools.any? %>
+              <span class="text-text-muted text-sm"><%= @agent.tools.count %> assigned</span>
+            <% else %>
+              <span class="text-text-faint text-sm">All tools (no restrictions)</span>
+            <% end %>
+          </div>
+          <div class="p-6">
+            <div class="flex flex-wrap gap-2">
+              <% tools_list = @agent.tools.any? ? @agent.tools.order(:name) : Tool.enabled.order(:name) %>
+              <% tools_list.each do |tool| %>
+                <span class="px-3 py-1 text-sm rounded-full bg-surface-raised text-text-primary"><%= tool.name %></span>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Agent Memories -->
+        <div class="bg-surface-card rounded-lg border border-border-default">
+          <div class="px-6 py-4 border-b border-border-default flex items-center justify-between">
+            <h2 class="text-xl font-semibold">Memories (<%= @memories.size %>)</h2>
+          </div>
+          <div class="p-6">
+            <% if @memories.any? %>
+              <div class="space-y-3">
+                <% @memories.each do |memory| %>
+                  <div class="bg-surface-raised rounded-lg p-4">
+                    <p class="text-gray-200 text-sm whitespace-pre-wrap"><%= memory.content.truncate(300) %></p>
+                    <div class="flex items-center gap-3 mt-2 text-xs text-text-faint">
+                      <span><%= time_ago_in_words(memory.created_at) %> ago</span>
+                      <% if memory.source_type.present? %>
+                        <span>· from <%= memory.source_type.demodulize %></span>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            <% else %>
+              <div class="text-text-muted text-center py-8">
+                No memories yet — start chatting to build memory
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

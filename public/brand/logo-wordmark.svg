@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 64" fill="none">
+  <!-- Hex mark -->
+  <path d="M32 4L56 18V46L32 60L8 46V18L32 4Z" stroke="#F59E0B" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M32 16L41 21V31L32 36L23 31V21L32 16Z" stroke="#F59E0B" stroke-width="1.5" stroke-linejoin="round" opacity="0.85"/>
+  <path d="M20 30L29 35V45L20 50L11 45V35L20 30Z" stroke="#F59E0B" stroke-width="1.5" stroke-linejoin="round" opacity="0.6"/>
+  <path d="M44 30L53 35V45L44 50L35 45V35L44 30Z" stroke="#F59E0B" stroke-width="1.5" stroke-linejoin="round" opacity="0.6"/>
+  <!-- Wordmark -->
+  <text x="72" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="700" font-size="28" fill="white" letter-spacing="-0.5">Hivemind</text>
+</svg>

@@ -1,0 +1,47 @@
+<div class="min-h-screen bg-surface-base text-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold mb-2">Agent Templates</h1>
+      <p class="text-text-muted">Deploy pre-configured AI agents in seconds</p>
+    </div>
+    
+    <!-- Category Filter -->
+    <div class="mb-6 flex flex-wrap gap-2">
+      <%= link_to "All", agent_templates_path, class: "px-4 py-2 rounded-lg #{params[:category].blank? ? 'bg-brand' : 'bg-surface-card hover:bg-surface-raised'}" %>
+      <% @categories.each do |category| %>
+        <%= link_to category.titleize, agent_templates_path(category: category), 
+            class: "px-4 py-2 rounded-lg #{params[:category] == category ? 'bg-brand' : 'bg-surface-card hover:bg-surface-raised'}" %>
+      <% end %>
+    </div>
+    
+    <!-- Template Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <% @templates.each do |template| %>
+        <div class="bg-surface-card rounded-lg p-6 hover:bg-surface-raised transition">
+          <div class="flex items-start justify-between mb-4">
+            <div class="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-400 font-bold text-sm"><%= template.icon || "AG" %></div>
+            <% if template.featured %>
+              <span class="px-2 py-1 bg-yellow-600 text-xs rounded">Featured</span>
+            <% end %>
+          </div>
+          
+          <h3 class="text-xl font-bold mb-2"><%= template.name %></h3>
+          <p class="text-text-muted text-sm mb-3"><%= template.role %></p>
+          <p class="text-text-primary mb-4 line-clamp-3"><%= template.description %></p>
+          
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-text-faint uppercase"><%= template.category %></span>
+            <%= link_to "Deploy", agent_template_path(template), 
+                class: "px-4 py-2 bg-brand hover:bg-brand-dark rounded-lg text-sm font-medium" %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+    
+    <% if @templates.empty? %>
+      <div class="text-center py-12">
+        <p class="text-text-muted">No templates found in this category.</p>
+      </div>
+    <% end %>
+  </div>
+</div>

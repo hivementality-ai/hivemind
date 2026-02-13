@@ -1,0 +1,230 @@
+<%= form_with(model: agent, class: "space-y-6") do |form| %>
+  <% if agent.errors.any? %>
+    <div class="bg-red-900/50 border border-red-600 text-red-200 p-4 rounded-lg">
+      <ul class="list-disc list-inside text-sm">
+        <% agent.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <!-- Identity -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6">
+    <h2 class="text-lg font-semibold text-white mb-4">Identity</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <%= form.label :name, class: "block text-sm font-medium text-text-primary mb-1" %>
+        <%= form.text_field :name, placeholder: "Agent name",
+            class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
+      </div>
+      <div>
+        <%= form.label :role, class: "block text-sm font-medium text-text-primary mb-1" %>
+        <%= form.select :role,
+            options_for_select([
+              ["Software Engineer", "Software Engineer"],
+              ["Software Tester", "Software Tester"],
+              ["Code Reviewer", "Code Reviewer"],
+              ["DevOps Engineer", "DevOps Engineer"],
+              ["Research Analyst", "Research Analyst"],
+              ["Data Analyst", "Data Analyst"],
+              ["Technical Writer", "Technical Writer"],
+              ["Security Auditor", "Security Auditor"],
+              ["Project Manager", "Project Manager"],
+              ["Creative Writer", "Creative Writer"],
+              ["Customer Support", "Customer Support"],
+              ["Sales Assistant", "Sales Assistant"],
+              ["General Assistant", "General Assistant"],
+              ["Administrative Assistant", "Administrative Assistant"],
+              ["Sports Fan", "Sports Fan"],
+              ["Chef", "Chef"],
+              ["Fitness Coach", "Fitness Coach"],
+              ["Travel Planner", "Travel Planner"],
+              ["Music Nerd", "Music Nerd"],
+            ], agent.role),
+            { include_blank: "— Select Role —" },
+            { class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand" } %>
+      </div>
+      <div>
+        <%= form.label :team_id, "Team", class: "block text-sm font-medium text-text-primary mb-1" %>
+        <%= form.collection_select :team_id, @teams || Team.order(:name), :id, :name,
+            { include_blank: "— No team —" },
+            { class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand" } %>
+      </div>
+      <div>
+        <%= form.label :enabled, class: "block text-sm font-medium text-text-primary mb-1" %>
+        <div class="flex items-center gap-3 mt-2">
+          <%= form.check_box :enabled, class: "w-5 h-5 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay" %>
+          <span class="text-text-primary">Agent is active and available</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Model Configuration -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6"
+       data-controller="model-select"
+       data-model-select-url-value="<%= api_v1_providers_models_path %>"
+       data-model-select-current-value="<%= agent.llm_model %>">
+    <h2 class="text-lg font-semibold text-white mb-4">Model</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <%= form.label :model_provider, "Provider", class: "block text-sm font-medium text-text-primary mb-1" %>
+        <%= form.select :model_provider,
+            options_for_select(
+              ProviderConfig.enabled_providers.map { |p| [p.adapter_type.titleize, p.adapter_type] },
+              agent.model_provider
+            ),
+            {},
+            { class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand",
+              data: { model_select_target: "provider", action: "change->model-select#providerChanged" } } %>
+      </div>
+      <div>
+        <%= form.label :llm_model, "Model", class: "block text-sm font-medium text-text-primary mb-1" %>
+        <%= form.select :llm_model,
+            options_for_select([], agent.llm_model),
+            {},
+            { class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand",
+              data: { model_select_target: "model" } } %>
+        <p class="text-text-faint text-xs mt-1">Models are auto-detected from your providers.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Thinking / Reasoning -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6">
+    <h2 class="text-lg font-semibold text-white mb-4">Thinking</h2>
+    <p class="text-text-muted text-sm mb-4">Enable extended thinking for complex reasoning tasks. Thinking is internal — it won't appear in the agent's visible response unless you enable debug mode.</p>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <%= form.label :thinking_enabled, class: "block text-sm font-medium text-text-primary mb-1" %>
+        <div class="flex items-center gap-3 mt-2">
+          <%= form.check_box :thinking_enabled, class: "w-5 h-5 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay" %>
+          <span class="text-text-primary">Enable extended thinking</span>
+        </div>
+        <p class="text-text-faint text-xs mt-1">Uses more tokens. Best for complex reasoning, code architecture, and multi-step problems.</p>
+      </div>
+      <div>
+        <%= form.label :thinking_budget_tokens, "Token budget", class: "block text-sm font-medium text-text-primary mb-1" %>
+        <%= form.number_field :thinking_budget_tokens, placeholder: "10000",
+            class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
+        <p class="text-text-faint text-xs mt-1">Max tokens for thinking (1,000–128,000). Higher = deeper reasoning.</p>
+      </div>
+      <div>
+        <%= form.label :thinking_visibility, "Visibility", class: "block text-sm font-medium text-text-primary mb-1" %>
+        <%= form.select :thinking_visibility,
+            options_for_select([
+              ["Hidden (default)", "hidden"],
+              ["Debug (show in UI)", "debug"]
+            ], agent.thinking_visibility || "hidden"),
+            {},
+            { class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand" } %>
+        <p class="text-text-faint text-xs mt-1">Debug mode shows the agent's thought process in real-time.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Instructions -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-lg font-semibold text-white">Additional Context</h2>
+        <p class="text-text-muted text-sm mt-1">Provide any additional context or guidance for this agent.</p>
+      </div>
+    </div>
+    <%= form.text_area :custom_instructions,
+        rows: 10,
+        placeholder: "What domain or technologies does this agent focus on?\nAny specific coding standards or conventions to follow?\nPreferred communication style?\nAny projects, repos, or tools this agent should know about?",
+        class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm leading-relaxed resize-y" %>
+    <p class="text-text-faint text-xs mt-2">Markdown supported. Changes take effect immediately on the next message.</p>
+  </div>
+
+  <!-- Tools -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6">
+    <div class="mb-4">
+      <h2 class="text-lg font-semibold text-white">Tools</h2>
+      <p class="text-text-muted text-sm mt-1">Select which tools this agent can use. Leave all unchecked to grant access to every tool.</p>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      <% Tool.enabled.order(:name).each do |tool| %>
+        <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-raised/50 hover:bg-surface-raised transition cursor-pointer">
+          <%= check_box_tag "agent[tool_ids][]", tool.id,
+              agent.tool_ids.include?(tool.id),
+              class: "w-4 h-4 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay" %>
+          <span class="text-text-primary text-sm truncate" title="<%= tool.description %>"><%= tool.name %></span>
+        </label>
+      <% end %>
+    </div>
+
+    <!-- Hidden field to allow clearing all tools -->
+    <%= hidden_field_tag "agent[tool_ids][]", "" %>
+  </div>
+
+  <!-- Skills -->
+  <% if Skill.enabled.any? %>
+  <div class="bg-surface-card rounded-xl border border-border-default p-6">
+    <div class="mb-4">
+      <h2 class="text-lg font-semibold text-white">Skills</h2>
+      <p class="text-text-muted text-sm mt-1">Select skills to inject into this agent's prompt. Required tools are added automatically.</p>
+    </div>
+
+    <div class="bg-amber-900/20 border border-amber-700/30 rounded-lg px-4 py-3 mb-4">
+      <p class="text-amber-300 text-xs">Adding a skill automatically assigns its required tools. Removing a skill removes those tools (unless another skill still needs them).</p>
+    </div>
+
+    <div class="space-y-2">
+      <% Skill.enabled.includes(:tools).order(:name).each do |skill| %>
+        <label class="flex items-start gap-3 px-4 py-3 rounded-lg bg-surface-raised/50 hover:bg-surface-raised transition cursor-pointer">
+          <%= check_box_tag "agent[skill_ids][]", skill.id,
+              agent.skill_ids.include?(skill.id),
+              class: "w-4 h-4 mt-0.5 rounded border-gray-500 text-amber-600 focus:ring-amber-500 bg-surface-overlay flex-shrink-0" %>
+          <div class="min-w-0">
+            <span class="text-gray-200 text-sm font-medium"><%= skill.name %></span>
+            <% if skill.description.present? %>
+              <p class="text-text-faint text-xs mt-0.5 truncate"><%= skill.description %></p>
+            <% end %>
+            <% if skill.tools.any? %>
+              <div class="flex flex-wrap gap-1 mt-1">
+                <% skill.tools.each do |tool| %>
+                  <span class="px-1.5 py-0.5 text-xs rounded bg-brand-glow/30 text-brand-light"><%= tool.name %></span>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        </label>
+      <% end %>
+    </div>
+
+    <%= hidden_field_tag "agent[skill_ids][]", "" %>
+  </div>
+  <% end %>
+
+  <!-- Budgets -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6">
+    <h2 class="text-lg font-semibold text-white mb-4">Budgets</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <%= form.label :daily_budget_limit, "Daily limit (cents)", class: "block text-sm font-medium text-text-primary mb-1" %>
+        <%= form.number_field :daily_budget_limit, placeholder: "e.g. 500 = $5.00",
+            class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
+      </div>
+      <div>
+        <%= form.label :monthly_budget_limit, "Monthly limit (cents)", class: "block text-sm font-medium text-text-primary mb-1" %>
+        <%= form.number_field :monthly_budget_limit, placeholder: "e.g. 10000 = $100.00",
+            class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="flex items-center gap-4">
+    <%= form.submit agent.persisted? ? "Save Changes" : "Create Agent",
+        class: "px-6 py-3 bg-brand hover:bg-brand-dark text-white font-semibold rounded-lg transition cursor-pointer" %>
+    <% if agent.persisted? %>
+      <%= link_to "Cancel", agent_path(agent), class: "px-6 py-3 text-text-muted hover:text-white transition" %>
+    <% else %>
+      <%= link_to "Cancel", agents_path, class: "px-6 py-3 text-text-muted hover:text-white transition" %>
+    <% end %>
+  </div>
+<% end %>

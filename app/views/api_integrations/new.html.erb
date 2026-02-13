@@ -1,0 +1,121 @@
+<div class="max-w-3xl mx-auto py-8 px-4">
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-white">Add API Integration</h1>
+    <p class="text-text-muted mt-1">Upload an OpenAPI/Swagger spec, point to a URL, or configure manually.</p>
+  </div>
+
+  <div class="bg-surface-card/50 border border-border-default/50 rounded-xl p-6 mb-6">
+    <h2 class="text-white font-semibold mb-4">Quick Import from URL</h2>
+    <%= form_tag import_api_integrations_path, method: :post, class: "flex gap-3" do %>
+      <input type="url" name="spec_url" placeholder="https://api.example.com/openapi.json"
+             class="flex-1 bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white placeholder-text-faint focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none">
+      <button type="submit" class="px-4 py-2 bg-surface-raised text-white font-medium rounded-lg hover:bg-surface-overlay transition">
+        Import
+      </button>
+    <% end %>
+  </div>
+
+  <div class="bg-surface-card/50 border border-border-default/50 rounded-xl p-6">
+    <h2 class="text-white font-semibold mb-4">Manual Setup</h2>
+
+    <%= form_with model: @integration, url: api_integrations_path, method: :post, local: true, html: { multipart: true } do |f| %>
+      <% if @integration.errors.any? %>
+        <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4">
+          <% @integration.errors.full_messages.each do |msg| %>
+            <p class="text-red-400 text-sm"><%= msg %></p>
+          <% end %>
+        </div>
+      <% end %>
+
+      <div class="space-y-4">
+        <!-- Name & URL -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-text-primary mb-1">API Name</label>
+            <%= f.text_field :name, placeholder: "Stripe API", class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white placeholder-text-faint focus:border-amber-500 outline-none" %>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-text-primary mb-1">Base URL</label>
+            <%= f.url_field :base_url, placeholder: "https://api.stripe.com/v1", class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white placeholder-text-faint focus:border-amber-500 outline-none" %>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div>
+          <label class="block text-sm font-medium text-text-primary mb-1">Description (optional)</label>
+          <%= f.text_area :description, rows: 2, placeholder: "What this API does...", class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white placeholder-text-faint focus:border-amber-500 outline-none" %>
+        </div>
+
+        <!-- Spec Upload -->
+        <div>
+          <label class="block text-sm font-medium text-text-primary mb-1">OpenAPI / Swagger Spec (optional)</label>
+          <div class="flex gap-3">
+            <input type="file" name="spec_file" accept=".json,.yaml,.yml"
+                   class="flex-1 bg-surface-base border border-border-default rounded-lg px-4 py-2 text-text-muted file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-amber-500/10 file:text-amber-500 hover:file:bg-amber-500/20">
+          </div>
+          <p class="text-text-faint text-xs mt-1">JSON or YAML. Endpoints will be auto-parsed for agents to use.</p>
+        </div>
+
+        <!-- Or paste spec -->
+        <div>
+          <label class="block text-sm font-medium text-text-primary mb-1">Or paste spec JSON/YAML</label>
+          <textarea name="spec_text" rows="4" placeholder='{"openapi": "3.0.0", ...}'
+                    class="w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white placeholder-text-faint focus:border-amber-500 outline-none font-mono text-sm"></textarea>
+        </div>
+
+        <hr class="border-border-default">
+
+        <!-- Auth -->
+        <div>
+          <label class="block text-sm font-medium text-text-primary mb-2">Authentication</label>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+            <% %w[none api_key bearer basic].each do |auth| %>
+              <label class="flex items-center gap-2 bg-surface-base border border-border-default rounded-lg px-3 py-2 cursor-pointer hover:border-amber-500/30 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/5">
+                <input type="radio" name="auth_type" value="<%= auth %>" <%= 'checked' if auth == 'none' %> class="text-amber-500">
+                <span class="text-sm text-text-primary capitalize"><%= auth.tr('_', ' ') %></span>
+              </label>
+            <% end %>
+          </div>
+
+          <!-- API Key / Token -->
+          <div class="space-y-3">
+            <div>
+              <label class="block text-sm text-text-muted mb-1">API Key / Token / Password</label>
+              <input type="password" name="api_key" placeholder="sk-..."
+                     class="w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white placeholder-text-faint focus:border-amber-500 outline-none">
+              <p class="text-text-faint text-xs mt-1">Stored encrypted in the vault. Never exposed in logs or API responses.</p>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-sm text-text-muted mb-1">Header Name (for API Key auth)</label>
+                <input type="text" name="auth_header_name" value="X-API-Key" placeholder="X-API-Key"
+                       class="w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white placeholder-text-faint focus:border-amber-500 outline-none">
+              </div>
+              <div>
+                <label class="block text-sm text-text-muted mb-1">Username (for Basic auth)</label>
+                <input type="text" name="auth_username" placeholder="username"
+                       class="w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white placeholder-text-faint focus:border-amber-500 outline-none">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="border-border-default">
+
+        <!-- Default Headers -->
+        <div>
+          <label class="block text-sm font-medium text-text-primary mb-1">Default Headers (JSON, optional)</label>
+          <textarea name="default_headers" rows="2" placeholder='{"Content-Type": "application/json"}'
+                    class="w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white placeholder-text-faint focus:border-amber-500 outline-none font-mono text-sm"></textarea>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-2">
+          <%= link_to "Cancel", api_integrations_path, class: "px-4 py-2 text-text-muted hover:text-white transition" %>
+          <button type="submit" class="px-6 py-2 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400 transition">
+            Create Integration
+          </button>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

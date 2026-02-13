@@ -1,0 +1,46 @@
+FROM ubuntu:24.04
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    git \
+    python3 \
+    python3-pip \
+    python3-venv \
+    nodejs \
+    npm \
+    ruby \
+    ruby-dev \
+    wget \
+    jq \
+    vim \
+    openssh-client \
+    ca-certificates \
+    sudo \
+    unzip \
+    zip \
+    htop \
+    net-tools \
+    iputils-ping \
+    dnsutils \
+    && curl -fsSL https://rclone.org/install.sh | bash \
+    && (curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+    && apt-get update -qq && apt-get install -y gh) \
+    && rm -rf /var/lib/apt/lists/*
+
+# Agent user with full sudo access (no password) — safe because this is an isolated container
+RUN useradd -m -s /bin/bash agent && \
+    echo "agent ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# Configure persistent paths — /home/agent is a volume so pip/npm/gem installs survive rebuilds
+ENV PATH="/home/agent/.local/bin:/home/agent/node_modules/.bin:${PATH}"
+ENV PIP_USER=1
+ENV GEM_HOME="/home/agent/.gems"
+ENV NPM_CONFIG_PREFIX="/home/agent/.npm-global"
+
+USER agent
+WORKDIR /workspace
+
+CMD ["sleep", "infinity"]

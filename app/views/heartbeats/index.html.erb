@@ -1,0 +1,110 @@
+<div class="max-w-3xl mx-auto px-6 py-8">
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-white">Heartbeat</h1>
+    <p class="text-text-muted mt-1">A system assistant that wakes up periodically and works through a checklist. Your other agents can add tasks to the checklist using their tools.</p>
+  </div>
+
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+    <%= form_tag update_heartbeat_path, method: :patch do %>
+
+      <!-- Enable Toggle -->
+      <div class="flex items-center justify-between mb-6 pb-6 border-b border-border-default">
+        <div>
+          <p class="text-white font-semibold">Enable Heartbeat</p>
+          <p class="text-text-faint text-sm">System assistant will check in on a recurring schedule</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <%= check_box_tag :enabled, "1", @config["enabled"], class: "sr-only peer" %>
+          <div class="w-11 h-6 bg-surface-overlay rounded-full peer peer-checked:bg-green-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+        </label>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <!-- Model -->
+        <div>
+          <label class="block text-text-primary text-sm font-medium mb-2">Model</label>
+          <p class="text-text-faint text-xs mb-2">Use a cheap or local model to save costs.</p>
+          <select name="model"
+                  class="w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand">
+            <optgroup label="Local (Free)">
+              <option value="llama3.2:3b" <%= 'selected' if @config["model"] == "llama3.2:3b" %>>Llama 3.2 3B (Ollama)</option>
+            </optgroup>
+            <optgroup label="Anthropic">
+              <option value="claude-haiku-4-5" <%= 'selected' if @config["model"] == "claude-haiku-4-5" %>>Claude Haiku 4.5</option>
+              <option value="claude-sonnet-4-5" <%= 'selected' if @config["model"] == "claude-sonnet-4-5" %>>Claude Sonnet 4.5</option>
+            </optgroup>
+            <optgroup label="OpenAI">
+              <option value="gpt-5.2-nano" <%= 'selected' if @config["model"] == "gpt-5.2-nano" %>>GPT-5.2 Nano</option>
+              <option value="gpt-5.2-mini" <%= 'selected' if @config["model"] == "gpt-5.2-mini" %>>GPT-5.2 Mini</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <!-- Interval -->
+        <div>
+          <label class="block text-text-primary text-sm font-medium mb-2">Interval</label>
+          <p class="text-text-faint text-xs mb-2">How often the assistant checks in.</p>
+          <select name="interval_minutes"
+                  class="w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand">
+            <% [5, 10, 15, 30, 60, 120, 360, 720, 1440].each do |mins| %>
+              <% label = mins < 60 ? "Every #{mins} min" : mins == 60 ? "Every hour" : mins < 1440 ? "Every #{mins / 60} hours" : "Once a day" %>
+              <option value="<%= mins %>" <%= 'selected' if @config["interval_minutes"].to_i == mins %>><%= label %></option>
+            <% end %>
+          </select>
+        </div>
+      </div>
+
+      <!-- Additional Prompt -->
+      <div class="mb-6">
+        <label class="block text-text-primary text-sm font-medium mb-2">Additional Instructions <span class="text-gray-600">(optional)</span></label>
+        <%= text_area_tag :prompt, @config["prompt"],
+            rows: 3,
+            placeholder: "Any extra context or standing instructions for the heartbeat assistant...",
+            class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y" %>
+      </div>
+
+      <!-- Status Bar -->
+      <div class="flex items-center justify-between mb-6 p-4 bg-surface-base rounded-lg">
+        <div>
+          <p class="text-text-muted text-xs">Last run</p>
+          <% last_run = Setting.get("heartbeat_last_run") %>
+          <p class="text-white text-sm">
+            <% if last_run.present? %>
+              <%= time_ago_in_words(Time.parse(last_run)) %> ago
+            <% else %>
+              Never
+            <% end %>
+          </p>
+        </div>
+        <%= button_to "Trigger Now", trigger_heartbeat_path, method: :post,
+            class: "px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium rounded-lg transition" %>
+      </div>
+
+      <div class="flex justify-end">
+        <%= submit_tag "Save", class: "px-6 py-3 bg-brand hover:bg-brand-dark text-white font-medium rounded-lg transition cursor-pointer" %>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Task Checklist -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6">
+    <h2 class="text-lg font-semibold text-white mb-2">Checklist</h2>
+    <p class="text-text-faint text-sm mb-4">Tasks added by your agents. The heartbeat assistant works through these each check-in.</p>
+
+    <% tasks = begin; JSON.parse(Setting.get("heartbeat_tasks") || "[]"); rescue; []; end %>
+    <% if tasks.any? %>
+      <div class="space-y-2">
+        <% tasks.each_with_index do |task, i| %>
+          <div class="flex items-center justify-between bg-surface-base rounded-lg px-4 py-3">
+            <div>
+              <p class="text-white text-sm"><%= task["task"] %></p>
+              <p class="text-gray-600 text-xs">Added by <%= task["added_by"] || "unknown" %> · <%= task["added_at"] ? time_ago_in_words(Time.parse(task["added_at"])) + " ago" : "" %></p>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="text-text-faint text-sm text-center py-4">No tasks yet. Your agents can add tasks using the <code class="text-text-muted">heartbeat_write</code> tool.</p>
+    <% end %>
+  </div>
+</div>

@@ -1,0 +1,72 @@
+<div class="min-h-screen bg-surface-base flex items-center justify-center px-4 py-12">
+  <div class="max-w-lg w-full text-center">
+    <!-- Celebration -->
+    <div class="mb-8">
+      <div class="inline-block animate-bounce">
+        <%= hivemind_logo(size: "w-20 h-20", css: "text-amber-400") %>
+      </div>
+      <h1 class="text-4xl font-bold text-white mt-6">You're live!</h1>
+      <p class="text-text-muted mt-3 text-lg">
+        Hivemind is set up and your first agent is ready to work.
+      </p>
+    </div>
+
+    <!-- Summary -->
+    <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-8 text-left">
+      <h2 class="text-white font-semibold mb-4">Here's what we set up:</h2>
+      <div class="space-y-3">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <span class="text-text-primary">Owner account created</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <span class="text-text-primary">AI provider connected & encrypted</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <span class="text-text-primary">
+            Team "<%= @team&.name %>" created
+          </span>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <span class="text-text-primary">
+            Agent "<%= @agent&.name %>" deployed & ready
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="space-y-3">
+      <%= link_to "Open Mission Control →", root_path,
+          class: "block w-full py-3 bg-brand hover:bg-brand-dark text-white font-semibold rounded-lg transition text-center" %>
+      
+      <% if @agent %>
+        <%= link_to "Go to #{@agent.name}", agent_path(@agent),
+            class: "block w-full py-3 bg-surface-raised hover:bg-surface-overlay text-white font-semibold rounded-lg transition text-center" %>
+      <% end %>
+    </div>
+
+    <p class="text-text-faint text-sm mt-8">
+      Next up: connect a channel (Telegram, Discord, Slack) or chat via the API.
+    </p>
+  </div>
+</div>

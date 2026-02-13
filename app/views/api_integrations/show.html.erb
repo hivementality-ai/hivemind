@@ -1,0 +1,141 @@
+<div class="max-w-5xl mx-auto py-8 px-4">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <div class="flex items-center gap-3 mb-1">
+        <h1 class="text-2xl font-bold text-white"><%= @integration.name %></h1>
+        <span class="px-2 py-0.5 text-xs rounded-full <%= @integration.enabled? ? 'bg-green-500/10 text-green-400' : 'bg-surface-raised text-text-muted' %>">
+          <%= @integration.enabled? ? "Active" : "Disabled" %>
+        </span>
+      </div>
+      <p class="text-text-muted"><%= @integration.description || @integration.base_url %></p>
+    </div>
+    <div class="flex gap-3">
+      <button onclick="testConnection()" id="test-btn" class="px-4 py-2 bg-surface-raised text-white font-medium rounded-lg hover:bg-surface-overlay transition">
+        Test Connection
+      </button>
+      <%= link_to "Edit", edit_api_integration_path(@integration), class: "px-4 py-2 bg-surface-raised text-white font-medium rounded-lg hover:bg-surface-overlay transition" %>
+      <%= button_to "Delete", api_integration_path(@integration), method: :delete, data: { turbo_confirm: "Delete this API integration?" }, class: "px-4 py-2 bg-red-500/10 text-red-400 font-medium rounded-lg hover:bg-red-500/20 transition" %>
+    </div>
+  </div>
+
+  <!-- Info Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <div class="bg-surface-card/50 border border-border-default/50 rounded-xl p-4">
+      <div class="text-text-muted text-sm mb-1">Base URL</div>
+      <div class="text-white font-mono text-sm break-all"><%= @integration.base_url %></div>
+    </div>
+    <div class="bg-surface-card/50 border border-border-default/50 rounded-xl p-4">
+      <div class="text-text-muted text-sm mb-1">Authentication</div>
+      <div class="text-white capitalize"><%= @integration.auth_type.tr('_', ' ') %></div>
+      <% if @integration.auth_type == "api_key" %>
+        <div class="text-text-faint text-xs mt-1">Header: <%= @integration.auth_config["header_name"] %></div>
+      <% end %>
+      <% if @integration.api_key.present? %>
+        <div class="text-green-400 text-xs mt-1">Key stored in vault</div>
+      <% elsif @integration.auth_type != "none" %>
+        <div class="text-amber-400 text-xs mt-1">No key configured</div>
+      <% end %>
+    </div>
+    <div class="bg-surface-card/50 border border-border-default/50 rounded-xl p-4">
+      <div class="text-text-muted text-sm mb-1">Spec Format</div>
+      <div class="text-white uppercase"><%= @integration.spec_format %></div>
+      <div class="text-text-faint text-xs mt-1"><%= @integration.endpoints&.size || 0 %> endpoints parsed</div>
+    </div>
+  </div>
+
+  <!-- Test result -->
+  <div id="test-result" class="hidden mb-6 bg-surface-card/50 border border-border-default/50 rounded-xl p-4"></div>
+
+  <!-- Endpoints -->
+  <div class="bg-surface-card/50 border border-border-default/50 rounded-xl overflow-hidden">
+    <div class="px-6 py-4 border-b border-border-default/50">
+      <h2 class="text-white font-semibold">Endpoints</h2>
+      <p class="text-text-faint text-sm">These endpoints are available to agents via the http_request tool.</p>
+    </div>
+
+    <% if @integration.endpoints.present? && @integration.endpoints.any? %>
+      <div class="divide-y divide-border-default/50">
+        <% @integration.endpoints.each do |ep| %>
+          <div class="px-6 py-4 hover:bg-surface-card/50 transition">
+            <div class="flex items-center gap-3 mb-1">
+              <% method_colors = { "get" => "bg-green-500/10 text-green-400", "post" => "bg-blue-500/10 text-brand-light", "put" => "bg-amber-500/10 text-amber-400", "patch" => "bg-amber-500/10 text-amber-400", "delete" => "bg-red-500/10 text-red-400" } %>
+              <span class="px-2 py-0.5 text-xs font-bold rounded uppercase <%= method_colors[ep['method']&.downcase] || 'bg-surface-raised text-text-muted' %>">
+                <%= ep["method"]&.upcase %>
+              </span>
+              <code class="text-white text-sm font-mono"><%= ep["path"] %></code>
+              <% if ep["operation_id"] %>
+                <span class="text-text-faint text-xs"><%= ep["operation_id"] %></span>
+              <% end %>
+            </div>
+            <% if ep["summary"].present? %>
+              <p class="text-text-muted text-sm mt-1"><%= ep["summary"] %></p>
+            <% end %>
+            <% if ep["parameters"]&.any? %>
+              <div class="flex flex-wrap gap-1 mt-2">
+                <% ep["parameters"].each do |param| %>
+                  <span class="px-2 py-0.5 text-xs rounded bg-surface-base text-text-muted border border-border-default">
+                    <%= param["name"] %><%= "*" if param["required"] %>
+                    <span class="text-gray-600">(<%= param["in"] %>)</span>
+                  </span>
+                <% end %>
+              </div>
+            <% end %>
+            <% if ep["request_body"] %>
+              <div class="mt-2">
+                <span class="px-2 py-0.5 text-xs rounded bg-blue-500/10 text-brand-light">
+                  Body: <%= ep["request_body"]["content_type"] %>
+                  <%= ep["request_body"]["required"] ? "(required)" : "(optional)" %>
+                </span>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="px-6 py-8 text-center text-text-muted">
+        No endpoints parsed. Upload an OpenAPI spec to auto-discover endpoints.
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Usage hint -->
+  <div class="mt-6 bg-surface-card/30 border border-border-default/50 rounded-xl p-5">
+    <h3 class="text-white font-semibold mb-2">How agents use this</h3>
+    <p class="text-text-muted text-sm mb-3">Agents can call this API using the <code class="text-amber-400">http_request</code> tool:</p>
+    <div class="bg-surface-base rounded-lg p-4 font-mono text-sm text-text-primary">
+      <span class="text-text-faint">// List available APIs</span><br>
+      http_request(action: "list_apis")<br><br>
+      <span class="text-text-faint">// Explore endpoints</span><br>
+      http_request(action: "list_endpoints", integration: "<%= @integration.name %>")<br><br>
+      <span class="text-text-faint">// Make a request</span><br>
+      http_request(action: "request", integration: "<%= @integration.name %>", method: "GET", path: "<%= @integration.endpoints&.first&.dig("path") || "/endpoint" %>")
+    </div>
+  </div>
+</div>
+
+<script>
+  function testConnection() {
+    const btn = document.getElementById('test-btn');
+    const result = document.getElementById('test-result');
+    btn.textContent = 'Testing...';
+    btn.disabled = true;
+
+    fetch('<%= test_api_integration_path(@integration) %>', { method: 'POST', headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content } })
+      .then(r => r.json())
+      .then(data => {
+        result.classList.remove('hidden');
+        if (data.status === 'ok') {
+          result.innerHTML = '<span class="text-green-400 font-medium">Connected!</span> <span class="text-text-muted">' + data.message + '</span>';
+          result.classList.add('border-green-500/30');
+        } else {
+          result.innerHTML = '<span class="text-red-400 font-medium">Failed:</span> <span class="text-text-muted">' + data.message + '</span>';
+          result.classList.add('border-red-500/30');
+        }
+      })
+      .catch(e => {
+        result.classList.remove('hidden');
+        result.innerHTML = '<span class="text-red-400">Error: ' + e.message + '</span>';
+      })
+      .finally(() => { btn.textContent = 'Test Connection'; btn.disabled = false; });
+  }
+</script>

@@ -1,0 +1,70 @@
+<%= form_with(model: @tool, class: "space-y-6") do |f| %>
+  <% if @tool.errors.any? %>
+    <div class="bg-red-900/50 border border-red-700 rounded-lg p-4">
+      <ul class="text-red-300 text-sm space-y-1">
+        <% @tool.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Name</label>
+    <p class="text-xs text-text-faint mb-2">Lowercase, no spaces (e.g., deploy_app, check_status). This is how agents call the tool.</p>
+    <%= f.text_field :name, class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500", placeholder: "my_custom_tool" %>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Description</label>
+    <p class="text-xs text-text-faint mb-2">Explain what the tool does. Agents read this to decide when to use it.</p>
+    <%= f.text_area :description, rows: 3, class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500", placeholder: "Deploy the application to the staging environment..." %>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Type</label>
+    <% if @tool.builtin? %>
+      <p class="text-text-muted text-sm"><%= @tool.executor_type %> (built-in, cannot change)</p>
+      <%= f.hidden_field :executor_type %>
+    <% else %>
+      <%= f.select :executor_type, [["Custom Script", "custom_script"]], {}, class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500", data: { action: "change->tool-form#typeChanged", "tool-form-target": "typeSelect" } %>
+    <% end %>
+  </div>
+
+  <div data-tool-form-target="scriptSection">
+    <label class="block text-sm font-medium text-text-primary mb-1">Script Template</label>
+    <p class="text-xs text-text-faint mb-2">
+      Shell command to run. Use <code class="text-amber-400">{{param_name}}</code> placeholders for parameters.
+      Values are automatically shell-escaped for safety.
+    </p>
+    <%= f.text_area :script_template, rows: 6, class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white font-mono text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500", placeholder: "curl -s https://api.example.com/{{endpoint}} -H 'Authorization: Bearer $API_KEY' | jq ." %>
+    <p class="text-xs text-text-faint mt-1">Runs in the workspace container. Environment variables from .env are available.</p>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Parameters (JSON Schema)</label>
+    <p class="text-xs text-text-faint mb-2">
+      Define the parameters agents can pass. Must be valid JSON with "properties" and "required" keys.
+    </p>
+    <%= f.text_area :parameters_schema_json,
+        value: (@tool.parameters_schema.present? ? JSON.pretty_generate(@tool.parameters_schema) : "{\n  \"properties\": {\n    \"param_name\": {\n      \"type\": \"string\",\n      \"description\": \"What this parameter does\"\n    }\n  },\n  \"required\": [\"param_name\"]\n}"),
+        rows: 10,
+        class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white font-mono text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500" %>
+  </div>
+
+  <div class="flex items-center gap-6">
+    <label class="flex items-center gap-2">
+      <%= f.check_box :enabled, class: "rounded bg-surface-base border-border-default text-amber-500 focus:ring-amber-500" %>
+      <span class="text-text-primary text-sm">Enabled</span>
+    </label>
+    <label class="flex items-center gap-2">
+      <%= f.check_box :requires_approval, class: "rounded bg-surface-base border-border-default text-amber-500 focus:ring-amber-500" %>
+      <span class="text-text-primary text-sm">Requires approval before execution</span>
+    </label>
+  </div>
+
+  <div class="flex items-center gap-3">
+    <%= f.submit @tool.persisted? ? "Update Tool" : "Create Tool", class: "px-6 py-2 bg-amber-600 hover:bg-amber-700 rounded-lg text-white font-medium transition cursor-pointer" %>
+    <%= link_to "Cancel", tools_path, class: "px-6 py-2 text-text-muted hover:text-white transition" %>
+  </div>
+<% end %>

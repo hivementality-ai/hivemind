@@ -1,0 +1,130 @@
+<div class="max-w-7xl mx-auto px-6 py-8">
+  <%= link_to "← Analytics", analytics_path(period: @period), class: "text-brand-light hover:text-brand-light text-sm" %>
+
+  <div class="mt-4 mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 bg-brand rounded-xl flex items-center justify-center text-white font-bold text-lg">
+        <%= @agent.name[0].upcase %>
+      </div>
+      <div>
+        <h1 class="text-2xl font-bold text-white"><%= @agent.name %></h1>
+        <p class="text-text-muted"><%= @agent.role %> · <%= @agent.llm_model %></p>
+      </div>
+    </div>
+
+    <div class="flex gap-2">
+      <% %w[day week month].each do |p| %>
+        <%= link_to p.capitalize, analytic_path(@agent, period: p),
+            class: "px-4 py-2 rounded-lg text-sm font-medium transition #{@period == p ? 'bg-brand text-white' : 'bg-surface-card text-text-primary hover:bg-surface-raised'}" %>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="bg-surface-card rounded-xl border border-border-default p-6">
+      <p class="text-text-muted text-sm mb-1">Sessions</p>
+      <p class="text-3xl font-bold text-white"><%= @analytics[:sessions][:total] %></p>
+      <p class="text-text-faint text-xs mt-1">
+        <%= @analytics[:sessions][:active] %> active · <%= @analytics[:sessions][:completed] %> completed
+      </p>
+    </div>
+
+    <div class="bg-surface-card rounded-xl border border-border-default p-6">
+      <p class="text-text-muted text-sm mb-1">Total Tokens</p>
+      <p class="text-3xl font-bold text-white"><%= number_with_delimiter(@analytics[:tokens][:total]) %></p>
+      <p class="text-text-faint text-xs mt-1">
+        <%= number_with_delimiter(@analytics[:tokens][:input]) %> in /
+        <%= number_with_delimiter(@analytics[:tokens][:output]) %> out
+      </p>
+    </div>
+
+    <div class="bg-surface-card rounded-xl border border-border-default p-6">
+      <p class="text-text-muted text-sm mb-1">Total Cost</p>
+      <p class="text-3xl font-bold text-green-400">$<%= sprintf("%.4f", @analytics[:costs][:total_dollars]) %></p>
+      <p class="text-text-faint text-xs mt-1">
+        ~$<%= sprintf("%.4f", @analytics[:costs][:avg_per_request]) %> avg/request
+      </p>
+    </div>
+
+    <div class="bg-surface-card rounded-xl border border-border-default p-6">
+      <p class="text-text-muted text-sm mb-1">Messages</p>
+      <p class="text-3xl font-bold text-white"><%= @analytics[:sessions][:messages] %></p>
+      <p class="text-text-faint text-xs mt-1">across all sessions</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <!-- Tool Usage -->
+    <div class="bg-surface-card rounded-xl border border-border-default p-6">
+      <h2 class="text-lg font-semibold text-white mb-4">Tool Usage</h2>
+      <% if @analytics[:tools][:total] > 0 %>
+        <div class="mb-3 flex items-center justify-between text-sm">
+          <span class="text-text-muted"><%= @analytics[:tools][:total] %> total executions</span>
+          <span class="text-<%= @analytics[:tools][:success_rate] >= 80 ? 'green' : 'yellow' %>-400">
+            <%= @analytics[:tools][:success_rate] %>% success
+          </span>
+        </div>
+        <div class="space-y-3">
+          <% max_count = @analytics[:tools][:by_tool].values.max || 1 %>
+          <% @analytics[:tools][:by_tool].each do |tool_name, count| %>
+            <div>
+              <div class="flex items-center justify-between text-sm mb-1">
+                <span class="text-text-primary"><%= tool_name %></span>
+                <span class="text-text-faint"><%= count %></span>
+              </div>
+              <div class="w-full bg-surface-raised rounded-full h-2">
+                <div class="bg-brand h-2 rounded-full" style="width: <%= (count * 100.0 / max_count).round %>%"></div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-text-faint text-sm">No tool executions in this period.</p>
+      <% end %>
+    </div>
+
+    <!-- Model Usage -->
+    <div class="bg-surface-card rounded-xl border border-border-default p-6">
+      <h2 class="text-lg font-semibold text-white mb-4">Model Usage</h2>
+      <% if @analytics[:models].any? %>
+        <div class="space-y-3">
+          <% @analytics[:models].each do |model, count| %>
+            <div class="flex items-center justify-between">
+              <span class="text-text-primary text-sm"><%= model %></span>
+              <span class="px-2 py-0.5 text-xs rounded-full bg-surface-raised text-text-primary"><%= count %> requests</span>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-text-faint text-sm">No model usage in this period.</p>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Daily Usage Chart (text-based) -->
+  <% if @analytics[:daily_usage].any? %>
+    <div class="bg-surface-card rounded-xl border border-border-default p-6">
+      <h2 class="text-lg font-semibold text-white mb-4">Daily Usage</h2>
+      <div class="space-y-2">
+        <% max_requests = @analytics[:daily_usage].values.map { |d| d[:requests] }.max || 1 %>
+        <% @analytics[:daily_usage].each do |date, data| %>
+          <div class="flex items-center gap-4">
+            <span class="text-text-muted text-xs w-20 flex-shrink-0"><%= date.strftime("%b %d") %></span>
+            <div class="flex-1 bg-surface-raised rounded-full h-4 relative">
+              <div class="bg-brand h-4 rounded-full flex items-center justify-end pr-2"
+                   style="width: <%= [(data[:requests] * 100.0 / max_requests).round, 5].max %>%">
+                <% if data[:requests] > 0 %>
+                  <span class="text-white text-xs font-medium"><%= data[:requests] %></span>
+                <% end %>
+              </div>
+            </div>
+            <span class="text-text-faint text-xs w-24 text-right flex-shrink-0">
+              $<%= sprintf("%.4f", data[:cost_cents] / 100.0) %>
+            </span>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+</div>

@@ -1,0 +1,69 @@
+<div class="min-h-screen bg-surface-base text-white">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <%= link_to "← Back to Templates", agent_templates_path, class: "text-brand-light hover:text-brand-light mb-6 inline-block" %>
+    
+    <div class="bg-surface-card rounded-lg p-8">
+      <div class="flex items-start justify-between mb-6">
+        <div class="flex items-center gap-4">
+          <div class="w-16 h-16 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-400 font-bold text-xl"><%= @template.icon || "AG" %></div>
+          <div>
+            <h1 class="text-3xl font-bold"><%= @template.name %></h1>
+            <p class="text-text-muted"><%= @template.role %></p>
+          </div>
+        </div>
+        <% if @template.featured %>
+          <span class="px-3 py-1 bg-yellow-600 rounded text-sm">Featured</span>
+        <% end %>
+      </div>
+      
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold mb-2">Description</h2>
+        <p class="text-text-primary"><%= @template.description %></p>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div>
+          <h3 class="text-sm font-semibold text-text-muted mb-1">Category</h3>
+          <p class="text-white"><%= @template.category.titleize %></p>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-text-muted mb-1">Version</h3>
+          <p class="text-white"><%= @template.version %></p>
+        </div>
+        <% if @template.author.present? %>
+          <div>
+            <h3 class="text-sm font-semibold text-text-muted mb-1">Author</h3>
+            <p class="text-white"><%= @template.author %></p>
+          </div>
+        <% end %>
+      </div>
+      
+      <% if @template.system_prompt.present? %>
+        <div class="mb-6">
+          <h2 class="text-lg font-semibold mb-2">System Prompt</h2>
+          <pre class="bg-surface-base p-4 rounded text-sm text-text-primary overflow-x-auto"><%= @template.system_prompt %></pre>
+        </div>
+      <% end %>
+      
+      <% if @template.soul_md.present? %>
+        <div class="mb-6">
+          <h2 class="text-lg font-semibold mb-2">SOUL.md Preview</h2>
+          <pre class="bg-surface-base p-4 rounded text-sm text-text-primary overflow-x-auto max-h-64"><%= @template.soul_md %></pre>
+        </div>
+      <% end %>
+      
+      <!-- Deploy Form -->
+      <%= form_with url: deploy_agent_template_path(@template), method: :post, class: "space-y-4" do |f| %>
+        <div>
+          <%= f.label :name, "Agent Name (optional)", class: "block text-sm font-medium mb-2" %>
+          <%= f.text_field :name, placeholder: @template.name, 
+              class: "w-full px-4 py-2 bg-surface-base border border-border-default rounded-lg focus:ring-2 focus:ring-brand focus:border-transparent" %>
+          <p class="text-xs text-text-faint mt-1">Leave blank to use template name</p>
+        </div>
+        
+        <%= f.submit "Deploy Agent", 
+            class: "w-full px-6 py-3 bg-brand hover:bg-brand-dark rounded-lg font-semibold cursor-pointer" %>
+      <% end %>
+    </div>
+  </div>
+</div>

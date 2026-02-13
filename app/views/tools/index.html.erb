@@ -1,0 +1,82 @@
+<div class="min-h-screen bg-surface-base p-6">
+  <div class="max-w-6xl mx-auto">
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-2xl font-bold text-white">Tools</h1>
+        <p class="text-text-muted mt-1">Tools agents can use to interact with the world</p>
+      </div>
+      <%= link_to "New Tool", new_tool_path, class: "px-4 py-2 bg-brand hover:bg-brand-dark rounded-lg text-white transition" %>
+    </div>
+
+    <!-- Tools Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
+      <% @tools.each do |tool| %>
+        <div class="bg-surface-card rounded-xl border border-border-default p-5 hover:border-gray-500 transition">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg flex items-center justify-center
+                <%= tool.enabled? ? 'text-green-400' : 'text-text-faint' %>">
+                <%= hex_tool_icon(size: "w-8 h-8") %>
+              </div>
+              <div>
+                <h3 class="text-white font-semibold"><%= tool.name %></h3>
+                <span class="text-xs px-2 py-0.5 rounded-full
+                  <%= tool.builtin? ? 'bg-brand-glow/50 text-brand-light' : 'bg-purple-900/50 text-purple-300' %>">
+                  <%= tool.builtin? ? "built-in" : "custom" %>
+                </span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <% if tool.requires_approval? %>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-yellow-900/50 text-yellow-300">approval required</span>
+              <% end %>
+              <span class="w-2.5 h-2.5 rounded-full <%= tool.enabled? ? 'bg-green-400' : 'bg-surface-overlay' %>"></span>
+            </div>
+          </div>
+
+          <p class="text-text-muted text-sm mb-4 line-clamp-2"><%= tool.description %></p>
+
+          <div class="flex items-center justify-between">
+            <span class="text-text-faint text-xs"><%= tool.executor_type %></span>
+            <div class="flex gap-2">
+              <%= link_to "View", tool_path(tool), class: "text-xs text-brand-light hover:text-brand-light" %>
+              <%= link_to "Edit", edit_tool_path(tool), class: "text-xs text-text-muted hover:text-text-primary" %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <!-- Recent Executions -->
+    <div class="bg-surface-card rounded-xl border border-border-default">
+      <div class="px-6 py-4 border-b border-border-default">
+        <h2 class="text-lg font-semibold text-white">Recent Executions</h2>
+      </div>
+      <div class="divide-y divide-border-default">
+        <% if @recent_executions.empty? %>
+          <div class="px-6 py-8 text-center text-text-muted">No tool executions yet</div>
+        <% end %>
+        <% @recent_executions.each do |exec| %>
+          <div class="px-6 py-3 flex items-center gap-4">
+            <span class="w-2 h-2 rounded-full flex-shrink-0
+              <%= { 'completed' => 'bg-green-400', 'failed' => 'bg-red-400', 'running' => 'bg-yellow-400', 'pending' => 'bg-gray-400' }[exec.status] || 'bg-gray-400' %>"></span>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-white text-sm font-medium"><%= exec.tool.name %></span>
+                <span class="text-text-faint text-xs">by <%= exec.agent.name %></span>
+              </div>
+              <p class="text-text-muted text-xs truncate"><%= exec.input.to_json.truncate(100) %></p>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <div class="text-xs <%= exec.status == 'completed' ? 'text-green-400' : exec.status == 'failed' ? 'text-red-400' : 'text-text-muted' %>"><%= exec.status %></div>
+              <div class="text-text-faint text-xs">
+                <% if exec.duration_ms %><%= exec.duration_ms %>ms · <% end %>
+                <%= time_ago_in_words(exec.created_at) %> ago
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

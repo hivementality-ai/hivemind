@@ -1,0 +1,5 @@
+<div class="max-w-3xl mx-auto px-6 py-8">
+  <%= link_to "← #{@skill.name}", skill_path(@skill), class: "text-brand-light hover:text-brand-light text-sm" %>
+  <h1 class="text-2xl font-bold text-white mt-4 mb-6">Edit Skill</h1>
+  <%= render "form", skill: @skill %>
+</div>

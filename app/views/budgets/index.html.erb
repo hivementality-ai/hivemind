@@ -1,0 +1,89 @@
+<div class="max-w-5xl mx-auto px-6 py-8">
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-white">Cost Budgets</h1>
+    <p class="text-text-muted mt-1">Set spending limits per agent. Budgets reset automatically each period.</p>
+  </div>
+
+  <% if @agents.any? %>
+    <div class="space-y-4">
+      <% @agents.each do |agent| %>
+        <% daily = agent.agent_budgets.find { |b| b.period == "daily" } %>
+        <% monthly = agent.agent_budgets.find { |b| b.period == "monthly" } %>
+        <% today_spent = agent.usage_records.where(created_at: Time.current.beginning_of_day..Time.current).sum(:cost_cents) %>
+        <% month_spent = agent.usage_records.where(created_at: Time.current.beginning_of_month..Time.current).sum(:cost_cents) %>
+
+        <div class="bg-surface-card rounded-xl border border-border-default p-6">
+          <div class="flex items-center gap-4 mb-4">
+            <div class="w-10 h-10 bg-brand rounded-lg flex items-center justify-center text-white font-bold">
+              <%= agent.name[0].upcase %>
+            </div>
+            <div>
+              <h3 class="text-white font-semibold"><%= agent.name %></h3>
+              <p class="text-text-faint text-xs"><%= agent.role %> · <%= agent.llm_model %></p>
+            </div>
+          </div>
+
+          <%= form_tag update_budget_path(agent), method: :patch, class: "space-y-4" do %>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Daily Budget -->
+              <div class="bg-surface-base rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-text-muted text-sm">Daily Limit</span>
+                  <span class="text-text-faint text-xs">
+                    Spent today: $<%= sprintf("%.4f", today_spent / 100.0) %>
+                  </span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-text-muted">$</span>
+                  <%= text_field_tag :daily_limit, daily&.limit_cents ? sprintf("%.2f", daily.limit_cents / 100.0) : "",
+                      placeholder: "No limit",
+                      class: "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint text-sm focus:outline-none focus:ring-2 focus:ring-brand" %>
+                </div>
+                <% if daily&.limit_cents %>
+                  <% pct = daily.limit_cents > 0 ? (today_spent * 100.0 / daily.limit_cents).round(1) : 0 %>
+                  <div class="mt-2 w-full bg-surface-raised rounded-full h-2">
+                    <div class="<%= pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-yellow-500' : 'bg-green-500' %> h-2 rounded-full"
+                         style="width: <%= [pct, 100].min %>%"></div>
+                  </div>
+                  <p class="text-xs text-text-faint mt-1"><%= pct %>% used</p>
+                <% end %>
+              </div>
+
+              <!-- Monthly Budget -->
+              <div class="bg-surface-base rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-text-muted text-sm">Monthly Limit</span>
+                  <span class="text-text-faint text-xs">
+                    Spent this month: $<%= sprintf("%.4f", month_spent / 100.0) %>
+                  </span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-text-muted">$</span>
+                  <%= text_field_tag :monthly_limit, monthly&.limit_cents ? sprintf("%.2f", monthly.limit_cents / 100.0) : "",
+                      placeholder: "No limit",
+                      class: "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint text-sm focus:outline-none focus:ring-2 focus:ring-brand" %>
+                </div>
+                <% if monthly&.limit_cents %>
+                  <% pct = monthly.limit_cents > 0 ? (month_spent * 100.0 / monthly.limit_cents).round(1) : 0 %>
+                  <div class="mt-2 w-full bg-surface-raised rounded-full h-2">
+                    <div class="<%= pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-yellow-500' : 'bg-green-500' %> h-2 rounded-full"
+                         style="width: <%= [pct, 100].min %>%"></div>
+                  </div>
+                  <p class="text-xs text-text-faint mt-1"><%= pct %>% used</p>
+                <% end %>
+              </div>
+            </div>
+
+            <div class="flex justify-end">
+              <%= submit_tag "Save", class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="bg-surface-card rounded-xl border border-border-default px-6 py-12 text-center">
+      <p class="text-text-muted">No agents yet. Create one to set budgets.</p>
+    </div>
+  <% end %>
+</div>

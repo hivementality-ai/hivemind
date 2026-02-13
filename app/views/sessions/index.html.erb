@@ -1,0 +1,68 @@
+<div class="max-w-4xl mx-auto">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-3xl font-bold text-white">Chat Sessions</h1>
+      <p class="text-text-muted mt-1">Talk to your agents</p>
+    </div>
+  </div>
+
+  <!-- Start new chat -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-8">
+    <h2 class="text-lg font-semibold text-white mb-4">Start a new conversation</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <% Agent.enabled.order(:name).each do |agent| %>
+        <div class="bg-surface-raised border border-border-default rounded-lg p-4 hover:border-brand transition">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-brand rounded-lg flex items-center justify-center text-white font-bold">
+              <%= agent.name[0].upcase %>
+            </div>
+            <div>
+              <h3 class="text-white font-medium"><%= agent.name %></h3>
+              <p class="text-text-muted text-xs"><%= agent.role %> · <%= agent.llm_model %></p>
+            </div>
+          </div>
+          <p class="text-text-muted text-sm mb-3 line-clamp-2"><%= agent.system_prompt&.truncate(100) %></p>
+          <%= button_to "Chat →", sessions_path(agent_id: agent.id), method: :post,
+              class: "w-full py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Active sessions -->
+  <% if @sessions.any? %>
+    <div class="bg-surface-card rounded-xl border border-border-default p-6">
+      <h2 class="text-lg font-semibold text-white mb-4">Recent conversations</h2>
+      <div class="space-y-3">
+        <% @sessions.each do |session| %>
+          <%= link_to session_path(session), class: "block bg-surface-raised border border-border-default rounded-lg p-4 hover:border-brand transition" do %>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-brand rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                  <%= session.agent.name[0].upcase %>
+                </div>
+                <div>
+                  <h3 class="text-white font-medium"><%= session.agent.name %></h3>
+                  <p class="text-text-muted text-xs">
+                    <%= session.transcript_size %> messages ·
+                    <%= time_ago_in_words(session.last_activity_at || session.created_at) %> ago
+                  </p>
+                </div>
+              </div>
+              <div class="text-text-faint text-sm">
+                <%= session.agent.llm_model %>
+              </div>
+            </div>
+            <% last_msg = session.transcript&.last %>
+            <% if last_msg %>
+              <p class="text-text-muted text-sm mt-2 truncate">
+                <span class="text-text-faint"><%= last_msg["role"] %>:</span>
+                <%= last_msg["content"]&.truncate(120) %>
+              </p>
+            <% end %>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+</div>
