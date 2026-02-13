@@ -47,7 +47,7 @@ class Agent < ApplicationRecord
 
   def usage_summary
     {
-      total_cost: usage_records.sum(:cost),
+      total_cost: usage_records.sum(:cost_cents),
       total_tokens: usage_records.sum("input_tokens + output_tokens"),
       request_count: usage_records.count
     }

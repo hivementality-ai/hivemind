@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_13_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_13_190002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -49,15 +49,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_180000) do
     t.text "current_task"
     t.decimal "daily_budget_limit", precision: 10, scale: 4, default: "10.0"
     t.boolean "enabled", default: true, null: false
+    t.string "llm_model", default: "gpt-4"
     t.jsonb "model_config"
-    t.string "model_name", default: "gpt-4"
     t.string "model_provider", default: "openai"
     t.decimal "monthly_budget_limit", precision: 10, scale: 4, default: "100.0"
     t.string "name"
     t.string "role"
     t.integer "status"
     t.text "system_prompt"
-    t.bigint "team_id", null: false
+    t.bigint "team_id"
     t.jsonb "tools_config"
     t.datetime "updated_at", null: false
     t.string "workspace_path"
@@ -128,6 +128,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_180000) do
     t.datetime "approved_at"
     t.datetime "created_at", null: false
     t.string "device_id"
+    t.string "device_name"
     t.string "device_type"
     t.jsonb "metadata"
     t.string "name"
@@ -195,6 +196,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_180000) do
     t.datetime "created_at", null: false
     t.boolean "enabled"
     t.string "job_class"
+    t.string "last_error_at"
     t.datetime "last_run_at"
     t.string "name"
     t.datetime "next_run_at"
@@ -291,7 +293,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_180000) do
   end
 
   create_table "vault_entries", force: :cascade do |t|
-    t.bigint "agent_id", null: false
+    t.bigint "agent_id"
     t.datetime "created_at", null: false
     t.text "encrypted_value"
     t.string "key"

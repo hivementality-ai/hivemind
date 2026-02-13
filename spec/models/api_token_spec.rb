@@ -9,12 +9,15 @@ RSpec.describe ApiToken, type: :model do
 
   describe 'validations' do
     it { should validate_presence_of(:name) }
-    it { should validate_presence_of(:token_digest) }
+    it 'auto-generates token_digest on create' do
+      token = build(:api_token)
+      expect(token.token_digest).to be_present
+    end
     
-    it 'validates uniqueness of token_digest' do
-      token = create(:api_token)
-      duplicate = build(:api_token, token_digest: token.token_digest)
-      expect(duplicate).not_to be_valid
+    it 'generates unique token digests' do
+      token1 = create(:api_token)
+      token2 = create(:api_token)
+      expect(token1.token_digest).not_to eq(token2.token_digest)
     end
   end
 

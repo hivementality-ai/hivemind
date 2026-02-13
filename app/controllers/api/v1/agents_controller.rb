@@ -48,7 +48,7 @@ module Api
 
       def agent_params
         params.require(:agent).permit(
-          :name, :role, :team_id, :model_provider, :model_name,
+          :name, :role, :team_id, :model_provider, :llm_model,
           :daily_budget_limit, :monthly_budget_limit, :workspace_path,
           :system_prompt, :enabled
         )

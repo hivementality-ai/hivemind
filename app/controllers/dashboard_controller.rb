@@ -36,14 +36,14 @@ class DashboardController < ApplicationController
     Agent.all.map do |agent|
       usage = UsageRecord.where(agent_id: agent.id)
                         .where("created_at >= ?", today_start)
-                        .sum(:cost)
+                        .sum(:cost_cents)
 
       {
         agent_id: agent.id,
         agent_name: agent.name,
         today_cost: usage,
         budget_limit: agent.daily_budget_limit,
-        usage_percent: agent.daily_budget_limit.positive? ? (usage / agent.daily_budget_limit * 100).round(2) : 0
+        usage_percent: agent.daily_budget_limit.to_d.positive? ? (usage / agent.daily_budget_limit * 100).round(2) : 0
       }
     end
   end

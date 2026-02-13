@@ -11,7 +11,6 @@ class AgentsController < ApplicationController
     @recent_sessions = @agent.sessions
                              .order(created_at: :desc)
                              .limit(10)
-                             .select(:id, :key, :created_at, :metadata)
 
     @pending_approvals = ApprovalRequest.where(agent_id: @agent.id)
                                        .pending
@@ -63,7 +62,7 @@ class AgentsController < ApplicationController
 
   def agent_params
     params.require(:agent).permit(
-      :name, :role, :team_id, :model_provider, :model_name,
+      :name, :role, :team_id, :model_provider, :llm_model,
       :daily_budget_limit, :monthly_budget_limit, :workspace_path,
       :system_prompt, :enabled
     )
@@ -76,7 +75,7 @@ class AgentsController < ApplicationController
                       .where("created_at >= ?", today_start)
     
     {
-      total_cost: usage.sum(:cost),
+      total_cost: usage.sum(:cost_cents),
       total_tokens: usage.sum("input_tokens + output_tokens"),
       request_count: usage.count
     }

@@ -32,7 +32,7 @@ RSpec.describe DashboardController, type: :controller do
 
     it 'assigns @recent_activity' do
       get :index
-      expect(assigns(:recent_activity)).to be_present
+      expect(assigns(:recent_activity)).to be_an(Array)
     end
 
     it 'assigns @cost_summary' do

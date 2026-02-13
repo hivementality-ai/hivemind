@@ -6,8 +6,6 @@ FactoryBot.define do
     status { "pending" }
     requested_at { Time.current }
     expires_at { 24.hours.from_now }
-    metadata { {} }
-
     trait :pending do
       status { "pending" }
       resolved_at { nil }

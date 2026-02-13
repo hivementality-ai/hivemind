@@ -10,7 +10,11 @@ RSpec.describe ApprovalRequest, type: :model do
   describe 'validations' do
     it { should validate_presence_of(:action) }
     it { should validate_presence_of(:resource) }
-    it { should validate_presence_of(:requested_at) }
+    it 'sets requested_at automatically' do
+      request = build(:approval_request, requested_at: nil)
+      request.valid?
+      expect(request.requested_at).to be_present
+    end
     it { should validate_inclusion_of(:status).in_array(%w[pending approved rejected expired]) }
   end
 
