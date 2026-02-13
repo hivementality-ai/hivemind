@@ -1,0 +1,122 @@
+services:
+  rails:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgres://hivemind:hivemind@postgres:5432/hivemind_production
+      - REDIS_URL=redis://redis:6379/0
+      - RAILS_ENV=production
+      - RAILS_MASTER_KEY=${RAILS_MASTER_KEY}
+      - RAILS_SERVE_STATIC_FILES=true
+    networks:
+      - internal
+      - web
+
+  sidekiq:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: bundle exec sidekiq -C config/sidekiq.yml
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgres://hivemind:hivemind@postgres:5432/hivemind_production
+      - REDIS_URL=redis://redis:6379/0
+      - RAILS_ENV=production
+      - RAILS_MASTER_KEY=${RAILS_MASTER_KEY}
+    networks:
+      - internal
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=hivemind
+      - POSTGRES_PASSWORD=hivemind
+      - POSTGRES_DB=hivemind_production
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hivemind"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  browser:
+    image: mcr.microsoft.com/playwright:v1.52.0-noble
+    command: npx playwright run-server --port 3001
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: "1.0"
+    networks:
+      - internal
+      - web
+
+  workspace:
+    build:
+      context: .
+      dockerfile: Dockerfile.workspace
+    volumes:
+      - workspace_data:/workspace
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+          cpus: "2.0"
+    networks:
+      - sandbox
+
+  connector:
+    build:
+      context: .
+      dockerfile: Dockerfile.connector
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - RAILS_API_URL=http://rails:3000
+    networks:
+      - internal
+      - web
+
+volumes:
+  postgres_data:
+  redis_data:
+  workspace_data:
+
+networks:
+  internal:
+    driver: bridge
+  web:
+    driver: bridge
+  sandbox:
+    driver: bridge
+    internal: true  # No external access from sandbox to internal services

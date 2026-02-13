@@ -1,0 +1,20 @@
+# Default scheduled jobs
+# Agent-created jobs are managed via the ScheduledTask model
+
+session_archival:
+  cron: "0 4 * * *"
+  class: "SessionArchivalJob"
+  queue: "low"
+  description: "Archive old session transcripts"
+
+audit_cleanup:
+  cron: "0 3 * * 0"
+  class: "AuditCleanupJob"
+  queue: "low"
+  description: "Clean up audit logs older than retention period"
+
+budget_reset:
+  cron: "0 0 * * *"
+  class: "BudgetResetJob"
+  queue: "default"
+  description: "Reset daily agent budgets"

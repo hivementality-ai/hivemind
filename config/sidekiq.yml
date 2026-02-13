@@ -1,0 +1,7 @@
+---
+:concurrency: 10
+:queues:
+  - [critical, 6]
+  - [default, 4]
+  - [low, 2]
+  - [agents, 4]
