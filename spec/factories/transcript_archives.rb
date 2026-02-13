@@ -1,7 +1,20 @@
 FactoryBot.define do
   factory :transcript_archive do
-    session { nil }
-    transcript { "" }
-    archived_at { "2026-02-13 10:49:53" }
+    association :session
+    transcript do
+      [
+        { role: "user", content: "Hello", timestamp: 2.hours.ago.iso8601 },
+        { role: "assistant", content: "Hi!", timestamp: 2.hours.ago.iso8601 }
+      ]
+    end
+    archived_at { Time.current }
+
+    trait :large do
+      transcript do
+        50.times.map do |i|
+          { role: i.even? ? "user" : "assistant", content: "Message #{i}", timestamp: (50 - i).minutes.ago.iso8601 }
+        end
+      end
+    end
   end
 end

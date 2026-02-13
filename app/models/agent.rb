@@ -1,6 +1,23 @@
 # frozen_string_literal: true
 
 class Agent < ApplicationRecord
+  # Disable dangerous attribute check for model_name column
+  class << self
+    def dangerous_attribute_method?(method_name)
+      return false if method_name.to_s == 'model_name'
+      super
+    end
+  end
+
+  # Provide accessor for the model_name database column as llm_model
+  def llm_model
+    read_attribute(:model_name)
+  end
+
+  def llm_model=(value)
+    write_attribute(:model_name, value)
+  end
+
   belongs_to :team, optional: true
 
   has_many :sessions, dependent: :destroy

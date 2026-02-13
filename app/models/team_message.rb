@@ -9,7 +9,7 @@ class TeamMessage < ApplicationRecord
 
   scope :recent, -> { order(created_at: :desc) }
   scope :for_team, ->(team) { where(team:) }
-  scope :broadcasts, -> { where(to_agent_id: nil) }
+  scope :broadcast_messages, -> { where(to_agent_id: nil) }
 
   after_initialize :set_defaults
 
