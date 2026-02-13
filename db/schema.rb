@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_13_164965) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_13_170500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -27,7 +27,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_164965) do
 
   create_table "agents", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.text "current_task"
+    t.decimal "daily_budget_limit", precision: 10, scale: 4, default: "10.0"
+    t.boolean "enabled", default: true, null: false
     t.jsonb "model_config"
+    t.string "model_name", default: "gpt-4"
+    t.string "model_provider", default: "openai"
+    t.decimal "monthly_budget_limit", precision: 10, scale: 4, default: "100.0"
     t.string "name"
     t.string "role"
     t.integer "status"
@@ -36,6 +42,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_164965) do
     t.jsonb "tools_config"
     t.datetime "updated_at", null: false
     t.string "workspace_path"
+    t.index ["enabled"], name: "index_agents_on_enabled"
     t.index ["name"], name: "index_agents_on_name", unique: true
     t.index ["status"], name: "index_agents_on_status"
     t.index ["team_id"], name: "index_agents_on_team_id"
@@ -53,6 +60,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_164965) do
     t.bigint "user_id", null: false
     t.index ["token_digest"], name: "index_api_tokens_on_token_digest", unique: true
     t.index ["user_id"], name: "index_api_tokens_on_user_id"
+  end
+
+  create_table "approval_requests", force: :cascade do |t|
+    t.string "action", null: false
+    t.bigint "agent_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "expires_at"
+    t.jsonb "params", default: {}, null: false
+    t.datetime "requested_at", null: false
+    t.text "resolution_notes"
+    t.datetime "resolved_at"
+    t.string "resolved_by"
+    t.string "resource", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id", "status"], name: "index_approval_requests_on_agent_id_and_status"
+    t.index ["agent_id"], name: "index_approval_requests_on_agent_id"
+    t.index ["expires_at"], name: "index_approval_requests_on_expires_at"
+    t.index ["status"], name: "index_approval_requests_on_status"
   end
 
   create_table "audit_logs", force: :cascade do |t|
@@ -91,6 +117,46 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_164965) do
     t.datetime "updated_at", null: false
     t.index ["device_id"], name: "index_device_pairings_on_device_id", unique: true
     t.index ["status"], name: "index_device_pairings_on_status"
+  end
+
+  create_table "inbound_messages", force: :cascade do |t|
+    t.bigint "channel_id", null: false
+    t.text "content"
+    t.datetime "created_at", null: false
+    t.string "external_id", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "received_at", null: false
+    t.string "sender", null: false
+    t.datetime "updated_at", null: false
+    t.index ["channel_id", "external_id"], name: "index_inbound_messages_on_channel_id_and_external_id", unique: true
+    t.index ["channel_id"], name: "index_inbound_messages_on_channel_id"
+    t.index ["received_at"], name: "index_inbound_messages_on_received_at"
+  end
+
+  create_table "memory_entries", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.text "content", null: false
+    t.datetime "created_at", null: false
+    t.jsonb "embedding", default: [], null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.bigint "source_id"
+    t.string "source_type"
+    t.datetime "updated_at", null: false
+    t.index ["agent_id"], name: "index_memory_entries_on_agent_id"
+    t.index ["source_type", "source_id"], name: "index_memory_entries_on_source_type_and_source_id"
+  end
+
+  create_table "outbound_messages", force: :cascade do |t|
+    t.bigint "channel_id", null: false
+    t.text "content"
+    t.datetime "created_at", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.string "recipient", null: false
+    t.datetime "sent_at", null: false
+    t.string "status", default: "sent"
+    t.datetime "updated_at", null: false
+    t.index ["channel_id"], name: "index_outbound_messages_on_channel_id"
+    t.index ["sent_at"], name: "index_outbound_messages_on_sent_at"
   end
 
   create_table "provider_configs", force: :cascade do |t|
@@ -140,15 +206,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_164965) do
   end
 
   create_table "team_messages", force: :cascade do |t|
+    t.datetime "completed_at"
     t.text "content"
     t.datetime "created_at", null: false
     t.bigint "from_agent_id", null: false
     t.string "message_type"
     t.jsonb "metadata"
+    t.string "status", default: "pending"
     t.bigint "team_id", null: false
     t.bigint "to_agent_id"
     t.datetime "updated_at", null: false
     t.index ["from_agent_id"], name: "index_team_messages_on_from_agent_id"
+    t.index ["status"], name: "index_team_messages_on_status"
     t.index ["team_id", "created_at"], name: "index_team_messages_on_team_id_and_created_at"
     t.index ["team_id"], name: "index_team_messages_on_team_id"
     t.index ["to_agent_id"], name: "index_team_messages_on_to_agent_id"
@@ -217,6 +286,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_164965) do
   add_foreign_key "agent_budgets", "agents"
   add_foreign_key "agents", "teams"
   add_foreign_key "api_tokens", "users"
+  add_foreign_key "approval_requests", "agents"
+  add_foreign_key "inbound_messages", "channels"
+  add_foreign_key "memory_entries", "agents"
+  add_foreign_key "outbound_messages", "channels"
   add_foreign_key "scheduled_tasks", "agents"
   add_foreign_key "sessions", "agents"
   add_foreign_key "team_messages", "agents", column: "from_agent_id"

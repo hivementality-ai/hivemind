@@ -18,4 +18,21 @@ class Agent < ApplicationRecord
 
   scope :active, -> { where.not(status: :error) }
   scope :by_team, ->(team) { where(team:) }
+  scope :enabled, -> { where(enabled: true) }
+
+  def current_status
+    {
+      status: status,
+      current_task: current_task,
+      updated_at: updated_at
+    }
+  end
+
+  def usage_summary
+    {
+      total_cost: usage_records.sum(:cost),
+      total_tokens: usage_records.sum("input_tokens + output_tokens"),
+      request_count: usage_records.count
+    }
+  end
 end

@@ -26,6 +26,22 @@ class Session < ApplicationRecord
     (transcript || []).size
   end
 
+  def transcript_summary
+    {
+      total_entries: transcript_size,
+      first_entry_at: transcript&.first&.dig("timestamp"),
+      last_entry_at: transcript&.last&.dig("timestamp"),
+      input_tokens: input_tokens,
+      output_tokens: output_tokens,
+      total_tokens: total_tokens
+    }
+  end
+
+  # Alias for compatibility
+  def key
+    session_key
+  end
+
   private
 
   def set_defaults

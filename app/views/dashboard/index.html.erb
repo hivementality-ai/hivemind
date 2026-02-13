@@ -1,0 +1,114 @@
+<div class="min-h-screen bg-gray-900 text-white">
+  <!-- Header -->
+  <div class="bg-gray-800 border-b border-gray-700 px-6 py-4">
+    <div class="flex items-center justify-between">
+      <h1 class="text-3xl font-bold">🐝 Hivemind Mission Control</h1>
+      <div class="flex gap-4">
+        <%= link_to "Agents", agents_path, class: "px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition" %>
+        <%= link_to "New Agent", new_agent_path, class: "px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition" %>
+      </div>
+    </div>
+  </div>
+
+  <div class="container mx-auto px-6 py-8">
+    <!-- Cost Summary -->
+    <div class="mb-8 bg-gray-800 rounded-lg p-6 border border-gray-700">
+      <h2 class="text-xl font-semibold mb-4">💰 Today's Cost Summary</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <% @cost_summary.each do |summary| %>
+          <div class="bg-gray-700 rounded-lg p-4">
+            <div class="text-sm text-gray-400"><%= summary[:agent_name] %></div>
+            <div class="text-2xl font-bold text-green-400">$<%= sprintf("%.4f", summary[:today_cost]) %></div>
+            <div class="mt-2 bg-gray-600 rounded-full h-2">
+              <div class="bg-blue-500 h-2 rounded-full" style="width: <%= [summary[:usage_percent], 100].min %>%"></div>
+            </div>
+            <div class="text-xs text-gray-400 mt-1">
+              <%= summary[:usage_percent].round(1) %>% of $<%= sprintf("%.2f", summary[:budget_limit]) %> limit
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Agent Cards Grid -->
+    <div class="mb-8">
+      <h2 class="text-xl font-semibold mb-4">🤖 Agent Team</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <% @agents.each do |agent| %>
+          <%= link_to agent_path(agent), class: "block bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-blue-500 transition" do %>
+            <div class="flex items-start justify-between mb-3">
+              <div>
+                <h3 class="text-lg font-semibold"><%= agent.name %></h3>
+                <span class="text-sm text-gray-400"><%= agent.role&.titleize || "No role" %></span>
+              </div>
+              <% status = agent.status || "idle" %>
+              <span class="px-2 py-1 rounded-full text-xs font-medium <%= status == "active" ? "bg-green-900 text-green-300" : status == "thinking" ? "bg-yellow-900 text-yellow-300" : "bg-gray-700 text-gray-300" %>">
+                <%= status.titleize %>
+              </span>
+            </div>
+            
+            <% if agent.current_task.present? %>
+              <div class="mt-3 text-sm text-gray-400">
+                <div class="font-medium text-gray-300 mb-1">Current Task:</div>
+                <%= truncate(agent.current_task, length: 80) %>
+              </div>
+            <% end %>
+
+            <% if agent.team %>
+              <div class="mt-3 text-xs text-gray-500">
+                Team: <%= agent.team.name %>
+              </div>
+            <% end %>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Activity Feed -->
+    <div class="bg-gray-800 rounded-lg border border-gray-700">
+      <div class="px-6 py-4 border-b border-gray-700">
+        <h2 class="text-xl font-semibold">📊 Recent Activity</h2>
+      </div>
+      <div class="p-6">
+        <turbo-frame id="activity_feed" class="space-y-3">
+          <% @recent_activity.each do |item| %>
+            <div class="bg-gray-700 rounded-lg p-4">
+              <% if item.is_a?(Session) %>
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                      <span class="font-medium"><%= item.agent.name %></span>
+                      <span class="text-xs text-gray-400">started session</span>
+                    </div>
+                    <div class="text-sm text-gray-400 mt-1">
+                      <%= item.key %>
+                    </div>
+                  </div>
+                  <div class="text-xs text-gray-500">
+                    <%= time_ago_in_words(item.created_at) %> ago
+                  </div>
+                </div>
+              <% elsif item.is_a?(TeamMessage) %>
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                      <span class="font-medium"><%= item.from_agent.name %></span>
+                      <span class="text-xs text-gray-400">→</span>
+                      <span class="font-medium"><%= item.to_agent&.name || "Team" %></span>
+                    </div>
+                    <div class="text-sm text-gray-300 mt-1">
+                      <%= truncate(item.content, length: 100) %>
+                    </div>
+                  </div>
+                  <div class="text-xs text-gray-500">
+                    <%= time_ago_in_words(item.created_at) %> ago
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </turbo-frame>
+      </div>
+    </div>
+  </div>
+</div>

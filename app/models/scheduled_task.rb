@@ -7,15 +7,25 @@ class ScheduledTask < ApplicationRecord
   validates :schedule, presence: true
   validates :job_class, presence: true
 
-  scope :enabled_tasks, -> { where(enabled: true) }
-  scope :for_agent, ->(agent) { where(agent:) }
+  scope :enabled, -> { where(enabled: true) }
+  scope :disabled, -> { where(enabled: false) }
+  scope :for_agent, ->(agent) { where(agent: agent) }
 
-  after_initialize :set_defaults
+  def enabled?
+    enabled
+  end
 
-  private
+  def disabled?
+    !enabled
+  end
 
-  def set_defaults
-    self.params ||= {}
-    self.enabled = true if enabled.nil?
+  def last_run_status
+    if last_error_at.present? && (last_run_at.nil? || last_error_at > last_run_at)
+      "error"
+    elsif last_run_at.present?
+      "success"
+    else
+      "never_run"
+    end
   end
 end
