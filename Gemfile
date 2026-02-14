@@ -30,7 +30,7 @@ gem "redis", "~> 5.0"
 gem "rack-attack"
 
 # LLM Providers
-gem "ruby-openai", "~> 7.0"
+gem "ruby-openai", "~> 8.3"
 gem "anthropic", "~> 1.19"
 
 # HTTP Client (for webhooks, web fetch, etc.)
