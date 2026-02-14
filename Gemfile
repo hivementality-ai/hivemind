@@ -20,7 +20,7 @@ gem "devise"
 gem "bcrypt", "~> 3.1.7"
 
 # Background Jobs
-gem "sidekiq", "~> 7.0"
+gem "sidekiq", "~> 8.1"
 gem "sidekiq-cron", "~> 2.0"
 
 # WebSocket (ActionCable with Redis)
