@@ -2,6 +2,7 @@
 
 class Session < ApplicationRecord
   belongs_to :agent
+  belongs_to :team_chat_session, optional: true
 
   has_many :transcript_archives, dependent: :destroy
   has_many :usage_records, dependent: :destroy

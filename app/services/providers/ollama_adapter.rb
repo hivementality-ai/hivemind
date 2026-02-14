@@ -45,7 +45,7 @@ module Providers
     end
 
     def ollama_url
-      base_url || "http://localhost:11434"
+      base_url || ENV.fetch("OLLAMA_URL", "http://host.docker.internal:11434")
     end
 
     def build_chat_params(messages:, tools:, options:)

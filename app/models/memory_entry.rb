@@ -7,7 +7,7 @@ class MemoryEntry < ApplicationRecord
   # has_neighbors :embedding  # Disabled until pgvector is installed
 
   validates :content, presence: true
-  validates :embedding, presence: true
+  # embedding not required until pgvector is fully wired
 
   scope :for_agent, ->(agent) { where(agent: agent) }
   scope :by_source_type, ->(type) { where(source_type: type) }

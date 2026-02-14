@@ -8,11 +8,11 @@
       
       <!-- Period Toggle -->
       <div class="flex gap-2">
-        <%= link_to "Day", analytics_index_path(period: "day"), 
+        <%= link_to "Day", analytics_path(period: "day"), 
             class: "px-4 py-2 rounded-lg #{@period == 'day' ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}" %>
-        <%= link_to "Week", analytics_index_path(period: "week"), 
+        <%= link_to "Week", analytics_path(period: "week"), 
             class: "px-4 py-2 rounded-lg #{@period == 'week' ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}" %>
-        <%= link_to "Month", analytics_index_path(period: "month"), 
+        <%= link_to "Month", analytics_path(period: "month"), 
             class: "px-4 py-2 rounded-lg #{@period == 'month' ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}" %>
       </div>
     </div>

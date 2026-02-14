@@ -85,20 +85,10 @@ test:
 # for a full overview on how database connection configuration can be specified.
 #
 production:
-  primary: &primary_production
-    <<: *default
-    database: hivemind_production
-    username: hivemind
-    password: <%= ENV["HIVEMIND_DATABASE_PASSWORD"] %>
-  cache:
-    <<: *primary_production
-    database: hivemind_production_cache
-    migrations_paths: db/cache_migrate
-  queue:
-    <<: *primary_production
-    database: hivemind_production_queue
-    migrations_paths: db/queue_migrate
-  cable:
-    <<: *primary_production
-    database: hivemind_production_cable
-    migrations_paths: db/cable_migrate
+  <<: *default
+  url: <%= ENV["DATABASE_URL"] %>
+  database: hivemind_production
+  username: hivemind
+  password: <%= ENV["HIVEMIND_DATABASE_PASSWORD"] %>
+  host: postgres
+  port: 5432

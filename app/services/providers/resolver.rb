@@ -18,7 +18,8 @@ module Providers
     end
 
     def call
-      config = ProviderConfig.enabled_providers.find_by(name: @provider_name)
+      config = ProviderConfig.enabled_providers.find_by(adapter_type: @provider_name) ||
+               ProviderConfig.enabled_providers.find_by(name: @provider_name)
 
       unless config
         return ServiceResponse.failure(error: "Provider not found: #{@provider_name}")

@@ -1,0 +1,187 @@
+<div class="min-h-screen bg-gray-900 flex items-center justify-center px-4 py-12">
+  <div class="max-w-lg w-full">
+    <div class="text-center mb-8">
+      <span class="text-5xl">🔑</span>
+      <h1 class="text-3xl font-bold text-white mt-4">Connect an AI Provider</h1>
+      <p class="text-gray-400 mt-2">Add at least one API key and pick your models.</p>
+    </div>
+
+    <%= render "setup/progress", step: 2 %>
+
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-8">
+      <%= form_with url: setup_provider_path, method: :post, class: "space-y-6", data: { controller: "provider-models" } do |f| %>
+        <% if flash[:alert] %>
+          <div class="bg-red-900/50 border border-red-600 text-red-200 px-4 py-3 rounded-lg text-sm">
+            <%= flash[:alert] %>
+          </div>
+        <% end %>
+
+        <!-- Anthropic -->
+        <div class="bg-gray-750 rounded-lg border border-gray-600 p-5" data-provider-models-target="section" data-provider="anthropic">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">A</div>
+            <div>
+              <h3 class="text-white font-medium">Anthropic</h3>
+              <p class="text-gray-400 text-xs">Claude models — recommended</p>
+            </div>
+          </div>
+          <%= f.text_field "providers[anthropic][api_key]",
+              class: "w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm",
+              placeholder: "sk-ant-...",
+              autocomplete: "off",
+              data: { action: "input->provider-models#toggleModels", provider_models_target: "keyInput" } %>
+          <p class="text-gray-500 text-xs mt-2">
+            Get a key at
+            <a href="https://console.anthropic.com/" target="_blank" class="text-blue-400 hover:underline">console.anthropic.com</a>
+          </p>
+
+          <!-- Model selection (shown when key is entered) -->
+          <div class="mt-4 space-y-2 hidden" data-provider-models-target="modelList" data-provider="anthropic">
+            <p class="text-gray-300 text-sm font-medium mb-2">Select available models:</p>
+            <% [
+              { id: "claude-opus-4-6", name: "Claude Opus 4.6", desc: "Most capable — complex reasoning & code", default: false },
+              { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5", desc: "Best balance of speed & intelligence", default: true },
+              { id: "claude-haiku-4-5", name: "Claude Haiku 4.5", desc: "Fast & affordable for simple tasks", default: true },
+            ].each do |model| %>
+              <label class="flex items-start gap-3 p-3 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700 transition group">
+                <input type="checkbox" name="providers[anthropic][models][]" value="<%= model[:id] %>"
+                       <%= "checked" if model[:default] %>
+                       class="mt-0.5 w-4 h-4 rounded border-gray-500 text-blue-600 focus:ring-blue-500 bg-gray-600">
+                <div class="flex-1">
+                  <span class="text-white text-sm font-medium"><%= model[:name] %></span>
+                  <p class="text-gray-400 text-xs"><%= model[:desc] %></p>
+                </div>
+              </label>
+            <% end %>
+
+            <div class="mt-3">
+              <label class="text-gray-300 text-sm font-medium">Default model:</label>
+              <select name="providers[anthropic][default_model]" class="mt-1 w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="claude-sonnet-4-5" selected>Claude Sonnet 4.5</option>
+                <option value="claude-opus-4-6">Claude Opus 4.6</option>
+                <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- OpenAI -->
+        <div class="bg-gray-750 rounded-lg border border-gray-600 p-5" data-provider-models-target="section" data-provider="openai">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">O</div>
+            <div>
+              <h3 class="text-white font-medium">OpenAI</h3>
+              <p class="text-gray-400 text-xs">GPT & o-series models</p>
+            </div>
+          </div>
+          <%= f.text_field "providers[openai][api_key]",
+              class: "w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm",
+              placeholder: "sk-...",
+              autocomplete: "off",
+              data: { action: "input->provider-models#toggleModels", provider_models_target: "keyInput" } %>
+          <p class="text-gray-500 text-xs mt-2">
+            Get a key at
+            <a href="https://platform.openai.com/" target="_blank" class="text-blue-400 hover:underline">platform.openai.com</a>
+          </p>
+
+          <!-- Model selection -->
+          <div class="mt-4 space-y-2 hidden" data-provider-models-target="modelList" data-provider="openai">
+            <p class="text-gray-300 text-sm font-medium mb-2">Select available models:</p>
+            <% [
+              { id: "gpt-4.1", name: "GPT-4.1", desc: "Latest flagship — great for coding & analysis", default: true },
+              { id: "gpt-4.1-mini", name: "GPT-4.1 Mini", desc: "Fast & cheap for everyday tasks", default: true },
+              { id: "gpt-4.1-nano", name: "GPT-4.1 Nano", desc: "Fastest & cheapest for simple tasks", default: false },
+              { id: "o3", name: "o3", desc: "Advanced reasoning — math, science, code", default: false },
+              { id: "o4-mini", name: "o4-mini", desc: "Fast reasoning for complex problems", default: true },
+            ].each do |model| %>
+              <label class="flex items-start gap-3 p-3 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700 transition group">
+                <input type="checkbox" name="providers[openai][models][]" value="<%= model[:id] %>"
+                       <%= "checked" if model[:default] %>
+                       class="mt-0.5 w-4 h-4 rounded border-gray-500 text-blue-600 focus:ring-blue-500 bg-gray-600">
+                <div class="flex-1">
+                  <span class="text-white text-sm font-medium"><%= model[:name] %></span>
+                  <p class="text-gray-400 text-xs"><%= model[:desc] %></p>
+                </div>
+              </label>
+            <% end %>
+
+            <div class="mt-3">
+              <label class="text-gray-300 text-sm font-medium">Default model:</label>
+              <select name="providers[openai][default_model]" class="mt-1 w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="gpt-4.1" selected>GPT-4.1</option>
+                <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
+                <option value="gpt-4.1-nano">GPT-4.1 Nano</option>
+                <option value="o3">o3</option>
+                <option value="o4-mini">o4-mini</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ollama -->
+        <div class="bg-gray-750 rounded-lg border border-gray-600 p-5" data-provider-models-target="section" data-provider="ollama">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">🦙</div>
+            <div>
+              <h3 class="text-white font-medium">Ollama</h3>
+              <p class="text-gray-400 text-xs">Local models — free, no key needed</p>
+            </div>
+          </div>
+          <%= f.text_field "providers[ollama][api_key]",
+              class: "w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm",
+              placeholder: "http://host.docker.internal:11434",
+              autocomplete: "off",
+              data: { action: "input->provider-models#toggleModels", provider_models_target: "keyInput" } %>
+          <p class="text-gray-500 text-xs mt-2">
+            Install from <a href="https://ollama.com/" target="_blank" class="text-blue-400 hover:underline">ollama.com</a>
+            — paste your Ollama URL above
+          </p>
+
+          <!-- Model selection -->
+          <div class="mt-4 space-y-2 hidden" data-provider-models-target="modelList" data-provider="ollama">
+            <p class="text-gray-300 text-sm font-medium mb-2">Select available models:</p>
+            <% [
+              { id: "llama3.3:70b", name: "Llama 3.3 70B", desc: "Meta's flagship — strong all-rounder", default: false },
+              { id: "llama3.2:3b", name: "Llama 3.2 3B", desc: "Lightweight & fast for simple tasks", default: true },
+              { id: "qwen3:8b", name: "Qwen3 8B", desc: "Great coding & multilingual model", default: false },
+              { id: "deepseek-r1:8b", name: "DeepSeek R1 8B", desc: "Strong reasoning for its size", default: false },
+              { id: "gemma3:12b", name: "Gemma 3 12B", desc: "Google's efficient open model", default: false },
+              { id: "mistral:7b", name: "Mistral 7B", desc: "Fast general-purpose model", default: true },
+            ].each do |model| %>
+              <label class="flex items-start gap-3 p-3 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700 transition group">
+                <input type="checkbox" name="providers[ollama][models][]" value="<%= model[:id] %>"
+                       <%= "checked" if model[:default] %>
+                       class="mt-0.5 w-4 h-4 rounded border-gray-500 text-blue-600 focus:ring-blue-500 bg-gray-600">
+                <div class="flex-1">
+                  <span class="text-white text-sm font-medium"><%= model[:name] %></span>
+                  <p class="text-gray-400 text-xs"><%= model[:desc] %></p>
+                </div>
+              </label>
+            <% end %>
+
+            <div class="mt-3">
+              <label class="text-gray-300 text-sm font-medium">Default model:</label>
+              <select name="providers[ollama][default_model]" class="mt-1 w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="llama3.2:3b" selected>Llama 3.2 3B</option>
+                <option value="llama3.3:70b">Llama 3.3 70B</option>
+                <option value="qwen3:8b">Qwen3 8B</option>
+                <option value="deepseek-r1:8b">DeepSeek R1 8B</option>
+                <option value="gemma3:12b">Gemma 3 12B</option>
+                <option value="mistral:7b">Mistral 7B</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 p-3 bg-blue-900/30 border border-blue-700/50 rounded-lg">
+          <svg class="w-5 h-5 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p class="text-blue-300 text-sm">Keys are encrypted at rest. Models can be changed later in Settings.</p>
+        </div>
+
+        <%= f.submit "Continue →", class: "w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition cursor-pointer" %>
+      <% end %>
+    </div>
+  </div>
+</div>

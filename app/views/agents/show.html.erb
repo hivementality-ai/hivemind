@@ -11,6 +11,7 @@
         </span>
       </div>
       <div class="flex gap-4">
+        <%= button_to "💬 Chat", sessions_path(agent_id: @agent.id), method: :post, class: "px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition cursor-pointer" %>
         <%= link_to "Edit", edit_agent_path(@agent), class: "px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition" %>
         <%= link_to "Delete", agent_path(@agent), data: { turbo_method: :delete, turbo_confirm: "Are you sure?" }, class: "px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition" %>
       </div>
@@ -142,6 +143,34 @@
                 </div>
               <% end %>
             </div>
+          </div>
+        </div>
+
+        <!-- Agent Memories -->
+        <div class="bg-gray-800 rounded-lg border border-gray-700">
+          <div class="px-6 py-4 border-b border-gray-700 flex items-center justify-between">
+            <h2 class="text-xl font-semibold">🧠 Memories (<%= @memories.size %>)</h2>
+          </div>
+          <div class="p-6">
+            <% if @memories.any? %>
+              <div class="space-y-3">
+                <% @memories.each do |memory| %>
+                  <div class="bg-gray-700 rounded-lg p-4">
+                    <p class="text-gray-200 text-sm whitespace-pre-wrap"><%= memory.content.truncate(300) %></p>
+                    <div class="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                      <span><%= time_ago_in_words(memory.created_at) %> ago</span>
+                      <% if memory.source_type.present? %>
+                        <span>· from <%= memory.source_type.demodulize %></span>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            <% else %>
+              <div class="text-gray-400 text-center py-8">
+                No memories yet — start chatting to build memory
+              </div>
+            <% end %>
           </div>
         </div>
       </div>

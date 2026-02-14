@@ -44,12 +44,34 @@ module Providers
     end
 
     def build_chat_params(messages:, tools:, options:)
+      # Format messages for OpenAI API
+      formatted = messages.map do |m|
+        m = m.to_h.with_indifferent_access
+        if m[:role] == "tool"
+          { role: "tool", tool_call_id: m[:tool_use_id], content: m[:content].to_s }
+        elsif m[:role] == "assistant" && m[:tool_calls].present?
+          openai_tool_calls = m[:tool_calls].map do |tc|
+            { id: tc["id"], type: "function", function: { name: tc["name"], arguments: (tc["input"] || {}).to_json } }
+          end
+          msg = { role: "assistant", content: m[:content] || "" }
+          msg[:tool_calls] = openai_tool_calls
+          msg
+        else
+          m.slice(:role, :content)
+        end
+      end
+
       params = {
         model: options[:model] || "gpt-4o",
-        messages: messages.map { |m| m.slice(:role, :content, :tool_calls, :tool_call_id) }
+        messages: formatted
       }
 
-      params[:tools] = tools if tools.any?
+      # Convert tools to OpenAI function format
+      if tools.any?
+        params[:tools] = tools.map do |t|
+          { type: "function", function: { name: t[:name], description: t[:description], parameters: t[:input_schema] } }
+        end
+      end
       params[:temperature] = options[:temperature] if options[:temperature]
       params[:max_tokens] = options[:max_tokens] if options[:max_tokens]
       params
@@ -80,11 +102,20 @@ module Providers
     def sync_chat(client:, params:)
       response = client.chat(parameters: params)
       content = response.dig("choices", 0, "message", "content")
-      tool_calls = response.dig("choices", 0, "message", "tool_calls")
+      raw_tool_calls = response.dig("choices", 0, "message", "tool_calls")
       usage = {
         input_tokens: response.dig("usage", "prompt_tokens"),
         output_tokens: response.dig("usage", "completion_tokens")
       }
+
+      # Normalize OpenAI tool calls to our internal format
+      tool_calls = raw_tool_calls&.map do |tc|
+        {
+          "id" => tc["id"],
+          "name" => tc.dig("function", "name"),
+          "input" => JSON.parse(tc.dig("function", "arguments") || "{}")
+        }
+      end
 
       ServiceResponse.success(data: { content:, tool_calls:, usage: })
     end

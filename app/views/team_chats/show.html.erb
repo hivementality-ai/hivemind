@@ -1,0 +1,162 @@
+<div class="flex h-[calc(100vh-4rem)]">
+  <!-- Sidebar -->
+  <div class="w-64 bg-gray-800 border-r border-gray-700 flex flex-col flex-shrink-0">
+    <div class="p-4 border-b border-gray-700">
+      <div class="flex items-center justify-between">
+        <h2 class="text-white font-semibold text-sm"><%= @team.name %> Chats</h2>
+        <%= button_to team_team_chats_path(@team), method: :post, class: "text-purple-400 hover:text-purple-300 transition cursor-pointer" do %>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+        <% end %>
+      </div>
+    </div>
+    <div class="flex-1 overflow-y-auto">
+      <% @past_sessions.each do |s| %>
+        <%= link_to team_chat_path(s),
+            class: "block px-4 py-3 hover:bg-gray-700 transition border-b border-gray-700/50 #{s.id == @session.id ? 'bg-gray-700' : ''}" do %>
+          <div class="text-sm text-white truncate"><%= s.title %></div>
+          <div class="text-xs text-gray-500 mt-1">
+            <%= time_ago_in_words(s.updated_at) %> ago
+            · <%= s.team_chat_messages.count %> msgs
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+    <!-- Team Members -->
+    <div class="p-4 border-t border-gray-700">
+      <div class="text-xs text-gray-500 uppercase tracking-wider mb-2">Team Members</div>
+      <% colors = %w[bg-blue-600 bg-green-600 bg-yellow-600 bg-pink-600 bg-cyan-600 bg-red-600 bg-indigo-600 bg-orange-600] %>
+      <% @agents.each_with_index do |agent, i| %>
+        <div class="flex items-center gap-2 py-1">
+          <div class="w-6 h-6 <%= colors[i % colors.size] %> rounded-full flex items-center justify-center text-white font-bold text-xs">
+            <%= agent.name[0].upcase %>
+          </div>
+          <div>
+            <div class="text-sm text-gray-300"><%= agent.name %></div>
+            <div class="text-xs text-gray-500"><%= agent.role %></div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Main Chat Area -->
+  <div class="flex-1 flex flex-col"
+       data-controller="team-chat"
+       data-team-chat-session-id-value="<%= @session.id %>"
+       data-team-chat-message-url-value="<%= message_team_chat_path(@session) %>"
+       data-team-chat-csrf-value="<%= form_authenticity_token %>"
+       data-team-chat-agents-value="<%= @agents.map { |a| { id: a.id, name: a.name, role: a.role, initial: a.name[0].upcase } }.to_json %>">
+
+    <!-- Header -->
+    <div class="flex items-center gap-4 px-6 py-3 border-b border-gray-700 bg-gray-800/50 flex-shrink-0">
+      <%= link_to dashboard_path, class: "text-gray-400 hover:text-white transition" do %>
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      <% end %>
+      <div class="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">🐝</div>
+      <div>
+        <h1 class="text-white font-semibold text-sm"><%= @session.title %></h1>
+        <p class="text-gray-500 text-xs"><%= @session.session_key %></p>
+      </div>
+      <div class="ml-auto flex items-center gap-1">
+        <% @agents.each_with_index do |agent, i| %>
+          <div class="w-7 h-7 <%= colors[i % colors.size] %> rounded-full flex items-center justify-center text-white font-bold text-xs"
+               title="<%= agent.name %> — <%= agent.role %>">
+            <%= agent.name[0].upcase %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4" data-team-chat-target="messages" id="team-messages">
+      <% if @messages.empty? %>
+        <div class="flex items-center justify-center h-full" data-team-chat-target="emptyState">
+          <div class="text-center">
+            <div class="text-6xl mb-4">🐝</div>
+            <h2 class="text-xl font-semibold text-white mb-2"><%= @team.name %> Team Chat</h2>
+            <p class="text-gray-400 max-w-md">
+              Chat with the whole team or @mention a specific agent.<br>
+              <span class="text-gray-500 text-sm">
+                Try: <% @agents.first(3).each do |a| %>
+                  <code class="text-purple-400">@<%= a.name %></code><%= " " %>
+                <% end %>
+              </span>
+            </p>
+          </div>
+        </div>
+      <% end %>
+
+      <% agent_colors = {} %>
+      <% @agents.each_with_index { |a, i| agent_colors[a.id] = colors[i % colors.size].sub("bg-", "") } %>
+
+      <% @messages.each do |msg| %>
+        <% if msg.from_user? %>
+          <div class="flex justify-end">
+            <div class="max-w-2xl">
+              <% if msg.target_agent_id %>
+                <% target = @agents.find { |a| a.id == msg.target_agent_id } %>
+                <div class="text-xs text-gray-500 text-right mb-1">→ @<%= target&.name || "agent" %></div>
+              <% end %>
+              <div class="bg-blue-600 rounded-2xl rounded-br-md px-4 py-3 text-white">
+                <p class="whitespace-pre-wrap"><%= msg.content %></p>
+              </div>
+            </div>
+          </div>
+        <% elsif msg.from_agent? %>
+          <% agent = @agents.find { |a| a.id == msg.sender_id } %>
+          <% color_class = agent_colors[msg.sender_id] || "gray-600" %>
+          <div class="flex justify-start">
+            <div class="max-w-2xl">
+              <div class="flex items-start gap-3">
+                <div class="w-8 h-8 bg-<%= color_class %> rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1"
+                     title="<%= agent&.name %>">
+                  <%= agent&.name&.first&.upcase || "?" %>
+                </div>
+                <div>
+                  <div class="text-xs text-gray-400 mb-1"><%= agent&.name || "Agent" %> <span class="text-gray-600">· <%= agent&.role %></span></div>
+                  <div class="bg-gray-700 rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
+                    <div class="whitespace-pre-wrap"><%= msg.content %></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+
+    <!-- Thinking indicators -->
+    <div class="px-6" data-team-chat-target="thinkingArea"></div>
+
+    <!-- Input -->
+    <div class="px-6 py-4 border-t border-gray-700 bg-gray-800/50 flex-shrink-0">
+      <div class="hidden mb-2 flex gap-2 flex-wrap" data-team-chat-target="mentionBar">
+        <% @agents.each_with_index do |agent, i| %>
+          <% btn_color = colors[i % colors.size].sub("bg-", "") %>
+          <button type="button"
+                  data-action="click->team-chat#insertMention"
+                  data-agent-name="<%= agent.name %>"
+                  class="px-2 py-1 text-xs rounded-full bg-<%= btn_color %>/20 text-<%= btn_color.sub("-600", "-400") %> hover:bg-<%= btn_color %>/40 transition cursor-pointer">
+            @<%= agent.name %>
+          </button>
+        <% end %>
+      </div>
+      <div class="flex gap-3">
+        <textarea data-team-chat-target="input"
+                  data-action="keydown->team-chat#handleKeydown input->team-chat#handleInput"
+                  class="flex-1 px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                  placeholder="Message the team... (use @name to target an agent)"
+                  rows="1"
+                  autofocus></textarea>
+        <button data-team-chat-target="sendBtn" data-action="click->team-chat#send"
+                class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-xl transition cursor-pointer flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+          Send
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

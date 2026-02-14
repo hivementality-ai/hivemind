@@ -25,7 +25,7 @@
               <h3 class="text-xl font-bold mb-1"><%= agent.name %></h3>
               <p class="text-sm text-gray-400"><%= agent.role %></p>
             </div>
-            <%= link_to "Edit", edit_budget_path(agent_id: agent.id, period_type: @period_type), 
+            <%= link_to "Edit", edit_budgets_path(agent_id: agent.id, period_type: @period_type), 
                 class: "text-sm text-blue-400 hover:text-blue-300" %>
           </div>
           
@@ -82,7 +82,7 @@
           <% else %>
             <div class="text-center py-4">
               <p class="text-gray-500 text-sm mb-2">No budget set</p>
-              <%= link_to "Set Budget", edit_budget_path(agent_id: agent.id, period_type: @period_type), 
+              <%= link_to "Set Budget", edit_budgets_path(agent_id: agent.id, period_type: @period_type), 
                   class: "text-blue-400 hover:text-blue-300 text-sm" %>
             </div>
           <% end %>

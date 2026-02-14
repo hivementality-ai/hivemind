@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 class DashboardController < ApplicationController
+  skip_before_action :authenticate_user!, only: [:index]
+  before_action :check_setup_complete
+
   def index
     @agents = Agent.includes(:team)
                    .order(:name)
@@ -11,6 +14,15 @@ class DashboardController < ApplicationController
   end
 
   private
+
+  def check_setup_complete
+    unless Setting.get("setup_complete") == "true"
+      redirect_to setup_path
+      return
+    end
+
+    authenticate_user! unless user_signed_in?
+  end
 
   def fetch_recent_activity
     # Combine recent tool calls, messages, and delegations

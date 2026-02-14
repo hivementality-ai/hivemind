@@ -4,12 +4,15 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3001:3000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - workspace_data:/workspace
+    env_file: .env
     environment:
       - DATABASE_URL=postgres://hivemind:hivemind@postgres:5432/hivemind_production
       - REDIS_URL=redis://redis:6379/0
@@ -30,6 +33,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - workspace_data:/workspace
+    env_file: .env
     environment:
       - DATABASE_URL=postgres://hivemind:hivemind@postgres:5432/hivemind_production
       - REDIS_URL=redis://redis:6379/0
@@ -91,7 +97,7 @@ services:
           memory: 4g
           cpus: "2.0"
     networks:
-      - sandbox
+      - web
 
   connector:
     build:
@@ -117,6 +123,4 @@ networks:
     driver: bridge
   web:
     driver: bridge
-  sandbox:
-    driver: bridge
-    internal: true  # No external access from sandbox to internal services
+  # sandbox network removed — workspace uses web network with internet access

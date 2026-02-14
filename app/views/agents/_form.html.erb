@@ -1,7 +1,7 @@
-<%= form_with(model: agent, class: "space-y-4") do |form| %>
+<%= form_with(model: agent, class: "space-y-6") do |form| %>
   <% if agent.errors.any? %>
-    <div class="bg-red-900 text-red-200 p-4 rounded">
-      <ul>
+    <div class="bg-red-900/50 border border-red-600 text-red-200 p-4 rounded-lg">
+      <ul class="list-disc list-inside text-sm">
         <% agent.errors.full_messages.each do |message| %>
           <li><%= message %></li>
         <% end %>
@@ -9,17 +9,122 @@
     </div>
   <% end %>
 
-  <div>
-    <%= form.label :name, class: "block text-sm font-medium text-gray-300" %>
-    <%= form.text_field :name, class: "mt-1 block w-full rounded bg-gray-800 border-gray-700 text-white" %>
+  <!-- Identity -->
+  <div class="bg-gray-800 rounded-xl border border-gray-700 p-6">
+    <h2 class="text-lg font-semibold text-white mb-4">🪪 Identity</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <%= form.label :name, class: "block text-sm font-medium text-gray-300 mb-1" %>
+        <%= form.text_field :name, placeholder: "Agent name",
+            class: "w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+      </div>
+      <div>
+        <%= form.label :role, class: "block text-sm font-medium text-gray-300 mb-1" %>
+        <%= form.select :role,
+            options_for_select([
+              ["Software Engineer", "Software Engineer"],
+              ["Software Tester", "Software Tester"],
+              ["Code Reviewer", "Code Reviewer"],
+              ["DevOps Engineer", "DevOps Engineer"],
+              ["Research Analyst", "Research Analyst"],
+              ["Data Analyst", "Data Analyst"],
+              ["Technical Writer", "Technical Writer"],
+              ["Security Auditor", "Security Auditor"],
+              ["Project Manager", "Project Manager"],
+              ["Creative Writer", "Creative Writer"],
+              ["Customer Support", "Customer Support"],
+              ["Sales Assistant", "Sales Assistant"],
+              ["General Assistant", "General Assistant"],
+            ], agent.role),
+            { include_blank: "— Select Role —" },
+            { class: "w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500" } %>
+      </div>
+      <div>
+        <%= form.label :team_id, "Team", class: "block text-sm font-medium text-gray-300 mb-1" %>
+        <%= form.collection_select :team_id, @teams || Team.order(:name), :id, :name,
+            { include_blank: "— No team —" },
+            { class: "w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500" } %>
+      </div>
+      <div>
+        <%= form.label :enabled, class: "block text-sm font-medium text-gray-300 mb-1" %>
+        <div class="flex items-center gap-3 mt-2">
+          <%= form.check_box :enabled, class: "w-5 h-5 rounded border-gray-500 text-blue-600 focus:ring-blue-500 bg-gray-600" %>
+          <span class="text-gray-300">Agent is active and available</span>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div>
-    <%= form.label :role, class: "block text-sm font-medium text-gray-300" %>
-    <%= form.text_field :role, class: "mt-1 block w-full rounded bg-gray-800 border-gray-700 text-white" %>
+  <!-- Model Configuration -->
+  <div class="bg-gray-800 rounded-xl border border-gray-700 p-6"
+       data-controller="model-select"
+       data-model-select-url-value="<%= api_v1_providers_models_path %>"
+       data-model-select-current-value="<%= agent.llm_model %>">
+    <h2 class="text-lg font-semibold text-white mb-4">🤖 Model</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <%= form.label :model_provider, "Provider", class: "block text-sm font-medium text-gray-300 mb-1" %>
+        <%= form.select :model_provider,
+            options_for_select(
+              ProviderConfig.enabled_providers.map { |p| [p.adapter_type.titleize, p.adapter_type] },
+              agent.model_provider
+            ),
+            {},
+            { class: "w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500",
+              data: { model_select_target: "provider", action: "change->model-select#providerChanged" } } %>
+      </div>
+      <div>
+        <%= form.label :llm_model, "Model", class: "block text-sm font-medium text-gray-300 mb-1" %>
+        <%= form.select :llm_model,
+            options_for_select([], agent.llm_model),
+            {},
+            { class: "w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500",
+              data: { model_select_target: "model" } } %>
+        <p class="text-gray-500 text-xs mt-1">Models are auto-detected from your providers.</p>
+      </div>
+    </div>
   </div>
 
-  <div>
-    <%= form.submit class: "bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded cursor-pointer" %>
+  <!-- Custom Instructions -->
+  <div class="bg-gray-800 rounded-xl border border-gray-700 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-lg font-semibold text-white">📋 Additional Context</h2>
+        <p class="text-gray-400 text-sm mt-1">Provide any additional context or guidance for this agent.</p>
+      </div>
+    </div>
+    <%= form.text_area :custom_instructions,
+        rows: 10,
+        placeholder: "What domain or technologies does this agent focus on?\nAny specific coding standards or conventions to follow?\nPreferred communication style?\nAny projects, repos, or tools this agent should know about?",
+        class: "w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm leading-relaxed resize-y" %>
+    <p class="text-gray-500 text-xs mt-2">Markdown supported. Changes take effect immediately on the next message.</p>
+  </div>
+
+  <!-- Budgets -->
+  <div class="bg-gray-800 rounded-xl border border-gray-700 p-6">
+    <h2 class="text-lg font-semibold text-white mb-4">💰 Budgets</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <%= form.label :daily_budget_limit, "Daily limit (cents)", class: "block text-sm font-medium text-gray-300 mb-1" %>
+        <%= form.number_field :daily_budget_limit, placeholder: "e.g. 500 = $5.00",
+            class: "w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+      </div>
+      <div>
+        <%= form.label :monthly_budget_limit, "Monthly limit (cents)", class: "block text-sm font-medium text-gray-300 mb-1" %>
+        <%= form.number_field :monthly_budget_limit, placeholder: "e.g. 10000 = $100.00",
+            class: "w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="flex items-center gap-4">
+    <%= form.submit agent.persisted? ? "Save Changes" : "Create Agent",
+        class: "px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition cursor-pointer" %>
+    <% if agent.persisted? %>
+      <%= link_to "Cancel", agent_path(agent), class: "px-6 py-3 text-gray-400 hover:text-white transition" %>
+    <% else %>
+      <%= link_to "Cancel", agents_path, class: "px-6 py-3 text-gray-400 hover:text-white transition" %>
+    <% end %>
   </div>
 <% end %>

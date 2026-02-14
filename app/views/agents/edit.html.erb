@@ -1,4 +1,13 @@
 <div class="min-h-screen bg-gray-900 p-6">
-  <h1 class="text-2xl font-bold text-white mb-6">Edit <%= @agent.name %></h1>
-  <%= render "form", agent: @agent %>
+  <div class="max-w-4xl mx-auto">
+    <div class="flex items-center gap-4 mb-8">
+      <%= link_to agent_path(@agent), class: "text-gray-400 hover:text-white transition" do %>
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      <% end %>
+      <h1 class="text-2xl font-bold text-white">Edit <%= @agent.name %></h1>
+    </div>
+    <%= render "form", agent: @agent %>
+  </div>
 </div>

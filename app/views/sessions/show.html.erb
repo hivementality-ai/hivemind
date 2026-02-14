@@ -1,0 +1,92 @@
+<div class="flex flex-col h-[calc(100vh-4rem)]" data-controller="chat" data-chat-session-id-value="<%= @session.id %>" data-chat-agent-name-value="<%= @agent.name %>" data-chat-agent-initial-value="<%= @agent.name[0].upcase %>" data-chat-message-url-value="<%= message_session_path(@session) %>" data-chat-csrf-value="<%= form_authenticity_token %>">
+  <!-- Header -->
+  <div class="flex items-center gap-4 px-6 py-4 border-b border-gray-700 bg-gray-800/50 flex-shrink-0">
+    <%= link_to sessions_path, class: "text-gray-400 hover:text-white transition" do %>
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+    <% end %>
+    <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
+      <%= @agent.name[0].upcase %>
+    </div>
+    <div>
+      <h1 class="text-white font-semibold"><%= @agent.name %></h1>
+      <p class="text-gray-400 text-xs"><%= @agent.role %> · <%= @agent.llm_model %> · <%= @agent.model_provider %></p>
+    </div>
+    <div class="ml-auto text-gray-500 text-xs" data-chat-target="tokenCount">
+      <%= @messages.size %> messages
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4" data-chat-target="messages" id="messages">
+    <% if @messages.empty? %>
+      <div class="flex items-center justify-center h-full" data-chat-target="emptyState">
+        <div class="text-center">
+          <div class="text-6xl mb-4">🐝</div>
+          <h2 class="text-xl font-semibold text-white mb-2">Start chatting with <%= @agent.name %></h2>
+          <p class="text-gray-400 max-w-md">
+            <%= @agent.system_prompt&.truncate(200) || "This agent is ready to help." %>
+          </p>
+        </div>
+      </div>
+    <% end %>
+
+    <% @messages.each do |msg| %>
+      <% if msg["role"] == "user" %>
+        <div class="flex justify-end">
+          <div class="max-w-2xl">
+            <div class="bg-blue-600 rounded-2xl rounded-br-md px-4 py-3 text-white">
+              <p class="whitespace-pre-wrap"><%= msg["content"] %></p>
+            </div>
+          </div>
+        </div>
+      <% elsif msg["role"] == "assistant" %>
+        <div class="flex justify-start">
+          <div class="max-w-2xl">
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 bg-gray-700 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
+                <%= @agent.name[0].upcase %>
+              </div>
+              <div class="bg-gray-700 rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
+                <div class="whitespace-pre-wrap"><%= msg["content"] %></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+
+  <!-- Streaming indicator -->
+  <div class="px-6 hidden" data-chat-target="thinking">
+    <div class="flex items-start gap-3">
+      <div class="w-8 h-8 bg-gray-700 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+        <%= @agent.name[0].upcase %>
+      </div>
+      <div class="bg-gray-700 rounded-2xl rounded-bl-md px-4 py-3 text-gray-400">
+        <div class="flex gap-1">
+          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="px-6 py-4 border-t border-gray-700 bg-gray-800/50 flex-shrink-0">
+    <div class="flex gap-3">
+      <textarea data-chat-target="input"
+                data-action="keydown->chat#handleKeydown input->chat#autoResize"
+                class="flex-1 px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                placeholder="Message <%= @agent.name %>..."
+                rows="1"
+                autofocus></textarea>
+      <button data-chat-target="sendBtn" data-action="click->chat#send"
+              class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition cursor-pointer flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+        Send
+      </button>
+    </div>
+  </div>
+</div>

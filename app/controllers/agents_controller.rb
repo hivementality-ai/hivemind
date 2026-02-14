@@ -18,6 +18,7 @@ class AgentsController < ApplicationController
                                        .order(requested_at: :desc)
 
     @usage_today = calculate_usage_today
+    @memories = MemoryEntry.where(agent: @agent).order(created_at: :desc).limit(20)
   end
 
   def new
@@ -64,7 +65,7 @@ class AgentsController < ApplicationController
     params.require(:agent).permit(
       :name, :role, :team_id, :model_provider, :llm_model,
       :daily_budget_limit, :monthly_budget_limit, :workspace_path,
-      :system_prompt, :enabled
+      :system_prompt, :custom_instructions, :enabled
     )
   end
 

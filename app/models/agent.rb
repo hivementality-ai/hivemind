@@ -1,22 +1,8 @@
 # frozen_string_literal: true
 
 class Agent < ApplicationRecord
-  # Disable dangerous attribute check for model_name column
-  class << self
-    def dangerous_attribute_method?(method_name)
-      return false if method_name.to_s == 'model_name'
-      super
-    end
-  end
-
-  # Provide accessor for the model_name database column as llm_model
-  def llm_model
-    read_attribute(:model_name)
-  end
-
-  def llm_model=(value)
-    write_attribute(:model_name, value)
-  end
+  include RoleInstructions
+  # llm_model is a native DB column — no alias needed
 
   belongs_to :team, optional: true
 
@@ -27,6 +13,9 @@ class Agent < ApplicationRecord
   has_many :scheduled_tasks, dependent: :destroy
   has_many :sent_team_messages, class_name: "TeamMessage", foreign_key: :from_agent_id, dependent: :destroy, inverse_of: :from_agent
   has_many :received_team_messages, class_name: "TeamMessage", foreign_key: :to_agent_id, dependent: :destroy, inverse_of: :to_agent
+  has_many :agent_tools, dependent: :destroy
+  has_many :tools, through: :agent_tools
+  has_many :tool_executions, dependent: :destroy
 
   enum :status, { idle: 0, thinking: 1, executing: 2, waiting: 3, error: 4 }, default: :idle
 
@@ -37,6 +26,9 @@ class Agent < ApplicationRecord
   scope :by_team, ->(team) { where(team:) }
   scope :enabled, -> { where(enabled: true) }
 
+  after_save :rebuild_team_soul, if: -> { team_id.present? && (saved_change_to_name? || saved_change_to_role? || saved_change_to_system_prompt? || saved_change_to_team_id?) }
+  after_destroy :rebuild_team_soul, if: -> { team_id.present? }
+
   def current_status
     {
       status: status,
@@ -44,6 +36,14 @@ class Agent < ApplicationRecord
       updated_at: updated_at
     }
   end
+
+  private
+
+  def rebuild_team_soul
+    Teams::BuildSoul.call(team: team) if team
+  end
+
+  public
 
   def usage_summary
     {

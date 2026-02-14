@@ -3,6 +3,9 @@
 # If running the rails server then create or migrate existing database
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
   ./bin/rails db:prepare
+
+  # Seed on first boot (idempotent — safe to re-run)
+  ./bin/rails db:seed
 fi
 
 exec "${@}"

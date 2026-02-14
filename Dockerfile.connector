@@ -9,7 +9,7 @@ WORKDIR /app
 
 # Connector is a thin Ruby process — deps will be minimal
 COPY Gemfile.connector Gemfile
-RUN bundle install --jobs 4
+RUN bundle lock && bundle install --jobs 4
 
 COPY lib/connector /app/lib/connector
 COPY config/connector.yml /app/config/connector.yml
