@@ -6,7 +6,7 @@ RSpec.describe ProviderConfig, type: :model do
   describe 'validations' do
     it { should validate_presence_of(:name) }
     it { should validate_presence_of(:adapter_type) }
-    
+
     it 'validates uniqueness of name' do
       create(:provider_config, name: "OpenAI")
       expect(build(:provider_config, name: "OpenAI")).not_to be_valid

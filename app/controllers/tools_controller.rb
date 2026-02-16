@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class ToolsController < ApplicationController
-  before_action :set_tool, only: [:show, :edit, :update, :destroy]
+  before_action :set_tool, only: [ :show, :edit, :update, :destroy ]
 
   def index
     @tools = Tool.order(:name)

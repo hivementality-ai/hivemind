@@ -27,9 +27,9 @@ module Tools
       pages = input["pages"] # e.g., "1-5" or "3"
       format = input["format"] || "text" # "text" or "markdown"
 
-      cmd = ["python3", SCRIPT_PATH, path]
-      cmd += ["--pages", pages.to_s] if pages.present?
-      cmd += ["--format", format] if format == "markdown"
+      cmd = [ "python3", SCRIPT_PATH, path ]
+      cmd += [ "--pages", pages.to_s ] if pages.present?
+      cmd += [ "--format", format ] if format == "markdown"
 
       execute_command(cmd)
     end
@@ -38,7 +38,7 @@ module Tools
       path = resolve_path
       return path if path.is_a?(ServiceResponse)
 
-      cmd = ["python3", SCRIPT_PATH, path, "--metadata"]
+      cmd = [ "python3", SCRIPT_PATH, path, "--metadata" ]
       execute_command(cmd)
     end
 
@@ -46,9 +46,9 @@ module Tools
       path = resolve_path
       return path if path.is_a?(ServiceResponse)
 
-      cmd = ["python3", SCRIPT_PATH, path, "--tables"]
+      cmd = [ "python3", SCRIPT_PATH, path, "--tables" ]
       page = input["page"]
-      cmd += ["--table-page", page.to_s] if page.present?
+      cmd += [ "--table-page", page.to_s ] if page.present?
 
       execute_command(cmd)
     end

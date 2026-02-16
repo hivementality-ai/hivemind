@@ -29,7 +29,7 @@ class Skill < ApplicationRecord
 
   # Export as OpenClaw-compatible SKILL.md
   def to_skill_md
-    lines = ["---"]
+    lines = [ "---" ]
     lines << "name: #{name}"
     lines << "description: #{description}" if description.present?
     lines << "category: #{category}" if category.present?
@@ -44,9 +44,9 @@ class Skill < ApplicationRecord
       parts = text.strip.split(/^---\s*$/, 3)
       if parts.length >= 3
         frontmatter = YAML.safe_load(parts[1]) || {}
-        return [frontmatter, parts[2]]
+        return [ frontmatter, parts[2] ]
       end
     end
-    [{}, text]
+    [ {}, text ]
   end
 end

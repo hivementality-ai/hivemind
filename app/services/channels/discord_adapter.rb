@@ -7,10 +7,10 @@ module Channels
     def receive(message)
       # Parse Discord interaction or message
       payload = message.deep_symbolize_keys
-      
+
       # Discord uses different structures for gateway events vs webhook interactions
       # This is a simplified version
-      
+
       if payload[:content].present?
         inbound = log_inbound_message(
           external_id: payload[:id].to_s,
@@ -52,11 +52,11 @@ module Channels
 
       if response.success?
         result = JSON.parse(response.body)
-        
+
         outbound = log_outbound_message(
           recipient: to,
           content: content,
-          metadata: { 
+          metadata: {
             message_id: result["id"],
             response: result
           }
@@ -74,15 +74,15 @@ module Channels
       # Discord uses Ed25519 signature verification
       signature = request.headers["X-Signature-Ed25519"]
       timestamp = request.headers["X-Signature-Timestamp"]
-      
+
       return false unless signature && timestamp
 
       public_key = get_public_key
       return false unless public_key
 
       begin
-        verify_key = Ed25519::VerifyKey.new([public_key].pack("H*"))
-        verify_key.verify([signature].pack("H*"), timestamp + request.raw_post)
+        verify_key = Ed25519::VerifyKey.new([ public_key ].pack("H*"))
+        verify_key.verify([ signature ].pack("H*"), timestamp + request.raw_post)
         true
       rescue Ed25519::VerifyError
         false

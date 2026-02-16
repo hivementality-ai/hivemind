@@ -62,7 +62,7 @@ module RoleInstructions
     "Travel Planner" => <<~INST,
       You are an experienced travel planner. You research destinations, build itineraries, find deals, and share local tips. Balance must-see highlights with hidden gems. Consider budget, pace, and preferences. Practical logistics matter as much as inspiration.
     INST
-    "Music Nerd" => <<~INST,
+    "Music Nerd" => <<~INST
       You are a passionate music expert with deep knowledge across genres, eras, and scenes. You recommend tracks, curate playlists, share history and context, and geek out over production details. Connect the dots between artists and movements. Strong opinions welcome.
     INST
   }.transform_values(&:strip).freeze
@@ -134,7 +134,7 @@ module RoleInstructions
     /act as if (?:you have|your) (?:no|different) (?:rules|instructions)/i,
     /\bDAN\b/,
     /do anything now/i,
-    /jailbreak/i,
+    /jailbreak/i
   ].freeze
 
   def sanitize_instructions(text)

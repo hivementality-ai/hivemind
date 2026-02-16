@@ -70,14 +70,14 @@ module HashtagActions
           # Payload is everything until next #action or end of string
           payload = if after =~ HASHTAG_PATTERN
                       after[0...$~.begin(0)].strip
-                    else
+          else
                       after.strip
-                    end
+          end
 
           actions << Action.new(
             name: action_name,
             payload: payload.presence,
-            raw: "#{$~.to_s}#{payload}"
+            raw: "#{$~}#{payload}"
           )
         end
       end

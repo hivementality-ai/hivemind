@@ -2,8 +2,8 @@
 
 class TeamChatsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_team, only: [:create]
-  before_action :set_session, only: [:show, :message]
+  before_action :set_team, only: [ :create ]
+  before_action :set_session, only: [ :show, :message ]
 
   # GET /team_chats — list all team chat sessions
   def index; end
@@ -48,7 +48,7 @@ class TeamChatsController < ApplicationController
     )
 
     # Attach images
-    [params[:images], params[:files]].compact.each do |file_list|
+    [ params[:images], params[:files] ].compact.each do |file_list|
       Array(file_list).each do |upload|
         next unless upload.respond_to?(:content_type)
         if upload.content_type.start_with?("image/")

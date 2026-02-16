@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class AgentsController < ApplicationController
-  before_action :set_agent, only: [:show, :edit, :update, :destroy]
+  before_action :set_agent, only: [ :show, :edit, :update, :destroy ]
 
   def index
     @agents = Agent.visible.includes(:team).order(:name)
@@ -102,10 +102,10 @@ class AgentsController < ApplicationController
 
   def calculate_usage_today
     today_start = Time.current.beginning_of_day
-    
+
     usage = UsageRecord.where(agent_id: @agent.id)
                       .where("created_at >= ?", today_start)
-    
+
     {
       total_cost: usage.sum(:cost_cents),
       total_tokens: usage.sum("input_tokens + output_tokens"),

@@ -24,13 +24,13 @@ RSpec.describe SkillsController, type: :controller do
     it 'assigns @skills ordered by name' do
       get :index
       skills = assigns(:skills)
-      expect(skills.map(&:name)).to eq(["Alpha Skill", "Beta Skill", "Gamma Skill"])
+      expect(skills.map(&:name)).to eq([ "Alpha Skill", "Beta Skill", "Gamma Skill" ])
     end
 
     it 'assigns @categories with unique categories sorted' do
       get :index
       categories = assigns(:categories)
-      expect(categories).to eq(["Coding", "Communication"])
+      expect(categories).to eq([ "Coding", "Communication" ])
     end
 
     context 'when not authenticated' do
@@ -94,7 +94,7 @@ RSpec.describe SkillsController, type: :controller do
           content: "This is skill content",
           category: "Testing",
           enabled: true,
-          tool_ids: [tool.id]
+          tool_ids: [ tool.id ]
         }
       }
     end
@@ -221,7 +221,7 @@ RSpec.describe SkillsController, type: :controller do
       end
 
       it 'updates tool associations' do
-        patch :update, params: { id: skill.id, skill: new_attributes.merge(tool_ids: [tool.id]) }
+        patch :update, params: { id: skill.id, skill: new_attributes.merge(tool_ids: [ tool.id ]) }
         skill.reload
         expect(skill.tools).to include(tool)
       end
@@ -339,14 +339,11 @@ RSpec.describe SkillsController, type: :controller do
   describe 'POST #import' do
     let(:skill_content) do
       <<~MARKDOWN
-        # Test Skill
-
-        This is a test skill description.
-
-        ## Category
-        Testing
-
-        ## Content
+        ---
+        name: test-skill
+        description: This is a test skill description.
+        category: Testing
+        ---
         This is the skill content.
       MARKDOWN
     end

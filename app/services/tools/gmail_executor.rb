@@ -75,7 +75,7 @@ module Tools
       subject = input["subject"].to_s.strip
       body = input["body"].to_s.strip
 
-      return ServiceResponse.failure(error: "to, subject, and body required") if [to, subject, body].any?(&:empty?)
+      return ServiceResponse.failure(error: "to, subject, and body required") if [ to, subject, body ].any?(&:empty?)
 
       smtp_send(to: to, subject: subject, body: body)
       ServiceResponse.success(data: { output: "Email sent to #{to}: #{subject}", exit_code: 0 })
@@ -103,7 +103,7 @@ module Tools
     def imap_fetch(folder:, limit:)
       with_imap do |imap|
         imap.select(folder)
-        ids = imap.search(["ALL"])
+        ids = imap.search([ "ALL" ])
         recent_ids = ids.last(limit)
         return [] if recent_ids.empty?
 
@@ -116,7 +116,7 @@ module Tools
         imap.select("INBOX")
 
         # IMAP search: try subject, from, and body
-        ids = imap.search(["OR", "SUBJECT", query, "FROM", query])
+        ids = imap.search([ "OR", "SUBJECT", query, "FROM", query ])
         recent_ids = ids.last(limit)
         return [] if recent_ids.empty?
 
@@ -127,7 +127,7 @@ module Tools
     def imap_get(uid:)
       with_imap do |imap|
         imap.select("INBOX")
-        data = imap.uid_fetch(uid, ["ENVELOPE", "BODY[TEXT]", "BODY[HEADER.FIELDS (MESSAGE-ID)]"])
+        data = imap.uid_fetch(uid, [ "ENVELOPE", "BODY[TEXT]", "BODY[HEADER.FIELDS (MESSAGE-ID)]" ])
         return nil unless data&.first
 
         msg = data.first
@@ -155,7 +155,7 @@ module Tools
     end
 
     def fetch_messages(imap, ids)
-      data = imap.uid_fetch(ids, ["ENVELOPE", "UID", "FLAGS"])
+      data = imap.uid_fetch(ids, [ "ENVELOPE", "UID", "FLAGS" ])
       return [] unless data
 
       data.map do |msg|

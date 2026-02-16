@@ -60,7 +60,7 @@ module Providers
         role = m[:role].to_s
 
         if role == "tool"
-          { role: "user", content: [{ type: "tool_result", tool_use_id: m[:tool_use_id], content: m[:content].to_s }] }
+          { role: "user", content: [ { type: "tool_result", tool_use_id: m[:tool_use_id], content: m[:content].to_s } ] }
         elsif role == "assistant" && m[:tool_calls].present?
           content = []
           content << { type: "text", text: m[:content] } if m[:content].present?
@@ -98,7 +98,7 @@ module Providers
         budget = options[:thinking_budget_tokens] || 10_000
         params[:thinking] = { type: "enabled", budget_tokens: budget }
         params.delete(:temperature) # temperature not supported with thinking
-        params[:max_tokens] = [params[:max_tokens] || 8192, budget + 4096].max
+        params[:max_tokens] = [ params[:max_tokens] || 8192, budget + 4096 ].max
       end
 
       params

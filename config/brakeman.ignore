@@ -1,0 +1,54 @@
+{
+  "ignored_warnings": [
+    {
+      "fingerprint": "ee79c1c443a8314bdfb093cf6f9d290fffb3a982323ba6b9fbbc5b5d4aca042f",
+      "note": "Shell executor runs in isolated workspace container by design"
+    },
+    {
+      "fingerprint": "24c58e5b7167dd04b5c872ad6b6e04515a972aeccf00c7aead3b67384197574c",
+      "note": "Docker exec for gh CLI auth — token is from encrypted vault"
+    },
+    {
+      "fingerprint": "c1e3dcca5a58393a87e03da8e0b6d31b893a71ae3610e9c9a01457711c5881d2",
+      "note": "Rclone remote name is server-controlled, not user input"
+    },
+    {
+      "fingerprint": "2db3bb70f75ed8e9928ce44299aaabd4bfd34fdb9a6398a75b0184930f66d604",
+      "note": "Docker compose status uses allowlisted service names"
+    },
+    {
+      "fingerprint": "d817e0097cfdf5d53c84a2d93f9bc0ec67b2a136d6819dc38b4b42ee6b2aa0ee",
+      "note": "Docker inspect uses allowlisted service names"
+    },
+    {
+      "fingerprint": "5ca8013543a0ad370104607f016ca99e95d200dcb5ac5dd9057406b9a27f216f",
+      "note": "Docker compose restart uses allowlisted service names"
+    },
+    {
+      "fingerprint": "ddcfd7be19ce339167b75c43c3d04221afba6b07d6c4d47dc3ab967601b91402",
+      "note": "Cron executor runs admin-created tasks in isolated workspace"
+    },
+    {
+      "fingerprint": "092f702183c28e851d3a02eb708b2b1fcf52e888adf06e5a1b41c8f400e2988f",
+      "note": "Mail gem from() method, not SQL — false positive"
+    },
+    {
+      "fingerprint": "06a429c2f530183227dfdc83373cd264ebfb0724fa867adbb8ea962ca24b7e6e",
+      "note": "Agent params explicitly permitted — admin-only fields"
+    },
+    {
+      "fingerprint": "8ccc6ddfa1f978f6353af477362d5634fa5fb5a3fc0492e216eb693560c06768",
+      "note": "API agent params explicitly permitted"
+    },
+    {
+      "fingerprint": "3ffe28640defd3facc9b5d70e774579199b4ca9a1373c934fb2943bfa73217e3",
+      "note": "Net::HTTP to admin-configured API base URL — not user input"
+    },
+    {
+      "fingerprint": "b7820cdabc4971f02ffcfacb4a9c2e18db66b109fff736fac3c48540138e1b66",
+      "note": "Net::HTTP to admin-configured Jira URL from vault — not user input"
+    }
+  ],
+  "updated": "2026-02-15",
+  "brakeman_version": "8.0.2"
+}

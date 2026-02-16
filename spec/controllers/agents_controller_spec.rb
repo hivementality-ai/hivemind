@@ -21,7 +21,7 @@ RSpec.describe AgentsController, type: :controller do
 
     it 'assigns @agents' do
       get :index
-      expect(assigns(:agents)).to match_array([agent1, agent2])
+      expect(assigns(:agents)).to match_array([ agent1, agent2 ])
     end
 
     context 'when not authenticated' do

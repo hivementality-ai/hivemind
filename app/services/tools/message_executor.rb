@@ -69,7 +69,7 @@ module Tools
       message_id = input["message_id"].to_s.strip
       emoji = input["emoji"].to_s.strip
 
-      return ServiceResponse.failure(error: "channel, message_id, and emoji required") if [channel_name, message_id, emoji].any?(&:empty?)
+      return ServiceResponse.failure(error: "channel, message_id, and emoji required") if [ channel_name, message_id, emoji ].any?(&:empty?)
 
       channel = find_channel(channel_name)
       return ServiceResponse.failure(error: not_configured_error(channel_name)) unless channel

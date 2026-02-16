@@ -40,7 +40,7 @@ module Tools
       subject = input["subject"].to_s.strip
       body = input["body"].to_s.strip
 
-      return ServiceResponse.failure(error: "to, subject, and body required") if [to, subject, body].any?(&:empty?)
+      return ServiceResponse.failure(error: "to, subject, and body required") if [ to, subject, body ].any?(&:empty?)
 
       cc = input["cc"].to_s.strip.presence
       bcc = input["bcc"].to_s.strip.presence
@@ -53,7 +53,7 @@ module Tools
       end
 
       deliver(mail)
-      recipients = [to, cc, bcc].compact.join(", ")
+      recipients = [ to, cc, bcc ].compact.join(", ")
       ServiceResponse.success(data: { output: "Email sent to #{recipients}: #{subject}", exit_code: 0 })
     end
 
@@ -63,7 +63,7 @@ module Tools
       html = input["html"].to_s.strip
       text = input["text"].to_s.strip.presence
 
-      return ServiceResponse.failure(error: "to, subject, and html required") if [to, subject, html].any?(&:empty?)
+      return ServiceResponse.failure(error: "to, subject, and html required") if [ to, subject, html ].any?(&:empty?)
 
       cc = input["cc"].to_s.strip.presence
       bcc = input["bcc"].to_s.strip.presence
@@ -85,9 +85,9 @@ module Tools
       configured = smtp_host.present? && smtp_username.present?
       output = if configured
                  "SMTP configured: #{smtp_host}:#{smtp_port} (#{from_address})"
-               else
+      else
                  "SMTP not configured. Set credentials in Integrations > Email."
-               end
+      end
       ServiceResponse.success(data: { output: output, exit_code: 0 })
     end
 

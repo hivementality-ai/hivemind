@@ -16,14 +16,14 @@ class TeamChatJob < ApplicationJob
     # Determine which agents should respond
     agents_to_respond = if responding_agent_id
                           # This is a chain reaction — specific agent was @mentioned by another agent
-                          [Agent.find(responding_agent_id)]
-                        elsif message.target_agent_id
+                          [ Agent.find(responding_agent_id) ]
+    elsif message.target_agent_id
                           # User @mentioned a specific agent
-                          [message.target_agent]
-                        else
+                          [ message.target_agent ]
+    else
                           # No @mention or @team — all enabled team agents respond
                           @team.agents.enabled.order(:name).to_a
-                        end
+    end
 
     agents_to_respond.each do |agent|
       respond_as_agent(agent:, trigger_message: message)
@@ -62,9 +62,9 @@ class TeamChatJob < ApplicationJob
                            result = save_docs_to_workspace(@trigger_message_docs)
                            Rails.logger.info("[TeamChatJob] Saved docs: #{result.inspect}")
                            result
-                         else
+    else
                            []
-                         end
+    end
 
     if @saved_doc_paths.any?
       file_list = @saved_doc_paths.map do |f|
@@ -290,7 +290,7 @@ class TeamChatJob < ApplicationJob
 
   def build_team_context(agent:)
     teammates = @team.agents.enabled.where.not(id: agent.id).pluck(:name)
-    
+
     parts = []
     parts << "You are in a group chat. Be concise and natural — don't introduce yourself or state your role."
     parts << "Messages from others appear as [Name]: message."

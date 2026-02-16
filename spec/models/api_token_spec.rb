@@ -13,7 +13,7 @@ RSpec.describe ApiToken, type: :model do
       token = build(:api_token)
       expect(token.token_digest).to be_present
     end
-    
+
     it 'generates unique token digests' do
       token1 = create(:api_token)
       token2 = create(:api_token)

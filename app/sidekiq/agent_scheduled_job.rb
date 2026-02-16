@@ -52,7 +52,7 @@ class AgentScheduledJob
     # It would run in the workspace container context
     # For now, we'll just log the execution
     Rails.logger.info("Task params: #{task.job_params}")
-    
+
     # Future: integrate with agent runtime to execute commands/scripts
     # defined in task.job_params within the workspace container
   end

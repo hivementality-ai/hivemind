@@ -15,10 +15,10 @@ class CreateAgentTemplates < ActiveRecord::Migration[8.0]
       t.boolean :featured, default: false
       t.string :author
       t.string :version, default: "1.0.0"
-      
+
       t.timestamps
     end
-    
+
     add_index :agent_templates, :category
     add_index :agent_templates, :featured
   end

@@ -82,9 +82,9 @@ module Tools
       end
 
       # Cleanup
-      [script_path, output_path, exit_path].each { |f| File.delete(f) if File.exist?(f) }
+      [ script_path, output_path, exit_path ].each { |f| File.delete(f) if File.exist?(f) }
 
-      [output, exit_code]
+      [ output, exit_code ]
     end
 
     def docker_available?

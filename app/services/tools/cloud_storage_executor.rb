@@ -278,7 +278,7 @@ module Tools
         Open3.capture3(env, "rclone", *args)
       end
     rescue Errno::ENOENT
-      ["", "rclone not installed", stub_status]
+      [ "", "rclone not installed", stub_status ]
     end
 
     def stub_status

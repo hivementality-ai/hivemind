@@ -2,7 +2,7 @@
 
 class SkillsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_skill, only: [:show, :edit, :update, :destroy, :toggle]
+  before_action :set_skill, only: [ :show, :edit, :update, :destroy, :toggle ]
 
   def index
     @skills = Skill.order(:name)

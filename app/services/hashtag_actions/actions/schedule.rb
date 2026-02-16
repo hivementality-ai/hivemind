@@ -45,9 +45,9 @@ module HashtagActions
 
         time_desc = if run_at < 1.day.from_now
                       "in #{distance_of_time(run_at)}"
-                    else
+        else
                       run_at.strftime("%b %d at %I:%M %p")
-                    end
+        end
 
         { response: "Scheduled: \"#{task.truncate(80)}\" — #{time_desc}", status: "scheduled" }
       rescue StandardError => e

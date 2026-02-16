@@ -18,7 +18,7 @@ class MemoryEntry < ApplicationRecord
     where(agent: agent)
       .order(created_at: :desc)
       .limit(limit)
-    
+
     # TODO: When pgvector is installed, use:
     # where(agent: agent)
     #   .nearest_neighbors(:embedding, embedding, distance: "cosine")
@@ -29,10 +29,10 @@ class MemoryEntry < ApplicationRecord
   def self.search_with_threshold(embedding:, agent:, threshold: 0.7, limit: 10)
     # Without pgvector, just return recent entries
     search_similar(embedding: embedding, agent: agent, limit: limit)
-    
+
     # TODO: When pgvector is installed, calculate actual similarity
   end
-  
+
   # Placeholder for neighbor_distance when not using pgvector
   def neighbor_distance
     0.5  # Fake distance for compatibility

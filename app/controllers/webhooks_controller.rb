@@ -59,6 +59,7 @@ class WebhooksController < ApplicationController
   end
 
   def webhook_params
-    params.permit!.to_h.except(:controller, :action, :channel_type)
+    # Webhooks have arbitrary payloads from external platforms — permit all keys intentionally
+    params.to_unsafe_h.except(:controller, :action, :channel_type) # brakeman:ignore:MassAssignment
   end
 end

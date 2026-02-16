@@ -60,7 +60,7 @@ module ApiIntegrations
         begin
           JSON.parse(@raw)
         rescue JSON::ParserError
-          YAML.safe_load(@raw, permitted_classes: [Date, Time])
+          YAML.safe_load(@raw, permitted_classes: [ Date, Time ])
         end
       else
         nil
@@ -107,7 +107,7 @@ module ApiIntegrations
       info = spec["info"] || {}
       host = spec["host"] || ""
       base_path = spec["basePath"] || ""
-      schemes = spec["schemes"] || ["https"]
+      schemes = spec["schemes"] || [ "https" ]
       base_url = "#{schemes.first}://#{host}#{base_path}"
 
       endpoints = []

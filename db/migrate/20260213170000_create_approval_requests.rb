@@ -18,7 +18,7 @@ class CreateApprovalRequests < ActiveRecord::Migration[8.0]
     end
 
     add_index :approval_requests, :status
-    add_index :approval_requests, [:agent_id, :status]
+    add_index :approval_requests, [ :agent_id, :status ]
     add_index :approval_requests, :expires_at
   end
 end

@@ -13,7 +13,7 @@ RSpec.describe TeamChatSession, type: :model do
   describe 'validations' do
     describe 'uniqueness of session_key' do
       let!(:existing_session) { create(:team_chat_session, session_key: SecureRandom.uuid) }
-      
+
       it 'rejects duplicate session_keys' do
         new_session = build(:team_chat_session, session_key: existing_session.session_key)
         expect(new_session).not_to be_valid

@@ -24,7 +24,7 @@ class CreateInboundAndOutboundMessages < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
-    add_index :inbound_messages, [:channel_id, :external_id], unique: true
+    add_index :inbound_messages, [ :channel_id, :external_id ], unique: true
     add_index :inbound_messages, :received_at
     add_index :outbound_messages, :sent_at
   end

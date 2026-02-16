@@ -13,7 +13,7 @@ FactoryBot.define do
         properties: {
           command: { type: "string", description: "The command to run" }
         },
-        required: ["command"]
+        required: [ "command" ]
       }
     end
 
@@ -62,7 +62,7 @@ FactoryBot.define do
 
     trait :with_agents do
       after(:create) do |tool|
-        create_list(:agent, 2, agent_tools: [build(:agent_tool, tool: tool)])
+        create_list(:agent, 2, agent_tools: [ build(:agent_tool, tool: tool) ])
       end
     end
   end

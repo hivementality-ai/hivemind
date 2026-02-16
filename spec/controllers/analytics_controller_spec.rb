@@ -12,12 +12,12 @@ RSpec.describe AnalyticsController, type: :controller do
 
   describe 'GET #index' do
     let(:mock_response) do
-      double(:response, 
+      double(:response,
         success?: true,
         data: {
           summary: { total_cost: 100.50, total_sessions: 10 },
-          per_agent: [{ name: "Agent 1", cost: 50.25 }],
-          agents: [agent]
+          per_agent: [ { name: "Agent 1", cost: 50.25 } ],
+          agents: [ agent ]
         }
       )
     end
@@ -44,8 +44,8 @@ RSpec.describe AnalyticsController, type: :controller do
     it 'assigns analytics data on success' do
       get :index
       expect(assigns(:summary)).to eq({ total_cost: 100.50, total_sessions: 10 })
-      expect(assigns(:per_agent)).to eq([{ name: "Agent 1", cost: 50.25 }])
-      expect(assigns(:agents)).to eq([agent])
+      expect(assigns(:per_agent)).to eq([ { name: "Agent 1", cost: 50.25 } ])
+      expect(assigns(:agents)).to eq([ agent ])
     end
 
     context 'when analytics service fails' do
@@ -78,12 +78,12 @@ RSpec.describe AnalyticsController, type: :controller do
 
   describe 'GET #show' do
     let(:mock_response) do
-      double(:response, 
+      double(:response,
         success?: true,
-        data: { 
+        data: {
           cost_breakdown: { input: 25.50, output: 30.75 },
           session_count: 5,
-          avg_session_cost: 11.25 
+          avg_session_cost: 11.25
         }
       )
     end

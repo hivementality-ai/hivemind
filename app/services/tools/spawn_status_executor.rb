@@ -47,11 +47,11 @@ module Tools
       if tasks.any?
         output = tasks.map do |sat|
           icon = case sat.status
-                 when "completed" then "✅"
-                 when "failed" then "❌"
-                 when "running" then "🔄"
-                 else "⏳"
-                 end
+          when "completed" then "✅"
+          when "failed" then "❌"
+          when "running" then "🔄"
+          else "⏳"
+          end
           "#{icon} [#{sat.task_key}] #{sat.child_agent.name}: #{sat.task.truncate(60)} (#{sat.status})"
         end.join("\n")
         ServiceResponse.success(data: { output: "Sub-agent tasks:\n#{output}", exit_code: 0 })

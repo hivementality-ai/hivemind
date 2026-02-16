@@ -220,14 +220,14 @@ skills = [
 
 # Map skill names to their required tool names
 SKILL_TOOL_MAP = {
-  "github" => ["shell"],
-  "weather" => ["web_fetch"],
-  "trello" => ["http_request"],
-  "notion" => ["http_request"],
-  "summarize" => ["web_fetch", "pdf_read", "file_read"],
-  "google-calendar" => ["http_request"],
-  "docker" => ["shell"],
-  "git" => ["shell", "file_read", "file_write", "file_edit"]
+  "github" => [ "shell" ],
+  "weather" => [ "web_fetch" ],
+  "trello" => [ "http_request" ],
+  "notion" => [ "http_request" ],
+  "summarize" => [ "web_fetch", "pdf_read", "file_read" ],
+  "google-calendar" => [ "http_request" ],
+  "docker" => [ "shell" ],
+  "git" => [ "shell", "file_read", "file_write", "file_edit" ]
 }.freeze
 
 skills.each do |attrs|

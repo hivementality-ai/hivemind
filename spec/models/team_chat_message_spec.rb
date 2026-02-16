@@ -28,7 +28,7 @@ RSpec.describe TeamChatMessage, type: :model do
     describe '.chronological' do
       it 'returns messages ordered by created_at ascending' do
         result = TeamChatMessage.chronological
-        expect(result).to eq([msg1, msg2, msg3])
+        expect(result).to eq([ msg1, msg2, msg3 ])
       end
     end
   end
@@ -106,7 +106,7 @@ RSpec.describe TeamChatMessage, type: :model do
     context 'when text has @team mention' do
       it 'returns all enabled agents' do
         result = TeamChatMessage.extract_mentions("Hey @team, please help", team.reload)
-        expect(result[:agents]).to match_array([agent1, agent3])
+        expect(result[:agents]).to match_array([ agent1, agent3 ])
         expect(result[:broadcast]).to be true
       end
     end
@@ -114,7 +114,7 @@ RSpec.describe TeamChatMessage, type: :model do
     context 'when text has specific agent mentions' do
       it 'returns mentioned agents' do
         result = TeamChatMessage.extract_mentions("@Alice and @Bob, please respond", team.reload)
-        expect(result[:agents]).to match_array([agent1, agent2])
+        expect(result[:agents]).to match_array([ agent1, agent2 ])
         expect(result[:broadcast]).to be false
       end
 
@@ -143,14 +143,14 @@ RSpec.describe TeamChatMessage, type: :model do
       it 'does not match partial agent names' do
         create(:agent, team: team, name: "AliceLonger", enabled: true)
         result = TeamChatMessage.extract_mentions("Hello @Alice", team.reload)
-        expect(result[:agents]).to eq([agent1])
+        expect(result[:agents]).to eq([ agent1 ])
       end
     end
 
     context 'when text has case variations' do
       it 'matches mentions case-insensitively' do
         result = TeamChatMessage.extract_mentions("Hey @ALICE and @bob", team.reload)
-        expect(result[:agents]).to match_array([agent1, agent2])
+        expect(result[:agents]).to match_array([ agent1, agent2 ])
       end
     end
 

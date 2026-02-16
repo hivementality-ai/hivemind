@@ -40,16 +40,16 @@ class InboundMessageJob < ApplicationJob
 
       # Check teams first
       team = Team.where("LOWER(name) = ?", name.downcase).first
-      return [team, nil, rest] if team
+      return [ team, nil, rest ] if team
 
       # Then agents
       agent = Agent.visible.enabled.where("LOWER(name) = ?", name.downcase).first
       # Try with spaces (e.g., @DevOps_Engineer → "DevOps Engineer")
       agent ||= Agent.visible.enabled.where("LOWER(REPLACE(name, ' ', '_')) = ?", name.downcase).first
-      return [nil, agent, rest] if agent
+      return [ nil, agent, rest ] if agent
     end
 
-    [nil, nil, text]
+    [ nil, nil, text ]
   end
 
   # ─── Team Routing ───────────────────────────────────────────────
@@ -138,9 +138,9 @@ class InboundMessageJob < ApplicationJob
     lines = recent.map do |msg|
       name = if msg.sender_type == "Agent"
                Agent.find_by(id: msg.sender_id)&.name || "Agent"
-             else
+      else
                "User"
-             end
+      end
       "[#{name}] #{msg.content.truncate(200)}"
     end
 

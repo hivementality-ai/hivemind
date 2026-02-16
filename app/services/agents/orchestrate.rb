@@ -33,9 +33,9 @@ module Agents
       end
 
       if delegations.any?
-        ServiceResponse.success(data: { 
+        ServiceResponse.success(data: {
           orchestration_id: generate_orchestration_id,
-          task: @task, 
+          task: @task,
           delegations:,
           plan: subtasks
         })

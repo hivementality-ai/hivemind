@@ -259,7 +259,7 @@ module Tools
         content: text.to_s.split("\n\n").map do |para|
           {
             type: "paragraph",
-            content: [{ type: "text", text: para }]
+            content: [ { type: "text", text: para } ]
           }
         end
       }
@@ -316,10 +316,10 @@ module Tools
       http.read_timeout = 30
 
       req = case method
-            when :get    then Net::HTTP::Get.new(uri)
-            when :post   then Net::HTTP::Post.new(uri)
-            when :put    then Net::HTTP::Put.new(uri)
-            end
+      when :get    then Net::HTTP::Get.new(uri)
+      when :post   then Net::HTTP::Post.new(uri)
+      when :put    then Net::HTTP::Put.new(uri)
+      end
 
       req["Authorization"] = "Basic #{Base64.strict_encode64("#{jira_email}:#{jira_token}")}"
       req["Content-Type"] = "application/json"

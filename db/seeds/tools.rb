@@ -12,7 +12,7 @@ BUILTIN_TOOLS = [
       "properties" => {
         "command" => { "type" => "string", "description" => "The shell command to execute" }
       },
-      "required" => ["command"]
+      "required" => [ "command" ]
     }
   },
   {
@@ -24,7 +24,7 @@ BUILTIN_TOOLS = [
       "properties" => {
         "path" => { "type" => "string", "description" => "Path to the file to read" }
       },
-      "required" => ["path"]
+      "required" => [ "path" ]
     }
   },
   {
@@ -37,7 +37,7 @@ BUILTIN_TOOLS = [
         "path" => { "type" => "string", "description" => "Path to write the file" },
         "content" => { "type" => "string", "description" => "Content to write to the file" }
       },
-      "required" => ["path", "content"]
+      "required" => [ "path", "content" ]
     }
   },
   {
@@ -49,7 +49,7 @@ BUILTIN_TOOLS = [
       "properties" => {
         "query" => { "type" => "string", "description" => "Search query" }
       },
-      "required" => ["query"]
+      "required" => [ "query" ]
     }
   },
   {
@@ -61,7 +61,7 @@ BUILTIN_TOOLS = [
       "properties" => {
         "url" => { "type" => "string", "description" => "URL to fetch" }
       },
-      "required" => ["url"]
+      "required" => [ "url" ]
     }
   },
   {
@@ -72,9 +72,9 @@ BUILTIN_TOOLS = [
     parameters_schema: {
       "properties" => {
         "url" => { "type" => "string", "description" => "URL to navigate to" },
-        "action" => { "type" => "string", "description" => "Action: navigate (default) or screenshot", "enum" => ["navigate", "screenshot"] }
+        "action" => { "type" => "string", "description" => "Action: navigate (default) or screenshot", "enum" => [ "navigate", "screenshot" ] }
       },
-      "required" => ["url"]
+      "required" => [ "url" ]
     }
   },
   {
@@ -87,7 +87,7 @@ BUILTIN_TOOLS = [
         "query" => { "type" => "string", "description" => "What to search for in your memories" },
         "limit" => { "type" => "integer", "description" => "Max results to return (1-20, default 10)" }
       },
-      "required" => ["query"]
+      "required" => [ "query" ]
     }
   },
   {
@@ -114,7 +114,7 @@ BUILTIN_TOOLS = [
         "image" => { "type" => "string", "description" => "URL of the image to analyze" },
         "prompt" => { "type" => "string", "description" => "What to analyze or ask about the image (default: describe it)" }
       },
-      "required" => ["image"]
+      "required" => [ "image" ]
     }
   },
   {
@@ -130,7 +130,7 @@ BUILTIN_TOOLS = [
         "command" => { "type" => "string", "description" => "Shell command to run (for create)" },
         "task_id" => { "type" => "string", "description" => "Task ID (for delete/run)" }
       },
-      "required" => ["action"]
+      "required" => [ "action" ]
     }
   },
   {
@@ -147,7 +147,7 @@ BUILTIN_TOOLS = [
         "message_id" => { "type" => "string", "description" => "Message ID (for react)" },
         "emoji" => { "type" => "string", "description" => "Emoji to react with" }
       },
-      "required" => ["action"]
+      "required" => [ "action" ]
     }
   },
   {
@@ -160,7 +160,7 @@ BUILTIN_TOOLS = [
         "action" => { "type" => "string", "description" => "Action: add, remove, list, clear", "enum" => %w[add remove list clear] },
         "task" => { "type" => "string", "description" => "Task description (for add/remove)" }
       },
-      "required" => ["action"]
+      "required" => [ "action" ]
     }
   },
   {
@@ -199,7 +199,7 @@ BUILTIN_TOOLS = [
         "action" => { "type" => "string", "description" => "Action: status (check one task) or list (show recent tasks)", "enum" => %w[status list] },
         "task_key" => { "type" => "string", "description" => "Task ID from spawn (for status action)" }
       },
-      "required" => ["action"]
+      "required" => [ "action" ]
     }
   },
   {
@@ -226,7 +226,7 @@ BUILTIN_TOOLS = [
         "agent" => { "type" => "string", "description" => "Agent name (finds their most recent session)" },
         "message" => { "type" => "string", "description" => "Message to send" }
       },
-      "required" => ["message"]
+      "required" => [ "message" ]
     }
   },
   {
@@ -239,7 +239,7 @@ BUILTIN_TOOLS = [
         "session_key" => { "type" => "string", "description" => "Session key to fetch history for" },
         "limit" => { "type" => "integer", "description" => "Number of recent messages (1-50, default 20)" }
       },
-      "required" => ["session_key"]
+      "required" => [ "session_key" ]
     }
   },
   {
@@ -274,7 +274,7 @@ BUILTIN_TOOLS = [
         "action" => { "type" => "string", "description" => "Action: status, restart, config", "enum" => %w[status restart config] },
         "service" => { "type" => "string", "description" => "Service to restart (rails, sidekiq)" }
       },
-      "required" => ["action"]
+      "required" => [ "action" ]
     }
   },
   {
@@ -287,7 +287,7 @@ BUILTIN_TOOLS = [
         "text" => { "type" => "string", "description" => "Text to convert to speech (max 4096 chars)" },
         "voice" => { "type" => "string", "description" => "Voice: alloy, echo, fable, onyx, nova, shimmer", "enum" => %w[alloy echo fable onyx nova shimmer] }
       },
-      "required" => ["text"]
+      "required" => [ "text" ]
     }
   },
   {
@@ -306,7 +306,7 @@ BUILTIN_TOOLS = [
         "folder" => { "type" => "string", "description" => "IMAP folder (default: INBOX)" },
         "limit" => { "type" => "integer", "description" => "Max results (default: 10)" }
       },
-      "required" => ["action"]
+      "required" => [ "action" ]
     }
   },
   {
@@ -325,7 +325,7 @@ BUILTIN_TOOLS = [
         "dest" => { "type" => "string", "description" => "Destination path" },
         "limit" => { "type" => "integer", "description" => "Max results (default: 20)" }
       },
-      "required" => ["action"]
+      "required" => [ "action" ]
     }
   },
   {
@@ -335,9 +335,9 @@ BUILTIN_TOOLS = [
     requires_approval: false,
     parameters_schema: {
       "properties" => {
-        "action" => { "type" => "string", "description" => "Action: request, list_apis, list_endpoints", "enum" => ["request", "list_apis", "list_endpoints"] },
+        "action" => { "type" => "string", "description" => "Action: request, list_apis, list_endpoints", "enum" => [ "request", "list_apis", "list_endpoints" ] },
         "integration" => { "type" => "string", "description" => "Name of a registered API integration (optional — omit for raw requests)" },
-        "method" => { "type" => "string", "description" => "HTTP method (GET, POST, PUT, PATCH, DELETE)", "enum" => ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+        "method" => { "type" => "string", "description" => "HTTP method (GET, POST, PUT, PATCH, DELETE)", "enum" => [ "GET", "POST", "PUT", "PATCH", "DELETE" ] },
         "url" => { "type" => "string", "description" => "Full URL for raw requests, or endpoint path for integration requests" },
         "path" => { "type" => "string", "description" => "Endpoint path (alias for url when using integration)" },
         "operation_id" => { "type" => "string", "description" => "Match endpoint by operationId from the OpenAPI spec" },
@@ -346,7 +346,7 @@ BUILTIN_TOOLS = [
         "body" => { "type" => "object", "description" => "Request body (auto JSON-encoded)" },
         "timeout" => { "type" => "integer", "description" => "Request timeout in seconds (default: 30, max: 120)" }
       },
-      "required" => ["action"]
+      "required" => [ "action" ]
     }
   },
   {
@@ -371,7 +371,7 @@ BUILTIN_TOOLS = [
         "transition" => { "type" => "string", "description" => "Transition name (e.g., 'In Progress', 'Done'). Use list_transitions to see available options" },
         "limit" => { "type" => "integer", "description" => "Max results to return (default: 20, max: 50)" }
       },
-      "required" => ["action"]
+      "required" => [ "action" ]
     }
   },
   {
@@ -391,7 +391,7 @@ BUILTIN_TOOLS = [
         "bcc" => { "type" => "string", "description" => "BCC recipients (optional)" },
         "reply_to" => { "type" => "string", "description" => "Reply-to address (optional)" }
       },
-      "required" => ["action"]
+      "required" => [ "action" ]
     }
   },
   {
@@ -401,13 +401,13 @@ BUILTIN_TOOLS = [
     requires_approval: false,
     parameters_schema: {
       "properties" => {
-        "action" => { "type" => "string", "description" => "Action: read (extract text), metadata (get PDF info), tables (extract tables)", "enum" => ["read", "metadata", "tables"] },
+        "action" => { "type" => "string", "description" => "Action: read (extract text), metadata (get PDF info), tables (extract tables)", "enum" => [ "read", "metadata", "tables" ] },
         "path" => { "type" => "string", "description" => "Path to the PDF file (absolute or relative to /workspace)" },
         "pages" => { "type" => "string", "description" => "Page range to extract (e.g., '1-5' or '3'). Omit for all pages." },
-        "format" => { "type" => "string", "description" => "Output format: text (default) or markdown (preserves bold/italic/headings)", "enum" => ["text", "markdown"] },
+        "format" => { "type" => "string", "description" => "Output format: text (default) or markdown (preserves bold/italic/headings)", "enum" => [ "text", "markdown" ] },
         "page" => { "type" => "integer", "description" => "Specific page number for table extraction" }
       },
-      "required" => ["action", "path"]
+      "required" => [ "action", "path" ]
     }
   }
 ].freeze

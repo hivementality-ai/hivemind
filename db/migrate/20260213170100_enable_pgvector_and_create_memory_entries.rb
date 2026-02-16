@@ -6,7 +6,7 @@ class EnablePgvectorAndCreateMemoryEntries < ActiveRecord::Migration[8.0]
     # Run: brew install pgvector (Mac) or install postgresql-XX-pgvector package (Linux)
     # Then: CREATE EXTENSION vector; in PostgreSQL
     # For now, we'll use text/jsonb for embedding storage
-    
+
     create_table :memory_entries do |t|
       t.references :agent, null: false, foreign_key: true
       t.text :content, null: false
@@ -18,8 +18,8 @@ class EnablePgvectorAndCreateMemoryEntries < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
-    add_index :memory_entries, [:source_type, :source_id]
-    
+    add_index :memory_entries, [ :source_type, :source_id ]
+
     # When pgvector is installed, run this migration to add vector support:
     # ALTER TABLE memory_entries ADD COLUMN embedding_vector vector(1536);
     # CREATE INDEX ON memory_entries USING ivfflat (embedding_vector vector_cosine_ops);

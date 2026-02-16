@@ -5,10 +5,10 @@ require 'rails_helper'
 RSpec.describe Setting, type: :model do
   describe 'validations' do
     it { should validate_presence_of(:key) }
-    
+
     describe 'uniqueness of key' do
       let!(:existing_setting) { create(:setting, key: 'unique_key') }
-      
+
       it 'rejects duplicate keys' do
         new_setting = build(:setting, key: 'unique_key')
         expect(new_setting).not_to be_valid

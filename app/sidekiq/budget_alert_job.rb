@@ -3,22 +3,22 @@
 # Sends alerts when agents hit budget thresholds
 class BudgetAlertJob
   include Sidekiq::Job
-  
+
   def perform(agent_id, budget_id, alert_type)
     agent = Agent.find(agent_id)
     budget = AgentBudget.find(budget_id)
-    
+
     message = case alert_type
-              when "warning"
+    when "warning"
                 "⚠️ Agent '#{agent.name}' has used #{budget.percentage_used}% of its #{budget.period_type} budget"
-              when "exceeded"
+    when "exceeded"
                 "🚫 Agent '#{agent.name}' has EXCEEDED its #{budget.period_type} budget"
-              else
+    else
                 "Budget alert for agent '#{agent.name}'"
-              end
-    
+    end
+
     Rails.logger.warn message
-    
+
     # Broadcast via ActionCable
     ActionCable.server.broadcast(
       "notifications_channel",
@@ -30,9 +30,9 @@ class BudgetAlertJob
         budget_id: budget.id
       }
     )
-    
+
     # Could also send email, Slack notification, etc.
-    
+
     Audit::Log.call(
       actor: "system",
       action: "budget.alert_sent",

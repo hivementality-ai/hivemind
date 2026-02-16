@@ -24,7 +24,7 @@ RSpec.describe ToolsController, type: :controller do
     it 'assigns @tools ordered by name' do
       get :index
       tools = assigns(:tools)
-      expect(tools.map(&:name)).to eq(["Alpha Tool", "Beta Tool"])
+      expect(tools.map(&:name)).to eq([ "Alpha Tool", "Beta Tool" ])
     end
 
     it 'assigns @recent_executions ordered by created_at desc' do
@@ -184,7 +184,7 @@ RSpec.describe ToolsController, type: :controller do
           expect(tool.parameters_schema).to eq({
             "type" => "object",
             "properties" => {
-              "param1" => {"type" => "string"}
+              "param1" => { "type" => "string" }
             }
           })
         end
@@ -303,7 +303,7 @@ RSpec.describe ToolsController, type: :controller do
           expect(tool.parameters_schema).to eq({
             "type" => "object",
             "properties" => {
-              "param1" => {"type" => "string"}
+              "param1" => { "type" => "string" }
             }
           })
         end

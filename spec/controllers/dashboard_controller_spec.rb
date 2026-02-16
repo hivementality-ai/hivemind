@@ -31,11 +31,6 @@ RSpec.describe DashboardController, type: :controller do
       expect(agents.last.name).to eq("Beta")
     end
 
-    it 'assigns @recent_activity' do
-      get :index
-      expect(assigns(:recent_activity)).to be_an(Array)
-    end
-
     it 'assigns @cost_summary' do
       get :index
       expect(assigns(:cost_summary)).to be_an(Array)

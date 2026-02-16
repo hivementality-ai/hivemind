@@ -1,6 +1,6 @@
 Rails.application.routes.draw do
   devise_for :users
-  
+
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
   # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
@@ -19,12 +19,12 @@ Rails.application.routes.draw do
 
   # Root - Mission Control Dashboard
   root "dashboard#index"
-  
+
   # Dashboard
   get "dashboard", to: "dashboard#index"
-  
+
   # Chat Sessions
-  resources :sessions, only: [:index, :show, :create] do
+  resources :sessions, only: [ :index, :show, :create ] do
     member do
       post :message
     end
@@ -33,9 +33,9 @@ Rails.application.routes.draw do
   # Team Chats
   get "team_chats", to: "team_chats#index", as: :team_chats_index
   resources :teams, only: [] do
-    resources :team_chats, only: [:create], path: "chats"
+    resources :team_chats, only: [ :create ], path: "chats"
   end
-  resources :team_chats, only: [:show] do
+  resources :team_chats, only: [ :show ] do
     member do
       post :message
     end
@@ -55,14 +55,14 @@ Rails.application.routes.draw do
       post :import
     end
   end
-  
+
   # Agent Templates
-  resources :agent_templates, only: [:index, :show] do
+  resources :agent_templates, only: [ :index, :show ] do
     member do
       post :deploy
     end
   end
-  
+
   # Budgets
   get "budgets", to: "budgets#index", as: :budgets
   patch "budgets/:agent_id", to: "budgets#update", as: :update_budget
@@ -71,15 +71,15 @@ Rails.application.routes.draw do
   get "heartbeat", to: "heartbeats#index", as: :heartbeats
   patch "heartbeat", to: "heartbeats#update", as: :update_heartbeat
   post "heartbeat/trigger", to: "heartbeats#trigger", as: :trigger_heartbeat
-  
+
   # Analytics
-  resources :analytics, only: [:index, :show]
-  
+  resources :analytics, only: [ :index, :show ]
+
   # Platform
   get "platform/status", to: "platform#status", as: :platform_status
   post "platform/restart", to: "platform#restart", as: :platform_restart
   post "platform/clear_cache", to: "platform#clear_cache", as: :platform_clear_cache
-  
+
   # Webhooks
   get "webhooks/:channel_type", to: "webhooks#verify"
   post "webhooks/:channel_type", to: "webhooks#receive"
@@ -106,27 +106,27 @@ Rails.application.routes.draw do
     end
   end
 
-  resources :channels, except: [:show] do
+  resources :channels, except: [ :show ] do
     member do
       get :connect
     end
   end
-  
+
   # API v1
   namespace :api do
     namespace :v1 do
-      resources :agents, only: [:index, :show, :create, :update, :destroy]
-      resources :sessions, only: [:index, :show, :destroy]
+      resources :agents, only: [ :index, :show, :create, :update, :destroy ]
+      resources :sessions, only: [ :index, :show, :destroy ]
       get "providers/models", to: "providers#models"
     end
   end
-  
+
   # Sidekiq Web UI (admin only)
   require "sidekiq/web"
   authenticate :user, ->(user) { user.admin? || user.owner? } do
     mount Sidekiq::Web => "/sidekiq"
   end
-  
+
   # ActionCable
   mount ActionCable.server => "/cable"
 end

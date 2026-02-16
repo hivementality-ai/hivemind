@@ -3,7 +3,7 @@
 module Api
   module V1
     class AgentsController < ApiController
-      before_action :set_agent, only: [:show, :update, :destroy]
+      before_action :set_agent, only: [ :show, :update, :destroy ]
 
       def index
         @agents = Agent.visible.includes(:team).order(:name)
@@ -13,7 +13,7 @@ module Api
       def show
         render json: @agent.as_json(
           include: :team,
-          methods: [:current_status, :usage_summary]
+          methods: [ :current_status, :usage_summary ]
         )
       end
 

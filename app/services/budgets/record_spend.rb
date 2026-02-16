@@ -6,21 +6,21 @@ module Budgets
     def self.call(agent:, cost_cents:, usage_metadata: {})
       new(agent: agent, cost_cents: cost_cents, usage_metadata: usage_metadata).call
     end
-    
+
     def initialize(agent:, cost_cents:, usage_metadata: {})
       @agent = agent
       @cost_cents = cost_cents
       @usage_metadata = usage_metadata
     end
-    
+
     def call
       ActiveRecord::Base.transaction do
         # Update all budget periods
         budgets = AgentBudget.where(agent: @agent)
-        
+
         budgets.each do |budget|
           budget.increment!(:spent_cents, @cost_cents)
-          
+
           # Check if exceeded or at warning threshold
           if budget.exceeded?
             handle_exceeded(budget)
@@ -28,7 +28,7 @@ module Budgets
             handle_warning(budget)
           end
         end
-        
+
         # Create usage record
         usage_record = UsageRecord.create!(
           agent: @agent,
@@ -36,10 +36,10 @@ module Budgets
           metadata: @usage_metadata,
           recorded_at: Time.current
         )
-        
+
         # Broadcast budget update via ActionCable
         broadcast_update
-        
+
         ServiceResponse.success(
           data: {
             recorded: true,
@@ -51,22 +51,22 @@ module Budgets
     rescue => e
       ServiceResponse.failure(error: "Failed to record spend: #{e.message}")
     end
-    
+
     private
-    
+
     def handle_exceeded(budget)
       Rails.logger.warn "Agent #{@agent.id} exceeded #{budget.period_type} budget"
-      
+
       # Send alert
       BudgetAlertJob.perform_async(@agent.id, budget.id, "exceeded")
     end
-    
+
     def handle_warning(budget)
       Rails.logger.info "Agent #{@agent.id} at #{budget.percentage_used}% of #{budget.period_type} budget"
       BudgetAlertJob.perform_async(@agent.id, budget.id, "warning")
       # Note: alert_sent tracking can be added with a migration if needed
     end
-    
+
     def broadcast_update
       ActionCable.server.broadcast(
         "budgets_channel",
@@ -78,7 +78,7 @@ module Budgets
         }
       )
     end
-    
+
     def budget_summary(budget)
       {
         period_type: budget.period_type,

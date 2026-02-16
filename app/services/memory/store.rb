@@ -41,7 +41,7 @@ module Memory
     def generate_embedding(text)
       # Get the provider configuration for the agent
       provider = @agent.model_provider || "openai"
-      
+
       case provider
       when "openai"
         generate_openai_embedding(text)
@@ -61,11 +61,11 @@ module Memory
         namespace: "provider_credentials",
         key: "openai_api_key"
       )
-      
+
       return nil unless vault_entry
 
       api_key = vault_entry.encrypted_value
-      
+
       response = Faraday.post(
         "https://api.openai.com/v1/embeddings",
         { model: "text-embedding-3-small", input: text }.to_json,
@@ -91,7 +91,7 @@ module Memory
       # Use Ollama's embedding endpoint (default model: nomic-embed-text)
       provider_config = ProviderConfig.find_by(adapter_type: "ollama", enabled: true)
       base_url = provider_config&.base_url || "http://localhost:11434"
-      
+
       response = Faraday.post(
         "#{base_url}/api/embeddings",
         { model: "nomic-embed-text", prompt: text }.to_json,
@@ -101,7 +101,7 @@ module Memory
       if response.success?
         result = JSON.parse(response.body)
         embedding = result["embedding"]
-        
+
         # Pad or truncate to 1536 dimensions to match OpenAI format
         if embedding.length < 1536
           embedding + Array.new(1536 - embedding.length, 0.0)

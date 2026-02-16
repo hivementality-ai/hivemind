@@ -10,7 +10,7 @@ RSpec.describe Agent, type: :model do
     it { should have_many(:usage_records).dependent(:destroy) }
     it { should have_many(:agent_budgets).dependent(:destroy) }
     it { should have_many(:scheduled_tasks).dependent(:destroy) }
-    
+
     it { should have_many(:sent_team_messages).class_name('TeamMessage').with_foreign_key(:from_agent_id).dependent(:destroy) }
     it { should have_many(:received_team_messages).class_name('TeamMessage').with_foreign_key(:to_agent_id).dependent(:destroy) }
   end
@@ -27,7 +27,7 @@ RSpec.describe Agent, type: :model do
       expect(agent).not_to be_valid
       expect(agent.errors[:role]).to include("can't be blank")
     end
-    
+
     it 'validates uniqueness of name' do
       create(:agent, name: "Assistant")
       expect(build(:agent, name: "Assistant")).not_to be_valid
@@ -56,7 +56,7 @@ RSpec.describe Agent, type: :model do
 
     describe '.by_team' do
       it 'returns agents for the given team' do
-        expect(Agent.by_team(team)).to eq([team_agent])
+        expect(Agent.by_team(team)).to eq([ team_agent ])
       end
     end
 
@@ -82,7 +82,7 @@ RSpec.describe Agent, type: :model do
 
   describe '#usage_summary' do
     let(:agent) { create(:agent) }
-    
+
     before do
       create(:usage_record, agent: agent, cost_cents: 100, input_tokens: 50, output_tokens: 25)
       create(:usage_record, agent: agent, cost_cents: 200, input_tokens: 100, output_tokens: 50)

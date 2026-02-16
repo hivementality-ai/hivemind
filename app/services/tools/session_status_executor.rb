@@ -8,9 +8,9 @@ module Tools
       # If no key given, show agent's most recent session
       session = if session_key.present?
                   Session.find_by(session_key: session_key)
-                elsif agent
+      elsif agent
                   Session.where(agent: agent).order(updated_at: :desc).first
-                end
+      end
 
       return ServiceResponse.failure(error: "No session found") unless session
 

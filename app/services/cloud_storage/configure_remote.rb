@@ -123,7 +123,7 @@ module CloudStorage
         "region", region,
         "--config", RCLONE_CONFIG_PATH
       ]
-      args += ["endpoint", endpoint] if endpoint.present?
+      args += [ "endpoint", endpoint ] if endpoint.present?
 
       run_rclone(args)
     end
@@ -159,8 +159,8 @@ module CloudStorage
 
       pass = @params[:pass].to_s.strip
       key_file = @params[:key_file].to_s.strip
-      args += ["pass", rclone_obscure(pass)] if pass.present?
-      args += ["key_file", key_file] if key_file.present?
+      args += [ "pass", rclone_obscure(pass) ] if pass.present?
+      args += [ "key_file", key_file ] if key_file.present?
 
       run_rclone(args)
     end
@@ -172,7 +172,7 @@ module CloudStorage
         "rclone", "config", "create", @remote_name, type,
         "--config", RCLONE_CONFIG_PATH
       ]
-      extra.each { |k, v| args += [k.to_s, v.to_s] }
+      extra.each { |k, v| args += [ k.to_s, v.to_s ] }
 
       # Write token directly to config after creation
       result = run_rclone(args)

@@ -10,9 +10,38 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_13_190002) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_15_184700) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+  enable_extension "vector"
+
+  create_table "active_storage_attachments", force: :cascade do |t|
+    t.bigint "blob_id", null: false
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.bigint "record_id", null: false
+    t.string "record_type", null: false
+    t.index ["blob_id"], name: "index_active_storage_attachments_on_blob_id"
+    t.index ["record_type", "record_id", "name", "blob_id"], name: "index_active_storage_attachments_uniqueness", unique: true
+  end
+
+  create_table "active_storage_blobs", force: :cascade do |t|
+    t.bigint "byte_size", null: false
+    t.string "checksum"
+    t.string "content_type"
+    t.datetime "created_at", null: false
+    t.string "filename", null: false
+    t.string "key", null: false
+    t.text "metadata"
+    t.string "service_name", null: false
+    t.index ["key"], name: "index_active_storage_blobs_on_key", unique: true
+  end
+
+  create_table "active_storage_variant_records", force: :cascade do |t|
+    t.bigint "blob_id", null: false
+    t.string "variation_digest", null: false
+    t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
 
   create_table "agent_budgets", force: :cascade do |t|
     t.bigint "agent_id", null: false
@@ -23,6 +52,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_190002) do
     t.decimal "spent_cents"
     t.datetime "updated_at", null: false
     t.index ["agent_id"], name: "index_agent_budgets_on_agent_id"
+  end
+
+  create_table "agent_skills", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.datetime "created_at", null: false
+    t.bigint "skill_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id", "skill_id"], name: "index_agent_skills_on_agent_id_and_skill_id", unique: true
+    t.index ["agent_id"], name: "index_agent_skills_on_agent_id"
+    t.index ["skill_id"], name: "index_agent_skills_on_skill_id"
   end
 
   create_table "agent_templates", force: :cascade do |t|
@@ -44,20 +83,39 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_190002) do
     t.index ["featured"], name: "index_agent_templates_on_featured"
   end
 
+  create_table "agent_tools", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.datetime "created_at", null: false
+    t.bigint "tool_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id", "tool_id"], name: "index_agent_tools_on_agent_id_and_tool_id", unique: true
+    t.index ["agent_id"], name: "index_agent_tools_on_agent_id"
+    t.index ["tool_id"], name: "index_agent_tools_on_tool_id"
+  end
+
   create_table "agents", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "current_task"
+    t.text "custom_instructions"
     t.decimal "daily_budget_limit", precision: 10, scale: 4, default: "10.0"
     t.boolean "enabled", default: true, null: false
-    t.string "llm_model", default: "gpt-4"
+    t.boolean "heartbeat_enabled", default: false, null: false
+    t.integer "heartbeat_interval_minutes", default: 30, null: false
+    t.datetime "heartbeat_last_run_at"
+    t.text "heartbeat_prompt"
+    t.string "llm_model", default: "gpt-5.2"
     t.jsonb "model_config"
     t.string "model_provider", default: "openai"
     t.decimal "monthly_budget_limit", precision: 10, scale: 4, default: "100.0"
     t.string "name"
     t.string "role"
     t.integer "status"
+    t.boolean "system_agent", default: false, null: false
     t.text "system_prompt"
     t.bigint "team_id"
+    t.integer "thinking_budget_tokens", default: 10000
+    t.boolean "thinking_enabled", default: false, null: false
+    t.string "thinking_visibility", default: "hidden"
     t.jsonb "tools_config"
     t.datetime "updated_at", null: false
     t.string "workspace_path"
@@ -65,6 +123,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_190002) do
     t.index ["name"], name: "index_agents_on_name", unique: true
     t.index ["status"], name: "index_agents_on_status"
     t.index ["team_id"], name: "index_agents_on_team_id"
+  end
+
+  create_table "api_integrations", force: :cascade do |t|
+    t.jsonb "auth_config", default: {}
+    t.string "base_url", null: false
+    t.datetime "created_at", null: false
+    t.jsonb "default_headers", default: {}
+    t.text "description"
+    t.boolean "enabled", default: true
+    t.jsonb "endpoints", default: []
+    t.integer "max_response_bytes", default: 1048576
+    t.string "name", null: false
+    t.jsonb "spec_data", default: {}
+    t.string "spec_format", default: "openapi"
+    t.integer "timeout_seconds", default: 30
+    t.datetime "updated_at", null: false
+    t.bigint "user_id"
+    t.index ["enabled"], name: "index_api_integrations_on_enabled"
+    t.index ["name"], name: "index_api_integrations_on_name", unique: true
+    t.index ["user_id"], name: "index_api_integrations_on_user_id"
   end
 
   create_table "api_tokens", force: :cascade do |t|
@@ -124,6 +202,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_190002) do
     t.index ["channel_type"], name: "index_channels_on_channel_type"
   end
 
+  create_table "chat_attachments", force: :cascade do |t|
+    t.integer "byte_size"
+    t.string "content_type"
+    t.datetime "created_at", null: false
+    t.string "filename"
+    t.integer "message_index"
+    t.bigint "session_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["session_id"], name: "index_chat_attachments_on_session_id"
+  end
+
   create_table "device_pairings", force: :cascade do |t|
     t.datetime "approved_at"
     t.datetime "created_at", null: false
@@ -157,12 +246,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_190002) do
     t.bigint "agent_id", null: false
     t.text "content", null: false
     t.datetime "created_at", null: false
-    t.jsonb "embedding", default: [], null: false
+    t.vector "embedding", limit: 1536
     t.jsonb "metadata", default: {}, null: false
     t.bigint "source_id"
     t.string "source_type"
     t.datetime "updated_at", null: false
     t.index ["agent_id"], name: "index_memory_entries_on_agent_id"
+    t.index ["embedding"], name: "index_memory_entries_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["source_type", "source_id"], name: "index_memory_entries_on_source_type_and_source_id"
   end
 
@@ -216,6 +306,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_190002) do
     t.bigint "output_tokens"
     t.string "session_key"
     t.integer "status"
+    t.bigint "team_chat_session_id"
     t.string "title"
     t.bigint "total_tokens"
     t.jsonb "transcript"
@@ -224,6 +315,87 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_190002) do
     t.index ["agent_id"], name: "index_sessions_on_agent_id"
     t.index ["last_activity_at"], name: "index_sessions_on_last_activity_at"
     t.index ["session_key"], name: "index_sessions_on_session_key", unique: true
+    t.index ["team_chat_session_id"], name: "index_sessions_on_team_chat_session_id"
+  end
+
+  create_table "settings", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "key", null: false
+    t.datetime "updated_at", null: false
+    t.text "value"
+    t.index ["key"], name: "index_settings_on_key", unique: true
+  end
+
+  create_table "skill_tools", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "skill_id", null: false
+    t.bigint "tool_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["skill_id", "tool_id"], name: "index_skill_tools_on_skill_id_and_tool_id", unique: true
+    t.index ["skill_id"], name: "index_skill_tools_on_skill_id"
+    t.index ["tool_id"], name: "index_skill_tools_on_tool_id"
+  end
+
+  create_table "skills", force: :cascade do |t|
+    t.boolean "builtin", default: false, null: false
+    t.string "category"
+    t.text "content", null: false
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.boolean "enabled", default: true, null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.index ["enabled"], name: "index_skills_on_enabled"
+    t.index ["name"], name: "index_skills_on_name", unique: true
+  end
+
+  create_table "sub_agent_tasks", force: :cascade do |t|
+    t.bigint "child_agent_id", null: false
+    t.bigint "child_session_id"
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.bigint "parent_agent_id", null: false
+    t.bigint "parent_session_id"
+    t.text "result"
+    t.datetime "started_at"
+    t.string "status", default: "pending", null: false
+    t.text "task", null: false
+    t.string "task_key", null: false
+    t.datetime "updated_at", null: false
+    t.index ["child_agent_id"], name: "index_sub_agent_tasks_on_child_agent_id"
+    t.index ["child_session_id"], name: "index_sub_agent_tasks_on_child_session_id"
+    t.index ["parent_agent_id"], name: "index_sub_agent_tasks_on_parent_agent_id"
+    t.index ["parent_session_id"], name: "index_sub_agent_tasks_on_parent_session_id"
+    t.index ["status"], name: "index_sub_agent_tasks_on_status"
+    t.index ["task_key"], name: "index_sub_agent_tasks_on_task_key", unique: true
+  end
+
+  create_table "team_chat_messages", force: :cascade do |t|
+    t.text "content", null: false
+    t.datetime "created_at", null: false
+    t.jsonb "metadata", default: {}
+    t.bigint "sender_id", null: false
+    t.string "sender_type", null: false
+    t.bigint "target_agent_id"
+    t.bigint "team_chat_session_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["sender_type", "sender_id"], name: "index_team_chat_messages_on_sender_type_and_sender_id"
+    t.index ["target_agent_id"], name: "index_team_chat_messages_on_target_agent_id"
+    t.index ["team_chat_session_id"], name: "index_team_chat_messages_on_team_chat_session_id"
+  end
+
+  create_table "team_chat_sessions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.jsonb "metadata", default: {}
+    t.string "session_key"
+    t.integer "status", default: 0, null: false
+    t.bigint "team_id", null: false
+    t.string "title"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["session_key"], name: "index_team_chat_sessions_on_session_key", unique: true
+    t.index ["team_id"], name: "index_team_chat_sessions_on_team_id"
+    t.index ["user_id"], name: "index_team_chat_sessions_on_user_id"
   end
 
   create_table "team_messages", force: :cascade do |t|
@@ -248,8 +420,43 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_190002) do
     t.datetime "created_at", null: false
     t.text "description"
     t.string "name"
+    t.text "soul"
     t.datetime "updated_at", null: false
     t.index ["name"], name: "index_teams_on_name", unique: true
+  end
+
+  create_table "tool_executions", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.datetime "created_at", null: false
+    t.integer "duration_ms"
+    t.text "error"
+    t.integer "exit_code"
+    t.jsonb "input", default: {}, null: false
+    t.text "output"
+    t.bigint "session_id", null: false
+    t.string "status", default: "pending", null: false
+    t.bigint "tool_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id"], name: "index_tool_executions_on_agent_id"
+    t.index ["session_id"], name: "index_tool_executions_on_session_id"
+    t.index ["status"], name: "index_tool_executions_on_status"
+    t.index ["tool_id"], name: "index_tool_executions_on_tool_id"
+  end
+
+  create_table "tools", force: :cascade do |t|
+    t.boolean "builtin", default: false, null: false
+    t.jsonb "config", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.string "description", null: false
+    t.boolean "enabled", default: true, null: false
+    t.string "executor_type", null: false
+    t.string "name", null: false
+    t.jsonb "parameters_schema", default: {}, null: false
+    t.boolean "requires_approval", default: false, null: false
+    t.text "script_template"
+    t.datetime "updated_at", null: false
+    t.index ["enabled"], name: "index_tools_on_enabled"
+    t.index ["name"], name: "index_tools_on_name", unique: true
   end
 
   create_table "transcript_archives", force: :cascade do |t|
@@ -304,18 +511,39 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_13_190002) do
     t.index ["agent_id"], name: "index_vault_entries_on_agent_id"
   end
 
+  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "agent_budgets", "agents"
+  add_foreign_key "agent_skills", "agents"
+  add_foreign_key "agent_skills", "skills"
+  add_foreign_key "agent_tools", "agents"
+  add_foreign_key "agent_tools", "tools"
   add_foreign_key "agents", "teams"
+  add_foreign_key "api_integrations", "users"
   add_foreign_key "api_tokens", "users"
   add_foreign_key "approval_requests", "agents"
+  add_foreign_key "chat_attachments", "sessions"
   add_foreign_key "inbound_messages", "channels"
   add_foreign_key "memory_entries", "agents"
   add_foreign_key "outbound_messages", "channels"
   add_foreign_key "scheduled_tasks", "agents"
   add_foreign_key "sessions", "agents"
+  add_foreign_key "sessions", "team_chat_sessions"
+  add_foreign_key "skill_tools", "skills"
+  add_foreign_key "skill_tools", "tools"
+  add_foreign_key "sub_agent_tasks", "agents", column: "child_agent_id"
+  add_foreign_key "sub_agent_tasks", "agents", column: "parent_agent_id"
+  add_foreign_key "sub_agent_tasks", "sessions", column: "child_session_id"
+  add_foreign_key "sub_agent_tasks", "sessions", column: "parent_session_id"
+  add_foreign_key "team_chat_messages", "team_chat_sessions"
+  add_foreign_key "team_chat_sessions", "teams"
+  add_foreign_key "team_chat_sessions", "users"
   add_foreign_key "team_messages", "agents", column: "from_agent_id"
   add_foreign_key "team_messages", "agents", column: "to_agent_id"
   add_foreign_key "team_messages", "teams"
+  add_foreign_key "tool_executions", "agents"
+  add_foreign_key "tool_executions", "sessions"
+  add_foreign_key "tool_executions", "tools"
   add_foreign_key "transcript_archives", "sessions"
   add_foreign_key "usage_records", "agents"
   add_foreign_key "usage_records", "sessions"

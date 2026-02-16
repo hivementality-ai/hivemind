@@ -67,7 +67,7 @@ module Channels
       body = {
         chat_id: target_chat,
         message_id: message_id,
-        reaction: [{ type: "emoji", emoji: emoji }]
+        reaction: [ { type: "emoji", emoji: emoji } ]
       }
 
       response = post_json(uri, body)

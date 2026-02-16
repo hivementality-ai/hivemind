@@ -14,7 +14,7 @@ RSpec.describe SessionsController, type: :controller do
   describe 'GET #index' do
     let!(:active_session1) { create(:session, status: :active, last_activity_at: 2.hours.ago) }
     let!(:active_session2) { create(:session, status: :active, last_activity_at: 1.hour.ago) }
-    let!(:inactive_session) { create(:session, status: :inactive) }
+    let!(:inactive_session) { create(:session, status: :completed) }
 
     it 'returns a successful response' do
       get :index
@@ -189,31 +189,31 @@ RSpec.describe SessionsController, type: :controller do
 
       it 'creates chat attachments for uploaded files' do
         expect {
-          post :message, params: { 
-            id: session.id, 
+          post :message, params: {
+            id: session.id,
             message: message_content,
-            images: [image_file],
-            files: [document_file]
+            images: [ image_file ],
+            files: [ document_file ]
           }
         }.to change(ChatAttachment, :count).by(2)
       end
 
       it 'enqueues job with attachment IDs' do
-        post :message, params: { 
-          id: session.id, 
+        post :message, params: {
+          id: session.id,
           message: message_content,
-          images: [image_file] 
+          images: [ image_file ]
         }
 
         attachment = ChatAttachment.last
-        expect(ChatStreamJob).to have_been_enqueued.with(session.id, message_content, [attachment.id])
+        expect(ChatStreamJob).to have_been_enqueued.with(session.id, message_content, [ attachment.id ])
       end
 
       it 'sets correct attachment attributes' do
-        post :message, params: { 
-          id: session.id, 
+        post :message, params: {
+          id: session.id,
           message: message_content,
-          images: [image_file] 
+          images: [ image_file ]
         }
 
         attachment = ChatAttachment.last
@@ -225,9 +225,9 @@ RSpec.describe SessionsController, type: :controller do
 
       it 'allows message with only attachments and no text' do
         expect {
-          post :message, params: { 
-            id: session.id, 
-            images: [image_file] 
+          post :message, params: {
+            id: session.id,
+            images: [ image_file ]
           }
         }.to change(ChatAttachment, :count).by(1)
       end

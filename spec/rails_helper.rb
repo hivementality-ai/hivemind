@@ -26,6 +26,7 @@ abort("FATAL: Refusing to run specs in #{Rails.env} mode! Tests MUST run in the 
 
 require 'rspec/rails'
 require 'shoulda/matchers'
+require 'webmock/rspec'
 require 'factory_bot_rails'
 
 # Load support files

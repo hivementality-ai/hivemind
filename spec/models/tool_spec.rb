@@ -11,17 +11,17 @@ RSpec.describe Tool, type: :model do
 
   describe 'validations' do
     it { should validate_presence_of(:name) }
-    
+
     describe 'uniqueness of name' do
       let!(:existing_tool) { create(:tool, name: 'unique_tool') }
-      
+
       it 'rejects duplicate names' do
         new_tool = build(:tool, name: 'unique_tool')
         expect(new_tool).not_to be_valid
         expect(new_tool.errors[:name]).to include('has already been taken')
       end
     end
-    
+
     it { should validate_presence_of(:description) }
     it { should validate_presence_of(:executor_type) }
 
@@ -67,7 +67,7 @@ RSpec.describe Tool, type: :model do
                  query: { type: 'string', description: 'Search query' },
                  num_results: { type: 'integer', description: 'Number of results' }
                },
-               required: ['query']
+               required: [ 'query' ]
              })
     end
 
@@ -91,7 +91,7 @@ RSpec.describe Tool, type: :model do
 
       expect(schema[:type]).to eq('object')
       expect(schema[:properties].keys).to include('query', 'num_results')
-      expect(schema[:required]).to eq(['query'])
+      expect(schema[:required]).to eq([ 'query' ])
     end
 
     context 'with empty parameters_schema' do

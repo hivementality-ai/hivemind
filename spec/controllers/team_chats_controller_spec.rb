@@ -145,7 +145,7 @@ RSpec.describe TeamChatsController, type: :controller do
       end
 
       context 'with @mention for specific agent' do
-        let(:mentioned_agent) { create(:agent, team: team, name: "SpecificAgent") }
+        let!(:mentioned_agent) { create(:agent, team: team, name: "SpecificAgent") }
         let(:message_with_mention) { "@SpecificAgent please help" }
 
         it 'sets target_agent_id when mentioning specific agent' do
@@ -168,24 +168,24 @@ RSpec.describe TeamChatsController, type: :controller do
       end
 
       it 'creates message with image attachment' do
-        post :message, params: { 
-          id: team_chat_session.id, 
+        post :message, params: {
+          id: team_chat_session.id,
           message: "Check this image",
-          images: [image_file] 
+          images: [ image_file ]
         }
-        
+
         message = TeamChatMessage.last
         expect(message.images).to be_attached
         expect(message.images.count).to eq(1)
       end
 
       it 'creates message with document attachment' do
-        post :message, params: { 
-          id: team_chat_session.id, 
+        post :message, params: {
+          id: team_chat_session.id,
           message: "Check this document",
-          files: [document_file] 
+          files: [ document_file ]
         }
-        
+
         message = TeamChatMessage.last
         expect(message.documents).to be_attached
         expect(message.documents.count).to eq(1)
@@ -193,9 +193,9 @@ RSpec.describe TeamChatsController, type: :controller do
 
       it 'allows message with only attachments and no text' do
         expect {
-          post :message, params: { 
-            id: team_chat_session.id, 
-            images: [image_file] 
+          post :message, params: {
+            id: team_chat_session.id,
+            images: [ image_file ]
           }
         }.to change(TeamChatMessage, :count).by(1)
       end

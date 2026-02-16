@@ -6,7 +6,7 @@ RSpec.describe DevicePairing, type: :model do
   describe 'validations' do
     it { should validate_presence_of(:device_id) }
     it { should validate_presence_of(:device_type) }
-    
+
     it 'validates uniqueness of device_id' do
       create(:device_pairing, device_id: "unique_device_123")
       expect(build(:device_pairing, device_id: "unique_device_123")).not_to be_valid

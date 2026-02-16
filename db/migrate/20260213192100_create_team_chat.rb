@@ -22,6 +22,6 @@ class CreateTeamChat < ActiveRecord::Migration[8.0]
     end
 
     add_index :team_chat_messages, :target_agent_id
-    add_index :team_chat_messages, [:sender_type, :sender_id]
+    add_index :team_chat_messages, [ :sender_type, :sender_id ]
   end
 end

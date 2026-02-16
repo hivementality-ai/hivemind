@@ -2,8 +2,8 @@
 
 class SessionsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_agent, only: [:create]
-  before_action :set_session, only: [:show, :message]
+  before_action :set_agent, only: [ :create ]
+  before_action :set_session, only: [ :show, :message ]
 
   # GET /sessions — list all sessions
   def index
@@ -45,7 +45,7 @@ class SessionsController < ApplicationController
 
     # Handle file uploads (images + documents)
     attachment_ids = []
-    [params[:images], params[:files]].compact.each do |file_list|
+    [ params[:images], params[:files] ].compact.each do |file_list|
       Array(file_list).each do |upload|
         next unless upload.respond_to?(:content_type)
 

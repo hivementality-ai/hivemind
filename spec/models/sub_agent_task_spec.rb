@@ -13,17 +13,17 @@ RSpec.describe SubAgentTask, type: :model do
   describe 'validations' do
     it { should validate_presence_of(:task) }
     it { should validate_presence_of(:task_key) }
-    
+
     describe 'uniqueness of task_key' do
       let!(:existing_task) { create(:sub_agent_task, task_key: 'unique-key') }
-      
+
       it 'rejects duplicate task_keys' do
         new_task = build(:sub_agent_task, task_key: 'unique-key')
         expect(new_task).not_to be_valid
         expect(new_task.errors[:task_key]).to include('has already been taken')
       end
     end
-    
+
     it { should validate_inclusion_of(:status).in_array(%w[pending running completed failed]) }
 
     it 'validates presence of parent_agent_id' do

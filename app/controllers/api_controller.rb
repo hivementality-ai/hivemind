@@ -16,11 +16,11 @@ class ApiController < ApplicationController
 
   def authenticate_api_token
     token = request.headers["Authorization"]&.gsub(/^Bearer /, "")
-    
+
     return render json: { error: "Unauthorized" }, status: :unauthorized unless token
 
     @current_api_token = ApiToken.authenticate(token)
-    
+
     return render json: { error: "Unauthorized" }, status: :unauthorized unless @current_api_token
 
     @current_api_token.touch_last_used!

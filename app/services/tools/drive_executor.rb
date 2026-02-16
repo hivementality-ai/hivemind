@@ -187,7 +187,7 @@ module Tools
 
       Open3.capture3(env, "rclone", *args, timeout: 30)
     rescue Errno::ENOENT
-      ["", "rclone not installed. Install: https://rclone.org/install/", Process::Status]
+      [ "", "rclone not installed. Install: https://rclone.org/install/", Process::Status ]
     end
 
     def rclone_error(stderr)

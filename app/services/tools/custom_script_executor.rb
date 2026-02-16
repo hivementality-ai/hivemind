@@ -67,7 +67,7 @@ module Tools
       output = stdout.to_s
       output += "\nSTDERR: #{stderr}" if stderr.present?
 
-      [output, status&.exitstatus || 1]
+      [ output, status&.exitstatus || 1 ]
     end
   end
 end

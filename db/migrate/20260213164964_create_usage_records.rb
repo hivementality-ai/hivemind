@@ -15,6 +15,6 @@ class CreateUsageRecords < ActiveRecord::Migration[8.1]
     end
 
     add_index :usage_records, :created_at
-    add_index :usage_records, [:agent_id, :created_at]
+    add_index :usage_records, [ :agent_id, :created_at ]
   end
 end

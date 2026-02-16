@@ -11,7 +11,7 @@ RSpec.describe Session, type: :model do
 
   describe 'validations' do
     it { should validate_presence_of(:session_key) }
-    
+
     it 'validates uniqueness of session_key' do
       create(:session, session_key: "unique_key")
       expect(build(:session, session_key: "unique_key")).not_to be_valid

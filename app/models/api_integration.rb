@@ -4,7 +4,7 @@ class ApiIntegration < ApplicationRecord
   belongs_to :user, optional: true
 
   validates :name, presence: true, uniqueness: true
-  validates :base_url, presence: true, format: { with: /\Ahttps?:\/\//i, message: "must start with http:// or https://" }
+  validates :base_url, presence: true, format: { with: /\Ahttps?:\/\/[^\s]+\z/i, message: "must start with http:// or https://" }
 
   scope :enabled, -> { where(enabled: true) }
 

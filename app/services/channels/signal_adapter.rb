@@ -39,7 +39,7 @@ module Channels
       body = {
         message: content,
         number: number,
-        recipients: [to]
+        recipients: [ to ]
       }
 
       http = Net::HTTP.new(uri.host, uri.port)

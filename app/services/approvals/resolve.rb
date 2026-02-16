@@ -74,7 +74,7 @@ module Approvals
       # This is where the approved action would be executed
       # The implementation depends on the action type
       Rails.logger.info("Executing approved action: #{approval.action} on #{approval.resource}")
-      
+
       # Future: dispatch to appropriate service based on approval.action
       # Example:
       # case approval.action

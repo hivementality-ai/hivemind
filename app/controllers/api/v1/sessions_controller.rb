@@ -3,7 +3,7 @@
 module Api
   module V1
     class SessionsController < ApiController
-      before_action :set_session, only: [:show, :destroy]
+      before_action :set_session, only: [ :show, :destroy ]
 
       def index
         @sessions = Session.includes(:agent)
@@ -28,7 +28,7 @@ module Api
       def show
         render json: @session.as_json(
           include: :agent,
-          methods: [:transcript_summary]
+          methods: [ :transcript_summary ]
         )
       end
 

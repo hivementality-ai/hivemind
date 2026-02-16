@@ -2,6 +2,8 @@
 
 class ConvertEmbeddingToVector < ActiveRecord::Migration[8.0]
   def up
+    enable_extension 'vector'
+
     # Remove old JSONB column
     remove_column :memory_entries, :embedding
 

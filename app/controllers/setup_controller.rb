@@ -2,9 +2,9 @@
 
 class SetupController < ApplicationController
   layout "setup"
-  skip_before_action :authenticate_user!, only: [:index, :account, :create_account]
-  before_action :redirect_if_setup_complete, except: [:complete]
-  before_action :authenticate_user!, only: [:provider, :save_provider, :team, :save_team, :agent, :save_agent, :complete]
+  skip_before_action :authenticate_user!, only: [ :index, :account, :create_account ]
+  before_action :redirect_if_setup_complete, except: [ :complete ]
+  before_action :authenticate_user!, only: [ :provider, :save_provider, :team, :save_team, :agent, :save_agent, :complete ]
 
   # Step 0: Landing — shows the welcome screen
   def index
@@ -145,9 +145,9 @@ class SetupController < ApplicationController
 
   def provider_params
     params.require(:providers).permit(
-      anthropic: [:api_key, :default_model, models: []],
-      openai: [:api_key, :default_model, models: []],
-      ollama: [:api_key, :default_model, models: []]
+      anthropic: [ :api_key, :default_model, models: [] ],
+      openai: [ :api_key, :default_model, models: [] ],
+      ollama: [ :api_key, :default_model, models: [] ]
     )
   end
 

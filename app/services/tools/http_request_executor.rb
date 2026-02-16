@@ -100,11 +100,11 @@ module Tools
       # Find endpoint
       endpoint = if @input["operation_id"].present?
                    api.find_endpoint(operation_id: @input["operation_id"])
-                 else
+      else
                    path = @input["path"] || @input["url"]
                    method = (@input["method"] || "GET").downcase
                    api.find_endpoint(path: path, method: method)
-                 end
+      end
 
       method = (@input["method"] || endpoint&.dig("method") || "GET").upcase
       path = @input["path"] || @input["url"] || endpoint&.dig("path")
@@ -114,9 +114,9 @@ module Tools
       # Build full URL
       full_url = if path.start_with?("http")
                    path
-                 else
+      else
                    "#{api.base_url.chomp('/')}#{path}"
-                 end
+      end
 
       # Interpolate path parameters
       (@input["query"] || {}).each do |key, value|
@@ -130,7 +130,7 @@ module Tools
                    .merge("Content-Type" => "application/json", "Accept" => "application/json")
                    .merge(@input["headers"] || {})
 
-      timeout = [@input["timeout"]&.to_i || api.timeout_seconds, 120].min
+      timeout = [ @input["timeout"]&.to_i || api.timeout_seconds, 120 ].min
 
       make_request(
         method: method,
@@ -156,7 +156,7 @@ module Tools
       end
 
       headers = (@input["headers"] || {}).merge("Accept" => "application/json")
-      timeout = [@input["timeout"]&.to_i || 30, 120].min
+      timeout = [ @input["timeout"]&.to_i || 30, 120 ].min
 
       make_request(
         method: method,
@@ -182,19 +182,19 @@ module Tools
 
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = uri.scheme == "https"
-      http.open_timeout = [timeout, 30].min
+      http.open_timeout = [ timeout, 30 ].min
       http.read_timeout = timeout
 
       request_class = case method
-                      when "GET"     then Net::HTTP::Get
-                      when "POST"    then Net::HTTP::Post
-                      when "PUT"     then Net::HTTP::Put
-                      when "PATCH"   then Net::HTTP::Patch
-                      when "DELETE"  then Net::HTTP::Delete
-                      when "HEAD"    then Net::HTTP::Head
-                      when "OPTIONS" then Net::HTTP::Options
-                      else return ServiceResponse.failure(error: "Unsupported method: #{method}")
-                      end
+      when "GET"     then Net::HTTP::Get
+      when "POST"    then Net::HTTP::Post
+      when "PUT"     then Net::HTTP::Put
+      when "PATCH"   then Net::HTTP::Patch
+      when "DELETE"  then Net::HTTP::Delete
+      when "HEAD"    then Net::HTTP::Head
+      when "OPTIONS" then Net::HTTP::Options
+      else return ServiceResponse.failure(error: "Unsupported method: #{method}")
+      end
 
       req = request_class.new(uri)
       headers.each { |k, v| req[k] = v.to_s }

@@ -39,13 +39,13 @@ module Tools
       uri = URI("https://api.openai.com/v1/chat/completions")
       body = {
         model: "gpt-5.2",
-        messages: [{
+        messages: [ {
           role: "user",
           content: [
             { type: "text", text: prompt },
             { type: "image_url", image_url: { url: image_url } }
           ]
-        }],
+        } ],
         max_tokens: 1000
       }
 
@@ -82,7 +82,7 @@ module Tools
       body = {
         model: "claude-haiku-4-5",
         max_tokens: 1000,
-        messages: [{
+        messages: [ {
           role: "user",
           content: [
             {
@@ -95,7 +95,7 @@ module Tools
             },
             { type: "text", text: prompt }
           ]
-        }]
+        } ]
       }
 
       http = Net::HTTP.new(uri.host, uri.port)

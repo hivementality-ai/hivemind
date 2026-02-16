@@ -11,15 +11,15 @@ module Api
         provider = params[:provider]
 
         models = case provider
-                 when "ollama"
+        when "ollama"
                    fetch_ollama_models
-                 when "anthropic"
+        when "anthropic"
                    fetch_anthropic_models
-                 when "openai"
+        when "openai"
                    fetch_openai_models
-                 else
+        else
                    []
-                 end
+        end
 
         render json: { models: models }
       end
@@ -33,11 +33,11 @@ module Api
         if result.success?
           result.data[:models].map { |name| { id: name, name: format_model_name(name) } }
         else
-          [{ id: "", name: "Ollama not reachable — is it running?" }]
+          [ { id: "", name: "Ollama not reachable — is it running?" } ]
         end
       rescue StandardError => e
         Rails.logger.warn("Ollama model fetch failed: #{e.message}")
-        [{ id: "", name: "Ollama not reachable — is it running?" }]
+        [ { id: "", name: "Ollama not reachable — is it running?" } ]
       end
 
       def fetch_anthropic_models

@@ -110,7 +110,7 @@ RSpec.describe Vault::Write do
       before do
         allow_any_instance_of(VaultEntry).to receive(:save).and_return(false)
         allow_any_instance_of(VaultEntry).to receive(:errors).and_return(
-          double(full_messages: ["Validation failed"])
+          double(full_messages: [ "Validation failed" ])
         )
       end
 
@@ -118,7 +118,7 @@ RSpec.describe Vault::Write do
         result = described_class.call(namespace: namespace, key: key, value: value)
 
         expect(result.success?).to be false
-        expect(result.error).to eq(["Validation failed"])
+        expect(result.error).to eq([ "Validation failed" ])
       end
 
       it 'does not create an audit log' do

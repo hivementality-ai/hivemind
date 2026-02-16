@@ -22,7 +22,7 @@ module Agents
       return ServiceResponse.failure(error: "Invalid action: #{@action}") unless VALID_ACTIONS.include?(@action)
 
       result = send("#{@action}_action")
-      
+
       # Audit log
       AuditLog.create(
         actor_type: "Agent",
@@ -107,7 +107,7 @@ module Agents
           name: cron_name,
           cron: task.schedule,
           class: task.job_class,
-          args: [task.id]
+          args: [ task.id ]
         )
       else
         remove_from_sidekiq(task)
