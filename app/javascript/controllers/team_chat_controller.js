@@ -26,9 +26,7 @@ export default class extends Controller {
     this.subscription = this.consumer.subscriptions.create(
       { channel: "TeamChatChannel", team_chat_session_id: this.sessionIdValue },
       {
-        received: (data) => this.handleMessage(data),
-        connected: () => console.log("Connected to team chat", this.sessionIdValue),
-        disconnected: () => console.log("Disconnected from team chat", this.sessionIdValue)
+        received: (data) => this.handleMessage(data)
       }
     )
 

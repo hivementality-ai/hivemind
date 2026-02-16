@@ -45,7 +45,7 @@ module TeamChats
     end
 
     def attach_files(msg)
-      [@images, @files].compact.each do |file_list|
+      [ @images, @files ].compact.each do |file_list|
         Array(file_list).each do |upload|
           next unless upload.respond_to?(:content_type)
 
@@ -68,9 +68,9 @@ module TeamChats
 
       file_info = if msg.documents.attached?
                     msg.documents.map { |d| { filename: d.filename.to_s, byte_size: d.byte_size } }
-                  else
+      else
                     []
-                  end
+      end
 
       ActionCable.server.broadcast("team_chat_#{@session.id}", {
         type: "user_message",

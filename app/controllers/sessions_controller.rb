@@ -64,7 +64,7 @@ class SessionsController < ApplicationController
   def process_attachments
     attachment_ids = []
 
-    [params[:images], params[:files]].compact.each do |file_list|
+    [ params[:images], params[:files] ].compact.each do |file_list|
       Array(file_list).each do |upload|
         next unless upload.respond_to?(:content_type)
 
@@ -79,17 +79,5 @@ class SessionsController < ApplicationController
     end
 
     attachment_ids
-  end
-end
-
-  private
-
-  def set_agent
-    @agent = Agent.find_by_slug(params[:agent_id])
-    render file: "public/404.html", status: :not_found unless @agent
-  end
-
-  def set_session
-    @session = Session.find(params[:id])
   end
 end

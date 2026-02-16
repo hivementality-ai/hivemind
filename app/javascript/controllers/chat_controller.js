@@ -17,9 +17,7 @@ export default class extends Controller {
     this.subscription = this.consumer.subscriptions.create(
       { channel: "SessionChannel", session_id: this.sessionIdValue },
       {
-        received: (data) => this.handleMessage(data),
-        connected: () => console.log("Connected to session", this.sessionIdValue),
-        disconnected: () => console.log("Disconnected from session", this.sessionIdValue)
+        received: (data) => this.handleMessage(data)
       }
     )
 
