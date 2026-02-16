@@ -200,7 +200,7 @@
           </button>
         <% end %>
       </div>
-      <div class="flex gap-3 items-end">
+      <div class="flex gap-3 items-end relative">
         <!-- File upload button -->
         <label class="px-3 py-3 text-text-muted hover:text-white cursor-pointer transition flex-shrink-0" title="Attach files">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -210,6 +210,25 @@
                  data-team-chat-target="fileInput"
                  data-action="change->team-chat#handleFiles">
         </label>
+
+        <!-- Hashtag Actions button -->
+        <div class="relative">
+          <button type="button"
+                  class="px-3 py-3 text-text-muted hover:text-purple-400 cursor-pointer transition flex-shrink-0 flex items-center gap-1"
+                  title="Hashtag Actions"
+                  data-action="click->team-chat#toggleHashtagDropdown">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+            </svg>
+            <span class="text-xs font-medium">Actions</span>
+          </button>
+          
+          <!-- Hashtag dropdown -->
+          <div data-team-chat-target="hashtagDropdown"
+               class="hidden absolute bottom-full left-0 mb-2 w-80 bg-surface-card border border-border-default rounded-lg shadow-xl max-h-64 overflow-y-auto z-50">
+            <!-- Populated dynamically by controller -->
+          </div>
+        </div>
 
         <textarea data-team-chat-target="input"
                   data-action="keydown->team-chat#handleKeydown input->team-chat#handleInput paste->team-chat#handlePaste"

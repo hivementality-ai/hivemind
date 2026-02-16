@@ -118,6 +118,7 @@ Rails.application.routes.draw do
       resources :agents, only: [ :index, :show, :create, :update, :destroy ], param: :slug
       resources :sessions, only: [ :index, :show, :destroy ]
       get "providers/models", to: "providers#models"
+      get "hashtag_actions", to: "hashtag_actions#index"
     end
   end
 
