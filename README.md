@@ -88,7 +88,7 @@ cp .env.example .env    # edit to add your RAILS_MASTER_KEY
 docker compose up -d
 ```
 
-Open **http://localhost:3001** — the setup wizard walks you through creating your account, connecting a provider, building a team, and deploying your first agent.
+Open **http://localhost:8080** — the setup wizard walks you through creating your account, connecting a provider, building a team, and deploying your first agent.
 
 > First boot takes 2-3 minutes to build images and run migrations. After that, starts in seconds.
 
