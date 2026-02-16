@@ -1,0 +1,86 @@
+<div>
+  <h3 class="text-white font-semibold mb-3">🤖 Agent Bot Assignments</h3>
+  <p class="text-text-faint text-sm mb-4">
+    Configure individual bot tokens for each agent. Each agent can have their own bot identity in Slack.
+  </p>
+
+  <div id="agent-assignments" class="space-y-4">
+    <% Agent.visible.enabled.includes(:agent_channels).each do |agent| %>
+      <% agent_channel = channel.agent_channels.find_by(agent: agent) %>
+      <% has_assignment = agent_channel.present? %>
+      
+      <div class="bg-surface-raised rounded-lg p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-3">
+            <%= check_box_tag "agent_assignments[#{agent.id}][enabled]", "1", has_assignment,
+                class: "w-5 h-5 rounded bg-surface-card border-border-default text-brand focus:ring-brand",
+                id: "agent_#{agent.id}_enabled" %>
+            <label for="agent_<%= agent.id %>_enabled" class="text-white font-medium">
+              <%= agent.name %>
+            </label>
+            <span class="text-text-faint text-sm">— <%= agent.role %></span>
+          </div>
+          
+          <% if has_assignment && agent_channel.is_default? %>
+            <span class="bg-brand text-white text-xs px-2 py-1 rounded-full">Default</span>
+          <% end %>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <%= label_tag "agent_assignments[#{agent.id}][bot_token]", "Bot Token", class: "block text-text-muted text-sm mb-1" %>
+            <%= password_field_tag "agent_assignments[#{agent.id}][bot_token]", nil,
+                placeholder: has_assignment && agent_channel.has_bot_token? ? "••••••••••••" : "xoxb-...",
+                class: "w-full px-3 py-2 bg-surface-card border border-border-default rounded text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand text-sm",
+                disabled: !has_assignment %>
+          </div>
+          
+          <div class="flex items-center gap-4">
+            <%= label_tag "agent_assignments[#{agent.id}][is_default]", class: "flex items-center gap-2" do %>
+              <%= radio_button_tag "default_agent", agent.id, (has_assignment && agent_channel.is_default?),
+                  class: "w-4 h-4 text-brand focus:ring-brand",
+                  disabled: !has_assignment %>
+              <span class="text-text-muted text-sm">Default responder</span>
+            <% end %>
+          </div>
+        </div>
+        
+        <% if has_assignment && agent_channel.external_bot_user_id.present? %>
+          <div class="mt-2 text-xs text-text-faint">
+            Bot User ID: <code class="bg-surface-card px-1 rounded"><%= agent_channel.external_bot_user_id %></code>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+  
+  <p class="text-text-faint text-xs mt-4">
+    <strong>Note:</strong> Bot User IDs are auto-detected when you save a valid bot token.
+    The default responder handles messages not directed to a specific agent.
+  </p>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Enable/disable form fields based on checkbox state
+  const assignments = document.querySelectorAll('#agent-assignments input[type="checkbox"]');
+  
+  assignments.forEach(checkbox => {
+    const agentId = checkbox.value;
+    const container = checkbox.closest('.bg-surface-raised');
+    const inputs = container.querySelectorAll('input[type="password"], input[type="radio"]');
+    
+    function toggleInputs() {
+      inputs.forEach(input => {
+        input.disabled = !checkbox.checked;
+      });
+    }
+    
+    // Initialize state
+    toggleInputs();
+    
+    // Update on change
+    checkbox.addEventListener('change', toggleInputs);
+  });
+});
+</script>

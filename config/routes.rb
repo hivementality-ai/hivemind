@@ -110,6 +110,7 @@ Rails.application.routes.draw do
     member do
       get :connect
     end
+    resources :agent_channels, only: [:create, :update, :destroy]
   end
 
   # API v1

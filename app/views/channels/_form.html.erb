@@ -74,6 +74,12 @@
 
     <hr class="border-border-default">
 
+    <!-- Agent Bot Assignments (Slack only) -->
+    <% if channel.channel_type == "slack" %>
+      <%= render "agent_assignments", channel: channel %>
+      <hr class="border-border-default">
+    <% end %>
+
     <div>
       <h3 class="text-white font-semibold mb-3">Credentials</h3>
       <p class="text-text-faint text-sm mb-4">Stored encrypted in the vault. Leave blank to keep existing.</p>
