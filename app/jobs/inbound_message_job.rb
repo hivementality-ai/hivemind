@@ -23,26 +23,26 @@ class InboundMessageJob < ApplicationJob
   private
 
   # ─── New Slack Routing ─────────────────────────────────────────
-  
+
   def route_with_message_router(message:, channel:, text:, sender:)
     router_result = Channels::MessageRouter.call(
       channel: channel,
       message: message
     )
-    
+
     unless router_result.success?
       Rails.logger.error("[InboundMessage] MessageRouter failed: #{router_result.error}")
       return
     end
-    
+
     agent = router_result.data[:agent]
     unless agent
       Rails.logger.warn("[InboundMessage] No agent found for Slack channel #{channel.id}")
       return
     end
-    
+
     thread_id = extract_thread_id(message)
-    
+
     # Route to agent
     route_to_agent_with_thread_tracking(
       agent: agent,
@@ -52,7 +52,7 @@ class InboundMessageJob < ApplicationJob
       thread_id: thread_id
     )
   end
-  
+
   def route_with_legacy_mentions(message:, channel:, text:, sender:)
     # Parse @mentions from the message
     mentioned_team, mentioned_agent, clean_text = parse_mentions(text)
@@ -70,7 +70,7 @@ class InboundMessageJob < ApplicationJob
       Rails.logger.warn("[InboundMessage] No routing target for channel #{channel.id}")
     end
   end
-  
+
   def route_to_agent_with_thread_tracking(agent:, message:, channel:, sender:, thread_id:)
     session = find_or_create_session(agent:, channel:, sender:)
 
@@ -110,7 +110,7 @@ class InboundMessageJob < ApplicationJob
         sender: sender,
         thread_id: thread_id
       )
-      
+
       # Track thread ownership if this is a threaded response
       if thread_id.present?
         ChannelThread.claim_thread(
@@ -121,15 +121,15 @@ class InboundMessageJob < ApplicationJob
       end
     end
   end
-  
+
   def send_agent_response(agent:, content:, channel:, sender:, thread_id: nil)
     adapter = Channels::Registry.adapter_for(channel)
-    
+
     # For Slack, send with agent context and no name prefix (bot identity handles it)
     if channel.channel_type == "slack"
       options = {}
       options[:thread_ts] = thread_id if thread_id.present?
-      
+
       adapter.send_message(
         to: sender,
         content: content,
@@ -144,7 +144,7 @@ class InboundMessageJob < ApplicationJob
       )
     end
   end
-  
+
   def extract_thread_id(message)
     message.metadata&.dig("thread_ts") || message.metadata&.dig(:thread_ts)
   end

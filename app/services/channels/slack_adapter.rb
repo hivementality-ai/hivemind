@@ -27,7 +27,7 @@ module Channels
         event_type: event[:type],
         team_id: payload[:team_id]
       }
-      
+
       # Add bot_user_id if available from authorization headers
       if payload.dig(:authorizations, 0, :user_id)
         metadata[:bot_user_id] = payload.dig(:authorizations, 0, :user_id)
@@ -115,11 +115,11 @@ module Channels
           return agent_channel.bot_token
         end
       end
-      
+
       # Fall back to channel-level bot token
       bot_token
     end
-    
+
     def bot_token
       entry = VaultEntry.find_by(namespace: "channel_credentials", key: "slack_bot_token")
       entry&.value
