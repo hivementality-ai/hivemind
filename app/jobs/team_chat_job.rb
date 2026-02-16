@@ -79,6 +79,11 @@ class TeamChatJob < ApplicationJob
 
     # Build messages with team context + agent's persistent history
     messages = build_team_messages(agent:, images: @trigger_message_images, trigger_message_id: trigger_message.id)
+    
+    # Prune messages to fit within context budget
+    context_manager = Agents::ContextManager.new(agent.llm_model)
+    messages = context_manager.prune_messages(messages)
+    
     tools = resolve_tools(agent)
 
     begin

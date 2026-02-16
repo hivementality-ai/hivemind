@@ -10,8 +10,9 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_15_184700) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_16_154000) do
   # These are extensions that must be enabled in order to support this database
+  enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
 
@@ -109,6 +110,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_15_184700) do
     t.decimal "monthly_budget_limit", precision: 10, scale: 4, default: "100.0"
     t.string "name"
     t.string "role"
+    t.citext "slug", null: false
     t.integer "status"
     t.boolean "system_agent", default: false, null: false
     t.text "system_prompt"
@@ -121,6 +123,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_15_184700) do
     t.string "workspace_path"
     t.index ["enabled"], name: "index_agents_on_enabled"
     t.index ["name"], name: "index_agents_on_name", unique: true
+    t.index ["slug"], name: "index_agents_on_slug", unique: true
     t.index ["status"], name: "index_agents_on_status"
     t.index ["team_id"], name: "index_agents_on_team_id"
   end

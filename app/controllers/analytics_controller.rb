@@ -20,7 +20,8 @@ class AnalyticsController < ApplicationController
   end
 
   def show
-    @agent = Agent.find(params[:id])
+    @agent = Agent.find_by_slug(params[:id])
+    return render file: "public/404.html", status: :not_found unless @agent
     response = Analytics::AgentSummary.call(agent: @agent, period: @period)
 
     if response.success?

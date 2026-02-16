@@ -61,7 +61,8 @@ class AgentsController < ApplicationController
   private
 
   def set_agent
-    @agent = Agent.find(params[:id])
+    @agent = Agent.find_by_slug(params[:slug])
+    render file: "public/404.html", status: :not_found unless @agent
   end
 
   # When skills are assigned, auto-add their required tools.

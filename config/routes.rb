@@ -41,8 +41,8 @@ Rails.application.routes.draw do
     end
   end
 
-  # Agents
-  resources :agents
+  # Agents (use slug for routes)
+  resources :agents, param: :slug
 
   # Tools
   resources :tools
@@ -115,7 +115,7 @@ Rails.application.routes.draw do
   # API v1
   namespace :api do
     namespace :v1 do
-      resources :agents, only: [ :index, :show, :create, :update, :destroy ]
+      resources :agents, only: [ :index, :show, :create, :update, :destroy ], param: :slug
       resources :sessions, only: [ :index, :show, :destroy ]
       get "providers/models", to: "providers#models"
     end

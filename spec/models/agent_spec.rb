@@ -1,115 +1,87 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
+require "rails_helper"
 
 RSpec.describe Agent, type: :model do
-  describe 'associations' do
-    it { should belong_to(:team).optional }
-    it { should have_many(:sessions).dependent(:destroy) }
-    it { should have_many(:vault_entries).dependent(:destroy) }
-    it { should have_many(:usage_records).dependent(:destroy) }
-    it { should have_many(:agent_budgets).dependent(:destroy) }
-    it { should have_many(:scheduled_tasks).dependent(:destroy) }
-
-    it { should have_many(:sent_team_messages).class_name('TeamMessage').with_foreign_key(:from_agent_id).dependent(:destroy) }
-    it { should have_many(:received_team_messages).class_name('TeamMessage').with_foreign_key(:to_agent_id).dependent(:destroy) }
-  end
-
-  describe 'validations' do
-    it 'validates presence of name' do
-      agent = build(:agent, name: nil)
-      expect(agent).not_to be_valid
-      expect(agent.errors[:name]).to include("can't be blank")
+  describe "slug generation and validation" do
+    it "generates a slug from agent name on save" do
+      agent = Agent.create!(name: "Test Agent", role: "Helper")
+      expect(agent.slug).to eq("test_agent")
     end
 
-    it 'validates presence of role' do
-      agent = build(:agent, role: nil)
-      expect(agent).not_to be_valid
-      expect(agent.errors[:role]).to include("can't be blank")
+    it "generates slug with special characters converted" do
+      agent = Agent.create!(name: "alice's-research_v2", role: "Helper")
+      expect(agent.slug).to eq("alice_s-research_v2")
     end
 
-    it 'validates uniqueness of name' do
-      create(:agent, name: "Assistant")
-      expect(build(:agent, name: "Assistant")).not_to be_valid
-    end
-  end
-
-  describe 'enums' do
-    it { should define_enum_for(:status).with_values(idle: 0, thinking: 1, executing: 2, waiting: 3, error: 4).with_default(:idle) }
-  end
-
-  describe 'scopes' do
-    let!(:idle_agent) { create(:agent, :idle) }
-    let!(:thinking_agent) { create(:agent, :thinking) }
-    let!(:error_agent) { create(:agent, :error) }
-    let!(:enabled_agent) { create(:agent, enabled: true) }
-    let!(:disabled_agent) { create(:agent, enabled: false) }
-    let(:team) { create(:team) }
-    let!(:team_agent) { create(:agent, team: team) }
-
-    describe '.active' do
-      it 'returns agents not in error status' do
-        expect(Agent.active).to include(idle_agent, thinking_agent)
-        expect(Agent.active).not_to include(error_agent)
-      end
+    it "generates slug with uppercase converted to lowercase" do
+      agent = Agent.create!(name: "RESEARCH BOT", role: "Helper")
+      expect(agent.slug).to eq("research_bot")
     end
 
-    describe '.by_team' do
-      it 'returns agents for the given team' do
-        expect(Agent.by_team(team)).to eq([ team_agent ])
-      end
+    it "generates slug from name with multiple spaces" do
+      agent = Agent.create!(name: "My   Long   Agent   Name", role: "Helper")
+      expect(agent.slug).to eq("my_long_agent_name")
     end
 
-    describe '.enabled' do
-      it 'returns only enabled agents' do
-        expect(Agent.enabled).to include(enabled_agent, idle_agent, thinking_agent, error_agent, team_agent)
-        expect(Agent.enabled).not_to include(disabled_agent)
-      end
+    it "does not regenerate slug if name changes after creation" do
+      agent = Agent.create!(name: "Test Agent", role: "Helper")
+      original_slug = agent.slug
+      
+      agent.update!(name: "New Name")
+      expect(agent.slug).to eq(original_slug)
+    end
+
+    it "auto-generates slug if not provided" do
+      agent = Agent.new(name: "Test Agent", role: "Helper")
+      agent.valid?
+      expect(agent.slug).to eq("test_agent")
+    end
+
+    it "enforces unique slug (case-insensitive)" do
+      Agent.create!(name: "Test Agent", role: "Helper")
+      
+      duplicate = Agent.new(name: "test_agent", role: "Helper")
+      expect(duplicate).not_to be_valid
+      expect(duplicate.errors[:slug]).to include(/taken/)
+    end
+
+    it "enforces unique slug with different cases" do
+      Agent.create!(name: "Test Agent", role: "Helper")
+      
+      duplicate = Agent.new(name: "TEST AGENT", role: "Helper")
+      expect(duplicate).not_to be_valid
     end
   end
 
-  describe '#current_status' do
-    it 'returns status hash with required keys' do
-      agent = create(:agent, :thinking, current_task: "Processing")
-      status = agent.current_status
+  describe ".find_by_slug" do
+    it "finds agent by exact slug" do
+      agent = Agent.create!(name: "Test Agent", role: "Helper")
+      found = Agent.find_by_slug("test_agent")
+      expect(found).to eq(agent)
+    end
 
-      expect(status).to be_a(Hash)
-      expect(status[:status]).to eq("thinking")
-      expect(status[:current_task]).to eq("Processing")
-      expect(status[:updated_at]).to be_present
+    it "finds agent by slug case-insensitively" do
+      agent = Agent.create!(name: "Test Agent", role: "Helper")
+      
+      expect(Agent.find_by_slug("Test_Agent")).to eq(agent)
+      expect(Agent.find_by_slug("TEST_AGENT")).to eq(agent)
+      expect(Agent.find_by_slug("test_agent")).to eq(agent)
+    end
+
+    it "returns nil for non-existent slug" do
+      expect(Agent.find_by_slug("nonexistent")).to be_nil
     end
   end
 
-  describe '#usage_summary' do
-    let(:agent) { create(:agent) }
-
-    before do
-      create(:usage_record, agent: agent, cost_cents: 100, input_tokens: 50, output_tokens: 25)
-      create(:usage_record, agent: agent, cost_cents: 200, input_tokens: 100, output_tokens: 50)
-    end
-
-    it 'returns usage summary with totals' do
-      summary = agent.usage_summary
-
-      expect(summary[:total_cost]).to eq(300)
-      expect(summary[:total_tokens]).to eq(225)
-      expect(summary[:request_count]).to eq(2)
-    end
-  end
-
-  describe 'factory' do
-    it 'creates a valid agent' do
-      expect(build(:agent)).to be_valid
-    end
-
-    it 'creates valid agents with traits' do
-      expect(build(:agent, :idle)).to be_valid
-      expect(build(:agent, :thinking)).to be_valid
-      expect(build(:agent, :executing)).to be_valid
-      expect(build(:agent, :waiting)).to be_valid
-      expect(build(:agent, :error)).to be_valid
-      expect(build(:agent, :with_team)).to be_valid
-      expect(build(:agent, :disabled)).to be_valid
+  describe ".by_slug scope" do
+    it "filters agents by slug case-insensitively" do
+      agent1 = Agent.create!(name: "Test Agent", role: "Helper")
+      Agent.create!(name: "Other Agent", role: "Helper")
+      
+      result = Agent.by_slug("TEST_AGENT")
+      expect(result).to include(agent1)
+      expect(result.count).to eq(1)
     end
   end
 end

@@ -43,7 +43,8 @@ module Api
       private
 
       def set_agent
-        @agent = Agent.find(params[:id])
+        @agent = Agent.find_by_slug(params[:slug])
+        render json: { error: "Agent not found" }, status: :not_found unless @agent
       end
 
       def agent_params
