@@ -3,8 +3,8 @@
 module Api
   module V1
     class HashtagActionsController < ApplicationController
-      skip_before_action :authenticate_user!, only: [:index]
-      skip_before_action :verify_authenticity_token, only: [:index]
+      skip_before_action :authenticate_user!, only: [ :index ]
+      skip_before_action :verify_authenticity_token, only: [ :index ]
 
       # GET /api/v1/hashtag_actions
       # Returns list of valid hashtag actions with descriptions

@@ -166,6 +166,9 @@ export default class extends Controller {
       case "tool_result":
         this.showToolResult(data.tool, data.output, data.success)
         break
+      case "file_attachment":
+        this.appendFileAttachment(data.attachment)
+        break
       case "done":
         this.finishStream()
         break
@@ -523,6 +526,54 @@ export default class extends Controller {
       </div>`
     this.messagesTarget.insertAdjacentHTML("beforeend", html)
     this.scrollToBottom()
+  }
+
+  appendFileAttachment(attachment) {
+    // Render agent-sent file attachment (from file_send or image_generate tools)
+    const isImage = attachment.is_image || attachment.content_type?.startsWith('image/')
+    
+    let contentHtml = ""
+    if (isImage) {
+      // Render inline image
+      contentHtml = `<img src="${attachment.url}" class="max-w-xs max-h-64 rounded-lg" loading="lazy" alt="${this.escapeHtml(attachment.filename)}">`
+    } else {
+      // Render document download pill
+      const ext = attachment.filename.split(".").pop().toUpperCase()
+      const size = this.formatFileSize(attachment.byte_size)
+      contentHtml = `
+        <a href="${attachment.url}" download="${this.escapeHtml(attachment.filename)}" 
+           class="inline-flex items-center gap-2 bg-surface-raised rounded-lg px-3 py-2 hover:bg-surface-card transition border border-border-default">
+          <span class="text-amber-400 font-mono text-xs">${this.escapeHtml(ext)}</span>
+          <span class="text-text-primary text-sm">${this.escapeHtml(attachment.filename)}</span>
+          <span class="text-text-faint text-xs">${size}</span>
+          <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+          </svg>
+        </a>`
+    }
+
+    const html = `
+      <div class="flex justify-start">
+        <div class="max-w-2xl">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
+              ${this.agentInitialValue}
+            </div>
+            <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3">
+              ${contentHtml}
+            </div>
+          </div>
+        </div>
+      </div>`
+    
+    this.messagesTarget.insertAdjacentHTML("beforeend", html)
+    this.scrollToBottom()
+  }
+
+  formatFileSize(bytes) {
+    if (bytes < 1024) return `${bytes}B`
+    if (bytes < 1048576) return `${(bytes/1024).toFixed(1)}KB`
+    return `${(bytes/1048576).toFixed(1)}MB`
   }
 
   finishStream() {

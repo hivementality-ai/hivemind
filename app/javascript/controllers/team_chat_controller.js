@@ -183,6 +183,9 @@ export default class extends Controller {
         this.hideThinking(data.agent_id)
         this.finalizeAgentMessage(data.agent_id)
         break
+      case "file_attachment":
+        this.appendFileAttachment(data.agent_id, data.agent_name, data.attachment)
+        break
       case "error":
         this.hideThinking(data.agent_id)
         this.showError(data.content)
@@ -526,6 +529,62 @@ export default class extends Controller {
       </div>`
     this.messagesTarget.insertAdjacentHTML("beforeend", html)
     this.scrollToBottom()
+  }
+
+  appendFileAttachment(agentId, agentName, attachment) {
+    // Render agent-sent file attachment (from file_send or image_generate tools)
+    const color = this.agentColors[agentId] || "gray"
+    const initial = agentName ? agentName[0].toUpperCase() : "?"
+    const isImage = attachment.is_image || attachment.content_type?.startsWith('image/')
+    
+    let contentHtml = ""
+    if (isImage) {
+      // Render inline image
+      contentHtml = `<img src="${attachment.url}" class="max-w-xs max-h-64 rounded-lg" loading="lazy" alt="${this.esc(attachment.filename)}">`
+    } else {
+      // Render document download pill
+      const ext = attachment.filename.split(".").pop().toUpperCase()
+      const size = this.formatFileSize(attachment.byte_size)
+      contentHtml = `
+        <a href="${attachment.url}" download="${this.esc(attachment.filename)}" 
+           class="inline-flex items-center gap-2 bg-surface-card rounded-lg px-3 py-2 hover:bg-surface-raised transition border border-border-default">
+          <span class="text-amber-400 font-mono text-xs">${this.esc(ext)}</span>
+          <span class="text-text-primary text-sm">${this.esc(attachment.filename)}</span>
+          <span class="text-text-faint text-xs">${size}</span>
+          <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+          </svg>
+        </a>`
+    }
+
+    const agent = this.agentsValue.find(a => a.id === agentId)
+    const role = agent ? agent.role : ""
+
+    const html = `
+      <div class="flex justify-start">
+        <div class="max-w-2xl">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 bg-${color}-600 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
+              ${initial}
+            </div>
+            <div>
+              <div class="text-xs text-text-muted mb-1">${this.esc(agentName)} <span class="text-gray-600">· ${this.esc(role)}</span></div>
+              <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3">
+                ${contentHtml}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`
+    
+    this.messagesTarget.insertAdjacentHTML("beforeend", html)
+    this.scrollToBottom()
+  }
+
+  formatFileSize(bytes) {
+    if (bytes < 1024) return `${bytes}B`
+    if (bytes < 1048576) return `${(bytes/1024).toFixed(1)}KB`
+    return `${(bytes/1048576).toFixed(1)}MB`
   }
 
   // ─── File Handling ──────────────────────────────────────

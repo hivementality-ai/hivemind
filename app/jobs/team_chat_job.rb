@@ -68,10 +68,10 @@ class TeamChatJob < ApplicationJob
     if hashtag_result.bypass_llm
       # Actions handled everything — broadcast response and return
       @agent_session.append_transcript({ "role" => "user", "content" => "[#{sender}]: #{trigger_content}" })
-      
+
       response = hashtag_result.response
       @agent_session.append_transcript({ "role" => "assistant", "content" => response })
-      
+
       # Broadcast response to team chat
       ActionCable.server.broadcast(@channel, {
         type: "token",
@@ -79,14 +79,14 @@ class TeamChatJob < ApplicationJob
         agent_name: agent.name,
         content: response
       })
-      
+
       ActionCable.server.broadcast(@channel, {
         type: "agent_done",
         agent_id: agent.id,
         agent_name: agent.name,
         content: response
       })
-      
+
       # Save message to team chat
       @session.team_chat_messages.create!(
         sender_type: "agent",
@@ -94,7 +94,7 @@ class TeamChatJob < ApplicationJob
         content: response,
         metadata: { hashtag_action: true }
       )
-      
+
       return
     end
 
@@ -129,11 +129,11 @@ class TeamChatJob < ApplicationJob
       trigger_message_id: trigger_message.id,
       prompt_addons: hashtag_result.prompt_addons
     )
-    
+
     # Prune messages to fit within context budget
     context_manager = Agents::ContextManager.new(agent.llm_model)
     messages = context_manager.prune_messages(messages)
-    
+
     tools = resolve_tools(agent)
 
     begin
@@ -259,12 +259,12 @@ class TeamChatJob < ApplicationJob
     system_parts = []
     system_parts << agent.full_system_prompt if agent.full_system_prompt.present?
     system_parts << build_team_context(agent:)
-    
+
     # Inject hashtag action prompt addons
     prompt_addons.each do |addon|
       system_parts << addon
     end
-    
+
     messages << { role: "system", content: system_parts.join("\n\n") }
 
     # Chat history — include recent team chat messages for context

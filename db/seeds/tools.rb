@@ -41,6 +41,19 @@ BUILTIN_TOOLS = [
     }
   },
   {
+    name: "file_send",
+    description: "Send a file from the workspace to the chat. Use this to share files you've created (reports, images, data files, etc) with the user.",
+    executor_type: "file_send",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "path" => { "type" => "string", "description" => "Path to the file in workspace" },
+        "filename" => { "type" => "string", "description" => "Optional: custom filename (defaults to basename)" }
+      },
+      "required" => [ "path" ]
+    }
+  },
+  {
     name: "web_search",
     description: "Search the web for information. Returns relevant results and snippets.",
     executor_type: "web_search",
@@ -115,6 +128,19 @@ BUILTIN_TOOLS = [
         "prompt" => { "type" => "string", "description" => "What to analyze or ask about the image (default: describe it)" }
       },
       "required" => [ "image" ]
+    }
+  },
+  {
+    name: "image_generate",
+    description: "Generate an image using DALL-E 3. Creates high-quality images from text prompts and sends them to chat.",
+    executor_type: "image_generate",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "prompt" => { "type" => "string", "description" => "Description of the image to generate" },
+        "size" => { "type" => "string", "description" => "Image size: 1024x1024 (square), 1792x1024 (landscape), or 1024x1792 (portrait). Default: 1024x1024", "enum" => [ "1024x1024", "1792x1024", "1024x1792" ] }
+      },
+      "required" => [ "prompt" ]
     }
   },
   {

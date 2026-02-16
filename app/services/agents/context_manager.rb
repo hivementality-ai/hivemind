@@ -29,7 +29,7 @@ module Agents
       chat_msgs = messages.reject { |m| (m[:role] || m["role"])&.to_s == "system" }
 
       used_tokens = estimate_tokens(system_msg)
-      pruned = [system_msg].compact
+      pruned = [ system_msg ].compact
       messages_to_keep = []
 
       # Add messages from newest backwards
