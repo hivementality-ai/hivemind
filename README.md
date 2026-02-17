@@ -126,7 +126,7 @@ That's it. The installer handles Docker, cloning, secrets, and startup. Open **h
 **Prerequisites:**
 - [Docker Desktop](https://docs.docker.com/get-docker/) (or Docker Engine + Compose v2)
 - An API key from at least one provider:
-  - [Anthropic](https://console.anthropic.com/) (Claude) — recommended
+  - [Anthropic](https://console.anthropic.com/) (Claude) — recommended. **Pro/Max subscribers can use their existing subscription instead of API billing** (just paste your OAuth token)
   - [OpenAI](https://platform.openai.com/) (GPT-5.2, o3)
   - [Ollama](https://ollama.com/) (local models, free) — flip a toggle in setup, auto-configures
 
@@ -446,9 +446,17 @@ curl -H "Authorization: Bearer hv_abc123..." http://localhost:8080/api/v1/agents
 
 API endpoints live under `/api/v1/` and return JSON. Available resources: agents, sessions, providers, hashtag actions.
 
-**Anthropic OAuth support:**
+**Use your Anthropic Pro or Max subscription (no API billing needed):**
 
-Hivemind supports both standard Anthropic API keys (`sk-ant-api03-...`) and OAuth tokens (`sk-ant-oat01-...`). OAuth tokens are auto-detected by prefix — no extra configuration needed. When an OAuth token is detected, Hivemind automatically includes the required `anthropic-beta` and `anthropic-dangerous-direct-browser-access` headers on all requests. This means you can use Anthropic's OAuth flow (e.g., from Claude's developer console) as a drop-in replacement for a standard API key.
+If you have an Anthropic Pro ($20/mo) or Max ($100/mo) subscription, you can use it directly with Hivemind instead of paying separately for API tokens. Just paste your OAuth token in the provider setup — no API billing, no usage-based charges.
+
+1. Go to [console.anthropic.com](https://console.anthropic.com/) and sign in with your Pro/Max account
+2. Generate an OAuth token (`sk-ant-oat01-...`)
+3. Paste it as your Anthropic API key in Hivemind's provider settings
+
+Hivemind auto-detects OAuth tokens by prefix and adds the required headers automatically. Everything just works — same models, same quality, powered by your existing subscription.
+
+Standard API keys (`sk-ant-api03-...`) also work if you prefer usage-based billing.
 
 ### Security
 
