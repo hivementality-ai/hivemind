@@ -49,7 +49,8 @@ class ChatStreamJob < ApplicationJob
     end
 
     # Build transcript entry (with image/file refs)
-    transcript_entry = { "role" => "user", "content" => user_message, "timestamp" => Time.current.iso8601 }
+    # Use effective_message so the LLM sees file paths on subsequent turns
+    transcript_entry = { "role" => "user", "content" => effective_message, "timestamp" => Time.current.iso8601 }
     if image_attachments.any?
       transcript_entry["images"] = image_attachments.map do |a|
         { "attachment_id" => a.id, "content_type" => a.content_type, "filename" => a.filename }
