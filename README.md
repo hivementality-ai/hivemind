@@ -313,7 +313,39 @@ Give each agent its own Slack bot identity. When Agent "Aria" posts in Slack, it
 - **Smart fallback** — default agent handles messages with no @mention
 - **UI setup** — assign agents to channels with bot tokens in the channel settings page
 
-**Setup:** Create a Slack app per agent at [api.slack.com](https://api.slack.com/apps), then assign bot tokens in Hivemind's channel settings. Thread routing and @mention detection work automatically.
+**Setup guide:**
+
+1. **Create a Slack app for each agent** at [api.slack.com/apps](https://api.slack.com/apps)
+   - Click **Create New App** → **From scratch**
+   - Name it after your agent (e.g., "Aria", "Rex")
+   - Select your workspace
+
+2. **Configure bot permissions** (OAuth & Permissions → Bot Token Scopes):
+   - `chat:write` — send messages
+   - `app_mentions:read` — detect @mentions
+   - `channels:history` — read channel messages
+   - `reactions:write` — add emoji reactions (optional)
+
+3. **Install to workspace** — click Install to Workspace, authorize
+
+4. **Copy the Bot User OAuth Token** (`xoxb-...`)
+
+5. **Enable Events** (Event Subscriptions):
+   - Turn on, set Request URL to `https://your-hivemind-url/webhooks/slack`
+   - Subscribe to bot events: `message.channels`, `app_mention`
+
+6. **In Hivemind** — go to **Channels → Edit your Slack channel**:
+   - Scroll to **Agent Bot Assignments**
+   - For each agent: paste their bot token, check "Default" for the fallback agent
+   - Bot user IDs are auto-detected when you save
+
+7. **Invite each bot** to your Slack channel: `/invite @aria`, `/invite @rex`
+
+**How routing works:**
+- `@aria help me` → routes to Aria using her bot token
+- Reply in Aria's thread → stays with Aria (thread ownership)
+- Message with no @mention → routes to the default agent
+- No agent channels configured → falls back to single-bot mode (backward compatible)
 
 ### Hashtag Actions
 
