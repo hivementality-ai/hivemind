@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "securerandom"
+
 module Providers
   class OllamaAdapter < Base
     def chat(messages:, tools: [], options: {}, &block)
@@ -49,18 +51,64 @@ module Providers
     end
 
     def build_chat_params(messages:, tools:, options:)
-      {
+      # Format messages for Ollama API
+      formatted_messages = messages.map do |m|
+        m = m.to_h.with_indifferent_access
+        role = m[:role].to_s
+
+        if role == "tool"
+          { role: "tool", content: m[:content].to_s }
+        elsif role == "assistant" && m[:tool_calls].present?
+          ollama_tool_calls = m[:tool_calls].map do |tc|
+            { function: { name: tc["name"], arguments: tc["input"] || {} } }
+          end
+          msg = { role: "assistant", content: m[:content] || "" }
+          msg[:tool_calls] = ollama_tool_calls
+          msg
+        else
+          m.slice(:role, :content)
+        end
+      end
+
+      params = {
         model: options[:model] || "llama3.2",
-        messages: messages.map { |m| m.slice(:role, :content) },
+        messages: formatted_messages,
         stream: false,
         options: {
           temperature: options[:temperature],
           num_predict: options[:max_tokens]
         }.compact
       }
+
+      # Convert tools to Ollama format if provided
+      if tools.any?
+        params[:tools] = tools.map do |t|
+          {
+            type: "function",
+            function: {
+              name: t[:name],
+              description: t[:description],
+              parameters: t[:input_schema]
+            }
+          }
+        end
+      end
+
+      params
     end
 
     def stream_chat(params:, &block)
+      # If tools are present, fall back to sync mode since tool calls
+      # come at the end and we need the full response
+      if params[:tools].present?
+        result = sync_chat(params: params)
+        if result.success?
+          content = result.data[:content]
+          content&.each_char { |char| block.call({ type: "content", content: char }) }
+        end
+        return result
+      end
+
       full_content = +""
 
       response = connection.post("/api/chat") do |req|
@@ -89,12 +137,25 @@ module Providers
 
       body = JSON.parse(response.body)
       content = body.dig("message", "content")
+      raw_tool_calls = body.dig("message", "tool_calls")
+
+      # Normalize tool calls to match expected format
+      tool_calls = raw_tool_calls&.map do |tc|
+        {
+          "id" => "ollama_#{SecureRandom.hex(4)}",
+          "name" => tc.dig("function", "name"),
+          "input" => tc.dig("function", "arguments") || {}
+        }
+      end
+
+      tool_calls = nil if tool_calls&.empty?
+
       usage = {
         input_tokens: body.dig("prompt_eval_count"),
         output_tokens: body.dig("eval_count")
       }
 
-      ServiceResponse.success(data: { content:, usage: })
+      ServiceResponse.success(data: { content:, tool_calls:, usage: })
     end
   end
 end
