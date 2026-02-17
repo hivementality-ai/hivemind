@@ -1,0 +1,40 @@
+<% update = Rails.cache.read("hivemind:update_available") %>
+<% if update.present? %>
+  <div class="mx-4 mt-4 px-4 py-3 rounded-lg border flex items-center justify-between gap-4
+              <%= update[:breaking] ? 'bg-yellow-900/30 border-yellow-600/50 text-yellow-200' : 'bg-brand/10 border-brand/30 text-amber-200' %>">
+    <div class="flex items-center gap-3">
+      <% if update[:breaking] %>
+        <span class="text-yellow-400 text-lg">⚠️</span>
+      <% else %>
+        <span class="text-brand text-lg">🐝</span>
+      <% end %>
+      <div>
+        <span class="font-semibold">
+          Hivemind <%= update[:version] %> is available
+        </span>
+        <span class="text-sm opacity-75 ml-1">
+          (you're on <%= update[:current] %>)
+        </span>
+        <% if update[:breaking] %>
+          <span class="ml-2 text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-yellow-600/30 text-yellow-300 border border-yellow-600/40">
+            Breaking Changes
+          </span>
+        <% end %>
+      </div>
+    </div>
+    <div class="flex items-center gap-3 shrink-0">
+      <a href="<%= update[:changelog_url] %>"
+         target="_blank"
+         rel="noopener"
+         class="text-sm font-medium underline underline-offset-2 hover:text-white transition-colors">
+        View changelog
+      </a>
+      <a href="https://github.com/hivementality-ai/hivemind/blob/main/docs/upgrading.md"
+         target="_blank"
+         rel="noopener"
+         class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand text-black hover:bg-brand-light transition-colors no-underline">
+        Upgrade Guide
+      </a>
+    </div>
+  </div>
+<% end %>

@@ -12,6 +12,13 @@ if defined?(Sidekiq::Cron)
         class: "HeartbeatJob",
         description: "Agent heartbeat — periodic check-ins for autonomous behavior"
       )
+
+      Sidekiq::Cron::Job.create(
+        name: "update_check",
+        cron: "0 9 * * *", # Daily at 9 AM
+        class: "UpdateCheckJob",
+        description: "Check GitHub for new Hivemind releases"
+      )
     end
   end
 end
