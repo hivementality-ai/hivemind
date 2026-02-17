@@ -157,6 +157,11 @@ class ChatStreamJob < ApplicationJob
           full_content = result.data[:content].to_s
           thinking_content ||= result.data[:thinking]
           ActionCable.server.broadcast(channel, { type: "token", content: full_content })
+        elsif full_content.empty? && result && !result.success?
+          error_msg = "⚠️ LLM error: #{result.error}"
+          ActionCable.server.broadcast(channel, { type: "error", content: error_msg })
+          Rails.logger.error("ChatStreamJob LLM failure: #{result.error}")
+          full_content = error_msg
         end
       end
 
