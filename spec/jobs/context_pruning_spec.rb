@@ -47,7 +47,7 @@ RSpec.describe "Context Pruning in Jobs", type: :job do
 
     it "estimates tokens correctly for conversation" do
       context_manager = Agents::ContextManager.new(agent.llm_model)
-      
+
       messages = [
         { role: "system", content: "You are helpful." },
         { role: "user", content: "What is 2+2?" },
@@ -63,12 +63,12 @@ RSpec.describe "Context Pruning in Jobs", type: :job do
       # Create context manager with very tight budget (10K tokens available)
       # This will force pruning since even a few large messages exceed it
       tight_manager = Agents::ContextManager.new(agent.llm_model, 190_000)
-      
+
       # Create a conversation that exceeds budget
       messages = [
         { role: "system", content: "You are helpful." }
       ]
-      
+
       # Add many large messages (each is ~2.5K tokens)
       5.times do |i|
         messages << { role: "user", content: "x" * 10_000 }
@@ -76,7 +76,7 @@ RSpec.describe "Context Pruning in Jobs", type: :job do
       end
 
       pruned = tight_manager.prune_messages(messages)
-      
+
       # Should be shorter than original since messages exceed tight budget
       expect(pruned.size).to be < messages.size
       # Should still have system message
@@ -111,14 +111,14 @@ RSpec.describe "Context Pruning in Jobs", type: :job do
         { role: "user", content: "User message" },
         { role: "assistant", content: "Assistant response" }
       ]
-      
+
       total = messages.sum { |m| context_manager.estimate_tokens(m) }
-      
+
       messages.each do |msg|
         individual = context_manager.estimate_tokens(msg)
         expect(individual).to be > 0
       end
-      
+
       expect(total).to be > 0
     end
   end

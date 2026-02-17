@@ -7,7 +7,7 @@ class CreateChannelThreads < ActiveRecord::Migration[8.1]
       t.datetime :last_active_at
       t.timestamps
     end
-    
-    add_index :channel_threads, [:channel_id, :external_thread_id], unique: true
+
+    add_index :channel_threads, [ :channel_id, :external_thread_id ], unique: true
   end
 end

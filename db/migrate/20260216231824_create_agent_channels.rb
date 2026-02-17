@@ -9,7 +9,7 @@ class CreateAgentChannels < ActiveRecord::Migration[8.1]
       t.jsonb :config, default: {}    # extra platform config (display name override, etc.)
       t.timestamps
     end
-    
-    add_index :agent_channels, [:agent_id, :channel_id], unique: true
+
+    add_index :agent_channels, [ :agent_id, :channel_id ], unique: true
   end
 end

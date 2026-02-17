@@ -36,7 +36,7 @@ RSpec.describe ApiIntegration, type: :model do
     let!(:disabled) { create(:api_integration, enabled: false) }
 
     it ".enabled returns only enabled integrations" do
-      expect(ApiIntegration.enabled).to eq([enabled])
+      expect(ApiIntegration.enabled).to eq([ enabled ])
     end
   end
 

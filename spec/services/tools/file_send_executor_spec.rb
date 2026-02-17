@@ -12,7 +12,7 @@ RSpec.describe Tools::FileSendExecutor do
   before do
     # Stub WORKSPACE_ROOT to use temp directory
     stub_const("Tools::FileSendExecutor::WORKSPACE_ROOT", workspace_dir)
-    
+
     # Create test file
     File.write(test_file_path, test_content)
   end
@@ -36,7 +36,7 @@ RSpec.describe Tools::FileSendExecutor do
 
         expect(result.success?).to be true
         expect(result.data[:output]).to include("Sent test.txt")
-        
+
         # Check attachment was created
         attachment = session.chat_attachments.last
         expect(attachment).to be_present
@@ -65,7 +65,7 @@ RSpec.describe Tools::FileSendExecutor do
 
         it "uses the custom filename" do
           allow(ActionCable.server).to receive(:broadcast)
-          
+
           result = executor.call
 
           expect(result.success?).to be true

@@ -7,7 +7,7 @@ RSpec.describe Agents::ContextManager, type: :service do
     it "sets budget based on model" do
       manager = described_class.new("claude-haiku-4-5")
       budget = manager.budget_info[:available_for_context]
-      
+
       expect(budget).to be > 0
       expect(budget).to be < 200_000 # Leave room for output + reserve
     end
@@ -24,7 +24,7 @@ RSpec.describe Agents::ContextManager, type: :service do
     it "estimates tokens for simple text message" do
       message = { role: "user", content: "Hello, how are you?" }
       tokens = manager.estimate_tokens(message)
-      
+
       expect(tokens).to be > 0
       expect(tokens).to be < 50
     end
@@ -33,7 +33,7 @@ RSpec.describe Agents::ContextManager, type: :service do
       long_text = "Hello world " * 100  # ~1200 chars
       message = { role: "assistant", content: long_text }
       tokens = manager.estimate_tokens(message)
-      
+
       expect(tokens).to be > 100
       expect(tokens).to be < 500
     end
@@ -48,7 +48,7 @@ RSpec.describe Agents::ContextManager, type: :service do
         ]
       }
       tokens = manager.estimate_tokens(message)
-      
+
       # ~4 chars / token for text + ~600 tokens per image
       expect(tokens).to be > 1000
       expect(tokens).to be < 1500
@@ -74,7 +74,7 @@ RSpec.describe Agents::ContextManager, type: :service do
         { role: "user", content: "Short question?" },
         { role: "assistant", content: "Short answer." }
       ]
-      
+
       pruned = manager.prune_messages(messages)
       expect(pruned).to eq(messages)
     end
@@ -86,7 +86,7 @@ RSpec.describe Agents::ContextManager, type: :service do
         { role: "user", content: "x" * 50_000 },
         { role: "assistant", content: "y" * 50_000 }
       ]
-      
+
       pruned = manager.prune_messages(messages)
       expect(pruned.first).to eq(system_msg)
     end
@@ -95,7 +95,7 @@ RSpec.describe Agents::ContextManager, type: :service do
       # Create a context manager with limited budget (15K tokens available)
       # This allows small messages but not large ones
       tight_budget_manager = described_class.new("claude-haiku-4-5", 185_000)
-      
+
       messages = [
         { role: "system", content: "You are helpful." },
         { role: "user", content: "Old question" },  # ~20 tokens
@@ -103,9 +103,9 @@ RSpec.describe Agents::ContextManager, type: :service do
         { role: "user", content: "x" * 30_000 },  # ~7.5K tokens
         { role: "assistant", content: "y" * 30_000 }  # ~7.5K tokens
       ]
-      
+
       pruned = tight_budget_manager.prune_messages(messages)
-      
+
       # Should keep system message
       expect(pruned.first[:role]).to eq("system")
       # Recent messages that fit in budget should be kept
@@ -124,9 +124,9 @@ RSpec.describe Agents::ContextManager, type: :service do
         { role: "user", content: "Recent message 2" },
         { role: "assistant", content: "Recent answer 2" }
       ]
-      
+
       pruned = manager.prune_messages(messages)
-      
+
       # Recent messages should be present
       expect(pruned.map { |m| m[:content] }).to include("Recent message 2")
       expect(pruned.map { |m| m[:content] }).to include("Recent answer 2")
@@ -138,7 +138,7 @@ RSpec.describe Agents::ContextManager, type: :service do
         { role: "user", content: "Question?" },
         { "role" => "assistant", "content" => "Answer." }
       ]
-      
+
       pruned = manager.prune_messages(messages)
       expect(pruned).not_to be_empty
     end
@@ -156,7 +156,7 @@ RSpec.describe Agents::ContextManager, type: :service do
     it "returns budget breakdown" do
       manager = described_class.new("claude-sonnet-4-5", 8192)
       info = manager.budget_info
-      
+
       expect(info).to include(:model, :limit, :reserved_for_output, :reserved_for_safety, :available_for_context)
       expect(info[:model]).to eq("claude-sonnet-4-5")
       expect(info[:reserved_for_output]).to eq(8192)
@@ -175,7 +175,7 @@ RSpec.describe Agents::ContextManager, type: :service do
           { type: "image", source: { type: "base64", media_type: "image/jpeg", data: "base64..." } }
         ]
       }
-      
+
       tokens = manager.estimate_tokens(message)
       expect(tokens).to be > 600  # At least one image's worth
     end
@@ -189,7 +189,7 @@ RSpec.describe Agents::ContextManager, type: :service do
           { type: "image", source: { type: "base64", media_type: "image/webp", data: "img3" } }
         ]
       }
-      
+
       tokens = manager.estimate_tokens(message)
       expect(tokens).to be >= 1800  # ~600 per image
     end

@@ -13,10 +13,10 @@ RSpec.describe Tools::ImageGenerateExecutor do
     # Stub WORKSPACE_ROOT to use temp directory
     stub_const("Tools::ImageGenerateExecutor::WORKSPACE_ROOT", workspace_dir)
     stub_const("Tools::ImageGenerateExecutor::GENERATED_DIR", generated_dir)
-    
+
     # Create directory
     FileUtils.mkdir_p(generated_dir)
-    
+
     # Mock provider lookup and API key resolution
     allow(ProviderConfig).to receive(:find_by).with(adapter_type: "openai", enabled: true).and_return(mock_provider)
     allow_any_instance_of(Tools::ImageGenerateExecutor).to receive(:resolve_api_key).and_return("test-api-key")
@@ -67,7 +67,7 @@ RSpec.describe Tools::ImageGenerateExecutor do
         expect(result.data[:output]).to include("Generated image")
         expect(result.data[:path]).to include("dalle_")
         expect(result.data[:path]).to end_with(".png")
-        
+
         # Check attachment was created
         attachment = session.chat_attachments.last
         expect(attachment).to be_present
@@ -82,7 +82,7 @@ RSpec.describe Tools::ImageGenerateExecutor do
         result = executor.call
 
         expect(result.success?).to be true
-        
+
         saved_path = result.data[:path]
         expect(File.exist?(saved_path)).to be true
         expect(File.read(saved_path)).to eq(mock_image_data)
@@ -190,7 +190,7 @@ RSpec.describe Tools::ImageGenerateExecutor do
         stub_request(:post, "https://api.openai.com/v1/images/generations")
           .to_return(
             status: 200,
-            body: { data: [{ url: mock_image_url }] }.to_json,
+            body: { data: [ { url: mock_image_url } ] }.to_json,
             headers: { "Content-Type" => "application/json" }
           )
 

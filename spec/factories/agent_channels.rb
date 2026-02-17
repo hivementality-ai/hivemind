@@ -6,10 +6,10 @@ FactoryBot.define do
     external_bot_user_id { nil }
     is_default { false }
     config { {} }
-    
+
     trait :with_bot_token do
       vault_token_key { "test_token_key" }
-      
+
       after(:create) do |agent_channel|
         # Mock the VaultEntry for testing
         allow(VaultEntry).to receive(:find_by)
@@ -17,11 +17,11 @@ FactoryBot.define do
           .and_return(double(value: "xoxb-test-token"))
       end
     end
-    
+
     trait :default do
       is_default { true }
     end
-    
+
     trait :with_bot_user_id do
       external_bot_user_id { "U123456789" }
     end
