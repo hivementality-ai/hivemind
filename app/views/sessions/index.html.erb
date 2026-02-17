@@ -22,7 +22,7 @@
             </div>
           </div>
           <p class="text-text-muted text-sm mb-3 line-clamp-2"><%= agent.system_prompt&.truncate(100) %></p>
-          <%= button_to "Chat →", sessions_path(agent_id: agent.id), method: :post,
+          <%= button_to "Chat →", sessions_path(agent_id: agent.slug), method: :post,
               class: "w-full py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
         </div>
       <% end %>
