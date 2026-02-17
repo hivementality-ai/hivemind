@@ -53,7 +53,7 @@ class SessionsController < ApplicationController
   private
 
   def set_agent
-    @agent = Agent.find_by_slug(params[:agent_id])
+    @agent = Agent.find_by_slug(params[:agent_id]) || Agent.find_by(id: params[:agent_id])
     render file: "public/404.html", status: :not_found unless @agent
   end
 
