@@ -67,6 +67,10 @@ class Agent < ApplicationRecord
 
   private
 
+  def to_param
+    slug
+  end
+
   def generate_slug
     self.slug = name.parameterize(separator: "_") if name.present? && slug.blank?
   end
