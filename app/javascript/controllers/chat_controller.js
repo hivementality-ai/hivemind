@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { createConsumer } from "@rails/actioncable"
+import { marked } from "marked"
 
 export default class extends Controller {
   static targets = ["messages", "input", "sendBtn", "thinking", "thinkingContent", "tokenCount", "emptyState", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown"]
@@ -9,10 +10,18 @@ export default class extends Controller {
     this.consumer = createConsumer()
     this.streaming = false
     this.streamBubble = null
+    this.streamRawText = ""
     this.pendingImages = []
     this.pendingFiles = []
     this.hashtagActions = []
     this.hashtagDropdownVisible = false
+
+    // Configure marked for safe, sane defaults
+    marked.setOptions({
+      breaks: true,
+      gfm: true,
+      silent: true
+    })
 
     this.subscription = this.consumer.subscriptions.create(
       { channel: "SessionChannel", session_id: this.sessionIdValue },
@@ -22,6 +31,7 @@ export default class extends Controller {
     )
 
     this.loadHashtagActions()
+    this.renderExistingMarkdown()
     this.scrollToBottom()
     
     // Close hashtag dropdown when clicking outside
@@ -420,7 +430,8 @@ export default class extends Controller {
       this.streamBubble = document.getElementById(id)
     }
 
-    this.streamBubble.textContent += content
+    this.streamRawText += content
+    this.streamBubble.textContent = this.streamRawText
     this.scrollToBottom()
   }
 
@@ -634,8 +645,14 @@ export default class extends Controller {
   }
 
   finishStream() {
+    // Render final markdown from raw streamed text
+    if (this.streamBubble && this.streamRawText) {
+      this.streamBubble.innerHTML = this.renderMarkdown(this.streamRawText)
+    }
+
     this.streaming = false
     this.streamBubble = null
+    this.streamRawText = ""
     this.sendBtnTarget.disabled = false
     this.inputTarget.focus()
 
@@ -673,6 +690,24 @@ export default class extends Controller {
     requestAnimationFrame(() => {
       this.messagesTarget.scrollTop = this.messagesTarget.scrollHeight
     })
+  }
+
+  // Render markdown for messages loaded from server (page load)
+  renderExistingMarkdown() {
+    this.messagesTarget.querySelectorAll(".chat-content").forEach(el => {
+      const raw = el.textContent
+      if (raw && raw.trim()) {
+        el.innerHTML = this.renderMarkdown(raw)
+      }
+    })
+  }
+
+  renderMarkdown(text) {
+    const raw = marked.parse(text)
+    // Basic XSS sanitization — strip script tags and event handlers
+    return raw
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+      .replace(/\son\w+\s*=/gi, " data-blocked=")
   }
 
   escapeHtml(text) {
