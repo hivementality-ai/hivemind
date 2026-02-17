@@ -8,6 +8,8 @@ class IntegrationsController < ApplicationController
     @gmail_configured = VaultEntry.exists?(namespace: "google", key: "gmail_address")
     @email_configured = VaultEntry.exists?(namespace: "email", key: "smtp_host")
     @jira_configured = VaultEntry.exists?(namespace: "jira", key: "base_url")
+    @search_configured = Search::Resolver.configured?
+    @search_provider = Search::Resolver.current_provider_name
     @remotes = CloudStorage::ConfigureRemote.list_remotes
     @backends = CloudStorage::ConfigureRemote::BACKENDS
   end
@@ -165,6 +167,45 @@ class IntegrationsController < ApplicationController
     else
       render json: { status: "error", message: "Could not connect to #{name}" }, status: :unprocessable_entity
     end
+  end
+
+  def update_search
+    provider = params[:search_provider].to_s.strip
+    api_key = params[:search_api_key].to_s.strip
+
+    unless Search::Resolver::PROVIDERS.include?(provider)
+      return redirect_to integrations_path, alert: "Invalid search provider"
+    end
+
+    store_vault("search", "provider", provider)
+
+    if provider == "duckduckgo"
+      VaultEntry.find_by(namespace: "search", key: "api_key")&.destroy
+    elsif api_key.present?
+      store_vault("search", "api_key", api_key)
+    elsif !VaultEntry.exists?(namespace: "search", key: "api_key")
+      return redirect_to integrations_path, alert: "API key required for #{provider.titleize}"
+    end
+
+    redirect_to integrations_path, notice: "Search provider updated to #{provider.titleize}"
+  end
+
+  def test_search
+    provider = Search::Resolver.provider
+    results = provider.search("test query", count: 2)
+
+    if results.any?
+      render json: {
+        status: "connected",
+        provider: provider.class.name.demodulize,
+        results: results.size,
+        first_result: results.first.title
+      }
+    else
+      render json: { status: "error", message: "No results returned" }, status: :unprocessable_entity
+    end
+  rescue StandardError => e
+    render json: { status: "error", message: e.message }, status: :unprocessable_entity
   end
 
   private

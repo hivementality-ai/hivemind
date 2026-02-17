@@ -10,38 +10,40 @@ module Tools
       query = input["query"].to_s.strip
       return ServiceResponse.failure(error: "No query provided") if query.empty?
 
-      # Use DuckDuckGo instant answer API (no key required)
-      uri = URI.parse("https://api.duckduckgo.com/?q=#{URI.encode_www_form_component(query)}&format=json&no_html=1")
+      provider = Search::Resolver.provider
+      results = provider.search(
+        query,
+        count: (input["count"] || 5).to_i,
+        country: input["country"],
+        language: input["language"]
+      )
 
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true
-      http.open_timeout = 10
-      http.read_timeout = 10
-
-      response = http.request(Net::HTTP::Get.new(uri))
-      data = JSON.parse(response.body)
-
-      results = []
-
-      # Abstract
-      if data["Abstract"].present?
-        results << "## #{data["Heading"]}\n#{data["Abstract"]}\nSource: #{data["AbstractURL"]}"
-      end
-
-      # Related topics
-      (data["RelatedTopics"] || []).first(5).each do |topic|
-        next unless topic["Text"]
-        results << "- #{topic["Text"]}"
-        results << "  #{topic["FirstURL"]}" if topic["FirstURL"]
-      end
-
-      if results.empty?
-        results << "No instant results found for '#{query}'. Try web_fetch with a specific URL for more detailed information."
-      end
-
-      ServiceResponse.success(data: { output: results.join("\n"), exit_code: 0 })
+      output = format_results(query, results, provider)
+      ServiceResponse.success(data: { output: output, exit_code: 0 })
     rescue StandardError => e
       ServiceResponse.failure(error: "Search failed: #{e.message}")
+    end
+
+    private
+
+    def format_results(query, results, provider)
+      lines = []
+      provider_name = provider.class.name.demodulize
+
+      if results.empty?
+        lines << "No results found for '#{query}'. Try web_fetch with a specific URL for more detailed information."
+        return lines.join("\n")
+      end
+
+      results.each_with_index do |r, i|
+        lines << "#{i + 1}. **#{r.title}**"
+        lines << "   #{r.url}" if r.url.present?
+        lines << "   #{r.snippet}" if r.snippet.present?
+        lines << ""
+      end
+
+      lines << "_Search provider: #{provider_name}_"
+      lines.join("\n")
     end
   end
 end
