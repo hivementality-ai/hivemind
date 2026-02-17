@@ -34,7 +34,9 @@ module Tools
       "pdf_read" => Tools::PdfReadExecutor,
       "jira" => Tools::JiraExecutor,
       "email" => Tools::EmailExecutor,
-      "custom_script" => Tools::CustomScriptExecutor
+      "custom_script" => Tools::CustomScriptExecutor,
+      "coding_agent" => Tools::CodingAgentExecutor,
+      "coding_agent_status" => Tools::CodingAgentStatusExecutor
     }.freeze
 
     def self.call(tool:, input:, agent:, session:)

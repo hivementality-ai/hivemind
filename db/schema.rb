@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_16_231845) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_17_010448) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -240,6 +240,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_16_231845) do
     t.bigint "session_id", null: false
     t.datetime "updated_at", null: false
     t.index ["session_id"], name: "index_chat_attachments_on_session_id"
+  end
+
+  create_table "coding_agent_tasks", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.string "cli"
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.string "model"
+    t.text "output"
+    t.json "process_info"
+    t.bigint "session_id", null: false
+    t.datetime "started_at"
+    t.string "status"
+    t.text "task"
+    t.string "task_key"
+    t.integer "timeout"
+    t.datetime "updated_at", null: false
+    t.index ["agent_id"], name: "index_coding_agent_tasks_on_agent_id"
+    t.index ["session_id"], name: "index_coding_agent_tasks_on_session_id"
+    t.index ["task_key"], name: "index_coding_agent_tasks_on_task_key", unique: true
   end
 
   create_table "device_pairings", force: :cascade do |t|
@@ -556,6 +576,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_16_231845) do
   add_foreign_key "channel_threads", "agents"
   add_foreign_key "channel_threads", "channels"
   add_foreign_key "chat_attachments", "sessions"
+  add_foreign_key "coding_agent_tasks", "agents"
+  add_foreign_key "coding_agent_tasks", "sessions"
   add_foreign_key "inbound_messages", "channels"
   add_foreign_key "memory_entries", "agents"
   add_foreign_key "outbound_messages", "channels"
