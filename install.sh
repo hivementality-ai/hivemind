@@ -3,7 +3,7 @@
 # Hivemind 🐝 — One-Line Installer
 # ============================================================
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/your-org/hivemind/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/hivementality-ai/hivemind/main/install.sh | bash
 #   — or —
 #   git clone ... && cd hivemind && ./install.sh
 # ============================================================
@@ -11,7 +11,7 @@
 set -euo pipefail
 
 HIVEMIND_DIR="${HIVEMIND_DIR:-$HOME/hivemind}"
-REPO_URL="${HIVEMIND_REPO:-https://github.com/your-org/hivemind.git}"
+REPO_URL="${HIVEMIND_REPO:-https://github.com/hivementality-ai/hivemind.git}"
 BRANCH="${HIVEMIND_BRANCH:-main}"
 
 # Colors
