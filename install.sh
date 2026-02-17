@@ -234,8 +234,11 @@ setup_shared_workspace() {
 build_and_start() {
   cd "$HIVEMIND_DIR"
 
-  info "Building containers (this may take a few minutes on first run)..."
-  docker compose build
+  # Detect version from git tag
+  local version
+  version="$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo 'dev')"
+  info "Building containers (version: $version)..."
+  HIVEMIND_VERSION="$version" docker compose build --build-arg HIVEMIND_VERSION="$version"
 
   info "Starting Hivemind..."
   docker compose up -d

@@ -120,6 +120,7 @@ Rails.application.routes.draw do
       resources :sessions, only: [ :index, :show, :destroy ]
       get "providers/models", to: "providers#models"
       get "hashtag_actions", to: "hashtag_actions#index"
+      get "system/version", to: "system#version"
     end
   end
 
