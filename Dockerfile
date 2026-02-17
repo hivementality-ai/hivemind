@@ -23,12 +23,16 @@ RUN apt-get update -qq && \
     curl -fsSL https://get.docker.com | sh && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
+# Version — set at build time from git tag: docker build --build-arg HIVEMIND_VERSION=$(git describe --tags --abbrev=0)
+ARG HIVEMIND_VERSION=dev
+
 # Set production environment variables and enable jemalloc for reduced memory usage and latency.
 ENV RAILS_ENV="production" \
     BUNDLE_DEPLOYMENT="1" \
     BUNDLE_PATH="/usr/local/bundle" \
     BUNDLE_WITHOUT="development" \
-    LD_PRELOAD="/usr/local/lib/libjemalloc.so"
+    LD_PRELOAD="/usr/local/lib/libjemalloc.so" \
+    HIVEMIND_VERSION="${HIVEMIND_VERSION}"
 
 # Throw-away build stage to reduce size of final image
 FROM base AS build
