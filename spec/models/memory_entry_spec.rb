@@ -19,11 +19,11 @@ RSpec.describe MemoryEntry, type: :model do
     let!(:entry2) { create(:memory_entry, agent: agent2, source_type: "TeamChatMessage") }
 
     it ".for_agent returns entries for specific agent" do
-      expect(MemoryEntry.for_agent(agent1)).to eq([entry1])
+      expect(MemoryEntry.for_agent(agent1)).to eq([ entry1 ])
     end
 
     it ".by_source_type filters by source type" do
-      expect(MemoryEntry.by_source_type("Session")).to eq([entry1])
+      expect(MemoryEntry.by_source_type("Session")).to eq([ entry1 ])
     end
   end
 

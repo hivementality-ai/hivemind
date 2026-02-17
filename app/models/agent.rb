@@ -18,13 +18,19 @@ class Agent < ApplicationRecord
   has_many :agent_skills, dependent: :destroy
   has_many :skills, through: :agent_skills
   has_many :tool_executions, dependent: :destroy
+  has_many :agent_channels, dependent: :destroy
+  has_many :channels, through: :agent_channels
+  has_many :channel_threads, dependent: :destroy
 
   enum :status, { idle: 0, thinking: 1, executing: 2, waiting: 3, error: 4 }, default: :idle
 
-  validates :name, presence: true, uniqueness: true
+  validates :name, presence: true
+  validates :slug, presence: true, uniqueness: { case_sensitive: false }
   validates :role, presence: true
   validates :thinking_visibility, inclusion: { in: %w[hidden debug] }, allow_nil: true
   validates :thinking_budget_tokens, numericality: { greater_than: 0, less_than_or_equal_to: 128_000 }, if: :thinking_enabled?
+
+  before_validation :generate_slug
 
   scope :active, -> { where.not(status: :error) }
   scope :by_team, ->(team) { where(team:) }
@@ -52,7 +58,18 @@ class Agent < ApplicationRecord
     }
   end
 
+  scope :by_slug, ->(slug) { where("LOWER(slug) = ?", slug.downcase) }
+
+  # Find agent by slug (case-insensitive)
+  def self.find_by_slug(slug)
+    by_slug(slug).first or raise ActiveRecord::RecordNotFound, "Couldn't find Agent with slug '#{slug}'"
+  end
+
   private
+
+  def generate_slug
+    self.slug = name.parameterize(separator: "_") if name.present? && slug.blank?
+  end
 
   def rebuild_team_soul
     Teams::BuildSoul.call(team: team) if team
@@ -65,6 +82,17 @@ class Agent < ApplicationRecord
       total_cost: usage_records.sum(:cost_cents),
       total_tokens: usage_records.sum("input_tokens + output_tokens"),
       request_count: usage_records.count
+    }
+  end
+
+  def usage_today
+    today_start = Time.current.beginning_of_day
+    usage = usage_records.where("created_at >= ?", today_start)
+
+    {
+      total_cost: usage.sum(:cost_cents),
+      total_tokens: usage.sum("input_tokens + output_tokens"),
+      request_count: usage.count
     }
   end
 end

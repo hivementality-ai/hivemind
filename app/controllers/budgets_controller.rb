@@ -8,7 +8,8 @@ class BudgetsController < ApplicationController
   end
 
   def update
-    agent = Agent.find(params[:agent_id])
+    agent = Agent.find_by_slug(params[:agent_id])
+    return render file: "public/404.html", status: :not_found unless agent
 
     %w[daily monthly].each do |period|
       limit_key = "#{period}_limit"

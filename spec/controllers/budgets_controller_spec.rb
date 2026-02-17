@@ -44,7 +44,7 @@ RSpec.describe BudgetsController, type: :controller do
     context 'with daily and monthly limits' do
       let(:valid_params) do
         {
-          agent_id: agent.id,
+          agent_id: agent.slug,
           daily_limit: "10.50",
           monthly_limit: "250.00"
         }
@@ -88,7 +88,7 @@ RSpec.describe BudgetsController, type: :controller do
     context 'with only daily limit' do
       let(:partial_params) do
         {
-          agent_id: agent.id,
+          agent_id: agent.slug,
           daily_limit: "5.25"
         }
       end
@@ -107,7 +107,7 @@ RSpec.describe BudgetsController, type: :controller do
     context 'with blank limits' do
       let(:blank_params) do
         {
-          agent_id: agent.id,
+          agent_id: agent.slug,
           daily_limit: "",
           monthly_limit: "   "
         }
@@ -138,7 +138,7 @@ RSpec.describe BudgetsController, type: :controller do
       before { sign_out user }
 
       it 'redirects to sign in' do
-        post :update, params: { agent_id: agent.id, daily_limit: "10.00" }
+        post :update, params: { agent_id: agent.slug, daily_limit: "10.00" }
         expect(response).to redirect_to(new_user_session_path)
       end
     end

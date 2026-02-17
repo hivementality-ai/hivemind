@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 import { createConsumer } from "@rails/actioncable"
 
 export default class extends Controller {
-  static targets = ["messages", "input", "sendBtn", "thinkingArea", "emptyState", "mentionBar", "toolToggle", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList"]
+  static targets = ["messages", "input", "sendBtn", "thinkingArea", "emptyState", "mentionBar", "toolToggle", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown"]
   static values = { sessionId: Number, messageUrl: String, csrf: String, agents: Array }
 
   connect() {
@@ -14,6 +14,8 @@ export default class extends Controller {
     this.pendingFiles = []
     this.pinnedAgents = [] // sticky @mentions that persist across sends
     this.showTools = false // tool calls hidden by default
+    this.hashtagActions = []
+    this.hashtagDropdownVisible = false
 
     // Build color map from agents value
     const colors = ["blue", "green", "yellow", "pink", "cyan", "red", "indigo", "orange"]
@@ -24,18 +26,124 @@ export default class extends Controller {
     this.subscription = this.consumer.subscriptions.create(
       { channel: "TeamChatChannel", team_chat_session_id: this.sessionIdValue },
       {
-        received: (data) => this.handleMessage(data),
-        connected: () => console.log("Connected to team chat", this.sessionIdValue),
-        disconnected: () => console.log("Disconnected from team chat", this.sessionIdValue)
+        received: (data) => this.handleMessage(data)
       }
     )
 
+    this.loadHashtagActions()
     this.scrollToBottom()
+    
+    // Close hashtag dropdown when clicking outside
+    document.addEventListener('click', this.handleOutsideClick.bind(this))
   }
 
   disconnect() {
     if (this.subscription) this.subscription.unsubscribe()
     if (this.consumer) this.consumer.disconnect()
+    document.removeEventListener('click', this.handleOutsideClick.bind(this))
+  }
+
+  // ─── Hashtag Actions ───────────────────────────────────
+
+  async loadHashtagActions() {
+    try {
+      const response = await fetch('/api/v1/hashtag_actions')
+      this.hashtagActions = await response.json()
+    } catch (e) {
+      console.error('Failed to load hashtag actions:', e)
+      this.hashtagActions = []
+    }
+  }
+
+  toggleHashtagDropdown(event) {
+    event.stopPropagation()
+    this.hashtagDropdownVisible = !this.hashtagDropdownVisible
+    if (this.hashtagDropdownVisible) {
+      this.showHashtagDropdown()
+    } else {
+      this.hideHashtagDropdown()
+    }
+  }
+
+  showHashtagDropdown(filter = '') {
+    if (!this.hasHashtagDropdownTarget) return
+    
+    const filtered = filter 
+      ? this.hashtagActions.filter(a => a.name.toLowerCase().startsWith(filter.toLowerCase()))
+      : this.hashtagActions
+
+    if (filtered.length === 0) {
+      this.hideHashtagDropdown()
+      return
+    }
+
+    this.hashtagDropdownTarget.innerHTML = filtered.map(action => `
+      <div class="px-3 py-2 hover:bg-surface-raised cursor-pointer transition flex items-start gap-2"
+           data-action="click->team-chat#insertHashtag"
+           data-hashtag="${action.name}">
+        <code class="text-purple-400 font-mono text-sm">#${this.escapeHtml(action.name)}</code>
+        <span class="text-text-muted text-xs flex-1">${this.escapeHtml(action.description)}</span>
+      </div>
+    `).join('')
+
+    this.hashtagDropdownTarget.classList.remove('hidden')
+    this.hashtagDropdownVisible = true
+  }
+
+  hideHashtagDropdown() {
+    if (!this.hasHashtagDropdownTarget) return
+    this.hashtagDropdownTarget.classList.add('hidden')
+    this.hashtagDropdownVisible = false
+  }
+
+  insertHashtag(event) {
+    const hashtag = event.currentTarget.dataset.hashtag
+    const input = this.inputTarget
+    const cursorPos = input.selectionStart
+    const textBefore = input.value.substring(0, cursorPos)
+    const textAfter = input.value.substring(cursorPos)
+    
+    // If there's a # character just before cursor, replace it
+    const beforeText = textBefore.endsWith('#') ? textBefore.slice(0, -1) : textBefore
+    
+    input.value = beforeText + `#${hashtag} ` + textAfter
+    input.focus()
+    
+    // Move cursor after the inserted hashtag
+    const newPos = beforeText.length + hashtag.length + 2
+    input.setSelectionRange(newPos, newPos)
+    
+    this.hideHashtagDropdown()
+    this.autoResize()
+  }
+
+  handleHashtagInput() {
+    const input = this.inputTarget
+    const cursorPos = input.selectionStart
+    const textBefore = input.value.substring(0, cursorPos)
+    
+    // Check if user just typed # or is typing after #
+    const hashtagMatch = textBefore.match(/#(\w*)$/)
+    
+    if (hashtagMatch) {
+      const filter = hashtagMatch[1]
+      this.showHashtagDropdown(filter)
+    } else {
+      this.hideHashtagDropdown()
+    }
+  }
+
+  handleOutsideClick(event) {
+    if (!this.element.contains(event.target)) {
+      this.hideHashtagDropdown()
+    }
+  }
+
+  handleEscape(event) {
+    if (event.key === 'Escape' && this.hashtagDropdownVisible) {
+      event.preventDefault()
+      this.hideHashtagDropdown()
+    }
   }
 
   handleMessage(data) {
@@ -72,6 +180,9 @@ export default class extends Controller {
       case "agent_done":
         this.hideThinking(data.agent_id)
         this.finalizeAgentMessage(data.agent_id)
+        break
+      case "file_attachment":
+        this.appendFileAttachment(data.agent_id, data.agent_name, data.attachment)
         break
       case "error":
         this.hideThinking(data.agent_id)
@@ -121,6 +232,12 @@ export default class extends Controller {
   }
 
   handleKeydown(event) {
+    // Handle escape key for hashtag dropdown
+    if (event.key === 'Escape') {
+      this.handleEscape(event)
+      return
+    }
+    
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
       this.send()
@@ -145,6 +262,18 @@ export default class extends Controller {
     // Sync pinned agents — if user deletes an @Name from the text, unpin it
     const val = input.value
     this.pinnedAgents = this.pinnedAgents.filter(name => val.includes(`@${name}`))
+    
+    // Check for hashtag input
+    this.handleHashtagInput()
+  }
+
+  autoResize() {
+    const input = this.inputTarget
+    input.style.height = "auto"
+    input.style.height = Math.min(input.scrollHeight, 150) + "px"
+    
+    // Check for hashtag input
+    this.handleHashtagInput()
   }
 
   insertMention(event) {
@@ -398,6 +527,62 @@ export default class extends Controller {
       </div>`
     this.messagesTarget.insertAdjacentHTML("beforeend", html)
     this.scrollToBottom()
+  }
+
+  appendFileAttachment(agentId, agentName, attachment) {
+    // Render agent-sent file attachment (from file_send or image_generate tools)
+    const color = this.agentColors[agentId] || "gray"
+    const initial = agentName ? agentName[0].toUpperCase() : "?"
+    const isImage = attachment.is_image || attachment.content_type?.startsWith('image/')
+    
+    let contentHtml = ""
+    if (isImage) {
+      // Render inline image
+      contentHtml = `<img src="${attachment.url}" class="max-w-xs max-h-64 rounded-lg" loading="lazy" alt="${this.esc(attachment.filename)}">`
+    } else {
+      // Render document download pill
+      const ext = attachment.filename.split(".").pop().toUpperCase()
+      const size = this.formatFileSize(attachment.byte_size)
+      contentHtml = `
+        <a href="${attachment.url}" download="${this.esc(attachment.filename)}" 
+           class="inline-flex items-center gap-2 bg-surface-card rounded-lg px-3 py-2 hover:bg-surface-raised transition border border-border-default">
+          <span class="text-amber-400 font-mono text-xs">${this.esc(ext)}</span>
+          <span class="text-text-primary text-sm">${this.esc(attachment.filename)}</span>
+          <span class="text-text-faint text-xs">${size}</span>
+          <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+          </svg>
+        </a>`
+    }
+
+    const agent = this.agentsValue.find(a => a.id === agentId)
+    const role = agent ? agent.role : ""
+
+    const html = `
+      <div class="flex justify-start">
+        <div class="max-w-2xl">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 bg-${color}-600 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
+              ${initial}
+            </div>
+            <div>
+              <div class="text-xs text-text-muted mb-1">${this.esc(agentName)} <span class="text-gray-600">· ${this.esc(role)}</span></div>
+              <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3">
+                ${contentHtml}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`
+    
+    this.messagesTarget.insertAdjacentHTML("beforeend", html)
+    this.scrollToBottom()
+  }
+
+  formatFileSize(bytes) {
+    if (bytes < 1024) return `${bytes}B`
+    if (bytes < 1048576) return `${(bytes/1024).toFixed(1)}KB`
+    return `${(bytes/1048576).toFixed(1)}MB`
   }
 
   // ─── File Handling ──────────────────────────────────────

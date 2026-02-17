@@ -30,7 +30,7 @@ RSpec.describe AgentTemplate, type: :model do
     let!(:regular) { create(:agent_template, featured: false) }
 
     it ".featured returns only featured templates" do
-      expect(AgentTemplate.featured).to eq([featured])
+      expect(AgentTemplate.featured).to eq([ featured ])
     end
 
     it ".by_category filters by category" do

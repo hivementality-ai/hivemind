@@ -93,6 +93,10 @@ class ChatStreamJob < ApplicationJob
     # Build messages for LLM (with vision content + hashtag addons)
     messages = build_messages(session:, agent:, current_images: image_attachments, prompt_addons: hashtag_result.prompt_addons)
 
+    # Prune messages to fit within context budget
+    context_manager = Agents::ContextManager.new(agent.llm_model)
+    messages = context_manager.prune_messages(messages)
+
     # If there's a hashtag response to prepend (non-bypass actions), broadcast it
     if hashtag_result.response.present?
       ActionCable.server.broadcast(channel, { type: "token", content: "#{hashtag_result.response}\n\n---\n\n" })

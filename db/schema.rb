@@ -10,8 +10,9 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_15_184700) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_16_231845) do
   # These are extensions that must be enabled in order to support this database
+  enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
 
@@ -52,6 +53,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_15_184700) do
     t.decimal "spent_cents"
     t.datetime "updated_at", null: false
     t.index ["agent_id"], name: "index_agent_budgets_on_agent_id"
+  end
+
+  create_table "agent_channels", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.bigint "channel_id", null: false
+    t.jsonb "config", default: {}
+    t.datetime "created_at", null: false
+    t.string "external_bot_user_id"
+    t.boolean "is_default", default: false
+    t.datetime "updated_at", null: false
+    t.string "vault_token_key"
+    t.index ["agent_id", "channel_id"], name: "index_agent_channels_on_agent_id_and_channel_id", unique: true
+    t.index ["agent_id"], name: "index_agent_channels_on_agent_id"
+    t.index ["channel_id"], name: "index_agent_channels_on_channel_id"
   end
 
   create_table "agent_skills", force: :cascade do |t|
@@ -109,6 +124,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_15_184700) do
     t.decimal "monthly_budget_limit", precision: 10, scale: 4, default: "100.0"
     t.string "name"
     t.string "role"
+    t.citext "slug", null: false
     t.integer "status"
     t.boolean "system_agent", default: false, null: false
     t.text "system_prompt"
@@ -121,6 +137,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_15_184700) do
     t.string "workspace_path"
     t.index ["enabled"], name: "index_agents_on_enabled"
     t.index ["name"], name: "index_agents_on_name", unique: true
+    t.index ["slug"], name: "index_agents_on_slug", unique: true
     t.index ["status"], name: "index_agents_on_status"
     t.index ["team_id"], name: "index_agents_on_team_id"
   end
@@ -189,6 +206,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_15_184700) do
     t.index ["action"], name: "index_audit_logs_on_action"
     t.index ["actor_type", "actor_id"], name: "index_audit_logs_on_actor_type_and_actor_id"
     t.index ["created_at"], name: "index_audit_logs_on_created_at"
+  end
+
+  create_table "channel_threads", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.bigint "channel_id", null: false
+    t.datetime "created_at", null: false
+    t.string "external_thread_id", null: false
+    t.datetime "last_active_at"
+    t.datetime "updated_at", null: false
+    t.index ["agent_id"], name: "index_channel_threads_on_agent_id"
+    t.index ["channel_id", "external_thread_id"], name: "index_channel_threads_on_channel_id_and_external_thread_id", unique: true
+    t.index ["channel_id"], name: "index_channel_threads_on_channel_id"
   end
 
   create_table "channels", force: :cascade do |t|
@@ -514,6 +543,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_15_184700) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "agent_budgets", "agents"
+  add_foreign_key "agent_channels", "agents"
+  add_foreign_key "agent_channels", "channels"
   add_foreign_key "agent_skills", "agents"
   add_foreign_key "agent_skills", "skills"
   add_foreign_key "agent_tools", "agents"
@@ -522,6 +553,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_15_184700) do
   add_foreign_key "api_integrations", "users"
   add_foreign_key "api_tokens", "users"
   add_foreign_key "approval_requests", "agents"
+  add_foreign_key "channel_threads", "agents"
+  add_foreign_key "channel_threads", "channels"
   add_foreign_key "chat_attachments", "sessions"
   add_foreign_key "inbound_messages", "channels"
   add_foreign_key "memory_entries", "agents"

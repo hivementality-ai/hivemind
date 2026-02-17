@@ -33,6 +33,7 @@ class ChannelsController < ApplicationController
 
   def update
     store_credentials(params[:credentials]) if params[:credentials].present?
+    process_agent_assignments(params[:agent_assignments]) if params[:agent_assignments].present?
 
     if @channel.update(channel_params)
       redirect_to channels_path, notice: "#{@channel.name} updated"
@@ -66,6 +67,34 @@ class ChannelsController < ApplicationController
       )
       entry.value = value
       entry.save!
+    end
+  end
+
+  def process_agent_assignments(assignments)
+    default_agent_id = params[:default_agent]&.to_i
+
+    assignments.each do |agent_id, assignment_data|
+      agent_id = agent_id.to_i
+      agent = Agent.find_by(id: agent_id)
+      next unless agent
+
+      enabled = assignment_data[:enabled] == "1"
+
+      if enabled
+        # Create or update agent channel
+        agent_channel = @channel.agent_channels.find_or_initialize_by(agent: agent)
+        agent_channel.is_default = (default_agent_id == agent_id)
+
+        # Set bot token if provided
+        if assignment_data[:bot_token].present?
+          agent_channel.bot_token = assignment_data[:bot_token]
+        end
+
+        agent_channel.save!
+      else
+        # Remove agent channel if exists
+        @channel.agent_channels.find_by(agent: agent)&.destroy
+      end
     end
   end
 end

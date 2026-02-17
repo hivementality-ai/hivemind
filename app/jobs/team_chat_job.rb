@@ -36,6 +36,55 @@ class TeamChatJob < ApplicationJob
     # Get or create persistent session for this agent in this team chat
     @agent_session = @session.session_for(agent)
 
+    # Persist the triggering message to the agent's session (with file paths if docs attached)
+    sender = trigger_message.from_user? ? "user" : (Agent.find_by(id: trigger_message.sender_id)&.name || "agent")
+    trigger_content = trigger_message.content.to_s
+
+    # ── Hashtag Actions (before provider resolution — bypass_llm actions don't need a provider) ──
+    user = trigger_message.from_user? ? User.find_by(id: trigger_message.sender_id) : nil
+    hashtag_result = HashtagActions::Processor.call(
+      message: trigger_content,
+      agent: agent,
+      session: @agent_session,
+      user: user
+    )
+
+    if hashtag_result.bypass_llm
+      # Actions handled everything — broadcast response and return
+      @agent_session.append_transcript({ "role" => "user", "content" => "[#{sender}]: #{trigger_content}" })
+
+      response = hashtag_result.response
+      @agent_session.append_transcript({ "role" => "assistant", "content" => response })
+
+      # Broadcast response to team chat
+      ActionCable.server.broadcast(@channel, {
+        type: "token",
+        agent_id: agent.id,
+        agent_name: agent.name,
+        content: response
+      })
+
+      ActionCable.server.broadcast(@channel, {
+        type: "agent_done",
+        agent_id: agent.id,
+        agent_name: agent.name,
+        content: response
+      })
+
+      # Save message to team chat
+      @session.team_chat_messages.create!(
+        sender_type: "agent",
+        sender_id: agent.id,
+        content: response,
+        metadata: { hashtag_action: true }
+      )
+
+      return
+    end
+
+    # Use cleaned message (hashtags stripped) for LLM
+    trigger_content = hashtag_result.clean_message.presence || trigger_content
+
     # Broadcast thinking indicator
     ActionCable.server.broadcast(@channel, {
       type: "thinking",
@@ -51,10 +100,6 @@ class TeamChatJob < ApplicationJob
     end
 
     adapter = resolver.data[:adapter]
-
-    # Persist the triggering message to the agent's session (with file paths if docs attached)
-    sender = trigger_message.from_user? ? "user" : (Agent.find_by(id: trigger_message.sender_id)&.name || "agent")
-    trigger_content = trigger_message.content.to_s
 
     # Save docs to workspace (only once, shared across all agents)
     @saved_doc_paths ||= if @trigger_message_docs.any?
@@ -77,8 +122,18 @@ class TeamChatJob < ApplicationJob
 
     @agent_session.append_transcript({ "role" => "user", "content" => "[#{sender}]: #{trigger_content}" })
 
-    # Build messages with team context + agent's persistent history
-    messages = build_team_messages(agent:, images: @trigger_message_images, trigger_message_id: trigger_message.id)
+    # Build messages with team context + agent's persistent history + hashtag addons
+    messages = build_team_messages(
+      agent:,
+      images: @trigger_message_images,
+      trigger_message_id: trigger_message.id,
+      prompt_addons: hashtag_result.prompt_addons
+    )
+
+    # Prune messages to fit within context budget
+    context_manager = Agents::ContextManager.new(agent.llm_model)
+    messages = context_manager.prune_messages(messages)
+
     tools = resolve_tools(agent)
 
     begin
@@ -93,6 +148,16 @@ class TeamChatJob < ApplicationJob
       end
 
       show_thinking = agent.thinking_enabled? && agent.thinking_visibility == "debug"
+
+      # If there's a hashtag response to prepend (non-bypass actions), broadcast it
+      if hashtag_result.response.present?
+        ActionCable.server.broadcast(@channel, {
+          type: "token",
+          agent_id: agent.id,
+          agent_name: agent.name,
+          content: "#{hashtag_result.response}\n\n---\n\n"
+        })
+      end
 
       if tools.any?
         result = Agents::ToolLoop.call(
@@ -187,13 +252,19 @@ class TeamChatJob < ApplicationJob
     end
   end
 
-  def build_team_messages(agent:, images: [], trigger_message_id: nil)
+  def build_team_messages(agent:, images: [], trigger_message_id: nil, prompt_addons: [])
     messages = []
 
-    # System prompt: agent soul + team soul
+    # System prompt: agent soul + team soul + hashtag addons
     system_parts = []
     system_parts << agent.full_system_prompt if agent.full_system_prompt.present?
     system_parts << build_team_context(agent:)
+
+    # Inject hashtag action prompt addons
+    prompt_addons.each do |addon|
+      system_parts << addon
+    end
+
     messages << { role: "system", content: system_parts.join("\n\n") }
 
     # Chat history — include recent team chat messages for context

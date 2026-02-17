@@ -120,55 +120,93 @@
 
         <!-- Ollama -->
         <div class="bg-surface-raised rounded-lg border border-border-default p-5" data-provider-models-target="section" data-provider="ollama">
-          <div class="flex items-center gap-3 mb-3">
-            <div class="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">OL</div>
-            <div>
-              <h3 class="text-white font-medium">Ollama</h3>
-              <p class="text-text-muted text-xs">Local models — free, no key needed</p>
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">OL</div>
+              <div>
+                <h3 class="text-white font-medium">Ollama</h3>
+                <p class="text-text-muted text-xs">Local models — free, no API key needed</p>
+              </div>
             </div>
+            <!-- Toggle switch -->
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" name="providers[ollama][enabled]" value="1"
+                     class="sr-only peer"
+                     data-action="change->provider-models#toggleOllama"
+                     data-provider-models-target="ollamaToggle">
+              <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+            </label>
           </div>
-          <%= f.text_field "providers[ollama][api_key]",
-              class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-mono text-sm",
-              placeholder: "http://host.docker.internal:11434",
-              autocomplete: "off",
-              data: { action: "input->provider-models#toggleModels", provider_models_target: "keyInput" } %>
-          <p class="text-text-faint text-xs mt-2">
-            Install from <a href="https://ollama.com/" target="_blank" class="text-brand-light hover:underline">ollama.com</a>
-            — paste your Ollama URL above
-          </p>
 
-          <!-- Model selection -->
-          <div class="mt-4 space-y-2 hidden" data-provider-models-target="modelList" data-provider="ollama">
-            <p class="text-text-primary text-sm font-medium mb-2">Select available models:</p>
-            <% [
-              { id: "llama3.3:70b", name: "Llama 3.3 70B", desc: "Meta's flagship — strong all-rounder", default: false },
-              { id: "llama3.2:3b", name: "Llama 3.2 3B", desc: "Lightweight & fast for simple tasks", default: true },
-              { id: "qwen3:8b", name: "Qwen3 8B", desc: "Great coding & multilingual model", default: false },
-              { id: "deepseek-r1:8b", name: "DeepSeek R1 8B", desc: "Strong reasoning for its size", default: false },
-              { id: "gemma3:12b", name: "Gemma 3 12B", desc: "Google's efficient open model", default: false },
-              { id: "mistral:7b", name: "Mistral 7B", desc: "Fast general-purpose model", default: true },
-            ].each do |model| %>
-              <label class="flex items-start gap-3 p-3 bg-surface-raised/50 rounded-lg cursor-pointer hover:bg-surface-raised transition group">
-                <input type="checkbox" name="providers[ollama][models][]" value="<%= model[:id] %>"
-                       <%= "checked" if model[:default] %>
-                       class="mt-0.5 w-4 h-4 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay">
-                <div class="flex-1">
-                  <span class="text-white text-sm font-medium"><%= model[:name] %></span>
-                  <p class="text-text-muted text-xs"><%= model[:desc] %></p>
-                </div>
-              </label>
-            <% end %>
+          <!-- Hidden field for the URL (auto-set to default when toggled on) -->
+          <input type="hidden" name="providers[ollama][api_key]"
+                 data-provider-models-target="ollamaUrl"
+                 value="">
 
-            <div class="mt-3">
-              <label class="text-text-primary text-sm font-medium">Default model:</label>
-              <select name="providers[ollama][default_model]" class="mt-1 w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand">
-                <option value="llama3.2:3b" selected>Llama 3.2 3B</option>
-                <option value="llama3.3:70b">Llama 3.3 70B</option>
-                <option value="qwen3:8b">Qwen3 8B</option>
-                <option value="deepseek-r1:8b">DeepSeek R1 8B</option>
-                <option value="gemma3:12b">Gemma 3 12B</option>
-                <option value="mistral:7b">Mistral 7B</option>
-              </select>
+          <!-- Enabled state info -->
+          <div class="hidden" data-provider-models-target="ollamaEnabled">
+            <div class="flex items-center gap-2 p-3 bg-purple-900/20 border border-purple-700/30 rounded-lg mb-3">
+              <svg class="w-4 h-4 text-purple-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              <p class="text-purple-300 text-sm">Ollama enabled — connecting to <code class="text-purple-200 font-mono text-xs">localhost:11434</code></p>
+            </div>
+            <p class="text-text-faint text-xs mb-3">
+              Make sure <a href="https://ollama.com/" target="_blank" class="text-brand-light hover:underline">Ollama</a> is installed and running on this machine.
+            </p>
+
+            <!-- Advanced Settings (collapsed by default) -->
+            <details class="mb-3">
+              <summary class="text-text-muted text-xs cursor-pointer hover:text-white transition select-none">
+                Advanced Settings
+              </summary>
+              <div class="mt-2 p-3 bg-surface-overlay rounded-lg border border-border-default">
+                <label class="text-text-primary text-xs font-medium block mb-1">Ollama URL</label>
+                <input type="text"
+                       data-provider-models-target="ollamaCustomUrl"
+                       data-action="input->provider-models#updateOllamaUrl"
+                       class="w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-xs"
+                       placeholder="http://host.docker.internal:11434"
+                       value="http://host.docker.internal:11434">
+                <p class="text-text-faint text-xs mt-1">
+                  Change this if Ollama is running on another machine (e.g. <code class="text-text-muted">http://192.168.1.100:11434</code>)
+                </p>
+              </div>
+            </details>
+
+            <!-- Model selection -->
+            <div class="space-y-2" data-provider-models-target="modelList" data-provider="ollama">
+              <p class="text-text-primary text-sm font-medium mb-2">Select available models:</p>
+              <% [
+                { id: "llama3.3:70b", name: "Llama 3.3 70B", desc: "Meta's flagship — strong all-rounder", default: false },
+                { id: "llama3.2:3b", name: "Llama 3.2 3B", desc: "Lightweight & fast for simple tasks", default: true },
+                { id: "qwen3:8b", name: "Qwen3 8B", desc: "Great coding & multilingual model", default: false },
+                { id: "deepseek-r1:8b", name: "DeepSeek R1 8B", desc: "Strong reasoning for its size", default: false },
+                { id: "gemma3:12b", name: "Gemma 3 12B", desc: "Google's efficient open model", default: false },
+                { id: "mistral:7b", name: "Mistral 7B", desc: "Fast general-purpose model", default: true },
+              ].each do |model| %>
+                <label class="flex items-start gap-3 p-3 bg-surface-raised/50 rounded-lg cursor-pointer hover:bg-surface-raised transition group">
+                  <input type="checkbox" name="providers[ollama][models][]" value="<%= model[:id] %>"
+                         <%= "checked" if model[:default] %>
+                         class="mt-0.5 w-4 h-4 rounded border-gray-500 text-purple-600 focus:ring-purple-500 bg-surface-overlay">
+                  <div class="flex-1">
+                    <span class="text-white text-sm font-medium"><%= model[:name] %></span>
+                    <p class="text-text-muted text-xs"><%= model[:desc] %></p>
+                  </div>
+                </label>
+              <% end %>
+
+              <div class="mt-3">
+                <label class="text-text-primary text-sm font-medium">Default model:</label>
+                <select name="providers[ollama][default_model]" class="mt-1 w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                  <option value="llama3.2:3b" selected>Llama 3.2 3B</option>
+                  <option value="llama3.3:70b">Llama 3.3 70B</option>
+                  <option value="qwen3:8b">Qwen3 8B</option>
+                  <option value="deepseek-r1:8b">DeepSeek R1 8B</option>
+                  <option value="gemma3:12b">Gemma 3 12B</option>
+                  <option value="mistral:7b">Mistral 7B</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
