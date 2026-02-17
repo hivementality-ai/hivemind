@@ -444,11 +444,11 @@ BUILTIN_TOOLS = [
     parameters_schema: {
       "properties" => {
         "task" => { "type" => "string", "description" => "Detailed description of the coding task" },
-        "cli" => { "type" => "string", "description" => "Coding CLI to use: claude (default), codex, or aider", "enum" => ["claude", "codex", "aider"] },
+        "cli" => { "type" => "string", "description" => "Coding CLI to use: claude (default), codex, or aider", "enum" => [ "claude", "codex", "aider" ] },
         "model" => { "type" => "string", "description" => "Model to use (CLI-specific, e.g. claude-sonnet, gpt-4o)" },
         "timeout" => { "type" => "integer", "description" => "Timeout in seconds (default: 600, max: 1800)" }
       },
-      "required" => ["task"]
+      "required" => [ "task" ]
     }
   },
   {
@@ -458,10 +458,10 @@ BUILTIN_TOOLS = [
     requires_approval: false,
     parameters_schema: {
       "properties" => {
-        "action" => { "type" => "string", "description" => "Action: status (check one task), list (show recent tasks), or kill (terminate task)", "enum" => ["status", "list", "kill"] },
+        "action" => { "type" => "string", "description" => "Action: status (check one task), list (show recent tasks), or kill (terminate task)", "enum" => [ "status", "list", "kill" ] },
         "task_key" => { "type" => "string", "description" => "Task ID from coding_agent tool (required for status and kill actions)" }
       },
-      "required" => ["action"]
+      "required" => [ "action" ]
     }
   }
 ].freeze
