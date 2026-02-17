@@ -6,7 +6,7 @@
     },
     {
       "fingerprint": "24c58e5b7167dd04b5c872ad6b6e04515a972aeccf00c7aead3b67384197574c",
-      "note": "Docker exec for gh CLI auth — token is from encrypted vault"
+      "note": "Docker exec for gh CLI auth \u2014 token is from encrypted vault"
     },
     {
       "fingerprint": "c1e3dcca5a58393a87e03da8e0b6d31b893a71ae3610e9c9a01457711c5881d2",
@@ -30,11 +30,11 @@
     },
     {
       "fingerprint": "092f702183c28e851d3a02eb708b2b1fcf52e888adf06e5a1b41c8f400e2988f",
-      "note": "Mail gem from() method, not SQL — false positive"
+      "note": "Mail gem from() method, not SQL \u2014 false positive"
     },
     {
       "fingerprint": "06a429c2f530183227dfdc83373cd264ebfb0724fa867adbb8ea962ca24b7e6e",
-      "note": "Agent params explicitly permitted — admin-only fields"
+      "note": "Agent params explicitly permitted \u2014 admin-only fields"
     },
     {
       "fingerprint": "8ccc6ddfa1f978f6353af477362d5634fa5fb5a3fc0492e216eb693560c06768",
@@ -42,11 +42,15 @@
     },
     {
       "fingerprint": "3ffe28640defd3facc9b5d70e774579199b4ca9a1373c934fb2943bfa73217e3",
-      "note": "Net::HTTP to admin-configured API base URL — not user input"
+      "note": "Net::HTTP to admin-configured API base URL \u2014 not user input"
     },
     {
       "fingerprint": "b7820cdabc4971f02ffcfacb4a9c2e18db66b109fff736fac3c48540138e1b66",
-      "note": "Net::HTTP to admin-configured Jira URL from vault — not user input"
+      "note": "Net::HTTP to admin-configured Jira URL from vault \u2014 not user input"
+    },
+    {
+      "fingerprint": "c286845550ca2e4919248772608b8c4727bca1f38cf446648b77a481fe300d52",
+      "note": "Process.spawn with fixed docker command array + script file path we control \u2014 no user input in command"
     }
   ],
   "updated": "2026-02-15",

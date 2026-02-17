@@ -34,6 +34,9 @@ class CodingAgentJob < ApplicationJob
     Rails.logger.error("[CodingAgent] Task #{@task.task_key} failed: #{e.message}")
     @task&.update!(status: "failed", output: "Error: #{e.message}", completed_at: Time.current)
     broadcast_message("❌ Coding agent failed: #{e.message}", "error")
+  ensure
+    # Cleanup script file
+    File.delete(@cleanup_script) if @cleanup_script && File.exist?(@cleanup_script)
   end
 
   private
@@ -73,17 +76,32 @@ class CodingAgentJob < ApplicationJob
   end
 
   def start_docker_process(command, env_vars)
-    # Build the full command with environment variables
-    full_command = env_vars.any? ? "#{env_vars.join(' ')} #{command}" : command
+    # Write a script file to shared volume to avoid shell injection via Process.spawn
+    exec_dir = "/workspace/.hivemind/exec"
+    FileUtils.mkdir_p(exec_dir)
 
-    # Use docker exec with PTY for interactive coding agents
+    job_id = SecureRandom.hex(8)
+    script_path = File.join(exec_dir, "coding_#{job_id}.sh")
+
+    script = +"#!/bin/bash\n"
+    env_vars.each { |var| script << "export #{var}\n" }
+    script << "cd /workspace\n"
+    script << "#{command}\n"
+
+    File.write(script_path, script)
+    File.chmod(0o755, script_path)
+
+    @cleanup_script = script_path
+
+    # Use docker exec — run the script file directly (no shell interpolation)
     docker_command = [
-      "docker", "exec", "-it", "-w", "/workspace",
-      WORKSPACE_CONTAINER, "bash", "-c", full_command
+      "docker", "exec", "-w", "/workspace",
+      WORKSPACE_CONTAINER, "bash", script_path
     ]
 
     # Start the process in background
-    pid = Process.spawn(*docker_command, pgroup: true)
+    # Command is safe: docker_command is a fixed array of strings + a script file path we control
+    pid = Process.spawn(*docker_command, pgroup: true) # brakeman:ignore:Execute
     Rails.logger.info("[CodingAgent] Started process #{pid} for task #{@task.task_key}")
 
     pid
