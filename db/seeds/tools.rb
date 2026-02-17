@@ -55,12 +55,15 @@ BUILTIN_TOOLS = [
   },
   {
     name: "web_search",
-    description: "Search the web for information. Returns relevant results and snippets.",
+    description: "Search the web for information. Returns relevant results with titles, URLs, and snippets.",
     executor_type: "web_search",
     requires_approval: false,
     parameters_schema: {
       "properties" => {
-        "query" => { "type" => "string", "description" => "Search query" }
+        "query" => { "type" => "string", "description" => "Search query" },
+        "count" => { "type" => "integer", "description" => "Number of results to return (default: 5, max: 10)" },
+        "country" => { "type" => "string", "description" => "2-letter country code for regional results (e.g. US, GB, DE)" },
+        "language" => { "type" => "string", "description" => "ISO language code for results (e.g. en, fr, de)" }
       },
       "required" => [ "query" ]
     }
