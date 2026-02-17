@@ -53,6 +53,10 @@ export default class extends Controller {
   showOllamaSettings() {
     if (this.hasOllamaEnabledTarget) {
       this.ollamaEnabledTarget.classList.remove("hidden")
+      // Auto-detect installed models
+      if (typeof detectOllamaModels === "function") {
+        detectOllamaModels()
+      }
     }
   }
 

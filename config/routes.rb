@@ -16,6 +16,7 @@ Rails.application.routes.draw do
   get  "setup/agent",    to: "setup#agent",          as: :setup_agent
   post "setup/agent",    to: "setup#save_agent"
   get  "setup/complete", to: "setup#complete",        as: :setup_complete
+  get  "setup/ollama_models", to: "setup#ollama_models", as: :setup_ollama_models
 
   # Root - Mission Control Dashboard
   root "dashboard#index"
