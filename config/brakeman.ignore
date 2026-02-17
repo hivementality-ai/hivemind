@@ -51,6 +51,10 @@
     {
       "fingerprint": "153c96f299cf01d99d3f778964747f7caadaf507cd401b275463208e56440d29",
       "note": "CodingAgentJob: Open3.capture3 with fixed docker command array + script file path we control"
+    },
+    {
+      "fingerprint": "0dcaaea6789f0c08c8ce76f559f26dc016d528ce3543c2915de6cb0fb91f079f",
+      "note": "Ollama URL is user-provided during setup — validated as HTTP URI, used only for local model detection"
     }
   ],
   "updated": "2026-02-15",
