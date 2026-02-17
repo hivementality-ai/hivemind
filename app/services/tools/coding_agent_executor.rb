@@ -1,17 +1,9 @@
 # frozen_string_literal: true
 
-require "open3"
-require "timeout"
-require "fileutils"
-
 module Tools
   class CodingAgentExecutor < BaseExecutor
     DEFAULT_TIMEOUT = 600  # 10 minutes
     MAX_TIMEOUT = 1800     # 30 minutes
-    MAX_OUTPUT = 100_000   # Larger than ShellExecutor since coding agents produce more output
-    WORKSPACE_ROOT = "/workspace"
-    EXEC_DIR = "/workspace/.hivemind/exec"
-    WORKSPACE_CONTAINER = "hivemind-workspace-1"
     ALLOWED_CLIS = %w[claude codex aider].freeze
 
     def call
@@ -32,90 +24,45 @@ module Tools
       # Security: sanitize task input to prevent shell injection
       return ServiceResponse.failure(error: "Task contains invalid characters") if task.include?("'") || task.include?("`") || task.include?("$")
 
-      # Build CLI command
-      command = build_cli_command(cli, task, model)
+      # Find session from context
+      session = find_session
+      return ServiceResponse.failure(error: "No session context available") unless session
 
-      # Get API keys
-      env_vars = api_keys
+      task_key = SecureRandom.hex(8)
 
-      output, exit_code, duration = execute_coding_task(command, env_vars, timeout)
+      # Create coding agent task record
+      coding_task = CodingAgentTask.create!(
+        agent: agent || session.agent, # Use session's agent if no agent context
+        session: session,
+        task: task,
+        cli: cli,
+        model: model.presence,
+        timeout: timeout,
+        task_key: task_key,
+        status: "pending"
+      )
+
+      # Start background job
+      CodingAgentJob.perform_later(coding_task.id)
 
       ServiceResponse.success(data: {
-        output: output.to_s.truncate(MAX_OUTPUT),
-        exit_code: exit_code,
-        duration_seconds: duration
+        output: "🚀 Started #{cli} coding agent for: #{task.truncate(100)}\nTask ID: #{task_key}\nUse coding_agent_status tool with this ID to check progress.\n\nThe coding agent is running in the background with full workspace access. You'll see live progress updates in the chat.",
+        exit_code: 0,
+        task_key: task_key
       })
-    rescue Timeout::Error
-      ServiceResponse.failure(error: "Coding agent task timed out after #{timeout}s")
     rescue StandardError => e
-      ServiceResponse.failure(error: "Coding agent execution failed: #{e.message}")
+      ServiceResponse.failure(error: "Failed to start coding agent: #{e.message}")
     end
 
     private
 
-    def build_cli_command(cli, task, model)
-      case cli
-      when "claude"
-        cmd = "claude --dangerously-skip-permissions -p \"#{escape_task(task)}\""
-        cmd += " --model #{model}" unless model.empty?
-        cmd
-      when "codex"
-        cmd = "codex --full-auto -q \"#{escape_task(task)}\""
-        cmd += " --model #{model}" unless model.empty?
-        cmd
-      when "aider"
-        cmd = "aider --yes-always --message \"#{escape_task(task)}\""
-        cmd += " --model #{model}" unless model.empty?
-        cmd
-      else
-        raise ArgumentError, "Unknown CLI: #{cli}"
-      end
-    end
+    def find_session
+      # Try to get session from config first (passed from executor)
+      return config[:session] if config[:session]
 
-    def escape_task(task)
-      # Escape double quotes for shell safety while preserving the task content
-      task.gsub('"', '\\"')
-    end
-
-    def api_keys
-      keys = {}
-
-      # Look up API keys from VaultEntry
-      anthropic = VaultEntry.find_by(namespace: "provider_credentials", key: "anthropic_api_key")
-      keys["ANTHROPIC_API_KEY"] = anthropic.value if anthropic
-
-      openai = VaultEntry.find_by(namespace: "provider_credentials", key: "openai_api_key")
-      keys["OPENAI_API_KEY"] = openai.value if openai
-
-      keys
-    end
-
-    def execute_coding_task(command, env_vars, timeout)
-      FileUtils.mkdir_p(EXEC_DIR)
-      job_id = SecureRandom.hex(8)
-      script_path = File.join(EXEC_DIR, "#{job_id}.sh")
-
-      # Build script with env vars and command
-      script = "#!/bin/bash\n"
-      env_vars.each { |k, v| script += "export #{k}='#{v}'\n" }
-      script += "cd /workspace\n#{command}\n"
-
-      File.write(script_path, script)
-      File.chmod(0o755, script_path)
-
-      start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-
-      stdout, stderr, status = Open3.capture3(
-        "docker", "exec", WORKSPACE_CONTAINER,
-        "bash", "-c", "timeout #{timeout} #{script_path} 2>&1"
-      )
-
-      duration = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time).round(1)
-
-      # Cleanup
-      File.delete(script_path) if File.exist?(script_path)
-
-      [ stdout, status&.exitstatus || 1, duration ]
+      # Fallback: find the most recent session for this agent
+      return nil unless agent
+      Session.where(agent: agent).order(updated_at: :desc).first
     end
   end
 end

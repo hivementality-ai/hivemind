@@ -438,7 +438,7 @@ BUILTIN_TOOLS = [
   },
   {
     name: "coding_agent",
-    description: "Delegate complex coding tasks to an autonomous coding agent (Claude Code, Codex, or Aider) running in the workspace. Best for multi-file changes, refactoring, adding features with tests, or fixing complex bugs. The coding agent can read files, write code, run tests, and iterate until the task is complete.",
+    description: "Delegate complex coding tasks to an autonomous coding agent (Claude Code, Codex, or Aider) running in the workspace. Best for multi-file changes, refactoring, adding features with tests, or fixing complex bugs. The coding agent runs in the background with real-time progress updates.",
     executor_type: "coding_agent",
     requires_approval: false,
     parameters_schema: {
@@ -449,6 +449,19 @@ BUILTIN_TOOLS = [
         "timeout" => { "type" => "integer", "description" => "Timeout in seconds (default: 600, max: 1800)" }
       },
       "required" => ["task"]
+    }
+  },
+  {
+    name: "coding_agent_status",
+    description: "Check the status of running coding agent tasks, list recent tasks, or kill active tasks. Use the task_key returned by the coding_agent tool to monitor progress.",
+    executor_type: "coding_agent_status",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "action" => { "type" => "string", "description" => "Action: status (check one task), list (show recent tasks), or kill (terminate task)", "enum" => ["status", "list", "kill"] },
+        "task_key" => { "type" => "string", "description" => "Task ID from coding_agent tool (required for status and kill actions)" }
+      },
+      "required" => ["action"]
     }
   }
 ].freeze
