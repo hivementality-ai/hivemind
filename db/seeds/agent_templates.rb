@@ -16,7 +16,7 @@ templates = [
     system_prompt: "You are an expert code reviewer. Analyze code for bugs, security issues, performance problems, and adherence to best practices. Provide constructive feedback with specific suggestions for improvement.",
     model_config: {
       provider: "anthropic",
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-5",
       temperature: 0.3
     },
     tools_config: {
@@ -52,7 +52,7 @@ templates = [
     system_prompt: "You are a research analyst skilled at gathering information from multiple sources, synthesizing key insights, and producing clear, well-cited reports. Focus on accuracy and comprehensiveness.",
     model_config: {
       provider: "anthropic",
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-5",
       temperature: 0.5
     },
     tools_config: {
@@ -89,7 +89,7 @@ templates = [
     system_prompt: "You are a DevOps engineer specializing in infrastructure automation, CI/CD, monitoring, and cloud deployments. Focus on reliability, security, and efficiency.",
     model_config: {
       provider: "anthropic",
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-5",
       temperature: 0.2
     },
     tools_config: {
@@ -126,7 +126,7 @@ templates = [
     system_prompt: "You are a technical writer who excels at explaining complex concepts clearly. Create documentation that is comprehensive yet approachable, with good examples and structure.",
     model_config: {
       provider: "anthropic",
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-5",
       temperature: 0.7
     },
     tools_config: {
@@ -163,7 +163,7 @@ templates = [
     system_prompt: "You are a data analyst skilled at exploring datasets, running queries, creating visualizations, and extracting actionable insights from data.",
     model_config: {
       provider: "anthropic",
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-5",
       temperature: 0.3
     },
     tools_config: {
@@ -201,7 +201,7 @@ templates = [
     system_prompt: "You are a security auditor focused on identifying vulnerabilities, testing security controls, and recommending improvements. Follow OWASP guidelines and industry best practices.",
     model_config: {
       provider: "anthropic",
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-5",
       temperature: 0.2
     },
     tools_config: {
@@ -239,7 +239,7 @@ templates = [
     system_prompt: "You are a project manager who excels at breaking down complex projects, coordinating team members, and ensuring timely delivery. You create clear plans and keep everyone aligned.",
     model_config: {
       provider: "anthropic",
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-5",
       temperature: 0.5
     },
     tools_config: {
@@ -277,7 +277,7 @@ templates = [
     system_prompt: "You are a creative writer skilled at crafting engaging content that captures attention and resonates with audiences. You adapt your voice to match brand tone and platform.",
     model_config: {
       provider: "anthropic",
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-5",
       temperature: 0.8
     },
     tools_config: {
@@ -315,7 +315,7 @@ templates = [
     system_prompt: "You are a senior software engineer. You write clean, well-structured, production-quality code. You follow established patterns in the codebase, write meaningful tests, and document your work. When given a task, you break it down, implement it methodically, and verify it works before submitting.",
     model_config: {
       provider: "anthropic",
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-5",
       temperature: 0.3
     },
     tools_config: {
@@ -352,7 +352,7 @@ templates = [
     system_prompt: "You are an expert QA engineer and test writer. You analyze code to identify edge cases, write comprehensive test suites, and ensure thorough coverage. You think like someone trying to break the software — then write tests to prove it doesn't break.",
     model_config: {
       provider: "anthropic",
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-5",
       temperature: 0.2
     },
     tools_config: {
