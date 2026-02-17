@@ -435,6 +435,21 @@ BUILTIN_TOOLS = [
       },
       "required" => [ "action", "path" ]
     }
+  },
+  {
+    name: "coding_agent",
+    description: "Delegate complex coding tasks to an autonomous coding agent (Claude Code, Codex, or Aider) running in the workspace. Best for multi-file changes, refactoring, adding features with tests, or fixing complex bugs. The coding agent can read files, write code, run tests, and iterate until the task is complete.",
+    executor_type: "coding_agent",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "task" => { "type" => "string", "description" => "Detailed description of the coding task" },
+        "cli" => { "type" => "string", "description" => "Coding CLI to use: claude (default), codex, or aider", "enum" => ["claude", "codex", "aider"] },
+        "model" => { "type" => "string", "description" => "Model to use (CLI-specific, e.g. claude-sonnet, gpt-4o)" },
+        "timeout" => { "type" => "integer", "description" => "Timeout in seconds (default: 600, max: 1800)" }
+      },
+      "required" => ["task"]
+    }
   }
 ].freeze
 

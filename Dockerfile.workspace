@@ -40,6 +40,9 @@ ENV PIP_USER=1
 ENV GEM_HOME="/home/agent/.gems"
 ENV NPM_CONFIG_PREFIX="/home/agent/.npm-global"
 
+# Install Claude Code CLI
+RUN npm install -g @anthropic-ai/claude-code
+
 USER agent
 WORKDIR /workspace
 
