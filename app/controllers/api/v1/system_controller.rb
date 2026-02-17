@@ -2,8 +2,9 @@
 
 module Api
   module V1
-    class SystemController < ApplicationController
-      skip_before_action :verify_authenticity_token
+    class SystemController < ApiController
+      skip_before_action :authenticate_user!, only: [ :version ]
+      skip_before_action :authenticate_api_token, only: [ :version ]
 
       # GET /api/v1/system/version
       def version

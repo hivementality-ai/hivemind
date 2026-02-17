@@ -2,10 +2,11 @@
 
 require "rails_helper"
 
-RSpec.describe Api::V1::SystemController, type: :controller do
-  describe "GET #version" do
+RSpec.describe "Api::V1::System", type: :request do
+  describe "GET /api/v1/system/version" do
     context "with update check enabled" do
       before do
+        allow(ENV).to receive(:fetch).and_call_original
         allow(ENV).to receive(:fetch).with("UPDATE_CHECK_ENABLED", "true").and_return("true")
       end
 
@@ -20,7 +21,7 @@ RSpec.describe Api::V1::SystemController, type: :controller do
           last_checked: "2026-02-17T15:00:00Z"
         })
 
-        get :version
+        get "/api/v1/system/version"
         expect(response).to have_http_status(:ok)
 
         json = JSON.parse(response.body)
@@ -32,7 +33,7 @@ RSpec.describe Api::V1::SystemController, type: :controller do
       it "handles GitHub API failure gracefully" do
         allow(GithubReleaseChecker).to receive(:update_info).and_return(nil)
 
-        get :version
+        get "/api/v1/system/version"
         expect(response).to have_http_status(:ok)
 
         json = JSON.parse(response.body)
@@ -43,13 +44,14 @@ RSpec.describe Api::V1::SystemController, type: :controller do
 
     context "with update check disabled" do
       before do
+        allow(ENV).to receive(:fetch).and_call_original
         allow(ENV).to receive(:fetch).with("UPDATE_CHECK_ENABLED", "true").and_return("false")
       end
 
       it "returns version without checking GitHub" do
         expect(GithubReleaseChecker).not_to receive(:update_info)
 
-        get :version
+        get "/api/v1/system/version"
         expect(response).to have_http_status(:ok)
 
         json = JSON.parse(response.body)

@@ -3,7 +3,14 @@
 require "rails_helper"
 
 RSpec.describe UpdateCheckJob, type: :job do
-  before { Rails.cache.clear }
+  before do
+    @original_cache = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+  end
+
+  after do
+    Rails.cache = @original_cache
+  end
 
   describe "#perform" do
     context "when update is available" do
@@ -63,6 +70,7 @@ RSpec.describe UpdateCheckJob, type: :job do
 
     context "when update check is disabled" do
       before do
+        allow(ENV).to receive(:fetch).and_call_original
         allow(ENV).to receive(:fetch).with("UPDATE_CHECK_ENABLED", "true").and_return("false")
       end
 
