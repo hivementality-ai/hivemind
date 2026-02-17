@@ -30,6 +30,7 @@
   - [34 Built-in Tools](#34-built-in-tools)
   - [Custom Tools](#custom-tools)
   - [Skills](#skills)
+  - [Web Search](#web-search)
   - [Image Support](#image-support)
   - [Cloud Storage](#cloud-storage)
   - [5 Messaging Channels](#5-messaging-channels)
@@ -283,6 +284,21 @@ github skill     + shell tool      = Agent can manage GitHub repos
 trello skill     + http_request    = Agent can manage Trello boards
 summarize skill  + web_fetch       = Agent can summarize URLs
 ```
+
+### Web Search
+
+The `web_search` tool supports configurable search providers. Configure your preferred provider in **Settings → Integrations → Web Search**.
+
+| Provider | Free Tier | Results |
+|----------|-----------|---------|
+| **Brave Search** | 2,000 queries/mo | Brave index |
+| **SearchAPI.io** | 100 queries/mo | Google results |
+| **SerpAPI** | 100 queries/mo | Google results |
+| **DuckDuckGo** | Unlimited (default) | Instant answers only |
+
+DuckDuckGo works out of the box with no API key but only returns instant answers (Wikipedia-style). For real search results, configure one of the other providers.
+
+Agents can pass optional parameters: `count` (number of results), `country` (2-letter code), and `language` (ISO code).
 
 ### Image Support
 
