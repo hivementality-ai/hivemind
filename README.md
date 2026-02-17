@@ -384,6 +384,10 @@ curl -H "Authorization: Bearer hv_abc123..." http://localhost:8080/api/v1/agents
 
 API endpoints live under `/api/v1/` and return JSON. Available resources: agents, sessions, providers, hashtag actions.
 
+**Anthropic OAuth support:**
+
+Hivemind supports both standard Anthropic API keys (`sk-ant-api03-...`) and OAuth tokens (`sk-ant-oat01-...`). OAuth tokens are auto-detected by prefix — no extra configuration needed. When an OAuth token is detected, Hivemind automatically includes the required `anthropic-beta` and `anthropic-dangerous-direct-browser-access` headers on all requests. This means you can use Anthropic's OAuth flow (e.g., from Claude's developer console) as a drop-in replacement for a standard API key.
+
 ### Security
 
 - **Vault** — API keys and secrets encrypted at rest
