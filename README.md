@@ -23,9 +23,12 @@ Most AI platforms give you one agent in a chat box. Hivemind gives you a **team*
 
 - **Multiple specialized agents** with different models, roles, and tools
 - **Team chat** with @mentions — agents collaborate and chain-react
-- **28 built-in tools** — shell, files, browser, Jira, email, cloud storage, Gmail, vision, TTS, and more
+- **34 built-in tools** — shell, files, browser, Jira, email, cloud storage, Gmail, vision, TTS, and more
 - **Skills system** — teach agents new capabilities, import OpenClaw SKILL.md files
 - **5 messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal
+- **Slack multi-bot** — each agent gets its own Slack bot identity with thread routing
+- **Coding agent** — delegate complex tasks to Claude Code, Codex, or Aider with live progress streaming
+- **File sharing** — agents create files and images, deliver them directly to chat
 - **Autonomous heartbeat** — agents run periodic checks without you asking
 - **Sub-agent orchestration** — delegate (sync), spawn (async), or team chat
 - **Image support** — send images to agents, receive images back (vision API)
@@ -77,7 +80,7 @@ Think of Hivemind as **an office for AI agents**. You hire them (templates), giv
 - An API key from at least one provider:
   - [Anthropic](https://console.anthropic.com/) (Claude) — recommended
   - [OpenAI](https://platform.openai.com/) (GPT-5.2, o3)
-  - [Ollama](https://ollama.com/) (local models, free)
+  - [Ollama](https://ollama.com/) (local models, free) — flip a toggle in setup, auto-configures
 
 ### 4 commands to launch
 
@@ -167,7 +170,7 @@ Group agents into teams with shared context. Each agent has its own model, role,
 
 Full group chat where agents collaborate via @mentions. Tag `@AgentName` for a specific agent, `@team` for everyone, or `@god` to reference the human. Agents can chain-react by @mentioning each other in responses. Per-agent colored message bubbles with real-time streaming.
 
-### 28 Built-in Tools
+### 34 Built-in Tools
 
 | Category | Tools |
 |----------|-------|
@@ -178,6 +181,8 @@ Full group chat where agents collaborate via @mentions. Tag `@AgentName` for a s
 | **Communication** | `email` (SMTP), `gmail` (IMAP), `message` (5 platforms) |
 | **Integrations** | `jira` (issues, JQL, transitions), `http_request` (any API) |
 | **Scheduling** | `cron` (scheduled tasks) |
+| **File Delivery** | `file_send` (share files to chat), `image_generate` (DALL-E 3) |
+| **Coding** | `coding_agent` (Claude Code/Codex/Aider), `coding_agent_status` |
 | **Orchestration** | `delegate` (sync), `spawn` (async sub-agent), `spawn_status` |
 | **Sessions** | `sessions_list`, `sessions_send`, `sessions_history`, `session_status` |
 | **Platform** | `agents_list`, `gateway` (status/restart), `heartbeat_write` |
@@ -264,6 +269,70 @@ Three levels of agent collaboration:
 - **`delegate`** — Synchronous. Call another agent, wait for response, return result.
 - **`spawn`** — Asynchronous. Fire off a sub-agent task, get a task ID, keep working. Check status later with `spawn_status`.
 - **Team Chat** — Conversational. @mention agents in group chat for natural collaboration.
+
+### Coding Agent
+
+Delegate complex, multi-file coding tasks to autonomous coding CLIs running in the workspace container. Instead of your agent editing files one at a time, it hands off the entire task to a dedicated coding agent that can read context, write code, run tests, and iterate.
+
+**Supported CLIs:**
+
+| CLI | Command | Best for |
+|-----|---------|----------|
+| **Claude Code** | `claude --dangerously-skip-permissions -p "task"` | Multi-file features, refactoring |
+| **Codex** | `codex exec --full-auto "task"` | Quick fixes, code generation |
+| **Aider** | `aider --yes-always --message "task"` | Git-aware editing, pair programming |
+
+Claude Code is pre-installed in the workspace container. Codex and Aider can be installed via the shell tool (`npm install -g @openai/codex`, `pip install aider-chat`).
+
+**How it works:**
+
+1. Agent calls `coding_agent` tool with a task description
+2. Job starts in background, returns a task ID immediately
+3. Live output streams to the chat via ActionCable — you see what the coding agent is doing in real-time
+4. Agent (or you) can check status, view output, or kill the task via `coding_agent_status`
+
+**API keys are shared** — if you've configured Anthropic for your agents, Claude Code uses the same key automatically. Zero extra config.
+
+### File Sharing & Image Generation
+
+Agents can create files in their workspace and send them directly to chat as downloadable attachments.
+
+- **`file_send`** — Send any workspace file to chat (CSVs, PDFs, code, data files)
+- **`image_generate`** — Generate images via DALL-E 3 and deliver them inline in chat
+
+Images render inline with preview. Documents render as download pills with filename, type, and size. Works in both 1:1 chat and team chat.
+
+### Slack Multi-Bot
+
+Give each agent its own Slack bot identity. When Agent "Aria" posts in Slack, it comes from Aria's bot — her name, her avatar — not a generic Hivemind bot.
+
+**Features:**
+- **Per-agent bot tokens** — each agent uses its own Slack app/bot credentials
+- **@mention routing** — `@aria` routes to Aria, `@rex` routes to Rex
+- **Thread ownership** — once an agent replies in a thread, they own subsequent messages
+- **Smart fallback** — default agent handles messages with no @mention
+- **UI setup** — assign agents to channels with bot tokens in the channel settings page
+
+**Setup:** Create a Slack app per agent at [api.slack.com](https://api.slack.com/apps), then assign bot tokens in Hivemind's channel settings. Thread routing and @mention detection work automatically.
+
+### Hashtag Actions
+
+Platform-agnostic commands that work in any chat context — web, team chat, or messaging channels.
+
+| Action | What it does |
+|--------|-------------|
+| `#remember <text>` | Save to agent's long-term memory |
+| `#search <query>` | Search agent's memory |
+| `#forget <query>` | Remove from memory |
+| `#todo <task>` | Add to agent's task list |
+| `#summarize` | Summarize recent conversation |
+| `#status` | Show agent status (model, uptime, usage) |
+| `#mood <style>` | Change communication style (cheerful, formal, pirate...) |
+| `#voice <on/off>` | Toggle TTS responses |
+| `#image <prompt>` | Generate an image |
+| `#help` | List all available actions |
+
+Hashtag actions that bypass the LLM (like `#status`, `#help`) respond instantly without consuming tokens.
 
 ### Security
 
