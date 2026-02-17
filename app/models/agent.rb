@@ -62,7 +62,7 @@ class Agent < ApplicationRecord
 
   # Find agent by slug (case-insensitive)
   def self.find_by_slug(slug)
-    by_slug(slug).first
+    by_slug(slug).first or raise ActiveRecord::RecordNotFound, "Couldn't find Agent with slug '#{slug}'"
   end
 
   private

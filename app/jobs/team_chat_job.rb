@@ -36,27 +36,11 @@ class TeamChatJob < ApplicationJob
     # Get or create persistent session for this agent in this team chat
     @agent_session = @session.session_for(agent)
 
-    # Broadcast thinking indicator
-    ActionCable.server.broadcast(@channel, {
-      type: "thinking",
-      agent_id: agent.id,
-      agent_name: agent.name
-    })
-
-    # Resolve provider
-    resolver = Providers::Resolver.call(provider_name: agent.model_provider, agent:)
-    unless resolver.success?
-      broadcast_error(agent:, error: resolver.error)
-      return
-    end
-
-    adapter = resolver.data[:adapter]
-
     # Persist the triggering message to the agent's session (with file paths if docs attached)
     sender = trigger_message.from_user? ? "user" : (Agent.find_by(id: trigger_message.sender_id)&.name || "agent")
     trigger_content = trigger_message.content.to_s
 
-    # ── Hashtag Actions ──────────────────────────────────────────
+    # ── Hashtag Actions (before provider resolution — bypass_llm actions don't need a provider) ──
     user = trigger_message.from_user? ? User.find_by(id: trigger_message.sender_id) : nil
     hashtag_result = HashtagActions::Processor.call(
       message: trigger_content,
@@ -100,6 +84,22 @@ class TeamChatJob < ApplicationJob
 
     # Use cleaned message (hashtags stripped) for LLM
     trigger_content = hashtag_result.clean_message.presence || trigger_content
+
+    # Broadcast thinking indicator
+    ActionCable.server.broadcast(@channel, {
+      type: "thinking",
+      agent_id: agent.id,
+      agent_name: agent.name
+    })
+
+    # Resolve provider
+    resolver = Providers::Resolver.call(provider_name: agent.model_provider, agent:)
+    unless resolver.success?
+      broadcast_error(agent:, error: resolver.error)
+      return
+    end
+
+    adapter = resolver.data[:adapter]
 
     # Save docs to workspace (only once, shared across all agents)
     @saved_doc_paths ||= if @trigger_message_docs.any?

@@ -27,7 +27,7 @@ RSpec.describe Agent, type: :model do
     it "does not regenerate slug if name changes after creation" do
       agent = Agent.create!(name: "Test Agent", role: "Helper")
       original_slug = agent.slug
-      
+
       agent.update!(name: "New Name")
       expect(agent.slug).to eq(original_slug)
     end
@@ -40,7 +40,7 @@ RSpec.describe Agent, type: :model do
 
     it "enforces unique slug (case-insensitive)" do
       Agent.create!(name: "Test Agent", role: "Helper")
-      
+
       duplicate = Agent.new(name: "test_agent", role: "Helper")
       expect(duplicate).not_to be_valid
       expect(duplicate.errors[:slug]).to include(/taken/)
@@ -48,7 +48,7 @@ RSpec.describe Agent, type: :model do
 
     it "enforces unique slug with different cases" do
       Agent.create!(name: "Test Agent", role: "Helper")
-      
+
       duplicate = Agent.new(name: "TEST AGENT", role: "Helper")
       expect(duplicate).not_to be_valid
     end
@@ -63,14 +63,14 @@ RSpec.describe Agent, type: :model do
 
     it "finds agent by slug case-insensitively" do
       agent = Agent.create!(name: "Test Agent", role: "Helper")
-      
+
       expect(Agent.find_by_slug("Test_Agent")).to eq(agent)
       expect(Agent.find_by_slug("TEST_AGENT")).to eq(agent)
       expect(Agent.find_by_slug("test_agent")).to eq(agent)
     end
 
-    it "returns nil for non-existent slug" do
-      expect(Agent.find_by_slug("nonexistent")).to be_nil
+    it "raises RecordNotFound for non-existent slug" do
+      expect { Agent.find_by_slug("nonexistent") }.to raise_error(ActiveRecord::RecordNotFound)
     end
   end
 
@@ -78,7 +78,7 @@ RSpec.describe Agent, type: :model do
     it "filters agents by slug case-insensitively" do
       agent1 = Agent.create!(name: "Test Agent", role: "Helper")
       Agent.create!(name: "Other Agent", role: "Helper")
-      
+
       result = Agent.by_slug("TEST_AGENT")
       expect(result).to include(agent1)
       expect(result.count).to eq(1)

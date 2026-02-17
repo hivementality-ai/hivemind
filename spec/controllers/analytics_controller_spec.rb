@@ -93,27 +93,27 @@ RSpec.describe AnalyticsController, type: :controller do
     end
 
     it 'returns a successful response' do
-      get :show, params: { id: agent.id }
+      get :show, params: { id: agent.slug }
       expect(response).to be_successful
     end
 
     it 'assigns @agent' do
-      get :show, params: { id: agent.id }
+      get :show, params: { id: agent.slug }
       expect(assigns(:agent)).to eq(agent)
     end
 
     it 'calls Analytics::AgentSummary with agent and period' do
       expect(Analytics::AgentSummary).to receive(:call).with(agent: agent, period: "week")
-      get :show, params: { id: agent.id }
+      get :show, params: { id: agent.slug }
     end
 
     it 'calls Analytics::AgentSummary with specified period' do
       expect(Analytics::AgentSummary).to receive(:call).with(agent: agent, period: "day")
-      get :show, params: { id: agent.id, period: "day" }
+      get :show, params: { id: agent.slug, period: "day" }
     end
 
     it 'assigns analytics data on success' do
-      get :show, params: { id: agent.id }
+      get :show, params: { id: agent.slug }
       analytics = assigns(:analytics)
       expect(analytics[:cost_breakdown]).to eq({ input: 25.50, output: 30.75 })
       expect(analytics[:session_count]).to eq(5)
@@ -130,7 +130,7 @@ RSpec.describe AnalyticsController, type: :controller do
       end
 
       it 'assigns empty data and shows error' do
-        get :show, params: { id: agent.id }
+        get :show, params: { id: agent.slug }
         expect(assigns(:analytics)).to eq({})
         expect(flash.now[:alert]).to eq("Agent analytics error")
       end
@@ -148,7 +148,7 @@ RSpec.describe AnalyticsController, type: :controller do
       before { sign_out user }
 
       it 'redirects to sign in' do
-        get :show, params: { id: agent.id }
+        get :show, params: { id: agent.slug }
         expect(response).to redirect_to(new_user_session_path)
       end
     end

@@ -55,12 +55,12 @@ RSpec.describe SessionsController, type: :controller do
     context 'with valid agent' do
       it 'creates a new session' do
         expect {
-          post :create, params: { agent_id: agent.id }
+          post :create, params: { agent_id: agent.slug }
         }.to change(Session, :count).by(1)
       end
 
       it 'sets the correct session attributes' do
-        post :create, params: { agent_id: agent.id }
+        post :create, params: { agent_id: agent.slug }
         new_session = Session.last
         expect(new_session.agent).to eq(agent)
         expect(new_session.session_key).to be_present
@@ -71,13 +71,13 @@ RSpec.describe SessionsController, type: :controller do
       end
 
       it 'generates a unique session key' do
-        post :create, params: { agent_id: agent.id }
+        post :create, params: { agent_id: agent.slug }
         new_session = Session.last
         expect(new_session.session_key).to match(/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i)
       end
 
       it 'redirects to the new session' do
-        post :create, params: { agent_id: agent.id }
+        post :create, params: { agent_id: agent.slug }
         new_session = Session.last
         expect(response).to redirect_to(session_path(new_session))
       end
@@ -95,7 +95,7 @@ RSpec.describe SessionsController, type: :controller do
       before { sign_out user }
 
       it 'redirects to sign in' do
-        post :create, params: { agent_id: agent.id }
+        post :create, params: { agent_id: agent.slug }
         expect(response).to redirect_to(new_user_session_path)
       end
     end
