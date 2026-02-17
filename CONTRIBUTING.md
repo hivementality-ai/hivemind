@@ -1,135 +1,99 @@
-# Contributing to Hivemind
+# Contributing to Hivemind 🐝
 
-Thanks for your interest in contributing! Here's everything you need to get started.
-
----
+Thanks for your interest in contributing! Here's how to get started.
 
 ## Getting Started
 
 1. Fork the repo
-2. Clone your fork
-3. Create a feature branch (`git checkout -b feat/my-feature`)
-4. Make your changes
-5. Run the test suite
-6. Open a PR with a clear description
+2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/hivemind.git`
+3. Run the install script: `./install.sh`
+4. Create a branch: `git checkout -b feat/your-feature`
 
----
+## Branch Naming
 
-## Development Setup
+Use prefixed branch names:
 
-**Prerequisites:** Docker Desktop (or Docker Engine + Compose v2)
+| Prefix | Use for | Example |
+|--------|---------|---------|
+| `feat/` | New features | `feat/slack-threads` |
+| `fix/` | Bug fixes | `fix/streaming-disconnect` |
+| `docs/` | Documentation | `docs/api-guide` |
+| `refactor/` | Code cleanup | `refactor/tool-executor` |
+| `test/` | Test coverage | `test/agent-model-specs` |
 
-```bash
-git clone https://github.com/MatthewSuttles/hivemind.git
-cd hivemind
-cp .env.example .env
-docker compose up -d
-```
+## Pull Requests
 
-Open **http://localhost:3001** and run through the setup wizard.
+**All changes go through PRs** — direct pushes to `main` are blocked.
 
-### Running Tests
+### PR Requirements
 
-Tests run inside the Docker container against a test database:
+1. **Descriptive title** — use conventional commit format:
+   - `feat: add Slack thread routing`
+   - `fix: streaming disconnect on long responses`
+   - `docs: add API authentication guide`
 
-```bash
-docker compose exec app bash -c "RAILS_ENV=test bundle exec rspec"
-```
+2. **Complete PR description** — use the PR template. Every PR must include:
+   - **What's new** — what the PR does in plain language
+   - **How it works** — your approach and key decisions
+   - **Files changed** — list main files and what each change does
+   - **Testing** — how you verified it works
+   - **Screenshots** — for any UI changes
+   - **Breaking changes** — flag if applicable
 
-Coverage report is generated automatically via SimpleCov.
+3. **Focused scope** — one feature or fix per PR. Don't mix unrelated changes.
 
----
+4. **Tests** — add specs for new features. Run existing specs before pushing:
+   ```bash
+   docker compose exec rails bundle exec rspec
+   ```
 
-## Code Standards
+### PR Review
 
-### Rails
+- PRs require **1 approval** before merging
+- Stale approvals are dismissed when new commits are pushed
+- Address review feedback with new commits (don't force-push during review)
 
-- **Skinny controllers** — HTTP orchestration only. Parse params, authorize, call a service, render.
-- **Service objects** — All business logic lives in `app/services/`. Keyword args, return values.
-- **Models** — Associations, validations, scopes, and simple domain logic only. No HTTP, no side effects.
-- **Concerns** — Shared behavior with clear single responsibility.
-- **Explicit over implicit** — Readability and clarity always win.
+## Commit Messages
 
-### Testing (RSpec)
-
-- **95% overall coverage**, 100% on new/modified code
-- **90% branch coverage**
-- Test the **public interface** only — never test private methods
-- Use `describe` / `context` / `it` structure
-- FactoryBot with traits. Prefer `build` over `create` when persistence isn't needed
-- Mock external dependencies (APIs, Docker, HTTP). Don't mock ActiveRecord or internal app logic
-- One logical assertion per `it` block when practical
-- Descriptive test names that explain intent
-- **No Capybara/system tests, no JS tests, no view tests**
-
-### Style
-
-- Use `expect(...).to` syntax (not `should`)
-- `let` over instance variables
-- `instance_double` for stub contracts
-- Run specs with `--order random` to surface order dependencies
-
----
-
-## Architecture
-
-### Docker Stack
-
-| Service | Purpose |
-|---------|---------|
-| **app** | Rails + Puma (HTTP, WebSocket, API) |
-| **worker** | Sidekiq background jobs |
-| **db** | PostgreSQL with pgvector |
-| **cache** | Redis (queues + pub/sub + caching) |
-| **browser** | Playwright headless Chrome |
-| **workspace** | Isolated exec sandbox for agents |
-| **connector** | Persistent channel connections (WhatsApp, Signal) |
-| **docker-proxy** | socat proxy for workspace container access |
-
-### Key Directories
+Use [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```
-app/
-├── controllers/     # HTTP layer
-├── models/          # ActiveRecord + domain logic
-├── services/        # Business logic (agents/, tools/, channels/, etc.)
-├── jobs/            # Sidekiq background jobs
-└── views/           # ERB templates (Tailwind CSS)
-
-spec/
-├── models/          # Model specs
-├── controllers/     # Request/controller specs
-├── services/        # Service specs
-└── sidekiq/         # Job specs
+feat: add agent thinking budget controls
+fix: prevent duplicate team chat messages
+docs: update Docker setup instructions
+test: add controller specs for sessions
+refactor: extract tool executor into service object
 ```
 
-### Adding a New Tool
+For multi-line commits:
 
-1. Create `app/services/tools/my_tool_executor.rb` inheriting from `Tools::BaseExecutor`
-2. Implement the `call` method (receives `agent:`, `session:`, `params:`)
-3. Return `{ output: "result" }` or `{ error: "message" }`
-4. Add a seed entry in `db/seeds/tools.rb`
-5. Write specs in `spec/services/tools/my_tool_executor_spec.rb`
+```
+feat: markdown rendering in chat messages
 
-### Adding a New Channel
+- Add marked.js via importmap CDN pin
+- Parse streamed agent responses as markdown on stream finish
+- Style code blocks, tables, blockquotes for dark theme
+```
 
-1. Create `app/services/channels/my_adapter.rb` inheriting from `Channels::BaseAdapter`
-2. Implement `send_message` and `verify_webhook`
-3. Register in `app/services/channels/registry.rb`
-4. Add webhook route and controller action
-5. Write specs
+## Code Style
 
----
+- **Ruby:** Follow Rails conventions. Use service objects for business logic.
+- **JavaScript:** Stimulus controllers. Keep them focused.
+- **CSS:** Tailwind utility classes. Custom CSS in `application.css` only when needed.
+- **Views:** ERB templates. Keep logic minimal — use helpers and partials.
 
-## PR Guidelines
+## Database Migrations
 
-- Keep PRs focused — one feature or fix per PR
-- Include tests for all new code
-- Update docs if behavior changes
-- Use conventional commit style: `feat:`, `fix:`, `docs:`, `test:`, `chore:`
+- **Add columns** with defaults when possible
+- **Never remove columns** in the same PR — deprecate first
+- **Test migrations** locally before pushing:
+  ```bash
+  docker compose exec rails rails db:migrate
+  docker compose exec rails rails db:rollback STEP=1
+  docker compose exec rails rails db:migrate
+  ```
 
----
+## Questions?
 
-## License
-
-By contributing, you agree that your contributions will be licensed under the [AGPLv3](LICENSE).
+- Open a [Discussion](https://github.com/hivementality-ai/hivemind/discussions)
+- Join our [Discord](https://discord.gg/Cww4rFz7)
