@@ -709,6 +709,7 @@ export default class extends Controller {
     return raw
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
       .replace(/\son\w+\s*=/gi, " data-blocked=")
+      .trim()
   }
 
   escapeHtml(text) {
