@@ -366,6 +366,28 @@ Platform-agnostic commands that work in any chat context — web, team chat, or 
 
 Hashtag actions that bypass the LLM (like `#status`, `#help`) respond instantly without consuming tokens.
 
+### Authentication
+
+Hivemind supports two authentication methods:
+
+| Method | Use Case | How It Works |
+|--------|----------|--------------|
+| **Web login** (Devise) | Browser UI — manage agents, teams, settings, chat | Email + password. Created during setup wizard or via `rails console`. Session-based with CSRF protection. |
+| **API tokens** | Programmatic access — scripts, CI/CD, external apps | Bearer tokens (`hv_...`) passed via `Authorization` header. SHA-256 hashed at rest. Revocable, with optional expiration. |
+
+**API token usage:**
+
+```bash
+# Create a token in Settings → API Tokens, then:
+curl -H "Authorization: Bearer hv_abc123..." http://localhost:8080/api/v1/agents
+```
+
+API endpoints live under `/api/v1/` and return JSON. Available resources: agents, sessions, providers, hashtag actions.
+
+**Anthropic OAuth support:**
+
+Hivemind supports both standard Anthropic API keys (`sk-ant-api03-...`) and OAuth tokens (`sk-ant-oat01-...`). OAuth tokens are auto-detected by prefix — no extra configuration needed. When an OAuth token is detected, Hivemind automatically includes the required `anthropic-beta` and `anthropic-dangerous-direct-browser-access` headers on all requests. This means you can use Anthropic's OAuth flow (e.g., from Claude's developer console) as a drop-in replacement for a standard API key.
+
 ### Security
 
 - **Vault** — API keys and secrets encrypted at rest
@@ -374,7 +396,7 @@ Hashtag actions that bypass the LLM (like `#status`, `#help`) respond instantly 
 - **Rate limiting** — On all endpoints
 - **Workspace isolation** — Agent code runs in a separate container with no database access
 - **Prompt injection defense** — Role-based defaults, guardrail blocks, input sanitization
-- **API tokens** — Scoped permissions, revocable
+- **API tokens** — SHA-256 hashed, revocable, with expiration support
 
 ### Analytics & Budgets
 
