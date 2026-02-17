@@ -114,7 +114,7 @@ Think of Hivemind as **an office for AI agents**. You hire them (templates), giv
 curl -fsSL https://raw.githubusercontent.com/hivementality-ai/hivemind/main/install.sh | bash
 ```
 
-That's it. The installer handles Docker, cloning, secrets, and startup. Open **http://localhost:3001** when it's done.
+That's it. The installer handles Docker, cloning, secrets, and startup. Open **http://localhost:8080** when it's done.
 
 > **What it does:** checks for Docker (installs if missing), clones the repo, generates encryption keys and `.env`, builds containers, and starts everything.
 

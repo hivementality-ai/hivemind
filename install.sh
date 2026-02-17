@@ -246,7 +246,7 @@ build_and_start() {
   # Wait for Rails to be healthy
   echo -n "Waiting for Hivemind to be ready..."
   local attempts=0
-  while ! curl -sf http://localhost:3001 &>/dev/null; do
+  while ! curl -sf http://localhost:8080 &>/dev/null; do
     sleep 3
     echo -n "."
     attempts=$((attempts + 1))
@@ -269,7 +269,7 @@ print_success() {
   echo -e "${BOLD}${GREEN}🐝 Hivemind is ready!${NC}"
   echo -e "${BOLD}${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   echo ""
-  echo -e "  ${BOLD}Open:${NC}      http://localhost:3001"
+  echo -e "  ${BOLD}Open:${NC}      http://localhost:8080"
   echo -e "  ${BOLD}Location:${NC}  $HIVEMIND_DIR"
   echo -e "  ${BOLD}Logs:${NC}      cd $HIVEMIND_DIR && docker compose logs -f"
   echo -e "  ${BOLD}Stop:${NC}      cd $HIVEMIND_DIR && docker compose down"
