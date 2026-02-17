@@ -278,6 +278,17 @@ print_success() {
   echo -e "  ${CYAN}Next: Create your account and add your first agent in Mission Control.${NC}"
   echo -e "  ${CYAN}Add API keys and integrations under Settings → Integrations.${NC}"
   echo ""
+  echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo -e "${YELLOW}⚠  Heads up!${NC}"
+  echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo ""
+  echo -e "  Hivemind moves fast and is under active development."
+  echo -e "  It is ${BOLD}not fully battle-tested${NC} — expect rough edges."
+  echo ""
+  echo -e "  ${BOLD}Found a bug?${NC}    https://github.com/hivementality-ai/hivemind/issues"
+  echo -e "  ${BOLD}Need help?${NC}      https://discord.gg/Cww4rFz7"
+  echo -e "  ${BOLD}Want to help?${NC}   PRs welcome — see CONTRIBUTING.md"
+  echo ""
 }
 
 # ----------------------------------------------------------
