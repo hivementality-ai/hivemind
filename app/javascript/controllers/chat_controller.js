@@ -167,6 +167,15 @@ export default class extends Controller {
       case "file_attachment":
         this.appendFileAttachment(data.attachment)
         break
+      case "coding_agent_message":
+        this.appendCodingAgentMessage(data.message, data.cli, data.task_key)
+        break
+      case "coding_agent_progress":
+        this.updateCodingAgentProgress(data.output, data.task_key)
+        break
+      case "coding_agent_complete":
+        this.completeCodingAgent(data.message, data.output_summary, data.task_key, data.duration)
+        break
       case "done":
         this.finishStream()
         break
@@ -565,6 +574,56 @@ export default class extends Controller {
       </div>`
     
     this.messagesTarget.insertAdjacentHTML("beforeend", html)
+    this.scrollToBottom()
+  }
+
+  appendCodingAgentMessage(message, cli, taskKey) {
+    const html = `
+      <div class="flex justify-start" id="coding-agent-${taskKey}">
+        <div class="max-w-2xl w-full">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 bg-amber-600 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">⚡</div>
+            <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 w-full">
+              <div class="text-text-primary text-sm font-medium mb-1">${this.escapeHtml(message)}</div>
+              <pre class="coding-agent-output text-xs text-text-muted bg-surface-base rounded p-2 max-h-48 overflow-y-auto whitespace-pre-wrap hidden"></pre>
+            </div>
+          </div>
+        </div>
+      </div>`
+    this.messagesTarget.insertAdjacentHTML("beforeend", html)
+    this.scrollToBottom()
+  }
+
+  updateCodingAgentProgress(output, taskKey) {
+    const container = document.getElementById(`coding-agent-${taskKey}`)
+    if (!container) return
+    const pre = container.querySelector(".coding-agent-output")
+    if (!pre) return
+    pre.classList.remove("hidden")
+    pre.textContent += output
+    // Auto-scroll the output area
+    pre.scrollTop = pre.scrollHeight
+    this.scrollToBottom()
+  }
+
+  completeCodingAgent(message, outputSummary, taskKey, duration) {
+    const container = document.getElementById(`coding-agent-${taskKey}`)
+    if (!container) {
+      // No existing container — render as a standalone message
+      this.appendCodingAgentMessage(message, null, taskKey)
+      return
+    }
+    const header = container.querySelector(".text-text-primary")
+    if (header) {
+      const durationText = duration ? ` (${duration}s)` : ""
+      header.textContent = `${message}${durationText}`
+    }
+    const pre = container.querySelector(".coding-agent-output")
+    if (pre && outputSummary) {
+      pre.classList.remove("hidden")
+      pre.textContent = outputSummary
+      pre.scrollTop = pre.scrollHeight
+    }
     this.scrollToBottom()
   }
 

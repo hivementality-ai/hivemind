@@ -49,8 +49,8 @@
       "note": "Net::HTTP to admin-configured Jira URL from vault \u2014 not user input"
     },
     {
-      "fingerprint": "c286845550ca2e4919248772608b8c4727bca1f38cf446648b77a481fe300d52",
-      "note": "Process.spawn with fixed docker command array + script file path we control \u2014 no user input in command"
+      "fingerprint": "153c96f299cf01d99d3f778964747f7caadaf507cd401b275463208e56440d29",
+      "note": "CodingAgentJob: Open3.capture3 with fixed docker command array + script file path we control"
     }
   ],
   "updated": "2026-02-15",
