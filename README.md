@@ -18,6 +18,38 @@
 
 ---
 
+## Table of Contents
+
+- [Why Hivemind?](#why-hivemind)
+- [Concepts](#concepts)
+- [Quick Start](#quick-start)
+- [Setup Wizard](#setup-wizard)
+- [Features](#features)
+  - [Agent Teams](#agent-teams)
+  - [Team Chat](#team-chat)
+  - [34 Built-in Tools](#34-built-in-tools)
+  - [Custom Tools](#custom-tools)
+  - [Skills](#skills)
+  - [Image Support](#image-support)
+  - [Cloud Storage](#cloud-storage)
+  - [5 Messaging Channels](#5-messaging-channels)
+  - [Autonomous Heartbeat](#autonomous-heartbeat)
+  - [Sub-Agent Orchestration](#sub-agent-orchestration)
+  - [Coding Agent](#coding-agent)
+  - [File Sharing & Image Generation](#file-sharing--image-generation)
+  - [Slack Multi-Bot](#slack-multi-bot)
+  - [Hashtag Actions](#hashtag-actions)
+  - [Authentication](#authentication)
+  - [Security](#security)
+  - [Analytics & Budgets](#analytics--budgets)
+- [Operations](#operations)
+- [Best Practices](#best-practices)
+- [Coming from OpenClaw?](#coming-from-openclaw)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
 ## Why Hivemind?
 
 Most AI platforms give you one agent in a chat box. Hivemind gives you a **team**.
