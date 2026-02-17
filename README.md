@@ -75,24 +75,37 @@ Think of Hivemind as **an office for AI agents**. You hire them (templates), giv
 
 ## Quick Start
 
-### Prerequisites
+### One-line install
 
+```bash
+curl -fsSL https://raw.githubusercontent.com/hivementality-ai/hivemind/main/install.sh | bash
+```
+
+That's it. The installer handles Docker, cloning, secrets, and startup. Open **http://localhost:3001** when it's done.
+
+> **What it does:** checks for Docker (installs if missing), clones the repo, generates encryption keys and `.env`, builds containers, and starts everything.
+
+### Or install manually
+
+<details>
+<summary>Click to expand manual setup</summary>
+
+**Prerequisites:**
 - [Docker Desktop](https://docs.docker.com/get-docker/) (or Docker Engine + Compose v2)
 - An API key from at least one provider:
   - [Anthropic](https://console.anthropic.com/) (Claude) — recommended
   - [OpenAI](https://platform.openai.com/) (GPT-5.2, o3)
   - [Ollama](https://ollama.com/) (local models, free) — flip a toggle in setup, auto-configures
 
-### 4 commands to launch
-
 ```bash
-git clone https://github.com/MatthewSuttles/hivemind.git
+git clone https://github.com/hivementality-ai/hivemind.git
 cd hivemind
-cp .env.example .env    # edit to add your RAILS_MASTER_KEY
-docker compose up -d
+./install.sh
 ```
 
-Open **http://localhost:8080** — the setup wizard walks you through creating your account, connecting a provider, building a team, and deploying your first agent.
+</details>
+
+The setup wizard walks you through creating your account, connecting a provider, building a team, and deploying your first agent.
 
 > First boot takes 2-3 minutes to build images and run migrations. After that, starts in seconds.
 
