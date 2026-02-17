@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { createConsumer } from "@rails/actioncable"
+import { marked } from "marked"
 
 export default class extends Controller {
   static targets = ["messages", "input", "sendBtn", "thinkingArea", "emptyState", "mentionBar", "toolToggle", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown"]
@@ -9,6 +10,9 @@ export default class extends Controller {
     this.consumer = createConsumer()
     this.sending = false
     this.streamBubbles = {} // keyed by agent_id
+    this.streamRawTexts = {} // raw text per agent for markdown rendering
+
+    marked.setOptions({ breaks: true, gfm: true, silent: true })
     this.agentColors = {}
     this.pendingImages = []
     this.pendingFiles = []
@@ -31,6 +35,7 @@ export default class extends Controller {
     )
 
     this.loadHashtagActions()
+    this.renderExistingMarkdown()
     this.scrollToBottom()
     
     // Close hashtag dropdown when clicking outside
@@ -456,7 +461,7 @@ export default class extends Controller {
               <div>
                 <div class="text-xs text-text-muted mb-1">${this.esc(agentName)} <span class="text-gray-600">· ${this.esc(role)}</span></div>
                 <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
-                  <div class="whitespace-pre-wrap" id="${bubbleId}"></div>
+                  <div class="whitespace-pre-wrap chat-content" id="${bubbleId}"></div>
                 </div>
               </div>
             </div>
@@ -466,12 +471,19 @@ export default class extends Controller {
       this.streamBubbles[agentId] = document.getElementById(bubbleId)
     }
 
-    this.streamBubbles[agentId].textContent += content
+    if (!this.streamRawTexts[agentId]) this.streamRawTexts[agentId] = ""
+    this.streamRawTexts[agentId] += content
+    this.streamBubbles[agentId].textContent = this.streamRawTexts[agentId]
     this.scrollToBottom()
   }
 
   finalizeAgentMessage(agentId) {
+    // Render final markdown
+    if (this.streamBubbles[agentId] && this.streamRawTexts[agentId]) {
+      this.streamBubbles[agentId].innerHTML = this.renderMarkdown(this.streamRawTexts[agentId])
+    }
     delete this.streamBubbles[agentId]
+    delete this.streamRawTexts[agentId]
   }
 
   showTeamToolStart(agentId, agentName, toolName, input) {
@@ -761,6 +773,22 @@ export default class extends Controller {
     requestAnimationFrame(() => {
       this.messagesTarget.scrollTop = this.messagesTarget.scrollHeight
     })
+  }
+
+  renderExistingMarkdown() {
+    this.messagesTarget.querySelectorAll(".chat-content").forEach(el => {
+      const raw = el.textContent
+      if (raw && raw.trim()) {
+        el.innerHTML = this.renderMarkdown(raw)
+      }
+    })
+  }
+
+  renderMarkdown(text) {
+    const raw = marked.parse(text)
+    return raw
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+      .replace(/\son\w+\s*=/gi, " data-blocked=")
   }
 
   esc(text) {
