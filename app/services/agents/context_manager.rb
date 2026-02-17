@@ -5,9 +5,12 @@ module Agents
     MODEL_LIMITS = {
       "claude-haiku-4-5" => 200_000,
       "claude-sonnet-4-5" => 200_000,
-      "claude-opus-4" => 200_000,
+      "claude-opus-4-6" => 200_000,
       "gpt-5.2" => 200_000,
-      "gpt-4o" => 200_000
+      "gpt-5.2-mini" => 200_000,
+      "gpt-5.2-nano" => 128_000,
+      "o3" => 200_000,
+      "o4-mini" => 200_000
     }.freeze
 
     MAX_SYSTEM_TOKENS = 2000
