@@ -95,6 +95,8 @@ Rails.application.routes.draw do
   post "integrations/cloud_remote", to: "integrations#add_cloud_remote", as: :add_cloud_remote_integrations
   delete "integrations/cloud_remote", to: "integrations#remove_cloud_remote", as: :remove_cloud_remote_integrations
   get "integrations/cloud_remote/test", to: "integrations#test_cloud_remote", as: :test_cloud_remote_integrations
+  patch "integrations/search", to: "integrations#update_search", as: :update_search_integrations
+  get "integrations/search/test", to: "integrations#test_search", as: :test_search_integrations
 
   # API Integrations
   resources :api_integrations do

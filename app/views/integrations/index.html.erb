@@ -259,6 +259,108 @@
     <% end %>
   </div>
 
+  <!-- Web Search -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-surface-overlay/20 rounded-lg flex items-center justify-center">
+          <svg class="w-6 h-6 text-text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </div>
+        <div>
+          <h2 class="text-lg font-semibold text-white">Web Search</h2>
+          <p class="text-text-faint text-sm">Configure search provider for the web_search tool</p>
+        </div>
+      </div>
+      <span class="px-3 py-1 rounded-full text-xs font-medium
+        <%= @search_configured ? 'bg-green-900 text-green-300' : 'bg-surface-raised text-text-muted' %>">
+        <%= @search_configured ? "#{@search_provider.titleize}" : "DuckDuckGo (default)" %>
+      </span>
+    </div>
+
+    <%= form_tag update_search_integrations_path, method: :patch do %>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Provider</label>
+          <select name="search_provider" id="search_provider"
+            class="w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand"
+            onchange="toggleSearchApiKey(this.value)">
+            <option value="duckduckgo" <%= 'selected' if @search_provider == 'duckduckgo' %>>DuckDuckGo (no API key needed)</option>
+            <option value="brave" <%= 'selected' if @search_provider == 'brave' %>>Brave Search</option>
+            <option value="searchapi" <%= 'selected' if @search_provider == 'searchapi' %>>SearchAPI.io</option>
+            <option value="serpapi" <%= 'selected' if @search_provider == 'serpapi' %>>SerpAPI</option>
+          </select>
+        </div>
+        <div id="search-api-key-field" style="<%= 'display:none' if @search_provider == 'duckduckgo' %>">
+          <label class="block text-text-muted text-sm mb-1">API Key</label>
+          <%= password_field_tag :search_api_key, nil,
+              placeholder: "Enter API key",
+              class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand",
+              autocomplete: "off" %>
+          <p class="text-gray-600 text-xs mt-1" id="search-key-help">
+            <% case @search_provider %>
+            <% when "brave" %>
+              Get your key at <a href="https://brave.com/search/api/" target="_blank" class="text-brand-light hover:text-brand-light">brave.com/search/api</a> — free tier: 2,000 queries/mo
+            <% when "searchapi" %>
+              Get your key at <a href="https://www.searchapi.io/" target="_blank" class="text-brand-light hover:text-brand-light">searchapi.io</a> — free tier: 100 queries/mo
+            <% when "serpapi" %>
+              Get your key at <a href="https://serpapi.com/" target="_blank" class="text-brand-light hover:text-brand-light">serpapi.com</a> — free tier: 100 queries/mo
+            <% else %>
+              Select a provider above to see signup details
+            <% end %>
+          </p>
+        </div>
+        <div class="flex items-center justify-between">
+          <% if @search_configured %>
+            <button type="button" onclick="testSearch()" class="text-brand-light hover:text-brand-light text-sm font-medium cursor-pointer">
+              Test Connection
+            </button>
+          <% else %>
+            <span></span>
+          <% end %>
+          <%= submit_tag @search_configured ? "Update" : "Save",
+              class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+        </div>
+      </div>
+    <% end %>
+
+    <% if @search_configured %>
+      <div class="mt-3 bg-surface-base/50 rounded-lg px-4 py-3">
+        <p class="text-text-muted text-xs">Agents use <code class="text-text-primary">web_search</code> with <%= @search_provider.titleize %>. Supports optional <code class="text-text-primary">count</code>, <code class="text-text-primary">country</code>, and <code class="text-text-primary">language</code> parameters.</p>
+      </div>
+    <% end %>
+  </div>
+
+  <script>
+    function toggleSearchApiKey(value) {
+      const field = document.getElementById('search-api-key-field');
+      const help = document.getElementById('search-key-help');
+      if (value === 'duckduckgo') {
+        field.style.display = 'none';
+      } else {
+        field.style.display = 'block';
+        const links = {
+          brave: 'Get your key at <a href="https://brave.com/search/api/" target="_blank" class="text-brand-light hover:text-brand-light">brave.com/search/api</a> — free tier: 2,000 queries/mo',
+          searchapi: 'Get your key at <a href="https://www.searchapi.io/" target="_blank" class="text-brand-light hover:text-brand-light">searchapi.io</a> — free tier: 100 queries/mo',
+          serpapi: 'Get your key at <a href="https://serpapi.com/" target="_blank" class="text-brand-light hover:text-brand-light">serpapi.com</a> — free tier: 100 queries/mo'
+        };
+        help.innerHTML = links[value] || 'Select a provider to see signup details';
+      }
+    }
+
+    function testSearch() {
+      fetch("<%= test_search_integrations_path %>")
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === "connected") {
+            alert(`✅ ${data.provider} working — got ${data.results} results ("${data.first_result}")`)
+          } else {
+            alert(`❌ ${data.message}`)
+          }
+        })
+        .catch(() => alert("❌ Connection failed"))
+    }
+  </script>
+
   <!-- Cloud Storage -->
   <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
     <div class="flex items-center justify-between mb-4">
