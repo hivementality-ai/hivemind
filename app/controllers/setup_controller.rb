@@ -131,9 +131,15 @@ class SetupController < ApplicationController
   # Check Ollama connectivity and fetch available models
   def ollama_models
     url = params[:url].presence || "http://host.docker.internal:11434"
-    uri = URI("#{url}/api/tags")
 
-    http = Net::HTTP.new(uri.host, uri.port)
+    # Validate URL to prevent SSRF
+    uri = URI.parse("#{url}/api/tags")
+    unless uri.is_a?(URI::HTTP) && uri.host.present? && !uri.host.match?(/\A\[?::1?\]?\z/) # allow local but block obvious abuse
+      return render json: { status: "error", message: "Invalid Ollama URL" }, status: :unprocessable_entity
+    end
+
+    http = Net::HTTP.new(uri.host, uri.port) # rubocop:disable Brakeman/FileAccess
+    http.use_ssl = uri.scheme == "https"
     http.open_timeout = 3
     http.read_timeout = 3
 
