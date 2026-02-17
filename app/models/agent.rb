@@ -65,11 +65,11 @@ class Agent < ApplicationRecord
     by_slug(slug).first or raise ActiveRecord::RecordNotFound, "Couldn't find Agent with slug '#{slug}'"
   end
 
-  private
-
   def to_param
     slug
   end
+
+  private
 
   def generate_slug
     self.slug = name.parameterize(separator: "_") if name.present? && slug.blank?
