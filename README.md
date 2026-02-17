@@ -476,6 +476,69 @@ This makes your user the owner so you can inspect agent work anytime.
 
 ---
 
+## Best Practices
+
+### Use local models when possible
+
+Run [Ollama](https://ollama.com) alongside Hivemind and assign local models to agents that don't need frontier-level reasoning. Great for:
+
+- **Triage agents** — Route messages, classify intent, tag tickets
+- **Summarizers** — Condense logs, threads, or documents
+- **Heartbeat/cron tasks** — Periodic checks that don't need deep reasoning
+- **Draft generators** — First-pass content that gets reviewed by a stronger model
+
+Reserve cloud models (Claude, GPT) for complex reasoning, code generation, and production-critical work. This keeps costs low and latency predictable.
+
+### Right-size your models
+
+Not every agent needs the most powerful model. Match the model to the job:
+
+| Task | Recommended |
+|------|-------------|
+| Chat routing, classification | Local (llama3, mistral) |
+| Summarization, formatting | Local or Haiku |
+| Code review, debugging | Sonnet or GPT-4o |
+| Architecture, complex reasoning | Opus or o1 |
+
+You can set different models per agent in the agent settings page.
+
+### Set budgets early
+
+Configure daily and monthly spend limits per agent in **Analytics & Budgets** before giving agents expensive tools. It's easier to raise a limit than to explain an unexpected bill.
+
+### Scope your tools
+
+Don't give every agent access to every tool. A research agent doesn't need `shell`. A code reviewer doesn't need `email`. Use per-agent tool assignment to enforce least-privilege.
+
+### Use teams with clear roles
+
+Agents work better when they have focused roles. Instead of one "do everything" agent:
+
+- Create specialized agents (researcher, coder, reviewer, writer)
+- Group them into a team with a shared soul (team context)
+- Use @mentions in team chat to orchestrate handoffs
+
+### Keep system prompts short
+
+Long system prompts burn tokens on every request. Put stable context in the team soul (shared once) and keep individual agent prompts focused on their specific role and behavior.
+
+### Use the workspace for state
+
+Agents can read/write files in the shared workspace (`~/hivemind-agents-shared/`). Use it for:
+
+- Persistent memory across sessions
+- Shared findings between agents
+- Logs and audit trails
+- Intermediate work products
+
+Files survive restarts. Agent memory doesn't (unless you persist it).
+
+### Monitor before you scale
+
+Start with 2-3 agents. Watch their behavior in team chat. Check analytics for token usage and error rates. Add agents once the workflow is proven.
+
+---
+
 ## Coming from OpenClaw?
 
 Hivemind is designed as a natural upgrade path from OpenClaw. Here's what carries over:
