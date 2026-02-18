@@ -221,6 +221,9 @@ class TeamChatJob < ApplicationJob
       msg_metadata = { model: agent.llm_model, provider: agent.model_provider }
       msg_metadata[:thinking] = thinking_content if thinking_content.present?
 
+      # Strip self-name prefix — LLMs sometimes echo "[Name]: " or "[Name]:" at the start
+      full_content = strip_self_name_prefix(full_content, agent)
+
       Rails.logger.info("TeamChatJob: saving response for #{agent.name}, content length=#{full_content.length}, blank?=#{full_content.blank?}, result_success=#{result&.success?}")
       if full_content.blank?
         Rails.logger.warn("TeamChatJob: empty response from #{agent.name}, result: #{result&.success?}, error: #{result&.error}")
@@ -397,6 +400,22 @@ class TeamChatJob < ApplicationJob
     end
 
     parts.join("\n")
+  end
+
+  # Strip self-referencing name prefixes that LLMs echo back
+  # e.g. "[Chad]: Hello!" → "Hello!", "[Chad] Hello" → "Hello"
+  # Also handles nested: "[Chad]: [Chad]: Hello!" → "Hello!"
+  def strip_self_name_prefix(content, agent)
+    return content if content.blank?
+
+    name = Regexp.escape(agent.name)
+    # Repeatedly strip leading [Name]: or [Name] patterns (handles nested echoing)
+    loop do
+      stripped = content.sub(/\A\s*\[#{name}\]\s*:?\s*/i, "")
+      break if stripped == content
+      content = stripped
+    end
+    content
   end
 
   def resolve_tools(agent)
