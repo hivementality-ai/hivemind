@@ -77,7 +77,7 @@ module Analytics
     def tool_stats
       executions = @agent.tool_executions.where(created_at: @date_range)
       by_tool = executions.joins(:tool).group("tools.name").count
-      success_count = executions.where(success: true).count
+      success_count = executions.where(status: "completed").count
 
       {
         total: executions.count,

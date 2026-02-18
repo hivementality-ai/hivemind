@@ -43,17 +43,39 @@ module Api
       def fetch_anthropic_models
         [
           { id: "claude-opus-4-6", name: "Claude Opus 4.6" },
+          { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
           { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5" },
           { id: "claude-haiku-4-5", name: "Claude Haiku 4.5" }
         ]
       end
 
       def fetch_openai_models
+        # Try to list models dynamically; fall back to known models
+        config = ProviderConfig.find_by(adapter_type: "openai")
+        if config&.api_key.present?
+          begin
+            adapter = Providers::OpenaiAdapter.new(config: config, api_key: config.api_key)
+            result = adapter.models
+            if result.success?
+              return result.data[:models]
+                .select { |m| m.match?(/^(gpt-|o[1-4])/) && !m.include?("realtime") && !m.include?("audio") && !m.include?("image") }
+                .sort
+                .map { |m| { id: m, name: m } }
+            end
+          rescue StandardError => e
+            Rails.logger.warn("Failed to fetch OpenAI models dynamically: #{e.message}")
+          end
+        end
+
+        # Fallback: known models
         [
           { id: "gpt-4.1", name: "GPT-4.1" },
           { id: "gpt-4.1-mini", name: "GPT-4.1 Mini" },
           { id: "gpt-4.1-nano", name: "GPT-4.1 Nano" },
+          { id: "gpt-4o", name: "GPT-4o" },
+          { id: "gpt-4o-mini", name: "GPT-4o Mini" },
           { id: "o3", name: "o3" },
+          { id: "o3-mini", name: "o3 Mini" },
           { id: "o4-mini", name: "o4-mini" }
         ]
       end

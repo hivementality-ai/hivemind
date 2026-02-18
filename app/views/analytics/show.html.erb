@@ -8,7 +8,11 @@
       </div>
       <div>
         <h1 class="text-2xl font-bold text-white"><%= @agent.name %></h1>
-        <p class="text-text-muted"><%= @agent.role %> · <%= @agent.llm_model %></p>
+        <p class="text-text-muted"><%= @agent.role %> · Current: <span class="text-brand-light"><%= @agent.llm_model %></span></p>
+        <% historical_models = @agent.usage_records.distinct.pluck(:llm_model) - [@agent.llm_model] %>
+        <% if historical_models.any? %>
+          <p class="text-text-faint text-xs">Previously used: <%= historical_models.join(", ") %></p>
+        <% end %>
       </div>
     </div>
 
