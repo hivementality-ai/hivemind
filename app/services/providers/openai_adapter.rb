@@ -87,7 +87,15 @@ module Providers
         end
       end
       params[:temperature] = options[:temperature] if options[:temperature]
-      params[:max_tokens] = options[:max_tokens] if options[:max_tokens]
+      if options[:max_tokens]
+        # GPT-5+ and o-series models require max_completion_tokens instead of max_tokens
+        model = options[:model] || params[:model]
+        if model&.match?(/\b(gpt-5|gpt-audio|gpt-realtime|o[1-9]|o3|o4)/i)
+          params[:max_completion_tokens] = options[:max_tokens]
+        else
+          params[:max_tokens] = options[:max_tokens]
+        end
+      end
       params
     end
 

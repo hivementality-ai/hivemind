@@ -25,8 +25,12 @@ class TeamChatJob < ApplicationJob
                           @team.agents.enabled.order(:name).to_a
     end
 
+    @current_round_trigger_id = message.id
+    @current_round_agent_ids_responded = []
+
     agents_to_respond.each do |agent|
       respond_as_agent(agent:, trigger_message: message)
+      @current_round_agent_ids_responded << agent.id
     end
   end
 
@@ -313,7 +317,10 @@ class TeamChatJob < ApplicationJob
           messages << { role: "assistant", content: msg.content }
         else
           sender_name = sender_agent&.name || "Agent"
-          messages << { role: "user", content: "[#{sender_name}]: #{msg.content}" }
+          # Tag messages from agents who responded in this same round as background chatter
+          same_round = @current_round_agent_ids_responded&.include?(sender_agent&.id)
+          prefix = same_round ? "[While you were thinking, #{sender_name} said]" : "[#{sender_name}]"
+          messages << { role: "user", content: "#{prefix}: #{msg.content}" }
         end
       end
     end
@@ -370,16 +377,19 @@ class TeamChatJob < ApplicationJob
     teammates = @team.agents.enabled.where.not(id: agent.id).pluck(:name)
 
     parts = []
-    parts << "You are in a group chat. Be concise and natural — don't introduce yourself or state your role."
-    parts << "Messages from others appear as [Name]: message."
+    parts << "You are #{agent.name} — a team member in a group chat. You have your own personality, opinions, and expertise."
+    parts << "Talk like a real person on a team. Be yourself. Be concise."
     parts << ""
     parts << "Your teammates: #{teammates.map { |n| "@#{n}" }.join(", ")}."
-    parts << "Special mentions: @team (everyone responds), @god (the human who created you)."
-    parts << "You don't need to @mention teammates in every message — just respond naturally."
-    parts << "Only use @Name when you specifically need input or help from that teammate."
-    parts << "Use @god when you need a decision or approval from the human."
+    parts << "The human who created your team: @god."
     parts << ""
-    parts << "Only respond when it's relevant to you. Keep it short."
+    parts << "How this chat works:"
+    parts << "- Messages show as [Name]: message"
+    parts << "- When you address a teammate by name, ALWAYS use @Name (e.g. @#{teammates.first || 'Bobby'}) — never just their bare name"
+    parts << "- @team = everyone, @god = the human"
+    parts << "- You don't have to @mention in every message — just when it's natural"
+    parts << ""
+    parts << "Be a teammate, not a bot. Respond when it's relevant to you. Keep it short."
 
     if @team.soul.present?
       parts << ""
