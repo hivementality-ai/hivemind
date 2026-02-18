@@ -4,12 +4,11 @@ require 'rails_helper'
 
 RSpec.describe Tools::CronExecutor, type: :service do
   let(:agent) { create(:agent, name: "TestAgent") }
-  let(:executor) { described_class.new(agent: agent, input: {}) }
 
   describe "#call" do
     describe "list action" do
       it "returns empty list when no tasks exist" do
-        executor.input = { "action" => "list" }
+        executor = described_class.new(agent: agent, input: { "action" => "list" })
         response = executor.call
 
         expect(response.success?).to be true
@@ -18,7 +17,7 @@ RSpec.describe Tools::CronExecutor, type: :service do
 
       it "lists existing tasks with status and frequency" do
         create(:scheduled_task, agent: agent, name: "Daily Report", schedule: "0 9 * * *")
-        executor.input = { "action" => "list" }
+        executor = described_class.new(agent: agent, input: { "action" => "list" })
         response = executor.call
 
         expect(response.success?).to be true
@@ -28,7 +27,7 @@ RSpec.describe Tools::CronExecutor, type: :service do
 
       it "shows enabled status for active tasks" do
         create(:scheduled_task, agent: agent, enabled: true)
-        executor.input = { "action" => "list" }
+        executor = described_class.new(agent: agent, input: { "action" => "list" })
         response = executor.call
 
         expect(response.data[:output]).to include("✅")
@@ -36,7 +35,7 @@ RSpec.describe Tools::CronExecutor, type: :service do
 
       it "shows disabled status for inactive tasks" do
         create(:scheduled_task, agent: agent, enabled: false)
-        executor.input = { "action" => "list" }
+        executor = described_class.new(agent: agent, input: { "action" => "list" })
         response = executor.call
 
         expect(response.data[:output]).to include("⏸️")
@@ -45,7 +44,7 @@ RSpec.describe Tools::CronExecutor, type: :service do
 
     describe "create action with confirmation (two-stage)" do
       it "returns pending_confirmation status with token" do
-        executor.input = {
+        input = {
           "action" => "create",
           "name" => "Blog Post Auto",
           "schedule" => "0 9 * * 1",
@@ -54,8 +53,9 @@ RSpec.describe Tools::CronExecutor, type: :service do
           "description_hint" => "Generate weekly blog",
           "confirm" => "true"
         }
-
+        executor = described_class.new(agent: agent, input: input)
         response = executor.call
+
         expect(response.success?).to be true
         expect(response.data[:status]).to eq("pending_confirmation")
         expect(response.data[:confirmation_id]).to be_present
@@ -66,49 +66,52 @@ RSpec.describe Tools::CronExecutor, type: :service do
       end
 
       it "validates name is required" do
-        executor.input = {
+        input = {
           "action" => "create",
           "name" => "",
           "schedule" => "0 9 * * *",
           "job_class" => "TestJob",
           "confirm" => "true"
         }
-
+        executor = described_class.new(agent: agent, input: input)
         response = executor.call
+
         expect(response.success?).to be false
         expect(response.error).to include("name required")
       end
 
       it "validates schedule is required" do
-        executor.input = {
+        input = {
           "action" => "create",
           "name" => "Task",
           "schedule" => "",
           "job_class" => "TestJob",
           "confirm" => "true"
         }
-
+        executor = described_class.new(agent: agent, input: input)
         response = executor.call
+
         expect(response.success?).to be false
         expect(response.error).to include("schedule required")
       end
 
       it "validates job_class is required" do
-        executor.input = {
+        input = {
           "action" => "create",
           "name" => "Task",
           "schedule" => "0 9 * * *",
           "job_class" => "",
           "confirm" => "true"
         }
-
+        executor = described_class.new(agent: agent, input: input)
         response = executor.call
+
         expect(response.success?).to be false
         expect(response.error).to include("job_class required")
       end
 
       it "accepts job_params as hash" do
-        executor.input = {
+        input = {
           "action" => "create",
           "name" => "Task",
           "schedule" => "0 9 * * *",
@@ -116,8 +119,9 @@ RSpec.describe Tools::CronExecutor, type: :service do
           "job_params" => { "key" => "value" },
           "confirm" => "true"
         }
-
+        executor = described_class.new(agent: agent, input: input)
         response = executor.call
+
         expect(response.success?).to be true
         expect(response.data[:status]).to eq("pending_confirmation")
       end
@@ -125,7 +129,7 @@ RSpec.describe Tools::CronExecutor, type: :service do
 
     describe "create action without confirmation (legacy)" do
       it "creates task directly when confirm is false" do
-        executor.input = {
+        input = {
           "action" => "create",
           "name" => "Direct Task",
           "schedule" => "0 9 * * *",
@@ -133,8 +137,9 @@ RSpec.describe Tools::CronExecutor, type: :service do
           "job_params" => { "model" => "haiku" },
           "confirm" => "false"
         }
-
+        executor = described_class.new(agent: agent, input: input)
         response = executor.call
+
         expect(response.success?).to be true
         expect(response.data[:status]).to eq("created")
         expect(response.data[:task_id]).to be_present
@@ -149,7 +154,8 @@ RSpec.describe Tools::CronExecutor, type: :service do
 
     describe "confirm_create action" do
       it "returns error when confirmation_id is missing" do
-        executor.input = { "action" => "confirm_create", "confirmation_id" => "" }
+        input = { "action" => "confirm_create", "confirmation_id" => "" }
+        executor = described_class.new(agent: agent, input: input)
         response = executor.call
 
         expect(response.success?).to be false
@@ -157,7 +163,8 @@ RSpec.describe Tools::CronExecutor, type: :service do
       end
 
       it "returns error when confirmation expired" do
-        executor.input = { "action" => "confirm_create", "confirmation_id" => "invalid_token" }
+        input = { "action" => "confirm_create", "confirmation_id" => "invalid_token" }
+        executor = described_class.new(agent: agent, input: input)
         response = executor.call
 
         expect(response.success?).to be false
@@ -167,16 +174,18 @@ RSpec.describe Tools::CronExecutor, type: :service do
     describe "delete action" do
       it "deletes a task" do
         task = create(:scheduled_task, agent: agent)
-        executor.input = { "action" => "delete", "task_id" => task.id.to_s }
-
+        input = { "action" => "delete", "task_id" => task.id.to_s }
+        executor = described_class.new(agent: agent, input: input)
         response = executor.call
+
         expect(response.success?).to be true
         expect(response.data[:output]).to include("Deleted task")
         expect(ScheduledTask.exists?(task.id)).to be false
       end
 
       it "validates task_id is required" do
-        executor.input = { "action" => "delete", "task_id" => "" }
+        input = { "action" => "delete", "task_id" => "" }
+        executor = described_class.new(agent: agent, input: input)
         response = executor.call
 
         expect(response.success?).to be false
@@ -186,9 +195,10 @@ RSpec.describe Tools::CronExecutor, type: :service do
       it "prevents deletion of tasks owned by other agents" do
         other_agent = create(:agent)
         task = create(:scheduled_task, agent: other_agent)
-        executor.input = { "action" => "delete", "task_id" => task.id.to_s }
-
+        input = { "action" => "delete", "task_id" => task.id.to_s }
+        executor = described_class.new(agent: agent, input: input)
         response = executor.call
+
         expect(response.success?).to be false
         expect(response.error).to include("do not own this task")
         expect(ScheduledTask.exists?(task.id)).to be true
@@ -197,7 +207,8 @@ RSpec.describe Tools::CronExecutor, type: :service do
 
     describe "run action" do
       it "validates task_id is required" do
-        executor.input = { "action" => "run", "task_id" => "" }
+        input = { "action" => "run", "task_id" => "" }
+        executor = described_class.new(agent: agent, input: input)
         response = executor.call
 
         expect(response.success?).to be false
@@ -207,9 +218,10 @@ RSpec.describe Tools::CronExecutor, type: :service do
       it "prevents running tasks owned by other agents" do
         other_agent = create(:agent)
         task = create(:scheduled_task, agent: other_agent)
-        executor.input = { "action" => "run", "task_id" => task.id.to_s }
-
+        input = { "action" => "run", "task_id" => task.id.to_s }
+        executor = described_class.new(agent: agent, input: input)
         response = executor.call
+
         expect(response.success?).to be false
         expect(response.error).to include("do not own this task")
       end
@@ -223,18 +235,20 @@ RSpec.describe Tools::CronExecutor, type: :service do
         end)
 
         task = create(:scheduled_task, agent: agent, job_class: "TestExecutableJob")
-        executor.input = { "action" => "run", "task_id" => task.id.to_s }
-
+        input = { "action" => "run", "task_id" => task.id.to_s }
+        executor = described_class.new(agent: agent, input: input)
         response = executor.call
+
         expect(response.success?).to be true
         expect(response.data[:output]).to include("Executed")
       end
 
       it "returns error when job class doesn't exist" do
         task = create(:scheduled_task, agent: agent, job_class: "NonExistentJob")
-        executor.input = { "action" => "run", "task_id" => task.id.to_s }
-
+        input = { "action" => "run", "task_id" => task.id.to_s }
+        executor = described_class.new(agent: agent, input: input)
         response = executor.call
+
         expect(response.success?).to be false
         expect(response.error).to include("Job class not found")
       end
@@ -242,7 +256,8 @@ RSpec.describe Tools::CronExecutor, type: :service do
 
     describe "unknown action" do
       it "returns error for unknown action" do
-        executor.input = { "action" => "unknown_action" }
+        input = { "action" => "unknown_action" }
+        executor = described_class.new(agent: agent, input: input)
         response = executor.call
 
         expect(response.success?).to be false
