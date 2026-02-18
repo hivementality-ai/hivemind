@@ -216,6 +216,12 @@ class TeamChatJob < ApplicationJob
       # Save the agent's response to team chat (thinking stored in metadata, not content)
       msg_metadata = { model: agent.llm_model, provider: agent.model_provider }
       msg_metadata[:thinking] = thinking_content if thinking_content.present?
+
+      if full_content.blank?
+        Rails.logger.warn("TeamChatJob: empty response from #{agent.name}, result: #{result&.success?}, error: #{result&.error}")
+        full_content = "_(No response generated)_"
+      end
+
       agent_message = @session.team_chat_messages.create!(
         sender_type: "agent",
         sender_id: agent.id,
