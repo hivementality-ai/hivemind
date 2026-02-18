@@ -6,10 +6,15 @@ class ScheduledTask < ApplicationRecord
   validates :name, presence: true
   validates :schedule, presence: true
   validates :job_class, presence: true
+  validates :confirmation_status, inclusion: { in: %w[pending active disabled paused] }, allow_nil: true
 
   scope :enabled, -> { where(enabled: true) }
   scope :disabled, -> { where(enabled: false) }
   scope :for_agent, ->(agent) { where(agent: agent) }
+  scope :active, -> { where(confirmation_status: "active") }
+  scope :pending_confirmation, -> { where(confirmation_status: "pending") }
+
+  before_validation :set_default_confirmation_status
 
   def enabled?
     enabled
@@ -27,5 +32,15 @@ class ScheduledTask < ApplicationRecord
     else
       "never_run"
     end
+  end
+
+  def human_readable_schedule
+    CronParser.parse(schedule)
+  end
+
+  private
+
+  def set_default_confirmation_status
+    self.confirmation_status ||= "active"
   end
 end
