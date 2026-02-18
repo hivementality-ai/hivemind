@@ -89,6 +89,29 @@ module Tools
       end
     end
 
+    # Return flat list of missing credential hashes across all provider sets
+    # @param tool [Tool] The tool to check
+    # @return [Array<Hash>] Missing credential entries
+    def self.missing(tool)
+      return [] if tool.required_credentials.blank?
+
+      provider_sets = normalize_provider_sets(tool.required_credentials)
+
+      # If any provider set is fully ready, nothing is "missing"
+      return [] if provider_sets.any? { |ps| provider_set_ready?(ps) }
+
+      # Return missing creds from the first provider set (or all for single-provider)
+      if provider_sets.length == 1
+        provider_sets.first["credentials"].reject { |c| credential_exists?(c) }
+      else
+        # For multi-provider, return all missing grouped by provider
+        provider_sets.flat_map do |ps|
+          ps["credentials"].reject { |c| credential_exists?(c) }
+            .map { |c| c.merge("provider" => ps["provider"]) }
+        end
+      end
+    end
+
     # --- Private helpers ---
 
     # Normalize flat list or multi-provider format into consistent provider sets
