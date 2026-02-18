@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_17_010448) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_18_105215) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -332,16 +332,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_17_010448) do
 
   create_table "scheduled_tasks", force: :cascade do |t|
     t.bigint "agent_id", null: false
+    t.string "confirmation_status", default: "active"
     t.datetime "created_at", null: false
+    t.text "description"
     t.boolean "enabled"
     t.string "job_class"
-    t.string "last_error_at"
+    t.jsonb "job_params"
+    t.datetime "last_error_at"
     t.datetime "last_run_at"
     t.string "name"
     t.datetime "next_run_at"
     t.jsonb "params"
     t.string "schedule"
     t.datetime "updated_at", null: false
+    t.index ["agent_id", "confirmation_status"], name: "index_scheduled_tasks_on_agent_id_and_confirmation_status"
     t.index ["agent_id", "enabled"], name: "index_scheduled_tasks_on_agent_id_and_enabled"
     t.index ["agent_id"], name: "index_scheduled_tasks_on_agent_id"
   end
@@ -467,6 +471,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_17_010448) do
 
   create_table "teams", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.text "custom_soul"
     t.text "description"
     t.string "name"
     t.text "soul"

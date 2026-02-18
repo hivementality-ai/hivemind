@@ -2,7 +2,7 @@
 
 module Tools
   class CronExecutor < BaseExecutor
-    # Manage scheduled tasks — create, list, delete, run
+    # Manage scheduled tasks — create (with confirmation), list, delete, run
     def call
       action = input["action"].to_s.strip
 
@@ -11,12 +11,14 @@ module Tools
         list_tasks
       when "create", "add"
         create_task
+      when "confirm_create"
+        confirm_create_task
       when "delete", "remove"
         delete_task
       when "run"
         run_task
       else
-        ServiceResponse.failure(error: "Unknown cron action: #{action}. Supported: list, create, delete, run")
+        ServiceResponse.failure(error: "Unknown cron action: #{action}. Supported: list, create, confirm_create, delete, run")
       end
     rescue StandardError => e
       ServiceResponse.failure(error: "Cron error: #{e.message}")
@@ -30,7 +32,8 @@ module Tools
       if tasks.any?
         output = tasks.map do |t|
           status = t.enabled? ? "✅" : "⏸️"
-          "#{status} [#{t.id}] #{t.name} — #{t.schedule} (#{t.task_type})"
+          frequency = CronParser.parse(t.schedule)
+          "#{status} [#{t.id}] #{t.name} — #{frequency}"
         end.join("\n")
         ServiceResponse.success(data: { output: "Scheduled tasks:\n#{output}", exit_code: 0 })
       else
@@ -41,26 +44,55 @@ module Tools
     def create_task
       name = input["name"].to_s.strip
       schedule = input["schedule"].to_s.strip
-      command = input["command"].to_s.strip
-      task_type = input["task_type"].to_s.strip.presence || "shell"
+      job_class = input["job_class"].to_s.strip
+      job_params = input["job_params"].is_a?(Hash) ? input["job_params"] : {}
+      description_hint = input["description_hint"].to_s.strip
+      confirm = input["confirm"].to_s.downcase != "false"
 
-      return ServiceResponse.failure(error: "Name required") if name.empty?
-      return ServiceResponse.failure(error: "Schedule required (cron expression or 'every 5m')") if schedule.empty?
-      return ServiceResponse.failure(error: "Command required") if command.empty?
+      # Validate required parameters
+      return ServiceResponse.failure(error: "name required") if name.empty?
+      return ServiceResponse.failure(error: "schedule required (cron expression)") if schedule.empty?
+      return ServiceResponse.failure(error: "job_class required (Sidekiq job class name)") if job_class.empty?
 
-      task = ScheduledTask.create!(
-        name: name,
-        schedule: schedule,
-        command: command,
-        task_type: task_type,
-        agent: agent,
-        enabled: true
+      # Two-stage confirmation flow
+      if confirm
+        # Stage 1: Generate explanation and return pending confirmation
+        result = Agents::CronConfirmation.generate_explanation(
+          agent: agent,
+          name: name,
+          schedule: schedule,
+          job_class: job_class,
+          job_params: job_params,
+          description_hint: description_hint.presence
+        )
+
+        ServiceResponse.success(data: result)
+      else
+        # Legacy mode: Create directly (for testing/trusted contexts)
+        task = create_scheduled_task(name, schedule, job_class, job_params, description_hint)
+        ServiceResponse.success(data: {
+          status: "created",
+          task_id: task.id,
+          message: "#{task.name} scheduled ✅",
+          next_run: task.next_run_at&.strftime("%Y-%m-%d %H:%M:%S %Z") || "Pending"
+        })
+      end
+    end
+
+    def confirm_create_task
+      confirmation_id = input["confirmation_id"].to_s.strip
+      return ServiceResponse.failure(error: "confirmation_id required") if confirmation_id.empty?
+
+      result = Agents::CronConfirmation.confirm_and_persist(
+        confirmation_id: confirmation_id,
+        agent: agent
       )
 
-      ServiceResponse.success(data: {
-        output: "Created scheduled task: #{task.name} (#{task.id})\nSchedule: #{task.schedule}\nCommand: #{task.command}",
-        exit_code: 0
-      })
+      if result[:status] == "error"
+        ServiceResponse.failure(error: result[:message])
+      else
+        ServiceResponse.success(data: result)
+      end
     end
 
     def delete_task
@@ -68,6 +100,10 @@ module Tools
       return ServiceResponse.failure(error: "task_id required") if task_id.empty?
 
       task = ScheduledTask.find(task_id)
+
+      # Verify ownership
+      return ServiceResponse.failure(error: "You do not own this task") unless task.agent_id == agent.id
+
       task.destroy!
 
       ServiceResponse.success(data: { output: "Deleted task: #{task.name}", exit_code: 0 })
@@ -79,18 +115,43 @@ module Tools
 
       task = ScheduledTask.find(task_id)
 
-      # Execute the command immediately
-      case task.task_type
-      when "shell"
-        stdout, stderr, status = Open3.capture3(task.command, timeout: 60)
-        output = stdout.presence || stderr
+      # Verify ownership
+      return ServiceResponse.failure(error: "You do not own this task") unless task.agent_id == agent.id
+
+      # Execute the job immediately
+      begin
+        job_class = Object.const_get(task.job_class)
+        job_class.perform_now(**(task.job_params || {}))
+
         ServiceResponse.success(data: {
-          output: "Ran task #{task.name}:\n#{output.to_s.truncate(5000)}",
-          exit_code: status.exitstatus
+          output: "Executed #{task.name} ✅",
+          exit_code: 0
         })
-      else
-        ServiceResponse.failure(error: "Unsupported task_type: #{task.task_type}")
+      rescue NameError
+        ServiceResponse.failure(error: "Job class not found: #{task.job_class}")
+      rescue StandardError => e
+        # Update task with error info
+        task.update(
+          last_run_at: Time.current,
+          last_error_at: Time.current,
+          last_error_message: e.message
+        )
+
+        ServiceResponse.failure(error: "Job execution failed: #{e.message}")
       end
+    end
+
+    def create_scheduled_task(name, schedule, job_class, job_params, description)
+      ScheduledTask.create!(
+        agent: agent,
+        name: name,
+        schedule: schedule,
+        job_class: job_class,
+        job_params: job_params,
+        description: description.presence,
+        confirmation_status: "active",
+        enabled: true
+      )
     end
   end
 end
