@@ -116,7 +116,12 @@ module Agents
         tool = @tools.find { |t| t.name == tool_name }
 
         unless tool
-          result = "Error: Unknown tool '#{tool_name}'"
+          explanation = Agents::ToolAvailability.explain(
+            tool_name: tool_name,
+            agent: @agent,
+            available_tools: @tools
+          )
+          result = "Tool unavailable: #{explanation}"
           broadcast_tool(tool_name, tool_input, result, success: false)
           next { tool_use_id:, result: }
         end
