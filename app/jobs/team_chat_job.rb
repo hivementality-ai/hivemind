@@ -5,10 +5,14 @@ class TeamChatJob < ApplicationJob
 
   # Process a message in a team chat — route to targeted agent(s), handle responses,
   # and trigger any @mentions in agent responses (chain reactions).
-  def perform(team_chat_session_id, message_id, responding_agent_id: nil)
+  MAX_CHAIN_DEPTH = 2          # Max @mention chain reactions per user message
+  AGENT_COOLDOWN_SECONDS = 10  # Min seconds between an agent's responses
+
+  def perform(team_chat_session_id, message_id, responding_agent_id: nil, chain_depth: 0)
     @session = TeamChatSession.find(team_chat_session_id)
     @team = @session.team
     @channel = "team_chat_#{@session.id}"
+    @chain_depth = chain_depth
     message = TeamChatMessage.find(message_id)
     @trigger_message_images = message.images.attached? ? message.images.to_a : []
     @trigger_message_docs = message.documents.attached? ? message.documents.to_a : []
@@ -23,6 +27,12 @@ class TeamChatJob < ApplicationJob
     else
                           # No @mention or @team — all enabled team agents respond
                           @team.agents.enabled.order(:name).to_a
+    end
+
+    # Apply cooldown — skip agents who responded very recently
+    agents_to_respond = agents_to_respond.reject do |agent|
+      last_msg = @session.team_chat_messages.where(sender_type: "agent", sender_id: agent.id).order(:created_at).last
+      last_msg && last_msg.created_at > AGENT_COOLDOWN_SECONDS.seconds.ago
     end
 
     @current_round_trigger_id = message.id
@@ -221,6 +231,9 @@ class TeamChatJob < ApplicationJob
       msg_metadata = { model: agent.llm_model, provider: agent.model_provider }
       msg_metadata[:thinking] = thinking_content if thinking_content.present?
 
+      # Strip self-name prefix — LLMs sometimes echo "[Name]: " or "[Name]:" at the start
+      full_content = strip_self_name_prefix(full_content, agent)
+
       Rails.logger.info("TeamChatJob: saving response for #{agent.name}, content length=#{full_content.length}, blank?=#{full_content.blank?}, result_success=#{result&.success?}")
       if full_content.blank?
         Rails.logger.warn("TeamChatJob: empty response from #{agent.name}, result: #{result&.success?}, error: #{result&.error}")
@@ -251,10 +264,14 @@ class TeamChatJob < ApplicationJob
         message_id: agent_message.id
       })
 
-      # Check if the agent @mentioned another agent — trigger chain reaction
-      mentions = TeamChatMessage.extract_mentions(full_content, @team)
-      mentions[:agents].reject { |a| a.id == agent.id }.each do |mentioned_agent|
-        TeamChatJob.perform_later(@session.id, agent_message.id, responding_agent_id: mentioned_agent.id)
+      # Check if the agent @mentioned another agent — trigger chain reaction (with depth limit)
+      if @chain_depth < MAX_CHAIN_DEPTH
+        mentions = TeamChatMessage.extract_mentions(full_content, @team)
+        mentions[:agents].reject { |a| a.id == agent.id }.each do |mentioned_agent|
+          TeamChatJob.perform_later(@session.id, agent_message.id, responding_agent_id: mentioned_agent.id, chain_depth: @chain_depth + 1)
+        end
+      else
+        Rails.logger.info("TeamChatJob: chain depth #{@chain_depth} reached max #{MAX_CHAIN_DEPTH}, skipping @mention chains for #{agent.name}")
       end
 
     rescue StandardError => e
@@ -397,6 +414,22 @@ class TeamChatJob < ApplicationJob
     end
 
     parts.join("\n")
+  end
+
+  # Strip self-referencing name prefixes that LLMs echo back
+  # e.g. "[Chad]: Hello!" → "Hello!", "[Chad] Hello" → "Hello"
+  # Also handles nested: "[Chad]: [Chad]: Hello!" → "Hello!"
+  def strip_self_name_prefix(content, agent)
+    return content if content.blank?
+
+    name = Regexp.escape(agent.name)
+    # Repeatedly strip leading [Name]: or [Name] patterns (handles nested echoing)
+    loop do
+      stripped = content.sub(/\A\s*\[#{name}\]\s*:?\s*/i, "")
+      break if stripped == content
+      content = stripped
+    end
+    content
   end
 
   def resolve_tools(agent)

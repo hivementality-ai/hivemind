@@ -56,12 +56,17 @@
           <p class="text-text-faint text-xs mb-3"><%= agent.role %> · <%= agent.llm_model %></p>
 
           <% if cost_data && cost_data[:today_tokens] > 0 %>
+            <% agent_is_local = agent.model_provider == "ollama" || CostEstimator.find_rate(agent.llm_model) == { input: 0, output: 0 } %>
             <div class="border-t border-border-default pt-3 mt-auto">
               <div class="flex items-center justify-between text-xs">
                 <span class="text-text-muted"><%= number_with_delimiter(cost_data[:today_tokens]) %> tokens</span>
-                <span class="text-green-400">$<%= sprintf("%.4f", cost_data[:today_cost_dollars]) %></span>
+                <% if agent_is_local %>
+                  <span class="text-green-400">Free</span>
+                <% else %>
+                  <span class="text-green-400">$<%= sprintf("%.4f", cost_data[:today_cost_dollars]) %></span>
+                <% end %>
               </div>
-              <% if cost_data[:usage_percent] > 0 %>
+              <% if !agent_is_local && cost_data[:usage_percent] > 0 %>
                 <div class="w-full bg-surface-raised rounded-full h-1.5 mt-2">
                   <div class="h-1.5 rounded-full <%= cost_data[:usage_percent] > 80 ? 'bg-red-500' : 'bg-amber-500' %>"
                        style="width: <%= [cost_data[:usage_percent], 100].min %>%"></div>
