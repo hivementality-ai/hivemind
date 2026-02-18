@@ -186,7 +186,7 @@ class SetupController < ApplicationController
   end
 
   def team_params
-    params.require(:team).permit(:name, :description)
+    params.require(:team).permit(:name, :description, :custom_soul)
   end
 
   def agent_params
