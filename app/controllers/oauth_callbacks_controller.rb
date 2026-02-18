@@ -101,13 +101,26 @@ class OauthCallbacksController < ApplicationController
   end
 
   def google_credentials
-    @google_credentials ||= begin
-      config = ProviderConfig.find_by(adapter_type: "google")&.config || {}
-      {
-        client_id: config["client_id"].presence || ENV["GOOGLE_CLIENT_ID"],
-        client_secret: config["client_secret"].presence || ENV["GOOGLE_CLIENT_SECRET"]
-      }
-    end
+    @google_credentials ||= {
+      client_id: resolve_google_credential("client_id", "GOOGLE_CLIENT_ID"),
+      client_secret: resolve_google_credential("client_secret", "GOOGLE_CLIENT_SECRET")
+    }
+  end
+
+  def resolve_google_credential(vault_key, env_key)
+    # 1. Check vault
+    entry = VaultEntry.find_by(namespace: "google", key: vault_key, agent_id: nil)
+    return entry.value if entry
+
+    # 2. Check ProviderConfig
+    config = ProviderConfig.find_by(adapter_type: "google")
+    return config.config[vault_key] if config&.config&.dig(vault_key).present?
+
+    # 3. Fall back to env var
+    ENV[env_key]
+  rescue ActiveRecord::Encryption::Errors::Configuration
+    # AR encryption not configured (running outside Docker) — fall back to env
+    ENV[env_key]
   end
 
   def google_redirect_uri

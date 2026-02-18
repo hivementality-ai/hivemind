@@ -96,6 +96,8 @@ Rails.application.routes.draw do
   post "integrations/cloud_remote", to: "integrations#add_cloud_remote", as: :add_cloud_remote_integrations
   delete "integrations/cloud_remote", to: "integrations#remove_cloud_remote", as: :remove_cloud_remote_integrations
   get "integrations/cloud_remote/test", to: "integrations#test_cloud_remote", as: :test_cloud_remote_integrations
+  patch "integrations/google_oauth", to: "integrations#update_google_oauth", as: :update_google_oauth_integrations
+
   # OAuth callbacks (cloud storage providers)
   get "auth/google/authorize", to: "oauth_callbacks#google_authorize", as: :google_oauth_authorize
   get "auth/google/callback", to: "oauth_callbacks#google_callback", as: :google_oauth_callback

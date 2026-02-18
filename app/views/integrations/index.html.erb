@@ -379,6 +379,42 @@
       </span>
     </div>
 
+    <!-- Google OAuth Setup (admin) -->
+    <% unless @google_oauth_available %>
+      <div class="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-4 mb-6">
+        <p class="text-yellow-300 text-sm font-medium mb-2">⚡ Enable one-click Google Drive</p>
+        <p class="text-text-muted text-xs mb-3">Add your Google OAuth credentials to let users connect Google Drive with a single click instead of using rclone.</p>
+        <details>
+          <summary class="text-yellow-300/80 text-xs cursor-pointer hover:text-yellow-200 transition select-none mb-2">Configure Google OAuth</summary>
+          <div class="mt-3">
+            <%= form_tag update_google_oauth_integrations_path, method: :patch do %>
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-text-muted text-xs mb-1">Client ID</label>
+                  <%= text_field_tag :google_client_id, nil,
+                      placeholder: "xxxx.apps.googleusercontent.com",
+                      class: "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-yellow-500 font-mono text-xs" %>
+                </div>
+                <div>
+                  <label class="block text-text-muted text-xs mb-1">Client Secret</label>
+                  <%= password_field_tag :google_client_secret, nil,
+                      placeholder: "GOCSPX-...",
+                      class: "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-yellow-500 font-mono text-xs" %>
+                </div>
+                <p class="text-text-faint text-xs">
+                  Create at <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-yellow-300/80 hover:underline">Google Cloud Console</a>
+                  → OAuth Client ID → Web application. Redirect URI: <code class="text-text-primary bg-surface-card px-1 rounded"><%= request.base_url %>/auth/google/callback</code>
+                </p>
+                <div class="flex justify-end">
+                  <%= submit_tag "Save", class: "px-4 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-medium rounded-lg transition cursor-pointer" %>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </details>
+      </div>
+    <% end %>
+
     <!-- Existing remotes -->
     <% if @remotes.any? %>
       <div class="space-y-2 mb-6">

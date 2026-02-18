@@ -68,6 +68,19 @@ class IntegrationsController < ApplicationController
     end
   end
 
+  def update_google_oauth
+    client_id = params[:google_client_id].to_s.strip
+    client_secret = params[:google_client_secret].to_s.strip
+
+    if client_id.present? && client_secret.present?
+      store_vault("google", "client_id", client_id)
+      store_vault("google", "client_secret", client_secret)
+      redirect_to integrations_path, notice: "Google OAuth credentials saved ✅"
+    else
+      redirect_to integrations_path, alert: "Both Client ID and Client Secret are required"
+    end
+  end
+
   def update_email
     host = params[:smtp_host].to_s.strip
     port = params[:smtp_port].to_s.strip.presence || "587"
@@ -212,9 +225,15 @@ class IntegrationsController < ApplicationController
   private
 
   def google_oauth_configured?
-    config = ProviderConfig.find_by(adapter_type: "google")&.config || {}
-    client_id = config["client_id"].presence || ENV["GOOGLE_CLIENT_ID"]
-    client_id.present?
+    # Check vault first, then ProviderConfig, then env
+    return true if VaultEntry.exists?(namespace: "google", key: "client_id", agent_id: nil)
+
+    config = ProviderConfig.find_by(adapter_type: "google")
+    return true if config&.config&.dig("client_id").present?
+
+    ENV["GOOGLE_CLIENT_ID"].present?
+  rescue ActiveRecord::Encryption::Errors::Configuration
+    ENV["GOOGLE_CLIENT_ID"].present?
   end
 
   def configure_github_cli(token)
