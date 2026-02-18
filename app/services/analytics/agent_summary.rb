@@ -33,10 +33,10 @@ module Analytics
 
     def date_range_for_period
       case @period
-      when "day" then 1.day.ago..Time.current
-      when "week" then 1.week.ago..Time.current
-      when "month" then 1.month.ago..Time.current
-      else 1.week.ago..Time.current
+      when "day" then Time.current.beginning_of_day..Time.current
+      when "week" then Time.current.beginning_of_week..Time.current
+      when "month" then Time.current.beginning_of_month..Time.current
+      else Time.current.beginning_of_week..Time.current
       end
     end
 

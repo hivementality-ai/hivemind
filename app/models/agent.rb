@@ -96,6 +96,8 @@ class Agent < ApplicationRecord
     {
       total_cost: usage.sum(:cost_cents),
       total_tokens: usage.sum("input_tokens + output_tokens"),
+      input_tokens: usage.sum(:input_tokens),
+      output_tokens: usage.sum(:output_tokens),
       request_count: usage.count
     }
   end

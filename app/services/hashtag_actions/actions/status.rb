@@ -19,7 +19,7 @@ module HashtagActions
           "Session: #{transcript.size} messages",
           "Memories: #{memories_count}",
           "Tools: #{tools_count}",
-          "Usage: #{total_tokens.to_fs(:delimited)} tokens ($#{'%.4f' % total_cost})",
+          "Usage: #{total_tokens.to_fs(:delimited)} tokens ($#{'%.4f' % (total_cost / 100.0)})",
           "Team: #{agent.team&.name || 'none'}"
         ]
 
