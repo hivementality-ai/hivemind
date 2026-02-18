@@ -52,19 +52,26 @@
           <h2 class="text-xl font-semibold mb-4">Today's Usage</h2>
           <div class="space-y-4">
             <div>
+              <% is_local = @agent.model_provider == "ollama" || CostEstimator.find_rate(@agent.llm_model) == { input: 0, output: 0 } %>
               <div class="flex justify-between text-sm mb-2">
                 <span class="text-text-muted">Cost</span>
-                <span class="font-medium text-green-400">$<%= sprintf("%.4f", @usage_today[:total_cost] / 100.0) %></span>
+                <% if is_local %>
+                  <span class="font-medium text-green-400">Free (local)</span>
+                <% else %>
+                  <span class="font-medium text-green-400">$<%= sprintf("%.4f", @usage_today[:total_cost] / 100.0) %></span>
+                <% end %>
               </div>
               <% budget = @agent.daily_budget_limit || 0 %>
               <% usage_dollars = @usage_today[:total_cost] / 100.0 %>
               <% usage_percent = budget.positive? ? (usage_dollars / budget * 100) : 0 %>
+              <% unless is_local %>
               <div class="bg-surface-raised rounded-full h-3">
                 <div class="bg-blue-500 h-3 rounded-full" style="width: <%= [usage_percent, 100].min %>%"></div>
               </div>
               <div class="text-xs text-text-muted mt-1">
                 <%= usage_percent.round(1) %>% of $<%= sprintf("%.2f", budget) %> limit
               </div>
+              <% end %>
             </div>
             <div class="grid grid-cols-2 gap-4 pt-4 border-t border-border-default">
               <div>
