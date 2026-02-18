@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_18_113900) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_18_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -506,6 +506,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_18_113900) do
     t.string "executor_type", null: false
     t.string "name", null: false
     t.jsonb "parameters_schema", default: {}, null: false
+    t.jsonb "required_credentials", default: []
     t.boolean "requires_approval", default: false, null: false
     t.text "script_template"
     t.datetime "updated_at", null: false
@@ -560,9 +561,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_18_113900) do
     t.string "key"
     t.jsonb "metadata"
     t.string "namespace"
+    t.string "tool_binding"
     t.datetime "updated_at", null: false
     t.index ["agent_id", "namespace", "key"], name: "idx_vault_unique_entry", unique: true
     t.index ["agent_id"], name: "index_vault_entries_on_agent_id"
+    t.index ["tool_binding"], name: "index_vault_entries_on_tool_binding"
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"

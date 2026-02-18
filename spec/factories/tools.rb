@@ -8,6 +8,7 @@ FactoryBot.define do
     builtin { false }
     enabled { true }
     config { {} }
+    required_credentials { [] }
     parameters_schema do
       {
         properties: {

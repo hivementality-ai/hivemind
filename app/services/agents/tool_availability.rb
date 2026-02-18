@@ -79,7 +79,15 @@ module Agents
         return no_permission_message(system_tool)
       end
 
-      # Step 4: Check if required provider/config is missing
+      # Step 4: Check if required credentials are missing from vault
+      if system_tool.required_credentials.present?
+        missing = Tools::CredentialChecker.missing(system_tool)
+        if missing.any?
+          return missing_credentials_message(system_tool, missing)
+        end
+      end
+
+      # Step 5: Check if required provider/config is missing (legacy check)
       requirement = TOOL_REQUIREMENTS[@tool_name]
       if requirement&.dig(:provider)
         provider = ProviderConfig.find_by(adapter_type: requirement[:provider], enabled: true) rescue nil
@@ -142,6 +150,14 @@ module Agents
       "I don't have permission to use #{tool.description || tool.name}. " \
         "My admin hasn't granted me access to this tool. " \
         "Ask them to add '#{tool.name}' to my tool list if you'd like me to use it."
+    end
+
+    def missing_credentials_message(tool, missing_creds)
+      names = missing_creds.map { |c| c["description"] || "#{c['namespace']}.#{c['key']}" }
+      tool_desc = tool.description || tool.name
+
+      "#{tool_desc} is installed but missing required credentials: #{names.join(', ')}. " \
+        "Provide these credentials or ask your admin to configure them in the vault."
     end
 
     def missing_provider_message(requirement)
