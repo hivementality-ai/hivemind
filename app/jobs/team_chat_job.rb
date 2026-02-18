@@ -267,7 +267,9 @@ class TeamChatJob < ApplicationJob
       # Check if the agent @mentioned another agent — trigger chain reaction (with depth limit)
       if @chain_depth < MAX_CHAIN_DEPTH
         mentions = TeamChatMessage.extract_mentions(full_content, @team)
-        mentions[:agents].reject { |a| a.id == agent.id }.each do |mentioned_agent|
+        # Skip agents who already responded (or will respond) in this broadcast round
+        broadcast_agent_ids = (@current_round_agent_ids_responded || []) + [agent.id]
+        mentions[:agents].reject { |a| broadcast_agent_ids.include?(a.id) }.each do |mentioned_agent|
           TeamChatJob.perform_later(@session.id, agent_message.id, responding_agent_id: mentioned_agent.id, chain_depth: @chain_depth + 1)
         end
       else
