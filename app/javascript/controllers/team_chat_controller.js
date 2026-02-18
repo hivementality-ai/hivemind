@@ -39,13 +39,14 @@ export default class extends Controller {
     this.scrollToBottom()
     
     // Close hashtag dropdown when clicking outside
-    document.addEventListener('click', this.handleOutsideClick.bind(this))
+    this._boundOutsideClick = this.handleOutsideClick.bind(this)
+    document.addEventListener('click', this._boundOutsideClick)
   }
 
   disconnect() {
     if (this.subscription) this.subscription.unsubscribe()
     if (this.consumer) this.consumer.disconnect()
-    document.removeEventListener('click', this.handleOutsideClick.bind(this))
+    document.removeEventListener('click', this._boundOutsideClick)
   }
 
   // ─── Hashtag Actions ───────────────────────────────────
@@ -139,7 +140,7 @@ export default class extends Controller {
   }
 
   handleOutsideClick(event) {
-    if (!this.element.contains(event.target)) {
+    if (this.hashtagDropdownVisible && this.hasHashtagDropdownTarget && !this.hashtagDropdownTarget.contains(event.target)) {
       this.hideHashtagDropdown()
     }
   }
@@ -789,6 +790,7 @@ export default class extends Controller {
     return raw
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
       .replace(/\son\w+\s*=/gi, " data-blocked=")
+      .trim()
   }
 
   esc(text) {
