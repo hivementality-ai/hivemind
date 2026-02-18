@@ -2,45 +2,122 @@
 
 module Tools
   # Checks if a tool's required credentials are present in the vault.
-  # Used by ToolAvailability to give clear error messages when credentials are missing.
+  # Supports multi-provider credential sets — tool is ready if ANY ONE
+  # provider set is fully configured.
+  #
+  # Schema supports two formats:
+  #
+  # 1. Multi-provider (recommended):
+  #    [
+  #      {"provider": "twilio", "credentials": [{"namespace": "twilio", "key": "auth_token", ...}]},
+  #      {"provider": "telnyx", "credentials": [{"namespace": "telnyx", "key": "api_key", ...}]}
+  #    ]
+  #    Tool is ready if ANY provider set has ALL credentials configured.
+  #
+  # 2. Flat list (legacy/single-provider):
+  #    [{"namespace": "jira", "key": "api_token", ...}]
+  #    Tool is ready if ALL credentials exist.
+  #
   class CredentialChecker
-    # Check if all required credentials for a tool exist in the vault
+    # Check if at least one provider set is fully configured
     # @param tool [Tool] The tool to check
-    # @return [Boolean] true if all credentials are present (or none required)
+    # @return [Boolean] true if ready (or no credentials required)
     def self.ready?(tool)
-      missing(tool).empty?
+      return true if tool.required_credentials.blank?
+
+      provider_sets = normalize_provider_sets(tool.required_credentials)
+      provider_sets.any? { |ps| provider_set_ready?(ps) }
     end
 
-    # List missing credentials for a tool
+    # List which providers are fully configured
     # @param tool [Tool] The tool to check
-    # @return [Array<Hash>] Array of missing credential definitions
-    def self.missing(tool)
+    # @return [Array<String>] Provider names that are ready
+    def self.available_providers(tool)
       return [] if tool.required_credentials.blank?
 
-      tool.required_credentials.reject do |cred|
-        VaultEntry.exists?(
-          namespace: cred["namespace"],
-          key: cred["key"],
-          agent_id: nil # Global entries only
-        )
-      end
+      provider_sets = normalize_provider_sets(tool.required_credentials)
+      provider_sets.select { |ps| provider_set_ready?(ps) }
+                   .map { |ps| ps["provider"] }
     end
 
-    # Human-readable summary of missing credentials
+    # List which providers are NOT fully configured and what's missing
     # @param tool [Tool] The tool to check
-    # @return [String, nil] Description of what's missing, or nil if ready
-    def self.missing_summary(tool)
-      missing_creds = missing(tool)
-      return nil if missing_creds.empty?
+    # @return [Array<Hash>] Provider sets with missing credentials
+    def self.unavailable_providers(tool)
+      return [] if tool.required_credentials.blank?
 
-      names = missing_creds.map { |c| c["description"] || "#{c['namespace']}.#{c['key']}" }
-
-      case names.length
-      when 1
-        "Missing credential: #{names.first}"
-      else
-        "Missing credentials: #{names.join(', ')}"
+      provider_sets = normalize_provider_sets(tool.required_credentials)
+      provider_sets.reject { |ps| provider_set_ready?(ps) }
+                   .map do |ps|
+        missing = ps["credentials"].reject { |c| credential_exists?(c) }
+        { "provider" => ps["provider"], "missing" => missing }
       end
     end
+
+    # Human-readable summary of credential status
+    # @param tool [Tool] The tool to check
+    # @return [String, nil] Description of status, or nil if ready
+    def self.missing_summary(tool)
+      return nil if ready?(tool)
+      return nil if tool.required_credentials.blank?
+
+      provider_sets = normalize_provider_sets(tool.required_credentials)
+
+      if provider_sets.length == 1
+        # Single provider — simple message
+        ps = provider_sets.first
+        missing = ps["credentials"].reject { |c| credential_exists?(c) }
+        names = missing.map { |c| c["description"] || "#{c['namespace']}.#{c['key']}" }
+
+        case names.length
+        when 1 then "Missing credential: #{names.first}"
+        else "Missing credentials: #{names.join(', ')}"
+        end
+      else
+        # Multiple providers — show status of each
+        lines = provider_sets.map do |ps|
+          if provider_set_ready?(ps)
+            "  ✅ #{ps['provider']} — configured"
+          else
+            missing = ps["credentials"].reject { |c| credential_exists?(c) }
+            names = missing.map { |c| c["description"] || c["key"] }
+            "  ❌ #{ps['provider']} — missing: #{names.join(', ')}"
+          end
+        end
+
+        "Requires one of these providers:\n#{lines.join("\n")}\n\nProvide credentials for at least one provider."
+      end
+    end
+
+    # --- Private helpers ---
+
+    # Normalize flat list or multi-provider format into consistent provider sets
+    def self.normalize_provider_sets(required_credentials)
+      return [] if required_credentials.blank?
+
+      first = required_credentials.first
+      if first.is_a?(Hash) && first.key?("provider") && first.key?("credentials")
+        # Already multi-provider format
+        required_credentials
+      else
+        # Flat list — wrap in a single "default" provider set
+        [{ "provider" => "default", "credentials" => required_credentials }]
+      end
+    end
+
+    def self.provider_set_ready?(provider_set)
+      credentials = provider_set["credentials"] || []
+      credentials.all? { |c| credential_exists?(c) }
+    end
+
+    def self.credential_exists?(cred)
+      VaultEntry.exists?(
+        namespace: cred["namespace"],
+        key: cred["key"],
+        agent_id: nil
+      )
+    end
+
+    private_class_method :normalize_provider_sets, :provider_set_ready?, :credential_exists?
   end
 end
