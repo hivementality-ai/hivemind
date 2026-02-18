@@ -124,25 +124,60 @@ check_compose() {
 # Clone or locate repo
 # ----------------------------------------------------------
 setup_repo() {
+  if ! command -v git &>/dev/null; then
+    fail "git is required. Install it first."
+  fi
+
   # If we're already inside the repo (script run from repo dir)
   if [ -f "./docker-compose.yml" ] && [ -f "./.env.example" ]; then
     HIVEMIND_DIR="$(pwd)"
     ok "Using existing repo: $HIVEMIND_DIR"
+    pull_latest_tag
     return
   fi
 
   if [ -d "$HIVEMIND_DIR" ] && [ -f "$HIVEMIND_DIR/docker-compose.yml" ]; then
     ok "Hivemind already cloned: $HIVEMIND_DIR"
+    pull_latest_tag
     return
   fi
 
-  if ! command -v git &>/dev/null; then
-    fail "git is required. Install it first."
+  info "Cloning Hivemind to $HIVEMIND_DIR..."
+  git clone "$REPO_URL" "$HIVEMIND_DIR"
+  ok "Cloned"
+  pull_latest_tag
+}
+
+# ----------------------------------------------------------
+# Pull latest release tag
+# ----------------------------------------------------------
+pull_latest_tag() {
+  cd "$HIVEMIND_DIR"
+
+  info "Fetching latest release..."
+  git fetch origin --tags --quiet
+
+  # Find the latest tag (CalVer: vYYYY.MM.PATCH)
+  local latest_tag
+  latest_tag="$(git tag --sort=-version:refname | head -n 1)"
+
+  if [ -z "$latest_tag" ]; then
+    warn "No release tags found — using main branch"
+    git checkout main --quiet 2>/dev/null || true
+    git pull origin main --quiet
+    return
   fi
 
-  info "Cloning Hivemind to $HIVEMIND_DIR..."
-  git clone --branch "$BRANCH" "$REPO_URL" "$HIVEMIND_DIR"
-  ok "Cloned"
+  local current
+  current="$(git describe --tags --exact-match 2>/dev/null || echo 'none')"
+
+  if [ "$current" = "$latest_tag" ]; then
+    ok "Already on latest release: $latest_tag"
+  else
+    info "Updating to latest release: $latest_tag"
+    git checkout "$latest_tag" --quiet
+    ok "Now on $latest_tag"
+  fi
 }
 
 # ----------------------------------------------------------
@@ -234,9 +269,9 @@ setup_shared_workspace() {
 build_and_start() {
   cd "$HIVEMIND_DIR"
 
-  # Detect version from git tag
+  # Detect version from current tag
   local version
-  version="$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo 'dev')"
+  version="$(git describe --tags --exact-match 2>/dev/null | sed 's/^v//' || git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo 'dev')"
   info "Building containers (version: $version)..."
   HIVEMIND_VERSION="$version" docker compose build --build-arg HIVEMIND_VERSION="$version"
 
