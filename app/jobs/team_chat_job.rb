@@ -217,6 +217,7 @@ class TeamChatJob < ApplicationJob
       msg_metadata = { model: agent.llm_model, provider: agent.model_provider }
       msg_metadata[:thinking] = thinking_content if thinking_content.present?
 
+      Rails.logger.info("TeamChatJob: saving response for #{agent.name}, content length=#{full_content.length}, blank?=#{full_content.blank?}, result_success=#{result&.success?}")
       if full_content.blank?
         Rails.logger.warn("TeamChatJob: empty response from #{agent.name}, result: #{result&.success?}, error: #{result&.error}")
         full_content = "_(No response generated)_"
