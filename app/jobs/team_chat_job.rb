@@ -8,7 +8,7 @@ class TeamChatJob < ApplicationJob
   MAX_CHAIN_DEPTH = 2          # Max @mention chain reactions per user message
   AGENT_COOLDOWN_SECONDS = 10  # Min seconds between an agent's responses
 
-  def perform(team_chat_session_id, message_id, responding_agent_id: nil, chain_depth: 0)
+  def perform(team_chat_session_id, message_id, responding_agent_id: nil, chain_depth: 0, broadcast_agent_ids: [])
     @session = TeamChatSession.find(team_chat_session_id)
     @team = @session.team
     @channel = "team_chat_#{@session.id}"
@@ -37,6 +37,8 @@ class TeamChatJob < ApplicationJob
 
     @current_round_trigger_id = message.id
     @current_round_agent_ids_responded = []
+    # Track all agents in this broadcast so chain reactions don't re-trigger them
+    @broadcast_agent_ids = broadcast_agent_ids.presence || agents_to_respond.map(&:id)
 
     agents_to_respond.each do |agent|
       respond_as_agent(agent:, trigger_message: message)
@@ -268,9 +270,9 @@ class TeamChatJob < ApplicationJob
       if @chain_depth < MAX_CHAIN_DEPTH
         mentions = TeamChatMessage.extract_mentions(full_content, @team)
         # Skip agents who already responded (or will respond) in this broadcast round
-        broadcast_agent_ids = (@current_round_agent_ids_responded || []) + [agent.id]
-        mentions[:agents].reject { |a| broadcast_agent_ids.include?(a.id) }.each do |mentioned_agent|
-          TeamChatJob.perform_later(@session.id, agent_message.id, responding_agent_id: mentioned_agent.id, chain_depth: @chain_depth + 1)
+        skip_ids = ((@current_round_agent_ids_responded || []) + @broadcast_agent_ids + [agent.id]).uniq
+        mentions[:agents].reject { |a| skip_ids.include?(a.id) }.each do |mentioned_agent|
+          TeamChatJob.perform_later(@session.id, agent_message.id, responding_agent_id: mentioned_agent.id, chain_depth: @chain_depth + 1, broadcast_agent_ids: skip_ids)
         end
       else
         Rails.logger.info("TeamChatJob: chain depth #{@chain_depth} reached max #{MAX_CHAIN_DEPTH}, skipping @mention chains for #{agent.name}")
