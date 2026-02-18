@@ -10,7 +10,7 @@ class Tool < ApplicationRecord
   validates :name, presence: true, uniqueness: true
   validates :description, presence: true
   validates :executor_type, presence: true, inclusion: {
-    in: %w[shell file_read file_write file_send file_edit web_search web_fetch http_request browser memory_search image image_generate cron message heartbeat_write delegate spawn spawn_status sessions_list sessions_send sessions_history session_status agents_list gateway tts gmail drive cloud_storage pdf_read jira email custom_script coding_agent coding_agent_status]
+    in: %w[shell file_read file_write file_send file_edit web_search web_fetch http_request browser memory_search image image_generate cron message heartbeat_write delegate spawn spawn_status sessions_list sessions_send sessions_history session_status agents_list gateway tts gmail drive cloud_storage pdf_read jira email custom_script coding_agent coding_agent_status vault voice_call places_search]
   }
   validates :script_template, presence: true, if: -> { executor_type == "custom_script" }
 
@@ -29,6 +29,16 @@ class Tool < ApplicationRecord
         required: parameters_schema["required"] || []
       }
     }
+  end
+
+  # Check if all required credentials are configured in the vault
+  def credentials_ready?
+    Tools::CredentialChecker.ready?(self)
+  end
+
+  # Get human-readable summary of missing credentials
+  def missing_credentials_summary
+    Tools::CredentialChecker.missing_summary(self)
   end
 
   # For custom_script tools, merge script_template into config for the executor
