@@ -3,6 +3,7 @@
 module Agents
   # Checks why a tool is unavailable and returns human-readable explanations
   class ToolAvailability
+    # TODO: Move to db
     TOOL_REQUIREMENTS = {
       "image_generate" => {
         provider: "openai",
