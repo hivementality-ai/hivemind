@@ -12,6 +12,7 @@ class IntegrationsController < ApplicationController
     @search_provider = Search::Resolver.current_provider_name
     @remotes = CloudStorage::ConfigureRemote.list_remotes
     @backends = CloudStorage::ConfigureRemote::BACKENDS
+    @google_oauth_available = google_oauth_configured?
   end
 
   def update_github
@@ -209,6 +210,12 @@ class IntegrationsController < ApplicationController
   end
 
   private
+
+  def google_oauth_configured?
+    config = ProviderConfig.find_by(adapter_type: "google")&.config || {}
+    client_id = config["client_id"].presence || ENV["GOOGLE_CLIENT_ID"]
+    client_id.present?
+  end
 
   def configure_github_cli(token)
     # Write token to workspace volume so gh CLI can use it

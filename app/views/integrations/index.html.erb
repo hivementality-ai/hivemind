@@ -417,7 +417,75 @@
         </select>
       </div>
 
-      <!-- OAuth backends (Drive, Dropbox, OneDrive) -->
+      <!-- Google Drive — One-click OAuth (or rclone fallback) -->
+      <div data-cloud-remote-target="googleDriveSection" style="display: none;">
+        <% if @google_oauth_available %>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-text-muted text-sm mb-1">Remote Name</label>
+              <%= text_field_tag :google_remote_name, "gdrive",
+                  id: "google_remote_name",
+                  placeholder: "e.g. gdrive, my-drive",
+                  class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand" %>
+            </div>
+
+            <div class="bg-surface-base rounded-lg p-4">
+              <p class="text-text-primary text-sm mb-2">Click below to authorize Hivemind to access your Google Drive.</p>
+              <p class="text-text-faint text-xs">You'll be redirected to Google to sign in and grant access, then sent back here automatically.</p>
+            </div>
+
+            <div class="flex justify-end">
+              <a id="google-drive-connect-btn"
+                 href="<%= google_oauth_authorize_path(remote_name: 'gdrive') %>"
+                 class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition"
+                 data-turbo="false">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                Connect with Google
+              </a>
+            </div>
+          </div>
+        <% else %>
+          <!-- Fallback: rclone authorize when Google OAuth not configured -->
+          <%= form_tag add_cloud_remote_integrations_path, method: :post do %>
+            <input type="hidden" name="backend" value="drive">
+            <div class="space-y-4">
+              <div>
+                <label class="block text-text-muted text-sm mb-1">Remote Name</label>
+                <%= text_field_tag :remote_name, nil,
+                    placeholder: "e.g. gdrive",
+                    class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand" %>
+              </div>
+              <div class="bg-surface-base rounded-lg p-4">
+                <p class="text-text-primary text-sm font-medium mb-2">Get your token:</p>
+                <ol class="text-text-muted text-sm space-y-1 list-decimal list-inside">
+                  <li>Install rclone on your local machine: <code class="text-text-primary bg-surface-card px-1 rounded">curl https://rclone.org/install.sh | sudo bash</code></li>
+                  <li>Run: <code class="text-text-primary bg-surface-card px-1 rounded">rclone authorize "drive"</code></li>
+                  <li>Follow the browser prompts to authorize</li>
+                  <li>Copy the JSON token that appears and paste it below</li>
+                </ol>
+              </div>
+              <div>
+                <label class="block text-text-muted text-sm mb-1">Token</label>
+                <%= text_area_tag :token, nil,
+                    placeholder: '{"access_token":"...","token_type":"Bearer","refresh_token":"...","expiry":"..."}',
+                    rows: 3,
+                    class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-xs" %>
+              </div>
+              <div class="flex items-center justify-between">
+                <p class="text-text-faint text-xs">💡 Admin: Set <code>GOOGLE_CLIENT_ID</code> & <code>GOOGLE_CLIENT_SECRET</code> for one-click OAuth</p>
+                <%= submit_tag "Connect", class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+              </div>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+
+      <!-- Other OAuth backends (Dropbox, OneDrive) — still use rclone authorize for now -->
       <div data-cloud-remote-target="oauthSection" style="display: none;">
         <%= form_tag add_cloud_remote_integrations_path, method: :post do %>
           <input type="hidden" name="backend" data-cloud-remote-target="backendField">
@@ -425,7 +493,7 @@
             <div>
               <label class="block text-text-muted text-sm mb-1">Remote Name</label>
               <%= text_field_tag :remote_name, nil,
-                  placeholder: "e.g. gdrive, mydropbox",
+                  placeholder: "e.g. mydropbox, onedrive",
                   class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand" %>
             </div>
 
@@ -433,7 +501,7 @@
               <p class="text-text-primary text-sm font-medium mb-2">Get your token:</p>
               <ol class="text-text-muted text-sm space-y-1 list-decimal list-inside">
                 <li>Install rclone on your local machine: <code class="text-text-primary bg-surface-card px-1 rounded">curl https://rclone.org/install.sh | sudo bash</code></li>
-                <li>Run: <code class="text-text-primary bg-surface-card px-1 rounded">rclone authorize "<span data-cloud-remote-target="authBackend">drive</span>"</code></li>
+                <li>Run: <code class="text-text-primary bg-surface-card px-1 rounded">rclone authorize "<span data-cloud-remote-target="authBackend">dropbox</span>"</code></li>
                 <li>Follow the browser prompts to authorize</li>
                 <li>Copy the JSON token that appears and paste it below</li>
               </ol>
