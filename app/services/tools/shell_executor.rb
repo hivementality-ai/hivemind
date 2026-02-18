@@ -50,6 +50,8 @@ module Tools
       File.chmod(0o755, script_path)
 
       stdout, stderr, status = nil, nil, nil
+      output = ""
+      exit_code = 1
 
       Timeout.timeout(EXEC_TIMEOUT) do
         # Try docker exec into workspace container first
@@ -57,11 +59,14 @@ module Tools
           stdout, stderr, status = Open3.capture3(
             "docker", "exec", WORKSPACE_CONTAINER,
             "bash", "-c",
-            "#{script_path} 2>&1; echo $? > #{exit_path}"
+            "#{script_path} 2>&1; echo \"__HIVEMIND_EXIT__$?\""
           )
 
-          if File.exist?(exit_path)
-            exit_code = File.read(exit_path).strip.to_i
+          # Parse exit code from sentinel line
+          lines = stdout.to_s.lines
+          if lines.last&.start_with?("__HIVEMIND_EXIT__")
+            exit_code = lines.last.sub("__HIVEMIND_EXIT__", "").strip.to_i
+            stdout = lines[0..-2].join
           else
             exit_code = status&.exitstatus || 1
           end

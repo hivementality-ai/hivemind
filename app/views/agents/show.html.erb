@@ -54,10 +54,11 @@
             <div>
               <div class="flex justify-between text-sm mb-2">
                 <span class="text-text-muted">Cost</span>
-                <span class="font-medium text-green-400">$<%= sprintf("%.4f", @usage_today[:total_cost]) %></span>
+                <span class="font-medium text-green-400">$<%= sprintf("%.4f", @usage_today[:total_cost] / 100.0) %></span>
               </div>
               <% budget = @agent.daily_budget_limit || 0 %>
-              <% usage_percent = budget.positive? ? (@usage_today[:total_cost] / budget * 100) : 0 %>
+              <% usage_dollars = @usage_today[:total_cost] / 100.0 %>
+              <% usage_percent = budget.positive? ? (usage_dollars / budget * 100) : 0 %>
               <div class="bg-surface-raised rounded-full h-3">
                 <div class="bg-blue-500 h-3 rounded-full" style="width: <%= [usage_percent, 100].min %>%"></div>
               </div>
@@ -69,6 +70,10 @@
               <div>
                 <div class="text-sm text-text-muted">Tokens</div>
                 <div class="text-lg font-medium"><%= number_with_delimiter(@usage_today[:total_tokens]) %></div>
+                <div class="text-xs text-text-faint mt-1">
+                  <span class="text-blue-400"><%= number_with_delimiter(@usage_today[:input_tokens]) %></span> in /
+                  <span class="text-amber-400"><%= number_with_delimiter(@usage_today[:output_tokens]) %></span> out
+                </div>
               </div>
               <div>
                 <div class="text-sm text-text-muted">Requests</div>

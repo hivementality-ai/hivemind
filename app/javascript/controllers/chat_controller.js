@@ -170,6 +170,7 @@ export default class extends Controller {
         break
       case "tool_start":
         this.hideThinking()
+        this.finishStreamBubble()
         this.showToolStart(data.tool, data.input)
         break
       case "tool_result":
@@ -643,6 +644,14 @@ export default class extends Controller {
     if (bytes < 1024) return `${bytes}B`
     if (bytes < 1048576) return `${(bytes/1024).toFixed(1)}KB`
     return `${(bytes/1048576).toFixed(1)}MB`
+  }
+
+  finishStreamBubble() {
+    if (this.streamBubble && this.streamRawText) {
+      this.streamBubble.innerHTML = this.renderMarkdown(this.streamRawText)
+    }
+    this.streamBubble = null
+    this.streamRawText = ""
   }
 
   finishStream() {

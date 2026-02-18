@@ -141,7 +141,9 @@
               <th class="px-4 py-2 text-left">Model</th>
               <th class="px-4 py-2 text-right">In</th>
               <th class="px-4 py-2 text-right">Out</th>
-              <th class="px-4 py-2 text-right">Cost</th>
+              <th class="px-4 py-2 text-right">In Cost</th>
+              <th class="px-4 py-2 text-right">Out Cost</th>
+              <th class="px-4 py-2 text-right">Total</th>
               <th class="px-4 py-2 text-right">When</th>
             </tr>
           </thead>
@@ -152,7 +154,10 @@
                 <td class="px-4 py-2 text-text-muted"><%= ur.llm_model %></td>
                 <td class="px-4 py-2 text-right text-text-primary"><%= number_with_delimiter(ur.input_tokens) %></td>
                 <td class="px-4 py-2 text-right text-text-primary"><%= number_with_delimiter(ur.output_tokens) %></td>
-                <td class="px-4 py-2 text-right text-green-400">$<%= sprintf("%.4f", ur.cost_cents / 100.0) %></td>
+                <% breakdown = CostEstimator.breakdown(model: ur.llm_model, input_tokens: ur.input_tokens, output_tokens: ur.output_tokens) %>
+                <td class="px-4 py-2 text-right text-blue-400">$<%= sprintf("%.4f", breakdown[:input_cost_cents] / 100.0) %></td>
+                <td class="px-4 py-2 text-right text-amber-400">$<%= sprintf("%.4f", breakdown[:output_cost_cents] / 100.0) %></td>
+                <td class="px-4 py-2 text-right text-green-400">$<%= sprintf("%.4f", breakdown[:total_cost_cents] / 100.0) %></td>
                 <td class="px-4 py-2 text-right text-text-faint"><%= time_ago_in_words(ur.created_at) %> ago</td>
               </tr>
             <% end %>
