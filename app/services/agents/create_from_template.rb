@@ -25,11 +25,13 @@ module Agents
 
       if agent.save
         setup_workspace(agent)
+        setup_skills(agent)
 
-        Audit::Log.call(
-          actor: "system",
+        Audit::Record.call(
+          actor_type: "system",
+          actor_id: "template_deploy",
           action: "agent.created_from_template",
-          resource: agent,
+          resource: { "type" => "Agent", "id" => agent.id },
           metadata: { template_id: @template.id, template_name: @template.name }
         )
 
@@ -58,6 +60,20 @@ module Agents
 
       # Update agent with workspace path
       agent.update(workspace_path: workspace_path.to_s)
+    end
+
+    def setup_skills(agent)
+      return unless @template.skills_config.present?
+
+      enabled_skills = @template.skills_config["enabled"] || []
+      return if enabled_skills.empty?
+
+      # Find skills and associate them with the agent
+      skills = Skill.where(name: enabled_skills, enabled: true)
+      agent.skills = skills
+
+      # Also sync the required tools for these skills
+      Agents::SyncSkillTools.call(agent: agent) if skills.any?
     end
   end
 end

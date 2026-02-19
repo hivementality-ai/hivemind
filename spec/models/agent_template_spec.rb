@@ -54,4 +54,22 @@ RSpec.describe AgentTemplate, type: :model do
       template.deploy(name: "Custom Agent")
     end
   end
+
+  describe "skills_config" do
+    it "defaults to empty hash" do
+      template = build(:agent_template)
+      expect(template.skills_config).to eq({})
+    end
+
+    it "accepts skills_config with enabled array" do
+      template = build(:agent_template, skills_config: { enabled: [ "github", "git" ] })
+      expect(template).to be_valid
+      expect(template.skills_config["enabled"]).to eq([ "github", "git" ])
+    end
+
+    it "accepts empty skills_config" do
+      template = build(:agent_template, skills_config: {})
+      expect(template).to be_valid
+    end
+  end
 end
