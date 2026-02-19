@@ -57,7 +57,10 @@ module Providers
         role = m[:role].to_s
 
         if role == "tool"
-          { role: "tool", content: m[:content].to_s }
+          msg = { role: "tool", content: m[:content].to_s }
+          # Ollama requires tool_name to match results back to calls
+          msg[:tool_name] = m[:tool_name] if m[:tool_name].present?
+          msg
         elsif role == "assistant" && m[:tool_calls].present?
           ollama_tool_calls = m[:tool_calls].map do |tc|
             { function: { name: tc["name"], arguments: tc["input"] || {} } }
@@ -141,10 +144,14 @@ module Providers
 
       # Normalize tool calls to match expected format
       tool_calls = raw_tool_calls&.map do |tc|
+        args = tc.dig("function", "arguments") || {}
+        # Some models return stringified JSON for arguments
+        args = JSON.parse(args) if args.is_a?(String) rescue args
+
         {
           "id" => "ollama_#{SecureRandom.hex(4)}",
           "name" => tc.dig("function", "name"),
-          "input" => tc.dig("function", "arguments") || {}
+          "input" => args
         }
       end
 

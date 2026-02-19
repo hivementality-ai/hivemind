@@ -67,6 +67,7 @@ module Agents
             @messages << {
               role: "tool",
               tool_use_id: tr[:tool_use_id],
+              tool_name: tr[:tool_name],
               content: tr[:result]
             }.with_indifferent_access
           end
@@ -123,7 +124,7 @@ module Agents
           )
           result = "Tool unavailable: #{explanation}"
           broadcast_tool(tool_name, tool_input, result, success: false)
-          next { tool_use_id:, result: }
+          next { tool_use_id:, tool_name:, result: }
         end
 
         # Broadcast that we're running a tool
@@ -145,7 +146,7 @@ module Agents
           broadcast(type: "tool_result", tool: tool_name, output: result.truncate(500), success: false)
         end
 
-        { tool_use_id:, result: }
+        { tool_use_id:, tool_name:, result: }
       end
     end
 
