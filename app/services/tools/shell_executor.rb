@@ -50,7 +50,7 @@ module Tools
 
       # Write script from inside workspace container (correct uid)
       IO.popen(
-        ["docker", "exec", "-i", WORKSPACE_CONTAINER, "bash", "-c", "cat > #{script_path} && chmod 755 #{script_path}"],
+        [ "docker", "exec", "-i", WORKSPACE_CONTAINER, "bash", "-c", "cat > #{script_path} && chmod 755 #{script_path}" ],
         "w"
       ) { |io| io.write(script_content) }
 

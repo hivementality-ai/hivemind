@@ -25,7 +25,7 @@ module Tools
       Open3.capture3("docker", "exec", WORKSPACE_CONTAINER, "mkdir", "-p", dir)
 
       IO.popen(
-        ["docker", "exec", "-i", WORKSPACE_CONTAINER, "bash", "-c", "cat > #{shell_escape(path)}"],
+        [ "docker", "exec", "-i", WORKSPACE_CONTAINER, "bash", "-c", "cat > #{shell_escape(path)}" ],
         "w"
       ) { |io| io.write(content) }
     end
