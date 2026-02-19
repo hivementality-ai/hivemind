@@ -466,6 +466,41 @@ BUILTIN_TOOLS = [
       },
       "required" => [ "action" ]
     }
+  },
+  {
+    name: "ask_user",
+    description: "Pause execution and ask the user a clarifying question. The agent waits for the user's response before continuing. Use when you need user input to complete a task properly.",
+    executor_type: "ask_user",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "question" => {
+          "type" => "string",
+          "description" => "The question to ask the user. Be specific and clear about what information you need."
+        }
+      },
+      "required" => [ "question" ]
+    }
+  },
+  {
+    name: "plan_mode",
+    description: "Enter or exit planning mode. In planning mode, tool calls are shown differently in the UI to indicate the agent is exploring and planning rather than implementing.",
+    executor_type: "plan_mode",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "action" => {
+          "type" => "string",
+          "description" => "Action to perform: 'enter' to start planning mode, or 'exit' to end planning mode",
+          "enum" => [ "enter", "exit" ]
+        },
+        "summary" => {
+          "type" => "string",
+          "description" => "Optional summary of the plan when exiting planning mode"
+        }
+      },
+      "required" => [ "action" ]
+    }
   }
 ].freeze
 

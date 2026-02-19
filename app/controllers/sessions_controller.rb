@@ -60,6 +60,12 @@ class SessionsController < ApplicationController
       return
     end
 
+    # Check if there's a pending ask_user question
+    if handle_pending_question(user_message)
+      head :ok
+      return
+    end
+
     attachment_ids = process_attachments
 
     ChatStreamJob.perform_later(@session.id, user_message.to_s, attachment_ids)
@@ -67,6 +73,50 @@ class SessionsController < ApplicationController
   end
 
   private
+
+  def handle_pending_question(user_message)
+    redis_key = "ask_user_pending:#{@session.id}"
+    cached_data = Rails.cache.read(redis_key)
+
+    return false unless cached_data
+
+    begin
+      parsed_data = JSON.parse(cached_data)
+
+      # Check if question hasn't timed out
+      timeout_at = Time.parse(parsed_data["timeout_at"])
+      if Time.current > timeout_at
+        Rails.cache.delete(redis_key)
+        return false
+      end
+
+      # Store the user's answer in the cached data
+      parsed_data["answer"] = user_message
+      parsed_data["answered_at"] = Time.current.iso8601
+      Rails.cache.write(redis_key, parsed_data.to_json, expires_in: 60)
+
+      # Broadcast the user's response to show it in chat
+      channel = "session_#{@session.id}"
+      ActionCable.server.broadcast(channel, {
+        type: "user_message",
+        content: user_message
+      })
+
+      # Add to transcript
+      @session.transcript << {
+        "role" => "user",
+        "content" => user_message,
+        "timestamp" => Time.current.iso8601,
+        "is_question_response" => true
+      }
+      @session.save!
+
+      true
+    rescue JSON::ParserError
+      Rails.cache.delete(redis_key)
+      false
+    end
+  end
 
   def set_agent
     @agent = Agent.by_slug(params[:agent_id]).first || Agent.find_by(id: params[:agent_id])
