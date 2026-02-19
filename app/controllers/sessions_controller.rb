@@ -14,7 +14,7 @@ class SessionsController < ApplicationController
 
     # If agent_id is passed via GET, auto-create a session and redirect to chat
     if params[:agent_id].present? && request.get?
-      agent = Agent.find_by_slug(params[:agent_id]) || Agent.find_by(id: params[:agent_id])
+      agent = Agent.by_slug(params[:agent_id]).first || Agent.find_by(id: params[:agent_id])
       if agent
         session = Session.create!(
           agent: agent,
@@ -69,7 +69,7 @@ class SessionsController < ApplicationController
   private
 
   def set_agent
-    @agent = Agent.find_by_slug(params[:agent_id]) || Agent.find_by(id: params[:agent_id])
+    @agent = Agent.by_slug(params[:agent_id]).first || Agent.find_by(id: params[:agent_id])
     render file: "public/404.html", status: :not_found unless @agent
   end
 
