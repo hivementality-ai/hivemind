@@ -2,7 +2,7 @@
 
 module Agents
   class ToolLoop
-    MAX_ITERATIONS = 10
+    MAX_ITERATIONS = 30
 
     def self.call(adapter:, agent:, session:, messages:, tools:, channel:, options: {}, broadcast_extras: {})
       new(adapter:, agent:, session:, messages:, tools:, channel:, options:, broadcast_extras:).call
