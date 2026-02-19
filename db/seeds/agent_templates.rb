@@ -20,7 +20,10 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "file_ops", "exec", "web_search", "web_fetch" ]
+      enabled: [ "file_read", "file_write", "file_edit", "shell", "web_search", "web_fetch" ]
+    },
+    skills_config: {
+      enabled: [ "github", "git" ]
     },
     soul_md: <<~SOUL
       # Code Reviewer
@@ -56,7 +59,10 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "file_ops", "memory" ]
+      enabled: [ "web_search", "web_fetch", "file_read", "file_write", "file_edit", "memory_search", "pdf_read" ]
+    },
+    skills_config: {
+      enabled: [ "summarize" ]
     },
     soul_md: <<~SOUL
       # Research Analyst
@@ -93,7 +99,10 @@ templates = [
       temperature: 0.2
     },
     tools_config: {
-      enabled: [ "exec", "file_ops", "web_search", "platform" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "gateway", "cloud_storage" ]
+    },
+    skills_config: {
+      enabled: [ "docker", "git", "github" ]
     },
     soul_md: <<~SOUL
       # DevOps Engineer
@@ -130,7 +139,10 @@ templates = [
       temperature: 0.7
     },
     tools_config: {
-      enabled: [ "file_ops", "web_search", "web_fetch" ]
+      enabled: [ "file_read", "file_write", "file_edit", "file_send", "web_search", "web_fetch" ]
+    },
+    skills_config: {
+      enabled: [ "github", "git", "summarize" ]
     },
     soul_md: <<~SOUL
       # Technical Writer
@@ -167,7 +179,10 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "exec", "file_ops", "web_search" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "file_send", "web_search", "pdf_read", "image", "cloud_storage" ]
+    },
+    skills_config: {
+      enabled: [ ]
     },
     soul_md: <<~SOUL
       # Data Analyst
@@ -205,7 +220,10 @@ templates = [
       temperature: 0.2
     },
     tools_config: {
-      enabled: [ "file_ops", "exec", "web_search" ]
+      enabled: [ "file_read", "file_write", "file_edit", "shell", "web_search", "web_fetch", "pdf_read" ]
+    },
+    skills_config: {
+      enabled: [ "github", "git" ]
     },
     soul_md: <<~SOUL
       # Security Auditor
@@ -243,7 +261,10 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "file_ops", "memory", "message" ]
+      enabled: [ "file_read", "file_write", "file_edit", "memory_search", "message", "cron", "email" ]
+    },
+    skills_config: {
+      enabled: [ "trello", "google-calendar" ]
     },
     soul_md: <<~SOUL
       # Project Manager
@@ -281,7 +302,10 @@ templates = [
       temperature: 0.8
     },
     tools_config: {
-      enabled: [ "file_ops", "web_search", "memory" ]
+      enabled: [ "file_read", "file_write", "file_edit", "file_send", "web_search", "web_fetch", "memory_search", "image_generate" ]
+    },
+    skills_config: {
+      enabled: [ ]
     },
     soul_md: <<~SOUL
       # Creative Writer
@@ -319,7 +343,10 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "file_ops", "exec", "web_search", "web_fetch", "memory" ]
+      enabled: [ "file_read", "file_write", "file_edit", "shell", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+    },
+    skills_config: {
+      enabled: [ "github", "git", "docker" ]
     },
     soul_md: <<~SOUL
       # Software Engineer
@@ -356,7 +383,10 @@ templates = [
       temperature: 0.2
     },
     tools_config: {
-      enabled: [ "file_ops", "exec", "web_search", "web_fetch" ]
+      enabled: [ "file_read", "file_write", "file_edit", "shell", "web_search", "web_fetch", "browser" ]
+    },
+    skills_config: {
+      enabled: [ "github", "git" ]
     },
     soul_md: <<~SOUL
       # Software Tester
@@ -403,7 +433,8 @@ templates = [
     version: "1.0.0",
     system_prompt: "You are a proactive administrative assistant. You manage schedules, draft emails, set reminders, and keep things organized. Anticipate needs and communicate clearly.",
     model_config: { provider: "anthropic", model: "claude-haiku-4-5", temperature: 0.4 },
-    tools_config: { enabled: [ "email", "cron", "web_search", "memory" ] },
+    tools_config: { enabled: [ "email", "gmail", "cron", "web_search", "memory_search", "message", "file_read", "file_write" ] },
+    skills_config: { enabled: [ "google-calendar" ] },
     soul_md: <<~SOUL
       # Administrative Assistant
 
@@ -431,7 +462,8 @@ templates = [
     version: "1.0.0",
     system_prompt: "You are a passionate, knowledgeable sports fan. You know scores, stats, standings, and storylines. Be fun, opinionated, and back it up with facts.",
     model_config: { provider: "anthropic", model: "claude-haiku-4-5", temperature: 0.7 },
-    tools_config: { enabled: [ "web_search", "web_fetch", "memory" ] },
+    tools_config: { enabled: [ "web_search", "web_fetch", "memory_search" ] },
+    skills_config: { enabled: [ ] },
     soul_md: <<~SOUL
       # Sports Fan
 
@@ -459,7 +491,8 @@ templates = [
     version: "1.0.0",
     system_prompt: "You are a skilled home chef. You create recipes, suggest meal plans, offer cooking tips, and help with substitutions. Flavor first, fuss second.",
     model_config: { provider: "anthropic", model: "claude-haiku-4-5", temperature: 0.6 },
-    tools_config: { enabled: [ "web_search", "web_fetch", "memory" ] },
+    tools_config: { enabled: [ "web_search", "web_fetch", "memory_search" ] },
+    skills_config: { enabled: [ ] },
     soul_md: <<~SOUL
       # Chef
 
@@ -487,7 +520,8 @@ templates = [
     version: "1.0.0",
     system_prompt: "You are a knowledgeable fitness coach. You design workouts, explain form, and motivate. Safety first. Tailor to the individual.",
     model_config: { provider: "anthropic", model: "claude-haiku-4-5", temperature: 0.5 },
-    tools_config: { enabled: [ "web_search", "memory" ] },
+    tools_config: { enabled: [ "web_search", "memory_search", "cron" ] },
+    skills_config: { enabled: [ ] },
     soul_md: <<~SOUL
       # Fitness Coach
 
@@ -515,7 +549,8 @@ templates = [
     version: "1.0.0",
     system_prompt: "You are an experienced travel planner. You research destinations, build itineraries, and share practical tips. Balance highlights with hidden gems.",
     model_config: { provider: "anthropic", model: "claude-haiku-4-5", temperature: 0.6 },
-    tools_config: { enabled: [ "web_search", "web_fetch", "memory" ] },
+    tools_config: { enabled: [ "web_search", "web_fetch", "memory_search", "file_write" ] },
+    skills_config: { enabled: [ "google-calendar", "weather" ] },
     soul_md: <<~SOUL
       # Travel Planner
 
@@ -543,7 +578,8 @@ templates = [
     version: "1.0.0",
     system_prompt: "You are a passionate music expert. Deep knowledge across genres and eras. Recommend, curate, and connect the dots between artists and movements.",
     model_config: { provider: "anthropic", model: "claude-haiku-4-5", temperature: 0.7 },
-    tools_config: { enabled: [ "web_search", "web_fetch", "memory" ] },
+    tools_config: { enabled: [ "web_search", "web_fetch", "memory_search" ] },
+    skills_config: { enabled: [ ] },
     soul_md: <<~SOUL
       # Music Nerd
 

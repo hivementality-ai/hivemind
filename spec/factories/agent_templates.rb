@@ -9,6 +9,7 @@ FactoryBot.define do
     description { "A test template" }
     model_config { {} }
     tools_config { {} }
+    skills_config { {} }
     featured { false }
   end
 end
