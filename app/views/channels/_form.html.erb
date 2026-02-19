@@ -5,7 +5,7 @@
     <%= channel.new_record? ? "Add Channel" : "Edit #{channel.name}" %>
   </h1>
 
-  <%= form_with model: channel, class: "space-y-6" do |f| %>
+  <%= form_with model: channel, class: "space-y-6", data: { controller: "channel-fields", channel_fields_type_value: channel.channel_type } do |f| %>
     <% if channel.errors.any? %>
       <div class="bg-red-900/30 border border-red-600 rounded-lg p-4">
         <% channel.errors.full_messages.each do |msg| %>
@@ -75,29 +75,101 @@
     <hr class="border-border-default">
 
     <!-- Agent Bot Assignments (Slack only) -->
-    <% if channel.channel_type == "slack" %>
+    <div data-channel-fields-target="slackExtra" style="<%= channel.channel_type == 'slack' ? '' : 'display: none;' %>">
       <%= render "agent_assignments", channel: channel %>
       <hr class="border-border-default">
-    <% end %>
+    </div>
 
     <div>
       <h3 class="text-white font-semibold mb-3">Credentials</h3>
       <p class="text-text-faint text-sm mb-4">Stored encrypted in the vault. Leave blank to keep existing.</p>
 
-      <div class="space-y-4">
+      <!-- Discord -->
+      <div class="space-y-4" data-channel-fields-target="discord" style="display: none;">
         <div>
-          <label class="block text-text-muted text-sm mb-1">Bot Token / Access Token</label>
-          <%= text_field_tag "credentials[bot_token]", nil, placeholder: "Enter token...",
-              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand",
+          <label class="block text-text-muted text-sm mb-1">Bot Token</label>
+          <%= text_field_tag "credentials[bot_token]", nil, placeholder: "Paste your Discord bot token...",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm",
               autocomplete: "off" %>
+          <p class="text-text-faint text-xs mt-1">From <a href="https://discord.com/developers/applications" target="_blank" class="text-brand-light hover:underline">Discord Developer Portal</a> → Bot → Token</p>
         </div>
+      </div>
 
+      <!-- Slack -->
+      <div class="space-y-4" data-channel-fields-target="slack" style="display: none;">
         <div>
-          <label class="block text-text-muted text-sm mb-1">Webhook Secret / Signing Secret</label>
-          <%= text_field_tag "credentials[webhook_secret]", nil, placeholder: "Optional...",
-              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand",
+          <label class="block text-text-muted text-sm mb-1">Bot Token</label>
+          <%= text_field_tag "credentials[bot_token]", nil, placeholder: "xoxb-...",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm",
               autocomplete: "off" %>
+          <p class="text-text-faint text-xs mt-1">From your Slack app's OAuth & Permissions page</p>
         </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Signing Secret</label>
+          <%= text_field_tag "credentials[webhook_secret]", nil, placeholder: "Your Slack signing secret...",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm",
+              autocomplete: "off" %>
+          <p class="text-text-faint text-xs mt-1">From Basic Information → App Credentials → Signing Secret</p>
+        </div>
+      </div>
+
+      <!-- Telegram -->
+      <div class="space-y-4" data-channel-fields-target="telegram" style="display: none;">
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Bot Token</label>
+          <%= text_field_tag "credentials[bot_token]", nil, placeholder: "123456789:ABCdef...",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm",
+              autocomplete: "off" %>
+          <p class="text-text-faint text-xs mt-1">From <a href="https://t.me/BotFather" target="_blank" class="text-brand-light hover:underline">@BotFather</a> on Telegram</p>
+        </div>
+      </div>
+
+      <!-- WhatsApp -->
+      <div class="space-y-4" data-channel-fields-target="whatsapp" style="display: none;">
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Access Token</label>
+          <%= text_field_tag "credentials[bot_token]", nil, placeholder: "Your WhatsApp Cloud API access token...",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm",
+              autocomplete: "off" %>
+          <p class="text-text-faint text-xs mt-1">From <a href="https://developers.facebook.com" target="_blank" class="text-brand-light hover:underline">Meta Developer Portal</a> → WhatsApp → API Setup</p>
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Phone Number ID</label>
+          <%= text_field_tag "channel[config][phone_number_id]", channel.config&.dig("phone_number_id"),
+              placeholder: "e.g. 123456789012345",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm" %>
+          <p class="text-text-faint text-xs mt-1">From WhatsApp → API Setup → Phone Number ID</p>
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Verify Token</label>
+          <%= text_field_tag "credentials[webhook_secret]", nil, placeholder: "Your webhook verify token...",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm",
+              autocomplete: "off" %>
+          <p class="text-text-faint text-xs mt-1">The token you set when configuring your webhook URL in Meta</p>
+        </div>
+      </div>
+
+      <!-- Signal -->
+      <div class="space-y-4" data-channel-fields-target="signal" style="display: none;">
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Phone Number</label>
+          <%= text_field_tag "channel[config][phone_number]", channel.config&.dig("phone_number"),
+              placeholder: "+1234567890",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm" %>
+          <p class="text-text-faint text-xs mt-1">The phone number registered with Signal</p>
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Signal CLI API URL</label>
+          <%= text_field_tag "channel[config][signal_api_url]", channel.config&.dig("signal_api_url"),
+              placeholder: "http://signal-cli:8080",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm" %>
+          <p class="text-text-faint text-xs mt-1">URL of the signal-cli-rest-api container</p>
+        </div>
+      </div>
+
+      <!-- Fallback: no platform selected -->
+      <div data-channel-fields-target="none">
+        <p class="text-text-faint text-sm italic">Select a platform above to see required credentials.</p>
       </div>
     </div>
 
