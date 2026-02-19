@@ -4,7 +4,7 @@ require "stringio"
 
 module Tools
   class FileSendExecutor < BaseExecutor
-    WORKSPACE_ROOT = WorkspaceIO::WORKSPACE_ROOT
+    WORKSPACE_ROOT = "/workspace"
 
     def call
       path = input["path"].to_s.strip
@@ -14,12 +14,12 @@ module Tools
 
       full_path = path.start_with?("/") ? path : File.join(WORKSPACE_ROOT, path)
 
-      unless WorkspaceIO.file_exists?(full_path)
+      unless WorkspaceIo.file_exists?(full_path)
         return ServiceResponse.failure(error: "File not found: #{path}")
       end
 
       # Read file content via workspace container
-      content = WorkspaceIO.read_file(full_path)
+      content = WorkspaceIo.read_file(full_path)
       byte_size = content.bytesize
 
       # Detect MIME type

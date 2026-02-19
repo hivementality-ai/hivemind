@@ -3,7 +3,7 @@
 module Tools
   class FileReadExecutor < BaseExecutor
     MAX_SIZE = 100_000
-    WORKSPACE_ROOT = WorkspaceIO::WORKSPACE_ROOT
+    WORKSPACE_ROOT = "/workspace"
 
     def call
       path = input["path"].to_s.strip
@@ -11,11 +11,11 @@ module Tools
 
       full_path = path.start_with?("/") ? path : File.join(WORKSPACE_ROOT, path)
 
-      unless WorkspaceIO.file_exists?(full_path)
+      unless WorkspaceIo.file_exists?(full_path)
         return ServiceResponse.failure(error: "File not found: #{path}")
       end
 
-      raw = WorkspaceIO.read_file(full_path, max_bytes: MAX_SIZE)
+      raw = WorkspaceIo.read_file(full_path, max_bytes: MAX_SIZE)
 
       content = raw.force_encoding("UTF-8")
       unless content.valid_encoding?
