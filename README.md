@@ -75,78 +75,14 @@ Most AI platforms give you one agent in a chat box. Hivemind gives you a **team*
 
 ## System Requirements
 
-Before installing Hivemind, ensure your system meets these requirements:
+You need [Docker and Docker Compose](https://docs.docker.com/get-docker/) to run Hivemind.
 
-### Hardware Requirements
+**Hardware:**
+- 2+ CPU cores
+- 2GB+ RAM  
+- 5GB+ disk space
 
-| Resource | Minimum | Recommended | Notes |
-|----------|---------|-------------|-------|
-| **CPU** | 2 cores | 4+ cores | Multi-agent teams benefit from more cores |
-| **RAM** | 8 GB | 16+ GB | Browser (2GB) + Workspace (4GB) + other services |
-| **Disk Space** | 10 GB | 20+ GB | Docker images, data volumes, agent workspace |
-
-### Software Requirements
-
-**Docker Environment:**
-- [Docker Desktop](https://docs.docker.com/get-docker/) **v4.0+** (macOS/Windows)
-- OR Docker Engine **v20.10+** with Docker Compose **v2.0+** (Linux)
-
-**Services (handled automatically by Docker):**
-- **PostgreSQL** 17 with pgvector extension (for agent memory)
-- **Redis** 7 (for background jobs and caching)
-- **Ruby** 3.4.8 (Rails application runtime)
-- **Node.js** 18+ (WhatsApp/Signal connector)
-- **Python** 3.8+ (PDF processing, document analysis)
-
-### Operating System Compatibility
-
-| OS | Status | Notes |
-|----|--------|-------|
-| **Linux** | ✅ Primary | Ubuntu 20.04+, Debian 11+, RHEL 8+, Arch Linux |
-| **macOS** | ✅ Supported | macOS 10.15+ (both Intel and Apple Silicon) |
-| **Windows** | ⚠️ WSL Required | Windows 10/11 with WSL2 + Docker Desktop |
-
-**Windows Users:** Install [WSL2](https://docs.microsoft.com/en-us/windows/wsl/install) and [Docker Desktop for Windows](https://docs.docker.com/desktop/windows/). Run all commands in a WSL2 terminal (Ubuntu recommended).
-
-### Optional Tools
-
-These tools enhance Hivemind's capabilities but aren't required for basic operation:
-
-- **[GitHub CLI](https://cli.github.com/) (`gh`)** — For repository management and PR creation
-- **[rclone](https://rclone.org/)** — Cloud storage integration (auto-installed)
-- **[Playwright](https://playwright.dev/)** — Browser automation (handled by container)
-- **[Claude Code CLI](https://www.anthropic.com/claude-code)** — Advanced coding assistance (pre-installed in workspace)
-
-### Port Requirements
-
-Hivemind uses these ports (configurable via docker-compose.yml):
-
-- **8080** — Web UI and API (main application)
-- **3002** — WhatsApp/Signal connector (if used)
-
-Ensure these ports aren't in use by other applications.
-
-### Network Access
-
-Hivemind requires internet access for:
-
-- **AI Provider APIs** (Anthropic, OpenAI, or local Ollama)
-- **Web search** (Brave Search, DuckDuckGo, etc.)
-- **Package installations** during first-time setup
-- **Optional integrations** (Jira, Gmail, cloud storage)
-
-### Installation Steps
-
-Ready to install? Choose your method:
-
-1. **One-line install** (recommended):
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/hivementality-ai/hivemind/main/install.sh | bash
-   ```
-
-2. **Manual installation** — See [Quick Start](#quick-start) section below
-
-The installer automatically checks requirements, installs Docker if needed (Linux), and guides you through setup.
+That's it. Everything else runs in containers.
 
 ---
 
