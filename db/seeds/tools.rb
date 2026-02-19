@@ -489,17 +489,30 @@ BUILTIN_TOOLS = [
     requires_approval: false,
     parameters_schema: {
       "properties" => {
-        "action" => { 
-          "type" => "string", 
+        "action" => {
+          "type" => "string",
           "description" => "Action to perform: 'enter' to start planning mode, or 'exit' to end planning mode",
           "enum" => [ "enter", "exit" ]
         },
-        "summary" => { 
-          "type" => "string", 
-          "description" => "Optional summary of the plan when exiting planning mode" 
+        "summary" => {
+          "type" => "string",
+          "description" => "Optional summary of the plan when exiting planning mode"
         }
       },
       "required" => [ "action" ]
+    }
+  },
+  {
+    name: "glob",
+    description: "Find files by name patterns using glob syntax. Use wildcards like *.rb, **/*.js, or test_*.py to find files matching specific patterns.",
+    executor_type: "glob",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "pattern" => { "type" => "string", "description" => "Glob pattern to match files (e.g., '*.rb', '**/*.js', 'test_*.py')" },
+        "path" => { "type" => "string", "description" => "Root directory to search from (defaults to /workspace)" }
+      },
+      "required" => [ "pattern" ]
     }
   }
 ].freeze
