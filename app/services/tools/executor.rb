@@ -37,7 +37,9 @@ module Tools
       "custom_script" => Tools::CustomScriptExecutor,
       "coding_agent" => Tools::CodingAgentExecutor,
       "coding_agent_status" => Tools::CodingAgentStatusExecutor,
-      "vault" => Tools::VaultExecutor
+      "vault" => Tools::VaultExecutor,
+      "plan_mode" => Tools::PlanModeExecutor,
+      "glob" => Tools::GlobExecutor
     }.freeze
 
     def self.call(tool:, input:, agent:, session:)
