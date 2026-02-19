@@ -14,10 +14,6 @@ module Tools
 
       full_path = path.start_with?("/") ? path : File.join(WORKSPACE_ROOT, path)
 
-      unless full_path.start_with?(WORKSPACE_ROOT)
-        return ServiceResponse.failure(error: "Access denied: path must be within /workspace")
-      end
-
       unless WorkspaceIO.file_exists?(full_path)
         return ServiceResponse.failure(error: "File not found: #{path}")
       end

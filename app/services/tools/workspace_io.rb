@@ -21,7 +21,6 @@ module Tools
     end
 
     def write_file(path, content)
-      # Ensure parent directory exists
       dir = File.dirname(path)
       Open3.capture3("docker", "exec", WORKSPACE_CONTAINER, "mkdir", "-p", dir)
 
@@ -33,7 +32,14 @@ module Tools
 
     def file_exists?(path)
       _, _, status = Open3.capture3(
-        "docker", "exec", WORKSPACE_CONTAINER, "test", "-f", path
+        "docker", "exec", WORKSPACE_CONTAINER, "test", "-e", path
+      )
+      status.success?
+    end
+
+    def directory?(path)
+      _, _, status = Open3.capture3(
+        "docker", "exec", WORKSPACE_CONTAINER, "test", "-d", path
       )
       status.success?
     end

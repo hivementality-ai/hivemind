@@ -11,10 +11,6 @@ module Tools
 
       full_path = path.start_with?("/") ? path : File.join(WORKSPACE_ROOT, path)
 
-      unless full_path.start_with?(WORKSPACE_ROOT)
-        return ServiceResponse.failure(error: "Access denied: path must be within /workspace")
-      end
-
       WorkspaceIO.write_file(full_path, content)
 
       ServiceResponse.success(data: { output: "Wrote #{content.length} bytes to #{path}", exit_code: 0 })

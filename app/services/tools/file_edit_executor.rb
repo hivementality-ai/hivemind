@@ -12,7 +12,7 @@ module Tools
       return ServiceResponse.failure(error: "No path provided") if path.empty?
       return ServiceResponse.failure(error: "No old_text provided") if old_text.empty?
 
-      full_path = resolve_path(path)
+      full_path = path.start_with?("/") ? path : File.join(WORKSPACE_ROOT, path)
 
       unless WorkspaceIO.file_exists?(full_path)
         return ServiceResponse.failure(error: "File not found: #{path}")
@@ -36,17 +36,6 @@ module Tools
       })
     rescue StandardError => e
       ServiceResponse.failure(error: "Edit failed: #{e.message}")
-    end
-
-    private
-
-    def resolve_path(path)
-      workspace = WORKSPACE_ROOT
-      expanded = File.expand_path(path, workspace)
-      unless expanded.start_with?(workspace)
-        raise "Path traversal denied: #{path}"
-      end
-      expanded
     end
   end
 end
