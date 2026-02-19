@@ -81,6 +81,8 @@ The AI industry is obsessed with building one agent that can "do it all." We thi
 
 **The future is composition, not consolidation.** Complex workflows emerge from simple, reliable components working together—not from increasingly complex monoliths. Each agent in your team becomes highly reliable at what it does. You get clear separation of concerns, the ability to swap agents without breaking everything, and better resource utilization because you're not running frontier models for simple tasks.
 
+**But specialization is just the starting point—agents get smarter over time.** Hivemind agents don't just start optimized for their domain; they continuously improve through memory systems that retain past interactions, context, and learnings. With our mini-RAG system (coming soon), agents build an ever-growing knowledge base from accumulated experience, creating a learning curve advantage that compounds with each interaction.
+
 **Hivemind embodies this philosophy.** We're not building another "ChatGPT for everything." We're building a platform where specialized AI agents can work as a team. Quality over breadth. Collaboration over consolidation. That's why we're here.
 
 ---
