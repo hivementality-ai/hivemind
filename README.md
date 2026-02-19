@@ -73,6 +73,22 @@ Most AI platforms give you one agent in a chat box. Hivemind gives you a **team*
 
 ---
 
+## Why We're Here
+
+The AI industry is obsessed with building one agent that can "do it all." We think that's fundamentally wrong.
+
+**Specialized agents outperform generalists every time.** A focused code reviewer catches more bugs than a general assistant. A dedicated research agent finds better sources than a multipurpose chatbot. When you optimize for one domain instead of trying to cover everything, you get better accuracy, lower latency, and systems that are actually debuggable and maintainable.
+
+**The future is composition, not consolidation.** Complex workflows emerge from simple, reliable components working together—not from increasingly complex monoliths. Each agent in your team becomes highly reliable at what it does. You get clear separation of concerns, the ability to swap agents without breaking everything, and better resource utilization because you're not running frontier models for simple tasks.
+
+**But specialization is just the starting point—agents get smarter over time.** Hivemind agents don't just start optimized for their domain; they continuously improve through memory systems that retain past interactions, context, and learnings. With our mini-RAG system (coming soon), agents build an ever-growing knowledge base from accumulated experience, creating a learning curve advantage that compounds with each interaction.
+
+**And here's the key: your agents aren't locked to a single model.** Mix and match specialized agents from any provider—Anthropic's Claude for reasoning, OpenAI's GPT for creativity, local Ollama models for lightweight tasks. They collaborate as a cohesive system despite their diversity, giving you the best tool for each job instead of forcing everything through one model's constraints.
+
+**Hivemind embodies this philosophy.** We're not building another "ChatGPT for everything." We're building a platform where specialized AI agents can work as a team. Quality over breadth. Collaboration over consolidation. That's why we're here.
+
+---
+
 ## System Requirements
 
 You need [Docker and Docker Compose](https://docs.docker.com/get-docker/) to run Hivemind.
