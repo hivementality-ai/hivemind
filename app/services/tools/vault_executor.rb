@@ -122,9 +122,9 @@ module Tools
 
       entries = if namespace
                   VaultEntry.where(agent_id: nil, namespace: namespace)
-      else
+                else
                   VaultEntry.where(agent_id: nil)
-      end
+                end
 
       if entries.any?
         lines = entries.map do |e|
