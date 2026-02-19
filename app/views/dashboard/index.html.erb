@@ -131,7 +131,7 @@
             <div class="px-5 py-3">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3 min-w-0">
-                  <span class="w-2 h-2 rounded-full flex-shrink-0 <%= exec.status == 'success' ? 'bg-green-400' : 'bg-red-400' %>"></span>
+                  <span class="w-2 h-2 rounded-full flex-shrink-0 <%= exec.status == 'completed' ? 'bg-green-400' : 'bg-red-400' %>"></span>
                   <div class="min-w-0">
                     <p class="text-white text-sm font-medium">
                       <%= exec.tool&.name || "unknown" %>
