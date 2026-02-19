@@ -60,7 +60,7 @@ module Agents
 
       # Track frequency of tool_name + params hash combinations
       call_signatures = {}
-      
+
       recent_history.each do |call|
         signature = call_signature(call)
         call_signatures[signature] = (call_signatures[signature] || 0) + 1
@@ -121,13 +121,13 @@ module Agents
           end
         end
 
-        max_ping_pong = [max_ping_pong, consecutive_ping_pong].max
+        max_ping_pong = [ max_ping_pong, consecutive_ping_pong ].max
       end
 
       max_ping_pong
     end
 
-    # No-Progress Detector  
+    # No-Progress Detector
     def no_progress_critical?
       return false unless enabled_detectors[:no_progress]
 
@@ -175,10 +175,10 @@ module Agents
       # 1. They have the same hash (identical), OR
       # 2. They have very similar length AND similar truncated content
       return true if output1[:hash] == output2[:hash]
-      
+
       length_diff = (output1[:length] - output2[:length]).abs
-      max_length = [output1[:length], output2[:length]].max
-      
+      max_length = [ output1[:length], output2[:length] ].max
+
       # If lengths are within 10% and truncated content is similar
       if max_length > 0 && length_diff.to_f / max_length < 0.1
         similarity = string_similarity(output1[:truncated], output2[:truncated])
@@ -195,10 +195,10 @@ module Agents
       # Simple character-based similarity
       chars1 = str1.chars
       chars2 = str2.chars
-      
+
       common_chars = (chars1 & chars2).size
-      total_chars = [chars1.size, chars2.size].max
-      
+      total_chars = [ chars1.size, chars2.size ].max
+
       common_chars.to_f / total_chars
     end
 

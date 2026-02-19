@@ -67,7 +67,7 @@ module Agents
 
           # Analyze tool loop behavior
           loop_status = analyze_loop_behavior
-          
+
           case loop_status
           when :warning
             inject_warning_message
@@ -132,10 +132,10 @@ module Agents
           )
           result = "Tool unavailable: #{explanation}"
           broadcast_tool(tool_name, tool_input, result, success: false)
-          
+
           # Track failed tool calls in history
           track_tool_call(tool_name, tool_input, result, false)
-          
+
           next { tool_use_id:, tool_name:, result: }
         end
 
@@ -197,7 +197,7 @@ module Agents
 
     def inject_warning_message
       warning_message = "You appear to be repeating the same action. Try a different approach."
-      
+
       @messages << {
         role: "system",
         content: warning_message

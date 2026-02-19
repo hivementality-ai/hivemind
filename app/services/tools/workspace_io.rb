@@ -5,7 +5,7 @@ require "open3"
 module Tools
   # Shared helper for reading/writing files inside the workspace container.
   # Avoids cross-container uid mismatch (Rails uid=1000 vs workspace uid=1001).
-  module WorkspaceIO
+  module WorkspaceIo
     WORKSPACE_CONTAINER = "hivemind-workspace-1"
     WORKSPACE_ROOT = "/workspace"
 
@@ -25,7 +25,7 @@ module Tools
       Open3.capture3("docker", "exec", WORKSPACE_CONTAINER, "mkdir", "-p", dir)
 
       IO.popen(
-        ["docker", "exec", "-i", WORKSPACE_CONTAINER, "bash", "-c", "cat > #{shell_escape(path)}"],
+        [ "docker", "exec", "-i", WORKSPACE_CONTAINER, "bash", "-c", "cat > #{shell_escape(path)}" ],
         "w"
       ) { |io| io.write(content) }
     end

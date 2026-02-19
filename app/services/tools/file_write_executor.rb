@@ -2,7 +2,7 @@
 
 module Tools
   class FileWriteExecutor < BaseExecutor
-    WORKSPACE_ROOT = WorkspaceIO::WORKSPACE_ROOT
+    WORKSPACE_ROOT = "/workspace"
 
     def call
       path = input["path"].to_s.strip
@@ -11,7 +11,7 @@ module Tools
 
       full_path = path.start_with?("/") ? path : File.join(WORKSPACE_ROOT, path)
 
-      WorkspaceIO.write_file(full_path, content)
+      WorkspaceIo.write_file(full_path, content)
 
       ServiceResponse.success(data: { output: "Wrote #{content.length} bytes to #{path}", exit_code: 0 })
     rescue StandardError => e
