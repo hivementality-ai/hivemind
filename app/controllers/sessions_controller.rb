@@ -11,6 +11,22 @@ class SessionsController < ApplicationController
                        .where(status: :active)
                        .order(last_activity_at: :desc)
                        .limit(50)
+
+    # If agent_id is passed via GET, auto-create a session and redirect to chat
+    if params[:agent_id].present? && request.get?
+      agent = Agent.by_slug(params[:agent_id]).first || Agent.find_by(id: params[:agent_id])
+      if agent
+        session = Session.create!(
+          agent: agent,
+          session_key: SecureRandom.uuid,
+          status: :active,
+          transcript: [],
+          metadata: { started_by: current_user.id },
+          last_activity_at: Time.current
+        )
+        redirect_to session_path(session) and return
+      end
+    end
   end
 
   # POST /sessions — start a new chat with an agent
@@ -53,7 +69,7 @@ class SessionsController < ApplicationController
   private
 
   def set_agent
-    @agent = Agent.find_by_slug(params[:agent_id]) || Agent.find_by(id: params[:agent_id])
+    @agent = Agent.by_slug(params[:agent_id]).first || Agent.find_by(id: params[:agent_id])
     render file: "public/404.html", status: :not_found unless @agent
   end
 

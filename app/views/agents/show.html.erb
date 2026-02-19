@@ -11,7 +11,7 @@
         </span>
       </div>
       <div class="flex gap-4">
-        <%= button_to "Chat", sessions_path(agent_id: @agent.id), method: :post, data: { turbo: false }, class: "px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition cursor-pointer" %>
+        <%= button_to "Chat", sessions_path(agent_id: @agent.id), method: :post, form: { data: { turbo: false } }, class: "px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition cursor-pointer" %>
         <%= link_to "Edit", edit_agent_path(@agent), class: "px-4 py-2 bg-brand hover:bg-brand-dark rounded-lg transition" %>
         <%= link_to "Delete", agent_path(@agent), data: { turbo_method: :delete, turbo_confirm: "Are you sure?" }, class: "px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition" %>
       </div>
