@@ -38,6 +38,7 @@ module Tools
       "coding_agent" => Tools::CodingAgentExecutor,
       "coding_agent_status" => Tools::CodingAgentStatusExecutor,
       "vault" => Tools::VaultExecutor,
+      "ask_user" => Tools::AskUserExecutor,
       "plan_mode" => Tools::PlanModeExecutor,
       "glob" => Tools::GlobExecutor
     }.freeze

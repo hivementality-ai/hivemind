@@ -468,6 +468,21 @@ BUILTIN_TOOLS = [
     }
   },
   {
+    name: "ask_user",
+    description: "Pause execution and ask the user a clarifying question. The agent waits for the user's response before continuing. Use when you need user input to complete a task properly.",
+    executor_type: "ask_user",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "question" => {
+          "type" => "string",
+          "description" => "The question to ask the user. Be specific and clear about what information you need."
+        }
+      },
+      "required" => [ "question" ]
+    }
+  },
+  {
     name: "grep",
     description: "Search for patterns in files using regular expressions. Search across the workspace or specific directories with optional case-insensitive matching.",
     executor_type: "grep",

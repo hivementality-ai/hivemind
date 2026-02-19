@@ -15,6 +15,7 @@ export default class extends Controller {
     this.pendingFiles = []
     this.hashtagActions = []
     this.hashtagDropdownVisible = false
+    this.planningMode = false
 
     // Configure marked for safe, sane defaults
     marked.setOptions({
@@ -258,6 +259,12 @@ export default class extends Controller {
         break
       case "coding_agent_complete":
         this.completeCodingAgent(data.message, data.output_summary, data.task_key, data.duration)
+        break
+      case "agent_question":
+        this.showAgentQuestion(data.question, data.timestamp)
+        break
+      case "planning_mode":
+        this.handlePlanningMode(data.planning, data.message, data.summary)
         break
       case "done":
         this.finishStream()
@@ -647,6 +654,39 @@ export default class extends Controller {
     this.scrollToBottom()
   }
 
+  showAgentQuestion(question, timestamp) {
+    // Hide any thinking indicators
+    this.hideThinking()
+    this.hideAgentThinking()
+    this.finishStreamBubble()
+
+    const html = `
+      <div class="flex justify-start">
+        <div class="max-w-2xl">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
+              ${this.agentInitialValue}
+            </div>
+            <div class="bg-blue-900/30 border border-blue-600/50 rounded-2xl rounded-bl-md px-4 py-3">
+              <div class="flex items-center gap-2 text-blue-400 text-sm font-medium mb-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Agent is asking:
+              </div>
+              <div class="text-white whitespace-pre-wrap">${this.escapeHtml(question)}</div>
+            </div>
+          </div>
+        </div>
+      </div>`
+
+    this.messagesTarget.insertAdjacentHTML("beforeend", html)
+    this.scrollToBottom()
+
+    // Focus the input for user response
+    this.inputTarget.focus()
+  }
+
   appendFileAttachment(attachment) {
     // Render agent-sent file attachment (from file_send or image_generate tools)
     const isImage = attachment.is_image || attachment.content_type?.startsWith('image/')
@@ -821,6 +861,77 @@ export default class extends Controller {
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
       .replace(/\son\w+\s*=/gi, " data-blocked=")
       .trim()
+  }
+
+  handlePlanningMode(isPlanning, message, summary) {
+    // Find or create the planning mode indicator
+    let planningIndicator = document.querySelector('[data-planning-indicator]')
+    
+    if (isPlanning) {
+      // Show planning mode indicator
+      if (!planningIndicator) {
+        planningIndicator = this.createPlanningIndicator()
+        // Insert after the header
+        const header = this.element.querySelector('.border-b')
+        header.insertAdjacentElement('afterend', planningIndicator)
+      }
+      planningIndicator.querySelector('[data-planning-message]').textContent = message
+      planningIndicator.classList.remove('hidden')
+      
+      // Mark future tool calls as planning mode
+      this.planningMode = true
+    } else {
+      // Hide planning mode indicator
+      if (planningIndicator) {
+        planningIndicator.classList.add('hidden')
+      }
+      
+      // Show plan summary if provided
+      if (summary && summary.trim()) {
+        this.showPlanSummary(summary)
+      }
+      
+      // Clear planning mode flag
+      this.planningMode = false
+    }
+  }
+
+  createPlanningIndicator() {
+    const indicator = document.createElement('div')
+    indicator.setAttribute('data-planning-indicator', '')
+    indicator.className = 'bg-amber-900/30 border-b border-amber-600/30 px-6 py-3 flex items-center gap-3'
+    indicator.innerHTML = `
+      <div class="text-amber-400 animate-pulse">🧠</div>
+      <span class="text-amber-200 text-sm font-medium" data-planning-message>Planning mode active...</span>
+      <div class="ml-auto text-amber-400/60 text-xs">Tool calls shown for planning context</div>
+    `
+    return indicator
+  }
+
+  showPlanSummary(summary) {
+    const summaryDiv = document.createElement('div')
+    summaryDiv.className = 'flex justify-start mb-4'
+    summaryDiv.innerHTML = `
+      <div class="max-w-2xl">
+        <div class="flex items-start gap-3">
+          <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
+            ${this.agentInitialValue}
+          </div>
+          <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
+            <div class="text-amber-400 font-medium mb-2 flex items-center gap-2">
+              <span>📋</span>
+              <span>Plan Summary</span>
+            </div>
+            <div class="whitespace-pre-wrap text-sm bg-surface-card px-3 py-2 rounded-lg border border-border-default">
+              ${this.escapeHtml(summary)}
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+    
+    this.messagesTarget.appendChild(summaryDiv)
+    this.scrollToBottom()
   }
 
   escapeHtml(text) {
