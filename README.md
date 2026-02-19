@@ -21,6 +21,7 @@
 ## Table of Contents
 
 - [Why Hivemind?](#why-hivemind)
+- [System Requirements](#system-requirements)
 - [Concepts](#concepts)
 - [Quick Start](#quick-start)
 - [Setup Wizard](#setup-wizard)
@@ -69,6 +70,19 @@ Most AI platforms give you one agent in a chat box. Hivemind gives you a **team*
 - **Cloud storage** — Google Drive, S3, Dropbox, OneDrive, B2, SFTP via rclone
 - **Self-hosted** — your data stays on your hardware, API keys encrypted in vault
 - **One command** — `docker compose up` and you're live in under 5 minutes
+
+---
+
+## System Requirements
+
+You need [Docker and Docker Compose](https://docs.docker.com/get-docker/) to run Hivemind.
+
+**Hardware:**
+- 2+ CPU cores
+- 2GB+ RAM  
+- 5GB+ disk space
+
+That's it. Everything else runs in containers.
 
 ---
 
