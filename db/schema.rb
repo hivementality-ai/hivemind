@@ -133,6 +133,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_19_162653) do
     t.integer "thinking_budget_tokens", default: 10000
     t.boolean "thinking_enabled", default: false, null: false
     t.string "thinking_visibility", default: "hidden"
+    t.jsonb "tool_loop_config", default: {}, null: false
     t.jsonb "tools_config"
     t.datetime "updated_at", null: false
     t.string "workspace_path"

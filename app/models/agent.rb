@@ -4,6 +4,18 @@ class Agent < ApplicationRecord
   include RoleInstructions
   # llm_model is a native DB column — no alias needed
 
+  DEFAULT_LOOP_CONFIG = {
+    history_size: 30,
+    warning_threshold: 10,
+    critical_threshold: 20,
+    circuit_breaker_threshold: 50,
+    detectors: {
+      generic_repeat: true,
+      ping_pong: true,
+      no_progress: true
+    }
+  }.freeze
+
   belongs_to :team, optional: true
 
   has_many :sessions, dependent: :destroy
@@ -80,6 +92,10 @@ class Agent < ApplicationRecord
   end
 
   public
+
+  def effective_tool_loop_config
+    DEFAULT_LOOP_CONFIG.deep_merge(tool_loop_config || {}).with_indifferent_access
+  end
 
   def usage_summary
     {

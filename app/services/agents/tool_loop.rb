@@ -2,8 +2,6 @@
 
 module Agents
   class ToolLoop
-    MAX_ITERATIONS = 30
-
     def self.call(adapter:, agent:, session:, messages:, tools:, channel:, options: {}, broadcast_extras: {})
       new(adapter:, agent:, session:, messages:, tools:, channel:, options:, broadcast_extras:).call
     end
@@ -20,19 +18,14 @@ module Agents
       @full_content = +""
       @last_thinking = nil
       @total_usage = { input_tokens: 0, output_tokens: 0 }
+      @tool_history = []
+      @loop_config = @agent.effective_tool_loop_config
     end
 
     def call
-      iterations = 0
       llm_tools = @tools.map(&:to_llm_tool)
 
       loop do
-        iterations += 1
-        if iterations > MAX_ITERATIONS
-          broadcast(type: "token", content: "\n\n⚠️ Tool loop limit reached (#{MAX_ITERATIONS} iterations)")
-          break
-        end
-
         # Call LLM
         result = call_llm(llm_tools)
         return result unless result&.success?
@@ -52,7 +45,7 @@ module Agents
             broadcast(type: "token", content: data[:content])
           end
 
-          # Execute each tool call
+          # Execute each tool call and track in history
           tool_results = execute_tool_calls(tool_calls)
 
           # Add assistant message with tool calls to conversation
@@ -70,6 +63,21 @@ module Agents
               tool_name: tr[:tool_name],
               content: tr[:result]
             }.with_indifferent_access
+          end
+
+          # Analyze tool loop behavior
+          loop_status = analyze_loop_behavior
+          
+          case loop_status
+          when :warning
+            inject_warning_message
+          when :critical
+            broadcast(type: "token", content: "\n\n⚠️ Tool loop detected - stopping to prevent infinite execution")
+            break
+          when :circuit_breaker
+            broadcast(type: "token", content: "\n\n🚫 Circuit breaker activated - too many tool calls without progress")
+            Rails.logger.error("Tool loop circuit breaker triggered for agent #{@agent.id} after #{@tool_history.size} calls")
+            break
           end
 
           # Continue loop — LLM will process tool results
@@ -124,6 +132,10 @@ module Agents
           )
           result = "Tool unavailable: #{explanation}"
           broadcast_tool(tool_name, tool_input, result, success: false)
+          
+          # Track failed tool calls in history
+          track_tool_call(tool_name, tool_input, result, false)
+          
           next { tool_use_id:, tool_name:, result: }
         end
 
@@ -141,9 +153,11 @@ module Agents
         if exec_result.success?
           result = exec_result.data[:output].to_s
           broadcast(type: "tool_result", tool: tool_name, output: result.truncate(500), success: true)
+          track_tool_call(tool_name, tool_input, result, true)
         else
           result = "Error: #{exec_result.error}"
           broadcast(type: "tool_result", tool: tool_name, output: result.truncate(500), success: false)
+          track_tool_call(tool_name, tool_input, result, false)
         end
 
         { tool_use_id:, tool_name:, result: }
@@ -162,6 +176,34 @@ module Agents
 
     def broadcast_tool(name, input, output, success:)
       broadcast(type: "tool_result", tool: name, output: output.to_s.truncate(500), success:)
+    end
+
+    def track_tool_call(tool_name, params, output, success)
+      @tool_history << {
+        tool_name: tool_name,
+        params: params,
+        output: output,
+        success: success,
+        timestamp: Time.current
+      }
+    end
+
+    def analyze_loop_behavior
+      Agents::LoopDetector.analyze(
+        tool_history: @tool_history,
+        config: @loop_config
+      )
+    end
+
+    def inject_warning_message
+      warning_message = "You appear to be repeating the same action. Try a different approach."
+      
+      @messages << {
+        role: "system",
+        content: warning_message
+      }.with_indifferent_access
+
+      broadcast(type: "token", content: "\n\n⚠️ #{warning_message}\n")
     end
   end
 end
