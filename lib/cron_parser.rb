@@ -168,10 +168,10 @@ class CronParser
 
     hour.to_s.rjust(2, "0")
   end
-  
+
   def format_time(hour, minute)
     return "" if hour.nil?
-    
+
     h = hour.to_s.rjust(2, "0")
     m = (minute || 0).to_s.rjust(2, "0")
     "#{h}:#{m}"
@@ -180,7 +180,7 @@ class CronParser
   def format_days(days)
     return nil if days.nil?
 
-    day_names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    day_names = [ "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" ]
     day_names_list = days.map { |d| day_names[d % 7] }.compact
 
     case day_names_list.length

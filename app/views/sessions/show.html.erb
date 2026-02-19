@@ -97,6 +97,25 @@
     </div>
   </div>
 
+  <!-- Working indicator (shown when tool calls are hidden) -->
+  <div class="px-6 hidden" data-chat-target="working">
+    <div class="flex items-start gap-3">
+      <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+        <%= @agent.name[0].upcase %>
+      </div>
+      <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-text-muted">
+        <div class="flex items-center gap-2">
+          <div class="flex gap-1">
+            <span class="w-2 h-2 bg-amber-400 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+            <span class="w-2 h-2 bg-amber-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+            <span class="w-2 h-2 bg-amber-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+          </div>
+          <span class="text-sm text-amber-400">Working...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Image preview area -->
   <div class="px-6 hidden" data-chat-target="imagePreview">
     <div class="flex items-center gap-2 bg-surface-card border border-border-default rounded-lg px-3 py-2">

@@ -124,7 +124,7 @@ RSpec.describe Tools::CredentialChecker do
         VaultEntry.create!(namespace: "telnyx", key: "connection_id", encrypted_value: "conn", agent_id: nil)
 
         result = described_class.available_providers(multi_provider_tool)
-        expect(result).to eq(["telnyx"])
+        expect(result).to eq([ "telnyx" ])
         expect(result).not_to include("twilio")
       end
 
