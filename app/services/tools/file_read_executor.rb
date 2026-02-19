@@ -3,27 +3,20 @@
 module Tools
   class FileReadExecutor < BaseExecutor
     MAX_SIZE = 100_000
-    WORKSPACE_ROOT = "/workspace"
+    WORKSPACE_ROOT = WorkspaceIO::WORKSPACE_ROOT
 
     def call
       path = input["path"].to_s.strip
       return ServiceResponse.failure(error: "No path provided") if path.empty?
 
-      # Resolve relative paths against workspace
       full_path = path.start_with?("/") ? path : File.join(WORKSPACE_ROOT, path)
 
-      # Security: must be within workspace
-      unless full_path.start_with?(WORKSPACE_ROOT)
-        return ServiceResponse.failure(error: "Access denied: path must be within /workspace")
-      end
-
-      unless File.exist?(full_path)
+      unless WorkspaceIO.file_exists?(full_path)
         return ServiceResponse.failure(error: "File not found: #{path}")
       end
 
-      raw = File.binread(full_path, MAX_SIZE)
+      raw = WorkspaceIO.read_file(full_path, max_bytes: MAX_SIZE)
 
-      # Ensure valid UTF-8 — binary files must not go into PG text columns
       content = raw.force_encoding("UTF-8")
       unless content.valid_encoding?
         content = raw.encode("UTF-8", "ASCII-8BIT", invalid: :replace, undef: :replace, replace: "")
