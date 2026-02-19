@@ -32,6 +32,7 @@ const logger = pino({ level: "info" });
 let sock = null;
 let currentQR = null; // Raw QR string for generating images
 let connectionStatus = "disconnected"; // disconnected, qr_ready, connecting, connected
+const sentMessageIds = new Set(); // Track messages we sent to avoid echo loops
 
 // ─── Express API (for Hivemind to send outbound messages) ─────────────
 
@@ -100,8 +101,16 @@ app.post("/send", async (req, res) => {
     // Normalize phone number to WhatsApp JID
     const jid = normalizeJid(to);
 
+    let sentMsg;
     if (type === "text") {
-      await sock.sendMessage(jid, { text: message });
+      sentMsg = await sock.sendMessage(jid, { text: message });
+    }
+
+    // Track sent message ID to prevent echo loops
+    if (sentMsg?.key?.id) {
+      sentMessageIds.add(sentMsg.key.id);
+      // Clean up after 60 seconds
+      setTimeout(() => sentMessageIds.delete(sentMsg.key.id), 60000);
     }
 
     logger.info({ to: jid }, "Message sent");
@@ -128,6 +137,43 @@ app.post("/react", async (req, res) => {
     res.json({ status: "reacted" });
   } catch (err) {
     logger.error({ err }, "Failed to react");
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Logout and force new QR code
+app.post("/logout", async (req, res) => {
+  try {
+    // Close the socket first to release file handles
+    if (sock) {
+      sock.ev.removeAllListeners();
+      sock.end(undefined);
+      sock = null;
+    }
+
+    // Small delay to let file handles release
+    await new Promise(r => setTimeout(r, 500));
+
+    // Wipe auth state to force fresh QR
+    if (fs.existsSync(AUTH_PATH)) {
+      // Remove files inside auth dir individually to avoid EBUSY on dir
+      const files = fs.readdirSync(AUTH_PATH);
+      for (const file of files) {
+        fs.unlinkSync(`${AUTH_PATH}/${file}`);
+      }
+      fs.rmdirSync(AUTH_PATH);
+    }
+
+    currentQR = null;
+    connectionStatus = "disconnected";
+    logger.info("Logged out and wiped auth state");
+
+    // Restart connection to generate new QR
+    setTimeout(() => startWhatsApp(), 1500);
+
+    res.json({ status: "logged_out", message: "Auth wiped. New QR code will be generated." });
+  } catch (err) {
+    logger.error({ err }, "Failed to logout");
     res.status(500).json({ error: err.message });
   }
 });
@@ -202,8 +248,9 @@ async function startWhatsApp() {
   // Handle incoming messages
   sock.ev.on("messages.upsert", async ({ messages }) => {
     for (const msg of messages) {
-      // Skip status broadcasts and our own messages
+      // Skip status broadcasts
       if (msg.key.remoteJid === "status@broadcast") continue;
+      // Skip ALL messages sent by us (fromMe) to prevent echo loops
       if (msg.key.fromMe) continue;
 
       const text =

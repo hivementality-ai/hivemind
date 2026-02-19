@@ -6,7 +6,7 @@ module Sessions
       new(...).call
     end
 
-    def initialize(session:, message:, stream: false, &on_chunk)
+    def initialize(session:, message:, stream: false, agent: nil, &on_chunk)
       @session = session
       @message = message
       @stream = stream

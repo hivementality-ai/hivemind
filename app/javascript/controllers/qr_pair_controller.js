@@ -59,6 +59,31 @@ export default class extends Controller {
     }
   }
 
+  async reconnect() {
+    try {
+      const res = await fetch(`${this.urlValue}/logout`, { method: "POST" })
+      const data = await res.json()
+      if (data.status === "logged_out") {
+        // Reset UI and start polling for new QR
+        this.connectedAreaTarget.classList.add("hidden")
+        this.qrAreaTarget.classList.remove("hidden")
+        this.qrAreaTarget.innerHTML = `
+          <div class="w-[300px] h-[300px] bg-surface-base rounded-xl flex items-center justify-center">
+            <div class="text-center">
+              <div class="animate-spin w-8 h-8 border-2 border-brand border-t-transparent rounded-full mx-auto mb-3"></div>
+              <p class="text-text-faint text-sm">Generating new QR code...</p>
+            </div>
+          </div>
+        `
+        this.instructionsTarget.classList.remove("hidden")
+        this.polling = true
+        setTimeout(() => this.poll(), 2000)
+      }
+    } catch (err) {
+      console.error("Reconnect failed:", err)
+    }
+  }
+
   showConnected(health) {
     this.qrAreaTarget.classList.add("hidden")
     this.instructionsTarget.classList.add("hidden")
