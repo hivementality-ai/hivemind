@@ -2,7 +2,8 @@
 
 module Tools
   class FileEditExecutor < BaseExecutor
-    # Surgical find-and-replace edit (like OpenClaw's Edit tool)
+    WORKSPACE_ROOT = WorkspaceIO::WORKSPACE_ROOT
+
     def call
       path = input["path"].to_s.strip
       old_text = input["old_text"].to_s
@@ -11,11 +12,13 @@ module Tools
       return ServiceResponse.failure(error: "No path provided") if path.empty?
       return ServiceResponse.failure(error: "No old_text provided") if old_text.empty?
 
-      # Sandbox to workspace
       full_path = resolve_path(path)
-      return ServiceResponse.failure(error: "File not found: #{path}") unless File.exist?(full_path)
 
-      content = File.read(full_path)
+      unless WorkspaceIO.file_exists?(full_path)
+        return ServiceResponse.failure(error: "File not found: #{path}")
+      end
+
+      content = WorkspaceIO.read_file(full_path)
       occurrences = content.scan(old_text).size
 
       if occurrences == 0
@@ -25,7 +28,7 @@ module Tools
       end
 
       new_content = content.sub(old_text, new_text)
-      File.write(full_path, new_content)
+      WorkspaceIO.write_file(full_path, new_content)
 
       ServiceResponse.success(data: {
         output: "Edited #{path}: replaced #{old_text.lines.size} lines with #{new_text.lines.size} lines",
@@ -38,7 +41,7 @@ module Tools
     private
 
     def resolve_path(path)
-      workspace = ENV.fetch("WORKSPACE_PATH", "/workspace")
+      workspace = WORKSPACE_ROOT
       expanded = File.expand_path(path, workspace)
       unless expanded.start_with?(workspace)
         raise "Path traversal denied: #{path}"

@@ -4,7 +4,7 @@ require "stringio"
 
 module Tools
   class FileSendExecutor < BaseExecutor
-    WORKSPACE_ROOT = "/workspace"
+    WORKSPACE_ROOT = WorkspaceIO::WORKSPACE_ROOT
 
     def call
       path = input["path"].to_s.strip
@@ -18,16 +18,12 @@ module Tools
         return ServiceResponse.failure(error: "Access denied: path must be within /workspace")
       end
 
-      unless File.exist?(full_path)
+      unless WorkspaceIO.file_exists?(full_path)
         return ServiceResponse.failure(error: "File not found: #{path}")
       end
 
-      if File.directory?(full_path)
-        return ServiceResponse.failure(error: "Cannot send directory: #{path}")
-      end
-
-      # Read file content
-      content = File.binread(full_path)
+      # Read file content via workspace container
+      content = WorkspaceIO.read_file(full_path)
       byte_size = content.bytesize
 
       # Detect MIME type
