@@ -30,7 +30,7 @@ module Tools
     def execute_in_workspace(command)
       # Write command to shared volume, execute inside workspace container
       # This gives agents full access to the workspace environment (apt, pip, npm, etc.)
-      FileUtils.mkdir_p(EXEC_DIR)
+      ensure_exec_dir
 
       job_id = SecureRandom.hex(8)
       script_path = File.join(EXEC_DIR, "#{job_id}.sh")
@@ -41,13 +41,18 @@ module Tools
       github_token = VaultEntry.find_by(namespace: "github", key: "token")&.value
       gh_setup = github_token ? "export GH_TOKEN='#{github_token}'\nexport GITHUB_TOKEN='#{github_token}'\n" : ""
 
-      # Write script to shared volume
-      File.write(script_path, <<~BASH)
+      # Write script via docker exec to avoid cross-container permission issues
+      script_content = <<~BASH
         #!/bin/bash
         #{gh_setup}cd /workspace
         #{command}
       BASH
-      File.chmod(0o755, script_path)
+
+      # Write script from inside workspace container (correct uid)
+      IO.popen(
+        ["docker", "exec", "-i", WORKSPACE_CONTAINER, "bash", "-c", "cat > #{script_path} && chmod 755 #{script_path}"],
+        "w"
+      ) { |io| io.write(script_content) }
 
       stdout, stderr, status = nil, nil, nil
       output = ""
@@ -86,10 +91,22 @@ module Tools
         end
       end
 
-      # Cleanup
-      [ script_path, output_path, exit_path ].each { |f| File.delete(f) if File.exist?(f) }
+      # Cleanup via docker exec (same uid that created the files)
+      Open3.capture3(
+        "docker", "exec", WORKSPACE_CONTAINER,
+        "bash", "-c", "rm -f #{script_path} #{output_path} #{exit_path}"
+      ) rescue nil
 
       [ output, exit_code ]
+    end
+
+    def ensure_exec_dir
+      Open3.capture3(
+        "docker", "exec", WORKSPACE_CONTAINER,
+        "bash", "-c", "mkdir -p #{EXEC_DIR}"
+      )
+    rescue StandardError
+      FileUtils.mkdir_p(EXEC_DIR) rescue nil
     end
 
     def docker_available?
