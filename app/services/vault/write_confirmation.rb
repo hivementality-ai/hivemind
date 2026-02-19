@@ -110,7 +110,7 @@ module Vault
     private
 
     def find_tools_needing(namespace, key)
-      Tool.enabled.where("required_credentials @> ?", [{ namespace: namespace, key: key }].to_json)
+      Tool.enabled.where("required_credentials @> ?", [ { namespace: namespace, key: key } ].to_json)
     rescue StandardError
       # If required_credentials column doesn't exist yet or query fails
       []

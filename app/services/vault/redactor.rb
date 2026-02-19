@@ -24,7 +24,7 @@ module Vault
       { pattern: /\Aglpat-/, length: 6 },     # GitLab PAT
       { pattern: /\Awhsec_/, length: 6 },     # Webhook secret
       { pattern: /\A\+1/, length: 2 },        # US phone number
-      { pattern: /\A\+/, length: 1 },         # International phone number
+      { pattern: /\A\+/, length: 1 }         # International phone number
     ].freeze
 
     VISIBLE_SUFFIX = 4
@@ -42,7 +42,7 @@ module Vault
 
       prefix = detect_prefix(val)
       suffix = val[-VISIBLE_SUFFIX..]
-      mask_len = [val.length - prefix.length - VISIBLE_SUFFIX, MIN_MASK_LENGTH].max
+      mask_len = [ val.length - prefix.length - VISIBLE_SUFFIX, MIN_MASK_LENGTH ].max
 
       "#{prefix}#{MASK * mask_len}#{suffix}"
     end

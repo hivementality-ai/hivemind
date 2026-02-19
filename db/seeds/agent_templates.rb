@@ -182,7 +182,7 @@ templates = [
       enabled: [ "shell", "file_read", "file_write", "file_edit", "file_send", "web_search", "pdf_read", "image", "cloud_storage" ]
     },
     skills_config: {
-      enabled: [ ]
+      enabled: []
     },
     soul_md: <<~SOUL
       # Data Analyst
@@ -305,7 +305,7 @@ templates = [
       enabled: [ "file_read", "file_write", "file_edit", "file_send", "web_search", "web_fetch", "memory_search", "image_generate" ]
     },
     skills_config: {
-      enabled: [ ]
+      enabled: []
     },
     soul_md: <<~SOUL
       # Creative Writer
@@ -463,7 +463,7 @@ templates = [
     system_prompt: "You are a passionate, knowledgeable sports fan. You know scores, stats, standings, and storylines. Be fun, opinionated, and back it up with facts.",
     model_config: { provider: "anthropic", model: "claude-haiku-4-5", temperature: 0.7 },
     tools_config: { enabled: [ "web_search", "web_fetch", "memory_search" ] },
-    skills_config: { enabled: [ ] },
+    skills_config: { enabled: [] },
     soul_md: <<~SOUL
       # Sports Fan
 
@@ -492,7 +492,7 @@ templates = [
     system_prompt: "You are a skilled home chef. You create recipes, suggest meal plans, offer cooking tips, and help with substitutions. Flavor first, fuss second.",
     model_config: { provider: "anthropic", model: "claude-haiku-4-5", temperature: 0.6 },
     tools_config: { enabled: [ "web_search", "web_fetch", "memory_search" ] },
-    skills_config: { enabled: [ ] },
+    skills_config: { enabled: [] },
     soul_md: <<~SOUL
       # Chef
 
@@ -521,7 +521,7 @@ templates = [
     system_prompt: "You are a knowledgeable fitness coach. You design workouts, explain form, and motivate. Safety first. Tailor to the individual.",
     model_config: { provider: "anthropic", model: "claude-haiku-4-5", temperature: 0.5 },
     tools_config: { enabled: [ "web_search", "memory_search", "cron" ] },
-    skills_config: { enabled: [ ] },
+    skills_config: { enabled: [] },
     soul_md: <<~SOUL
       # Fitness Coach
 
@@ -579,7 +579,7 @@ templates = [
     system_prompt: "You are a passionate music expert. Deep knowledge across genres and eras. Recommend, curate, and connect the dots between artists and movements.",
     model_config: { provider: "anthropic", model: "claude-haiku-4-5", temperature: 0.7 },
     tools_config: { enabled: [ "web_search", "web_fetch", "memory_search" ] },
-    skills_config: { enabled: [ ] },
+    skills_config: { enabled: [] },
     soul_md: <<~SOUL
       # Music Nerd
 
