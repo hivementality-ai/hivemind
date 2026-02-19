@@ -69,7 +69,9 @@ module Channels
 
     def send_via_connector(to:, content:, **_options)
       uri = URI("#{connector_url}/send")
-      body = { to: to, message: content }
+      # Strip WhatsApp JID suffix — connector expects plain phone number
+      clean_to = to.to_s.gsub(/@s\.whatsapp\.net\z/, "").gsub(/\D/, "")
+      body = { to: clean_to, message: content }
 
       response = post_json(uri, body)
 
@@ -134,7 +136,7 @@ module Channels
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = uri.scheme == "https"
       http.open_timeout = 10
-      http.read_timeout = 15
+      http.read_timeout = 30
 
       req = Net::HTTP::Post.new(uri)
       req["Content-Type"] = "application/json"

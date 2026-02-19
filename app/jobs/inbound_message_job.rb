@@ -98,8 +98,8 @@ class InboundMessageJob < ApplicationJob
     effective_message = hashtag_result.clean_message.presence || message
     result = Sessions::Chat.call(session: session, message: effective_message, agent: agent)
 
-    if result.success? && result.data[:reply].present?
-      reply = result.data[:reply]
+    if result.success? && result.data[:reply] || result.data[:content].present?
+      reply = result.data[:reply] || result.data[:content]
       # Prepend hashtag response if any
       reply = "#{hashtag_result.response}\n\n#{reply}" if hashtag_result.response.present?
 
@@ -223,9 +223,9 @@ class InboundMessageJob < ApplicationJob
       agent: agent
     )
 
-    return unless result.success? && result.data[:reply].present?
+    return unless result.success? && result.data[:reply] || result.data[:content].present?
 
-    reply = result.data[:reply]
+    reply = result.data[:reply] || result.data[:content]
 
     # Store agent response
     TeamChatMessage.create!(
@@ -290,16 +290,23 @@ class InboundMessageJob < ApplicationJob
     effective_message = hashtag_result.clean_message.presence || message
     result = Sessions::Chat.call(session: session, message: effective_message, agent: agent)
 
-    if result.success? && result.data[:reply].present?
-      reply = result.data[:reply]
+    Rails.logger.info("[InboundMessage] Chat result: success=#{result.success?} data_keys=#{result.data&.keys} reply=#{result.data&.dig(:reply)&.first(50)} content=#{result.data&.dig(:content)&.first(50)}")
+
+    reply = result.data[:reply] || result.data[:content] if result.success?
+
+    if reply.present?
       # Prepend hashtag response if any
       reply = "#{hashtag_result.response}\n\n#{reply}" if hashtag_result.response.present?
 
+      Rails.logger.info("[InboundMessage] Sending reply to #{sender}: #{reply.first(100)}")
       adapter = Channels::Registry.adapter_for(channel)
-      adapter.send_message(
+      send_result = adapter.send_message(
         to: sender,
         content: "[#{agent.name}] #{reply}"
       )
+      Rails.logger.info("[InboundMessage] Send result: #{send_result.inspect}")
+    else
+      Rails.logger.warn("[InboundMessage] No reply to send back")
     end
   end
 
