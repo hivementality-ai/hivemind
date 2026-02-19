@@ -44,15 +44,16 @@ module Tools
     def create_task
       name = input["name"].to_s.strip
       schedule = input["schedule"].to_s.strip
-      job_class = input["job_class"].to_s.strip
+      job_class = input["job_class"].to_s.strip.presence || "ScheduledAgentJob"
+      prompt = input["prompt"].to_s.strip
       job_params = input["job_params"].is_a?(Hash) ? input["job_params"] : {}
+      job_params["prompt"] = prompt if prompt.present? && job_params["prompt"].blank?
       description_hint = input["description_hint"].to_s.strip
       confirm = input["confirm"].to_s.downcase != "false"
 
       # Validate required parameters
       return ServiceResponse.failure(error: "name required") if name.empty?
       return ServiceResponse.failure(error: "schedule required (cron expression)") if schedule.empty?
-      return ServiceResponse.failure(error: "job_class required (Sidekiq job class name)") if job_class.empty?
 
       # Two-stage confirmation flow
       if confirm

@@ -5,7 +5,9 @@ class ScheduledTask < ApplicationRecord
 
   validates :name, presence: true
   validates :schedule, presence: true
-  validates :job_class, presence: true
+  validates :job_class, presence: true, on: :create
+
+  before_validation :set_default_job_class
   validates :confirmation_status, inclusion: { in: %w[pending active disabled paused] }, allow_nil: true
 
   scope :enabled, -> { where(enabled: true) }
@@ -42,5 +44,9 @@ class ScheduledTask < ApplicationRecord
 
   def set_default_confirmation_status
     self.confirmation_status ||= "active"
+  end
+
+  def set_default_job_class
+    self.job_class ||= "ScheduledAgentJob"
   end
 end
