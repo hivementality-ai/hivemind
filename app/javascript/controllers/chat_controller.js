@@ -3,7 +3,7 @@ import { createConsumer } from "@rails/actioncable"
 import { marked } from "marked"
 
 export default class extends Controller {
-  static targets = ["messages", "input", "sendBtn", "thinking", "thinkingContent", "tokenCount", "emptyState", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown"]
+  static targets = ["messages", "input", "sendBtn", "thinking", "thinkingContent", "tokenCount", "emptyState", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown", "toolCallsToggle"]
   static values = { sessionId: Number, agentName: String, agentInitial: String, messageUrl: String, csrf: String }
 
   connect() {
@@ -31,6 +31,7 @@ export default class extends Controller {
     )
 
     this.loadHashtagActions()
+    this.initializeToolCallsToggle()
     this.renderExistingMarkdown()
     this.scrollToBottom()
     
@@ -146,6 +147,74 @@ export default class extends Controller {
       event.preventDefault()
       this.hideHashtagDropdown()
     }
+  }
+
+  // ─── Tool Calls Toggle ─────────────────────────────────
+
+  initializeToolCallsToggle() {
+    // Get session-specific storage key
+    const storageKey = `toolCallsVisible_${this.sessionIdValue}`
+    
+    // Tool calls are hidden by default, load from session storage
+    const isVisible = sessionStorage.getItem(storageKey) === 'true'
+    
+    // Set the checkbox state
+    if (this.hasToolCallsToggleTarget) {
+      this.toolCallsToggleTarget.checked = isVisible
+    }
+    
+    // Store the current state
+    this.toolCallsVisible = isVisible
+    
+    // Hide existing tool calls if visibility is off
+    if (!this.toolCallsVisible) {
+      this.hideExistingToolCalls()
+    }
+  }
+
+  toggleToolCallsVisibility() {
+    this.toolCallsVisible = this.toolCallsToggleTarget.checked
+    
+    // Store preference in session storage
+    const storageKey = `toolCallsVisible_${this.sessionIdValue}`
+    sessionStorage.setItem(storageKey, this.toolCallsVisible.toString())
+    
+    // Show or hide existing tool calls
+    if (this.toolCallsVisible) {
+      this.showExistingToolCalls()
+    } else {
+      this.hideExistingToolCalls()
+    }
+  }
+
+  hideExistingToolCalls() {
+    // Hide tool calls that were added via JavaScript streaming
+    this.messagesTarget.querySelectorAll('[data-tool-block]').forEach(el => {
+      el.style.display = 'none'
+    })
+    
+    // Also hide any tool calls that might be in the existing DOM 
+    // (look for elements with yellow lightning icon - our tool call signature)
+    this.messagesTarget.querySelectorAll('.bg-yellow-600').forEach(iconEl => {
+      const messageDiv = iconEl.closest('.flex.justify-start')
+      if (messageDiv) {
+        messageDiv.style.display = 'none'
+        // Mark it so we can show it later
+        messageDiv.setAttribute('data-hidden-tool-call', 'true')
+      }
+    })
+  }
+
+  showExistingToolCalls() {
+    // Show tool calls that were added via JavaScript streaming
+    this.messagesTarget.querySelectorAll('[data-tool-block]').forEach(el => {
+      el.style.display = 'block'
+    })
+    
+    // Show tool calls that were hidden from existing DOM
+    this.messagesTarget.querySelectorAll('[data-hidden-tool-call="true"]').forEach(el => {
+      el.style.display = 'block'
+    })
   }
 
   handleMessage(data) {
@@ -499,14 +568,15 @@ export default class extends Controller {
     const inputStr = typeof input === "object" ? JSON.stringify(input) : input
     const shortInput = inputStr.length > 100 ? inputStr.substring(0, 100) + "..." : inputStr
 
+    const displayStyle = this.toolCallsVisible ? 'block' : 'none'
     const html = `
-      <div class="flex justify-start" data-tool-block="${toolName}">
+      <div class="flex justify-start" data-tool-block="${toolName}" style="display: ${displayStyle}">
         <div class="max-w-2xl w-full">
           <div class="flex items-start gap-3">
             <div class="w-8 h-8 bg-yellow-600 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">⚡</div>
             <div class="bg-surface-card border border-border-default rounded-xl px-4 py-3 w-full">
               <div class="flex items-center gap-2 text-yellow-400 text-sm font-medium">
-                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 818-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                 Running ${this.escapeHtml(toolName)}
               </div>
               <code class="text-text-muted text-xs mt-1 block">${this.escapeHtml(shortInput)}</code>
@@ -515,7 +585,9 @@ export default class extends Controller {
         </div>
       </div>`
     this.messagesTarget.insertAdjacentHTML("beforeend", html)
-    this.scrollToBottom()
+    if (this.toolCallsVisible) {
+      this.scrollToBottom()
+    }
   }
 
   showToolResult(toolName, output, success) {
@@ -534,7 +606,9 @@ export default class extends Controller {
         codeEl.textContent = shortOutput
       }
     }
-    this.scrollToBottom()
+    if (this.toolCallsVisible) {
+      this.scrollToBottom()
+    }
   }
 
   showError(message) {
