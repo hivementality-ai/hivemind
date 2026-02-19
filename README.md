@@ -83,6 +83,8 @@ The AI industry is obsessed with building one agent that can "do it all." We thi
 
 **But specialization is just the starting point—agents get smarter over time.** Hivemind agents don't just start optimized for their domain; they continuously improve through memory systems that retain past interactions, context, and learnings. With our mini-RAG system (coming soon), agents build an ever-growing knowledge base from accumulated experience, creating a learning curve advantage that compounds with each interaction.
 
+**And here's the key: your agents aren't locked to a single model.** Mix and match specialized agents from any provider—Anthropic's Claude for reasoning, OpenAI's GPT for creativity, local Ollama models for lightweight tasks. They collaborate as a cohesive system despite their diversity, giving you the best tool for each job instead of forcing everything through one model's constraints.
+
 **Hivemind embodies this philosophy.** We're not building another "ChatGPT for everything." We're building a platform where specialized AI agents can work as a team. Quality over breadth. Collaboration over consolidation. That's why we're here.
 
 ---
