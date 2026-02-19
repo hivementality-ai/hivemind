@@ -270,7 +270,7 @@ class TeamChatJob < ApplicationJob
       if @chain_depth < MAX_CHAIN_DEPTH
         mentions = TeamChatMessage.extract_mentions(full_content, @team)
         # Skip agents who already responded (or will respond) in this broadcast round
-        skip_ids = ((@current_round_agent_ids_responded || []) + @broadcast_agent_ids + [agent.id]).uniq
+        skip_ids = ((@current_round_agent_ids_responded || []) + @broadcast_agent_ids + [ agent.id ]).uniq
         mentions[:agents].reject { |a| skip_ids.include?(a.id) }.each do |mentioned_agent|
           TeamChatJob.perform_later(@session.id, agent_message.id, responding_agent_id: mentioned_agent.id, chain_depth: @chain_depth + 1, broadcast_agent_ids: skip_ids)
         end

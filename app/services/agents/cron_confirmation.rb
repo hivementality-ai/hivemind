@@ -195,7 +195,7 @@ module Agents
 
     def format_next_run(next_run_at)
       return "Pending scheduler sync" if next_run_at.nil?
-      
+
       next_run_at.strftime("%Y-%m-%d %H:%M:%S %Z")
     rescue StandardError
       "Pending scheduler sync"

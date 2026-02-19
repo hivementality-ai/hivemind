@@ -483,6 +483,21 @@ BUILTIN_TOOLS = [
     }
   },
   {
+    name: "grep",
+    description: "Search for patterns in files using regular expressions. Search across the workspace or specific directories with optional case-insensitive matching.",
+    executor_type: "grep",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "pattern" => { "type" => "string", "description" => "Regular expression pattern to search for" },
+        "path" => { "type" => "string", "description" => "Directory path to search in (defaults to /workspace)" },
+        "case_insensitive" => { "type" => "boolean", "description" => "Whether to perform case-insensitive search (default: false)" },
+        "max_results" => { "type" => "integer", "description" => "Maximum number of results to return (default: 50)" }
+      },
+      "required" => [ "pattern" ]
+    }
+  },
+  {
     name: "plan_mode",
     description: "Enter or exit planning mode. In planning mode, tool calls are shown differently in the UI to indicate the agent is exploring and planning rather than implementing.",
     executor_type: "plan_mode",
@@ -500,6 +515,19 @@ BUILTIN_TOOLS = [
         }
       },
       "required" => [ "action" ]
+    }
+  },
+  {
+    name: "glob",
+    description: "Find files by name patterns using glob syntax. Use wildcards like *.rb, **/*.js, or test_*.py to find files matching specific patterns.",
+    executor_type: "glob",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "pattern" => { "type" => "string", "description" => "Glob pattern to match files (e.g., '*.rb', '**/*.js', 'test_*.py')" },
+        "path" => { "type" => "string", "description" => "Root directory to search from (defaults to /workspace)" }
+      },
+      "required" => [ "pattern" ]
     }
   }
 ].freeze

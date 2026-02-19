@@ -11,6 +11,6 @@ class UpdateScheduledTasksForConfirmation < ActiveRecord::Migration[8.1]
     add_column :scheduled_tasks, :job_params, :jsonb, if_not_exists: true
 
     # Add index for efficient queries
-    add_index :scheduled_tasks, [:agent_id, :confirmation_status], if_not_exists: true
+    add_index :scheduled_tasks, [ :agent_id, :confirmation_status ], if_not_exists: true
   end
 end

@@ -124,7 +124,7 @@ module Tools
         required_credentials
       else
         # Flat list — wrap in a single "default" provider set
-        [{ "provider" => "default", "credentials" => required_credentials }]
+        [ { "provider" => "default", "credentials" => required_credentials } ]
       end
     end
 

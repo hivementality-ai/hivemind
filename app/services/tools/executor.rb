@@ -39,7 +39,8 @@ module Tools
       "coding_agent_status" => Tools::CodingAgentStatusExecutor,
       "vault" => Tools::VaultExecutor,
       "ask_user" => Tools::AskUserExecutor,
-      "plan_mode" => Tools::PlanModeExecutor
+      "plan_mode" => Tools::PlanModeExecutor,
+      "glob" => Tools::GlobExecutor
     }.freeze
 
     def self.call(tool:, input:, agent:, session:)

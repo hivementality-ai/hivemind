@@ -3,7 +3,7 @@ import { createConsumer } from "@rails/actioncable"
 import { marked } from "marked"
 
 export default class extends Controller {
-  static targets = ["messages", "input", "sendBtn", "thinking", "thinkingContent", "tokenCount", "emptyState", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown", "toolCallsToggle"]
+  static targets = ["messages", "input", "sendBtn", "thinking", "thinkingContent", "tokenCount", "emptyState", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown", "toolCallsToggle", "working"]
   static values = { sessionId: Number, agentName: String, agentInitial: String, messageUrl: String, csrf: String }
 
   connect() {
@@ -183,6 +183,8 @@ export default class extends Controller {
     // Show or hide existing tool calls
     if (this.toolCallsVisible) {
       this.showExistingToolCalls()
+      // Hide working indicator if tool calls are now visible
+      this.hideWorking()
     } else {
       this.hideExistingToolCalls()
     }
@@ -269,6 +271,7 @@ export default class extends Controller {
         break
       case "error":
         this.hideThinking()
+        this.hideWorking()
         this.showError(data.content)
         this.finishStream()
         break
@@ -284,6 +287,9 @@ export default class extends Controller {
     this.sendBtnTarget.disabled = true
     this.inputTarget.value = ""
     this.inputTarget.style.height = "auto"
+    
+    // Hide any existing working indicator
+    this.hideWorking()
 
     if (this.hasEmptyStateTarget) this.emptyStateTarget.remove()
 
@@ -526,6 +532,19 @@ export default class extends Controller {
     }
   }
 
+  showWorking() {
+    if (this.hasWorkingTarget) {
+      this.workingTarget.classList.remove("hidden")
+      this.scrollToBottom()
+    }
+  }
+
+  hideWorking() {
+    if (this.hasWorkingTarget) {
+      this.workingTarget.classList.add("hidden")
+    }
+  }
+
   showAgentThinking() {
     // Create a collapsible thinking bubble in the chat
     if (this.thinkingBubble) return
@@ -592,6 +611,12 @@ export default class extends Controller {
         </div>
       </div>`
     this.messagesTarget.insertAdjacentHTML("beforeend", html)
+    
+    // Show working indicator if tool calls are hidden
+    if (!this.toolCallsVisible) {
+      this.showWorking()
+    }
+    
     if (this.toolCallsVisible) {
       this.scrollToBottom()
     }
@@ -779,6 +804,9 @@ export default class extends Controller {
     this.streamRawText = ""
     this.sendBtnTarget.disabled = false
     this.inputTarget.focus()
+    
+    // Hide working indicator when stream finishes
+    this.hideWorking()
 
     // Post-process: render images in agent responses
     this.renderAgentImages()

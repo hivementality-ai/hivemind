@@ -318,7 +318,7 @@ RSpec.describe Agents::LoopDetector do
           repeat_calls = Array.new(10) do |i|
             { tool_name: "repeat_tool", params: { same: true }, output: "repeated #{i}", success: true }
           end
-          
+
           # Then some ping-pong
           ping_pong_calls = Array.new(4) do |i|
             if i.even?
@@ -327,7 +327,7 @@ RSpec.describe Agents::LoopDetector do
               { tool_name: "pong", params: {}, output: "pong result", success: true }
             end
           end
-          
+
           repeat_calls + ping_pong_calls
         end
 
@@ -344,12 +344,12 @@ RSpec.describe Agents::LoopDetector do
           old_calls = Array.new(10) do |i|
             { tool_name: "old_tool", params: { id: i }, output: "old result", success: true }
           end
-          
+
           # Recent calls within history size
           recent_calls = Array.new(3) do
             { tool_name: "recent_tool", params: { same: true }, output: "recent", success: true }
           end
-          
+
           old_calls + recent_calls
         end
 
