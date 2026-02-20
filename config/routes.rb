@@ -45,6 +45,9 @@ Rails.application.routes.draw do
   # Agents (use slug for routes)
   resources :agents, param: :slug
 
+  # Providers (admin interface)
+  resources :providers, only: [ :index, :show, :edit, :update ]
+
   # Tools
   resources :tools
   resources :skills do
