@@ -3,22 +3,29 @@
 module Tools
   class PlanModeExecutor < BaseExecutor
     def call
+      Rails.logger.info("[PlanModeExecutor] Full input: #{input.inspect}")
+      Rails.logger.info("[PlanModeExecutor] Full config: #{config.inspect}")
+      
       action = input["action"]&.downcase
       session = config[:session]
 
-      Rails.logger.info("[PlanModeExecutor] Received action: #{action.inspect}, input: #{input.inspect}")
+      Rails.logger.info("[PlanModeExecutor] Parsed action: #{action.inspect} (class: #{action.class}), session: #{session&.id}")
 
       case action
       when "generate"
+        Rails.logger.info("[PlanModeExecutor] Executing generate_plan")
         generate_plan(session)
       when "execute"
+        Rails.logger.info("[PlanModeExecutor] Executing start_execution")
         start_execution(session)
       when "update_phase"
+        Rails.logger.info("[PlanModeExecutor] Executing update_execution_phase")
         update_execution_phase(session)
       when "exit"
+        Rails.logger.info("[PlanModeExecutor] Executing exit_plan_mode")
         exit_plan_mode(session)
       else
-        Rails.logger.error("[PlanModeExecutor] Invalid action: #{action.inspect}")
+        Rails.logger.error("[PlanModeExecutor] Invalid action: #{action.inspect} (expected one of: generate, execute, update_phase, exit)")
         ServiceResponse.failure(error: "Invalid action. Use 'generate', 'execute', 'update_phase', or 'exit'")
       end
     rescue StandardError => e
