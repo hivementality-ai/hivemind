@@ -499,19 +499,23 @@ BUILTIN_TOOLS = [
   },
   {
     name: "plan_mode",
-    description: "Enter or exit planning mode. In planning mode, tool calls are shown differently in the UI to indicate the agent is exploring and planning rather than implementing.",
+    description: "Generate, manage, and execute multi-phase work plans. Create structured plans with objectives, approaches, and success criteria, then execute phase-by-phase.",
     executor_type: "plan_mode",
     requires_approval: false,
     parameters_schema: {
       "properties" => {
         "action" => {
           "type" => "string",
-          "description" => "Action to perform: 'enter' to start planning mode, or 'exit' to end planning mode",
-          "enum" => [ "enter", "exit" ]
+          "description" => "Action to perform: 'generate' to create a plan, 'execute' to start executing, or 'update_phase' to move to next phase",
+          "enum" => [ "generate", "execute", "update_phase" ]
         },
-        "summary" => {
+        "task" => {
           "type" => "string",
-          "description" => "Optional summary of the plan when exiting planning mode"
+          "description" => "Description of the task to plan (required for 'generate' action)"
+        },
+        "phase_number" => {
+          "type" => "integer",
+          "description" => "Phase number to move to (required for 'update_phase' action)"
         }
       },
       "required" => [ "action" ]

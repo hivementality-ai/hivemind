@@ -266,6 +266,9 @@ export default class extends Controller {
       case "planning_mode":
         this.handlePlanningMode(data.planning, data.message, data.summary)
         break
+      case "plan":
+        this.handlePlanMessage(data)
+        break
       case "done":
         this.finishStream()
         break
@@ -894,6 +897,160 @@ export default class extends Controller {
       // Clear planning mode flag
       this.planningMode = false
     }
+  }
+
+  handlePlanMessage(data) {
+    const { action, plan, current_phase, total_phases, phase_data, message } = data
+
+    switch (action) {
+      case "display":
+        this.displayPlan(plan)
+        break
+      case "start_execution":
+        this.displayPlanExecution(plan, current_phase, total_phases)
+        break
+      case "phase_update":
+        this.updatePhaseDisplay(current_phase, total_phases, phase_data)
+        break
+    }
+  }
+
+  displayPlan(plan) {
+    const planDiv = document.createElement('div')
+    planDiv.className = 'flex justify-start mb-4'
+    planDiv.innerHTML = `
+      <div class="max-w-4xl w-full">
+        <div class="flex items-start gap-3">
+          <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
+            ${this.agentInitialValue}
+          </div>
+          <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100 w-full">
+            <div class="text-blue-400 font-medium mb-3 flex items-center gap-2">
+              <span>📋</span>
+              <span>Work Plan</span>
+              <button class="ml-auto text-xs px-2 py-1 bg-blue-600/20 hover:bg-blue-600/30 rounded border border-blue-500/30 text-blue-300" 
+                      data-action="click->chat#togglePlanDetails">
+                Show Details
+              </button>
+            </div>
+            
+            <div class="bg-surface-card px-3 py-2 rounded-lg border border-border-default">
+              <div class="text-sm text-white font-semibold mb-2">${this.escapeHtml(plan.overview)}</div>
+              <div class="text-xs text-text-muted mb-3">${this.escapeHtml(plan.context)}</div>
+              
+              <div class="space-y-2 mb-3">
+                <div class="text-xs font-semibold text-text-muted">Phases:</div>
+                <div class="space-y-1" data-plan-phases>
+                  ${plan.phases.map((phase, idx) => `
+                    <div class="flex items-center gap-2 text-xs">
+                      <div class="w-6 h-6 rounded-full bg-blue-600/30 border border-blue-500/50 flex items-center justify-center text-blue-300 font-semibold">
+                        ${phase.number}
+                      </div>
+                      <span class="text-gray-300">${this.escapeHtml(phase.name)}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+              
+              <div class="hidden space-y-3 text-xs" data-plan-details style="display: none;">
+                ${plan.phases.map((phase, idx) => `
+                  <div class="border-t border-border-default pt-2">
+                    <div class="font-semibold text-blue-300 mb-1">Phase ${phase.number}: ${this.escapeHtml(phase.name)}</div>
+                    <div class="text-gray-400 mb-1">
+                      <strong>Objectives:</strong> ${phase.objectives.map(o => this.escapeHtml(o)).join('; ')}
+                    </div>
+                    <div class="text-gray-400 mb-1">
+                      <strong>Approach:</strong> ${this.escapeHtml(phase.approach)}
+                    </div>
+                    <div class="text-gray-400">
+                      <strong>Tools:</strong> ${phase.tools_needed.join(', ')}
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+              
+              <div class="border-t border-border-default pt-2 mt-3 text-xs text-text-muted">
+                <strong>Success Criteria:</strong> ${plan.success_criteria.map(c => this.escapeHtml(c)).join('; ')}<br>
+                <strong>Estimated Duration:</strong> ${this.escapeHtml(plan.estimated_duration)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+
+    this.messagesTarget.appendChild(planDiv)
+    this.scrollToBottom()
+  }
+
+  togglePlanDetails(event) {
+    const planDiv = event.target.closest('[data-plan-phases]')?.closest('.bg-surface-card')
+    if (!planDiv) return
+
+    const detailsDiv = planDiv.querySelector('[data-plan-details]')
+    if (!detailsDiv) return
+
+    const isHidden = detailsDiv.style.display === 'none'
+    detailsDiv.style.display = isHidden ? 'block' : 'none'
+    event.target.textContent = isHidden ? 'Hide Details' : 'Show Details'
+  }
+
+  displayPlanExecution(plan, currentPhase, totalPhases) {
+    const executionDiv = document.createElement('div')
+    executionDiv.className = 'flex justify-start mb-4'
+    executionDiv.innerHTML = `
+      <div class="max-w-2xl">
+        <div class="flex items-start gap-3">
+          <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
+            ${this.agentInitialValue}
+          </div>
+          <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
+            <div class="text-green-400 font-medium mb-2 flex items-center gap-2">
+              <span>🚀</span>
+              <span>Plan Execution Started</span>
+            </div>
+            <div class="text-xs text-text-muted">
+              <div class="mb-2">Progress: <strong>${currentPhase}/${totalPhases}</strong></div>
+              <div class="flex gap-1">
+                ${plan.phases.map((_, idx) => `
+                  <div class="h-1 flex-1 rounded-full ${(idx + 1) <= currentPhase ? 'bg-green-500' : 'bg-surface-card'}"></div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+
+    this.messagesTarget.appendChild(executionDiv)
+    this.scrollToBottom()
+  }
+
+  updatePhaseDisplay(currentPhase, totalPhases, phaseData) {
+    const phaseDiv = document.createElement('div')
+    phaseDiv.className = 'flex justify-start mb-4'
+    phaseDiv.innerHTML = `
+      <div class="max-w-2xl">
+        <div class="flex items-start gap-3">
+          <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
+            ${this.agentInitialValue}
+          </div>
+          <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
+            <div class="text-cyan-400 font-medium mb-2 flex items-center gap-2">
+              <span>📍</span>
+              <span>Phase ${currentPhase}: ${this.escapeHtml(phaseData.name)}</span>
+            </div>
+            <div class="text-xs text-gray-400 space-y-1">
+              <div><strong>Objectives:</strong> ${phaseData.objectives.map(o => this.escapeHtml(o)).join('; ')}</div>
+              <div><strong>Approach:</strong> ${this.escapeHtml(phaseData.approach)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+
+    this.messagesTarget.appendChild(phaseDiv)
+    this.scrollToBottom()
   }
 
   createPlanningIndicator() {

@@ -7,12 +7,14 @@ module Tools
       session = config[:session]
 
       case action
-      when "enter"
-        enter_planning_mode(session)
-      when "exit"
-        exit_planning_mode(session)
+      when "generate"
+        generate_plan(session)
+      when "execute"
+        start_execution(session)
+      when "update_phase"
+        update_execution_phase(session)
       else
-        ServiceResponse.failure(error: "Invalid action. Use 'enter' or 'exit'")
+        ServiceResponse.failure(error: "Invalid action. Use 'generate', 'execute', or 'update_phase'")
       end
     rescue StandardError => e
       ServiceResponse.failure(error: "Planning mode operation failed: #{e.message}")
@@ -20,60 +22,115 @@ module Tools
 
     private
 
-    def enter_planning_mode(session)
-      # Set planning mode flag in session metadata
+    def generate_plan(session)
+      task = input["task"]&.strip
+      unless task.present?
+        return ServiceResponse.failure(error: "Task is required for plan generation")
+      end
+
+      # Generate plan using the PlanGenerator service
+      plan_result = Agents::PlanGenerator.call(
+        agent: agent,
+        task: task,
+        session: session
+      )
+
+      unless plan_result.success?
+        return ServiceResponse.failure(error: plan_result.error)
+      end
+
+      plan = plan_result.data[:plan]
+
+      # Store plan in session metadata
       session.metadata ||= {}
-      session.metadata["planning_mode"] = true
-      session.metadata["planning_started_at"] = Time.current.iso8601
+      session.metadata["current_plan"] = plan
+      session.metadata["plan_generated_at"] = Time.current.iso8601
+      session.metadata["plan_status"] = "generated"
+      session.metadata["current_phase"] = 0
       session.save!
 
-      # Broadcast planning state to UI
+      # Broadcast plan to UI
       ActionCable.server.broadcast(
         "session_#{session.id}",
         {
-          type: "planning_mode",
-          planning: true,
-          message: "🧠 Planning mode activated..."
+          type: "plan",
+          action: "display",
+          plan: plan,
+          message: "📋 Plan generated. Ready to execute."
         }
       )
 
-      output = "Planning mode activated. Tool calls will be shown in planning context."
+      output = "Plan generated with #{plan['phases'].length} phases. Ready to execute."
+      ServiceResponse.success(data: { output: output, exit_code: 0, plan: plan })
+    end
+
+    def start_execution(session)
+      plan = session.metadata&.dig("current_plan")
+      unless plan.present?
+        return ServiceResponse.failure(error: "No plan available. Generate a plan first.")
+      end
+
+      # Initialize execution tracking
+      session.metadata ||= {}
+      session.metadata["plan_status"] = "executing"
+      session.metadata["current_phase"] = 1
+      session.metadata["plan_started_at"] = Time.current.iso8601
+      session.save!
+
+      # Broadcast execution start
+      ActionCable.server.broadcast(
+        "session_#{session.id}",
+        {
+          type: "plan",
+          action: "start_execution",
+          current_phase: 1,
+          total_phases: plan["phases"].length,
+          message: "🚀 Plan execution started. Beginning Phase 1."
+        }
+      )
+
+      output = "Plan execution started. Proceeding with Phase 1: #{plan['phases'][0]['name']}"
       ServiceResponse.success(data: { output: output, exit_code: 0 })
     end
 
-    def exit_planning_mode(session)
-      summary = input["summary"]&.strip
-
-      # Clear planning mode flag and add summary if provided
-      session.metadata ||= {}
-      session.metadata["planning_mode"] = false
-      session.metadata["planning_ended_at"] = Time.current.iso8601
-
-      if summary.present?
-        session.metadata["last_planning_summary"] = summary
+    def update_execution_phase(session)
+      phase_number = input["phase_number"]
+      unless phase_number.present?
+        return ServiceResponse.failure(error: "phase_number is required")
       end
 
+      plan = session.metadata&.dig("current_plan")
+      unless plan.present?
+        return ServiceResponse.failure(error: "No plan available")
+      end
+
+      # Validate phase number
+      total_phases = plan["phases"].length
+      if phase_number < 1 || phase_number > total_phases
+        return ServiceResponse.failure(error: "Invalid phase number. Expected 1-#{total_phases}")
+      end
+
+      # Update current phase
+      session.metadata ||= {}
+      session.metadata["current_phase"] = phase_number
       session.save!
 
-      # Broadcast planning state to UI
-      broadcast_data = {
-        type: "planning_mode",
-        planning: false,
-        message: "📋 Switched to implementation mode"
-      }
+      # Broadcast phase update
+      current_phase_data = plan["phases"][phase_number - 1]
+      ActionCable.server.broadcast(
+        "session_#{session.id}",
+        {
+          type: "plan",
+          action: "phase_update",
+          current_phase: phase_number,
+          total_phases: total_phases,
+          phase_data: current_phase_data,
+          message: "📍 Moving to Phase #{phase_number}: #{current_phase_data['name']}"
+        }
+      )
 
-      if summary.present?
-        broadcast_data[:summary] = summary
-      end
-
-      ActionCable.server.broadcast("session_#{session.id}", broadcast_data)
-
-      output_parts = [ "Planning mode deactivated." ]
-      if summary.present?
-        output_parts << "Plan summary recorded."
-      end
-
-      ServiceResponse.success(data: { output: output_parts.join(" "), exit_code: 0 })
+      output = "Phase #{phase_number} started: #{current_phase_data['name']}"
+      ServiceResponse.success(data: { output: output, exit_code: 0 })
     end
   end
 end

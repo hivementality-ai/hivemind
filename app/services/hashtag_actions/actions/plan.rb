@@ -4,9 +4,14 @@ module HashtagActions
   module Actions
     class Plan < Base
       def execute
-        # Enter planning mode when #plan is used
-        
-        # Invoke the plan_mode tool to enter planning mode
+        # Extract task from payload if provided, otherwise use the clean message
+        task = if payload.present?
+                 payload.strip
+               else
+                 clean_message&.strip.presence || "General task planning"
+               end
+
+        # Invoke the plan_mode tool to generate a plan
         plan_tool = Tool.find_by(name: "plan_mode")
         unless plan_tool
           return { response: "Planning mode tool not found", bypass: false, status: "error" }
@@ -14,34 +19,77 @@ module HashtagActions
 
         result = Tools::Executor.call(
           tool: plan_tool,
-          input: { action: "enter" },
+          input: { action: "generate", task: task },
           agent: agent,
           session: session
         )
 
         if result.success?
-          # Broadcast planning mode activation
-          ActionCable.server.broadcast(
-            "session_#{session.id}",
-            {
-              type: "planning_mode",
-              planning: true,
-              message: "🧠 Planning mode activated..."
-            }
-          )
+          plan = result.data[:plan]
+          
+          # Build a formatted plan response for display
+          plan_summary = format_plan_for_display(plan)
+          
+          # Provide phase context in prompt addon
+          phase_context = build_phase_context(plan)
 
           {
-            response: "Planning mode activated. Tool calls will be shown for planning context.",
-            bypass: false,  # Don't bypass LLM — agent continues with the rest of the message
+            response: "✅ Plan generated! I'll now execute it phase by phase.\n\n#{plan_summary}",
+            bypass: false,  # Agent continues and can initiate execution
             status: "ok",
-            prompt_addon: "User has activated planning mode. Show all tool calls and thinking steps for transparency."
+            prompt_addon: phase_context
           }
         else
-          { response: "Failed to enter planning mode", bypass: false, status: "error" }
+          { response: "Failed to generate plan: #{result.error}", bypass: false, status: "error" }
         end
       rescue StandardError => e
         Rails.logger.error("[Plan Action] Error: #{e.message}")
-        { response: "Planning mode error: #{e.message}", bypass: false, status: "error" }
+        { response: "Planning error: #{e.message}", bypass: false, status: "error" }
+      end
+
+      private
+
+      def format_plan_for_display(plan)
+        lines = []
+        lines << "📋 **Plan Overview**: #{plan['overview']}"
+        lines << ""
+        lines << "**Context**: #{plan['context']}"
+        lines << ""
+        lines << "**Phases**:"
+        
+        plan["phases"].each do |phase|
+          lines << ""
+          lines << "**Phase #{phase['number']}: #{phase['name']}**"
+          lines << "  - *Objectives*: #{phase['objectives'].join(', ')}"
+          lines << "  - *Approach*: #{phase['approach']}"
+          lines << "  - *Tools needed*: #{phase['tools_needed'].join(', ')}"
+          lines << "  - *Expected output*: #{phase['expected_output']}"
+        end
+        
+        lines << ""
+        lines << "**Success Criteria**: #{plan['success_criteria'].join(', ')}"
+        lines << "**Estimated Duration**: #{plan['estimated_duration']}"
+        
+        lines.join("\n")
+      end
+
+      def build_phase_context(plan)
+        phase_descriptions = plan["phases"].map do |phase|
+          "Phase #{phase['number']} (#{phase['name']}): #{phase['objectives'].join('; ')}"
+        end.join("\n")
+
+        <<~CONTEXT
+          User has created a multi-phase plan:
+          #{phase_descriptions}
+
+          You will execute this plan phase by phase:
+          1. Start each phase with a clear marker: "## Phase N: [name]"
+          2. Execute the objectives for the current phase
+          3. Track your progress and show what you've accomplished
+          4. When ready, move to the next phase
+          
+          You can reference the plan whenever needed to stay on track.
+        CONTEXT
       end
     end
   end

@@ -8,105 +8,219 @@ RSpec.describe Tools::PlanModeExecutor do
   let(:executor) { described_class.new(input: input, config: { session: session }, agent: agent) }
 
   describe "#call" do
-    context "when action is enter" do
-      let(:input) { { "action" => "enter" } }
-
-      it "sets planning mode flag in session metadata" do
-        expect { executor.call }.to change { session.reload.metadata["planning_mode"] }.to(true)
+    context "when action is generate" do
+      let(:input) { { "action" => "generate", "task" => "Build a user authentication system" } }
+      let(:plan) do
+        {
+          "overview" => "Implement a complete authentication system",
+          "context" => "Building login and signup for the web app",
+          "phases" => [
+            {
+              "number" => 1,
+              "name" => "Setup",
+              "objectives" => ["Create database schema", "Setup authentication library"],
+              "approach" => "Create migrations and configure gems",
+              "tools_needed" => ["database", "gems"],
+              "expected_output" => "Database tables and auth library configured"
+            }
+          ],
+          "success_criteria" => ["Users can sign up", "Users can log in"],
+          "estimated_duration" => "2-3 hours"
+        }
       end
 
-      it "sets planning started timestamp" do
+      before do
+        allow(Agents::PlanGenerator).to receive(:call).and_return(
+          ServiceResponse.success(data: { plan: plan })
+        )
+      end
+
+      it "calls PlanGenerator with the agent and task" do
+        expect(Agents::PlanGenerator).to receive(:call).with(
+          agent: agent,
+          task: "Build a user authentication system",
+          session: session
+        ).and_return(ServiceResponse.success(data: { plan: plan }))
+
         executor.call
-        started_at = Time.parse(session.reload.metadata["planning_started_at"])
-        expect(started_at).to be_within(1.second).of(Time.current)
       end
 
-      it "broadcasts planning mode activation" do
+      it "stores the plan in session metadata" do
+        executor.call
+        expect(session.reload.metadata["current_plan"]).to eq(plan)
+      end
+
+      it "sets plan status to generated" do
+        executor.call
+        expect(session.reload.metadata["plan_status"]).to eq("generated")
+      end
+
+      it "initializes current phase to 0" do
+        executor.call
+        expect(session.reload.metadata["current_phase"]).to eq(0)
+      end
+
+      it "broadcasts the plan to the UI" do
         expect(ActionCable.server).to receive(:broadcast).with(
           "session_#{session.id}",
-          {
-            type: "planning_mode",
-            planning: true,
-            message: "🧠 Planning mode activated..."
-          }
+          hash_including(
+            type: "plan",
+            action: "display",
+            plan: plan
+          )
         )
 
         executor.call
       end
 
-      it "returns success with appropriate message" do
+      it "returns success with the plan" do
         result = executor.call
         expect(result.success?).to be true
-        expect(result.data[:output]).to eq("Planning mode activated. Tool calls will be shown in planning context.")
-        expect(result.data[:exit_code]).to eq(0)
+        expect(result.data[:plan]).to eq(plan)
+        expect(result.data[:output]).to include("Plan generated with 1 phases")
+      end
+
+      context "when task is missing" do
+        let(:input) { { "action" => "generate" } }
+
+        it "returns failure" do
+          result = executor.call
+          expect(result.success?).to be false
+          expect(result.error).to eq("Task is required for plan generation")
+        end
+      end
+
+      context "when plan generation fails" do
+        before do
+          allow(Agents::PlanGenerator).to receive(:call).and_return(
+            ServiceResponse.failure(error: "LLM error")
+          )
+        end
+
+        it "returns failure with the error" do
+          result = executor.call
+          expect(result.success?).to be false
+          expect(result.error).to eq("LLM error")
+        end
       end
     end
 
-    context "when action is exit" do
-      let(:input) { { "action" => "exit" } }
+    context "when action is execute" do
+      let(:input) { { "action" => "execute" } }
+      let(:plan) do
+        {
+          "overview" => "Test plan",
+          "phases" => [
+            { "number" => 1, "name" => "Phase 1" },
+            { "number" => 2, "name" => "Phase 2" }
+          ]
+        }
+      end
 
       before do
-        session.update!(metadata: {
-          "planning_mode" => true,
-          "planning_started_at" => 1.hour.ago.iso8601
-        })
+        session.update!(metadata: { "current_plan" => plan })
       end
 
-      it "clears planning mode flag in session metadata" do
-        expect { executor.call }.to change { session.reload.metadata["planning_mode"] }.to(false)
-      end
-
-      it "sets planning ended timestamp" do
+      it "sets plan status to executing" do
         executor.call
-        ended_at = Time.parse(session.reload.metadata["planning_ended_at"])
-        expect(ended_at).to be_within(1.second).of(Time.current)
+        expect(session.reload.metadata["plan_status"]).to eq("executing")
       end
 
-      it "broadcasts planning mode deactivation" do
+      it "sets current phase to 1" do
+        executor.call
+        expect(session.reload.metadata["current_phase"]).to eq(1)
+      end
+
+      it "broadcasts execution start" do
         expect(ActionCable.server).to receive(:broadcast).with(
           "session_#{session.id}",
-          {
-            type: "planning_mode",
-            planning: false,
-            message: "📋 Switched to implementation mode"
-          }
+          hash_including(
+            type: "plan",
+            action: "start_execution",
+            current_phase: 1
+          )
         )
 
         executor.call
       end
 
-      it "returns success with appropriate message" do
+      it "returns success with phase 1 info" do
         result = executor.call
         expect(result.success?).to be true
-        expect(result.data[:output]).to eq("Planning mode deactivated.")
-        expect(result.data[:exit_code]).to eq(0)
+        expect(result.data[:output]).to include("Phase 1")
       end
 
-      context "when summary is provided" do
-        let(:input) { { "action" => "exit", "summary" => "Plan to implement user authentication" } }
-
-        it "saves the summary in session metadata" do
-          executor.call
-          expect(session.reload.metadata["last_planning_summary"]).to eq("Plan to implement user authentication")
+      context "when no plan exists" do
+        before do
+          session.update!(metadata: {})
         end
 
-        it "includes summary in the broadcast" do
-          expect(ActionCable.server).to receive(:broadcast).with(
-            "session_#{session.id}",
-            {
-              type: "planning_mode",
-              planning: false,
-              message: "📋 Switched to implementation mode",
-              summary: "Plan to implement user authentication"
-            }
-          )
-
-          executor.call
-        end
-
-        it "mentions the summary in the output" do
+        it "returns failure" do
           result = executor.call
-          expect(result.data[:output]).to eq("Planning mode deactivated. Plan summary recorded.")
+          expect(result.success?).to be false
+          expect(result.error).to eq("No plan available. Generate a plan first.")
+        end
+      end
+    end
+
+    context "when action is update_phase" do
+      let(:input) { { "action" => "update_phase", "phase_number" => 2 } }
+      let(:plan) do
+        {
+          "phases" => [
+            { "number" => 1, "name" => "Phase 1", "objectives" => ["Obj 1"] },
+            { "number" => 2, "name" => "Phase 2", "objectives" => ["Obj 2"] }
+          ]
+        }
+      end
+
+      before do
+        session.update!(metadata: { "current_plan" => plan, "current_phase" => 1 })
+      end
+
+      it "updates current phase in session metadata" do
+        executor.call
+        expect(session.reload.metadata["current_phase"]).to eq(2)
+      end
+
+      it "broadcasts phase update" do
+        expect(ActionCable.server).to receive(:broadcast).with(
+          "session_#{session.id}",
+          hash_including(
+            type: "plan",
+            action: "phase_update",
+            current_phase: 2
+          )
+        )
+
+        executor.call
+      end
+
+      it "returns success with phase info" do
+        result = executor.call
+        expect(result.success?).to be true
+        expect(result.data[:output]).to include("Phase 2")
+      end
+
+      context "when phase number is out of range" do
+        let(:input) { { "action" => "update_phase", "phase_number" => 99 } }
+
+        it "returns failure" do
+          result = executor.call
+          expect(result.success?).to be false
+          expect(result.error).to include("Invalid phase number")
+        end
+      end
+
+      context "when no plan exists" do
+        before do
+          session.update!(metadata: {})
+        end
+
+        it "returns failure" do
+          result = executor.call
+          expect(result.success?).to be false
+          expect(result.error).to eq("No plan available")
         end
       end
     end
@@ -117,21 +231,21 @@ RSpec.describe Tools::PlanModeExecutor do
       it "returns failure with error message" do
         result = executor.call
         expect(result.success?).to be false
-        expect(result.error).to eq("Invalid action. Use 'enter' or 'exit'")
+        expect(result.error).to include("Invalid action")
       end
     end
 
     context "when an exception occurs" do
-      let(:input) { { "action" => "enter" } }
+      let(:input) { { "action" => "generate", "task" => "Test task" } }
 
       before do
-        allow(session).to receive(:save!).and_raise(StandardError, "Database error")
+        allow(Agents::PlanGenerator).to receive(:call).and_raise(StandardError, "Unexpected error")
       end
 
       it "returns failure with error message" do
         result = executor.call
         expect(result.success?).to be false
-        expect(result.error).to eq("Planning mode operation failed: Database error")
+        expect(result.error).to include("Planning mode operation failed")
       end
     end
   end
