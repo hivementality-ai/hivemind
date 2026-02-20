@@ -988,10 +988,11 @@ export default class extends Controller {
   }
 
   togglePlanDetails(event) {
-    const planDiv = event.target.closest('[data-plan-phases]')?.closest('.bg-surface-card')
-    if (!planDiv) return
+    // Find the plan card container (works for both JS-rendered and ERB-rendered cards)
+    const planCard = event.target.closest('.bg-surface-raised') || event.target.closest('.bg-surface-card')
+    if (!planCard) return
 
-    const detailsDiv = planDiv.querySelector('[data-plan-details]')
+    const detailsDiv = planCard.querySelector('[data-plan-details]')
     if (!detailsDiv) return
 
     const isHidden = detailsDiv.style.display === 'none'
