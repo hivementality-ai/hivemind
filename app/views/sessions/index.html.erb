@@ -6,50 +6,125 @@
     </div>
   </div>
 
-  <!-- Start new chat -->
-  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-8">
-    <h2 class="text-lg font-semibold text-white mb-4">Start a new conversation</h2>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <% Agent.enabled.order(:name).each do |agent| %>
-        <div class="bg-surface-raised border border-border-default rounded-lg p-4 hover:border-brand transition">
-          <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 bg-brand rounded-lg flex items-center justify-center text-white font-bold">
-              <%= agent.name[0].upcase %>
-            </div>
-            <div>
-              <h3 class="text-white font-medium"><%= agent.name %></h3>
-              <p class="text-text-muted text-xs"><%= agent.role %> · <%= agent.llm_model %></p>
-            </div>
+  <!-- Resume most recent + Start new (dual button) -->
+  <% if @sessions.any? %>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+      <!-- Resume most recent (highlighted) -->
+      <% most_recent = @sessions.first %>
+      <%= link_to session_path(most_recent), class: "bg-gradient-to-br from-brand via-brand/80 to-brand-dark rounded-xl border border-brand/50 p-6 hover:border-brand transition group" do %>
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center text-white font-bold text-lg group-hover:bg-white/20 transition">
+            <%= most_recent.agent.name[0].upcase %>
           </div>
-          <p class="text-text-muted text-sm mb-3 line-clamp-2"><%= agent.system_prompt&.truncate(100) %></p>
-          <%= button_to "Chat →", sessions_path(agent_id: agent.slug), method: :post,
-              class: "w-full py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+          <div>
+            <p class="text-brand-light/80 text-xs font-medium uppercase tracking-wide">Resume</p>
+            <h3 class="text-white font-semibold text-lg"><%= most_recent.agent.name %></h3>
+            <p class="text-brand-light/60 text-xs mt-1">
+              <%= time_ago_in_words(most_recent.last_activity_at || most_recent.created_at) %> ago
+            </p>
+          </div>
         </div>
       <% end %>
-    </div>
-  </div>
 
-  <!-- Active sessions -->
+      <!-- Start new chat -->
+      <details class="group">
+        <summary class="bg-surface-card rounded-xl border border-border-default p-6 hover:border-text-muted transition cursor-pointer list-none">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-surface-raised rounded-lg flex items-center justify-center text-text-muted font-bold text-lg group-open:bg-surface-overlay transition">
+              ➕
+            </div>
+            <div>
+              <p class="text-text-muted text-xs font-medium uppercase tracking-wide">Start</p>
+              <h3 class="text-white font-semibold text-lg">New Chat</h3>
+            </div>
+          </div>
+        </summary>
+        
+        <!-- Agent grid (shows when details is open) -->
+        <div class="mt-4 bg-surface-card rounded-xl border border-border-default p-6">
+          <h4 class="text-white font-semibold mb-4">Choose an agent</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <% Agent.enabled.order(:name).each do |agent| %>
+              <%= button_to sessions_path(agent_id: agent.slug), method: :post,
+                  class: "bg-surface-raised border border-border-default rounded-lg p-4 hover:border-brand transition text-left" do %>
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 bg-brand rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
+                    <%= agent.name[0].upcase %>
+                  </div>
+                  <div class="min-w-0">
+                    <h5 class="text-white font-medium"><%= agent.name %></h5>
+                    <p class="text-text-muted text-xs"><%= agent.role %></p>
+                  </div>
+                </div>
+              <% end %>
+            <% end %>
+          </div>
+        </div>
+      </details>
+    </div>
+  <% end %>
+
+  <!-- Start new chat (when no sessions exist) -->
+  <% unless @sessions.any? %>
+    <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-8">
+      <h2 class="text-lg font-semibold text-white mb-4">Start a new conversation</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <% Agent.enabled.order(:name).each do |agent| %>
+          <div class="bg-surface-raised border border-border-default rounded-lg p-4 hover:border-brand transition">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-10 h-10 bg-brand rounded-lg flex items-center justify-center text-white font-bold">
+                <%= agent.name[0].upcase %>
+              </div>
+              <div>
+                <h3 class="text-white font-medium"><%= agent.name %></h3>
+                <p class="text-text-muted text-xs"><%= agent.role %> · <%= agent.llm_model %></p>
+              </div>
+            </div>
+            <p class="text-text-muted text-sm mb-3 line-clamp-2"><%= agent.system_prompt&.truncate(100) %></p>
+            <%= button_to "Chat →", sessions_path(agent_id: agent.slug), method: :post,
+                class: "w-full py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Active sessions with origin badges -->
   <% if @sessions.any? %>
     <div class="bg-surface-card rounded-xl border border-border-default p-6">
       <h2 class="text-lg font-semibold text-white mb-4">Recent conversations</h2>
       <div class="space-y-3">
         <% @sessions.each do |session| %>
-          <%= link_to session_path(session), class: "block bg-surface-raised border border-border-default rounded-lg p-4 hover:border-brand transition" do %>
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 bg-brand rounded-lg flex items-center justify-center text-white font-bold text-sm">
+          <%= link_to session_path(session), class: "block bg-surface-raised border border-border-default rounded-lg p-4 hover:border-brand transition group" do %>
+            <div class="flex items-center justify-between gap-4">
+              <div class="flex items-center gap-3 flex-1 min-w-0">
+                <div class="w-8 h-8 bg-brand rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                   <%= session.agent.name[0].upcase %>
                 </div>
-                <div>
-                  <h3 class="text-white font-medium"><%= session.agent.name %></h3>
-                  <p class="text-text-muted text-xs">
-                    <%= session.transcript_size %> messages ·
-                    <%= time_ago_in_words(session.last_activity_at || session.created_at) %> ago
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <h3 class="text-white font-medium"><%= session.agent.name %></h3>
+                    <% if session.metadata&.dig("channel") %>
+                      <span class="inline-flex items-center gap-1 px-2 py-1 bg-surface-overlay/50 rounded text-xs text-text-muted flex-shrink-0">
+                        <% case session.metadata["channel"].to_s.downcase %>
+                          <% when "whatsapp" %>
+                            <span class="text-green-400">💬</span>WhatsApp
+                          <% when "slack" %>
+                            <span class="text-blue-400">#</span>Slack
+                          <% when "telegram" %>
+                            <span class="text-cyan-400">✈️</span>Telegram
+                          <% when "discord" %>
+                            <span class="text-purple-400">🎮</span>Discord
+                        <% end %>
+                      </span>
+                    <% end %>
+                  </div>
+                  <p class="text-text-muted text-xs mt-1">
+                    <%= session.transcript_size %> messages · <%= time_ago_in_words(session.last_activity_at || session.created_at) %> ago
                   </p>
                 </div>
               </div>
-              <div class="text-text-faint text-sm">
+              <div class="text-text-faint text-xs flex-shrink-0">
                 <%= session.agent.llm_model %>
               </div>
             </div>
