@@ -6,6 +6,7 @@ require "json"
 module Channels
   class SlackAdapter < BaseAdapter
     BASE_URL = "https://slack.com/api"
+    MAX_FILE_SIZE = 20.gigabytes # Slack's file size limit
 
     def receive(message)
       payload = message.deep_symbolize_keys
@@ -48,6 +49,17 @@ module Channels
     def send_message(to:, content:, agent: nil, **options)
       token = resolve_bot_token(agent)
       return ServiceResponse.failure(error: "Slack bot token not configured") unless token
+
+      # Handle file uploads if file_path or url is provided
+      if options[:file_path].present? || options[:url].present?
+        return upload_file(
+          to: to,
+          token: token,
+          agent: agent,
+          content: content,
+          **options
+        )
+      end
 
       body = {
         channel: to,
@@ -110,6 +122,263 @@ module Channels
     end
 
     private
+
+    # Upload a file to Slack via files.upload API
+    # @param to [String] Channel ID where file will be uploaded
+    # @param token [String] Slack bot token
+    # @param agent [Agent] Optional agent for metadata
+    # @param content [String] Text to accompany file (used as initial_comment)
+    # @param file_path [String] Local file path to upload
+    # @param url [String] Remote URL to download and upload
+    # @param title [String] Title of the file in Slack
+    # @param options [Hash] Additional options (thread_ts, etc.)
+    # @return [ServiceResponse]
+    def upload_file(to:, token:, agent:, content:, file_path: nil, url: nil, title: nil, **options)
+      # Validate that we have a file source
+      return ServiceResponse.failure(error: "Either file_path or url must be provided") unless file_path.present? || url.present?
+
+      # Download or read file
+      file_data = if file_path.present?
+                    read_local_file(file_path)
+                  else
+                    download_remote_file(url)
+                  end
+
+      return file_data if file_data.is_a?(ServiceResponse) && !file_data.success?
+
+      file_content = file_data[:content]
+      filename = file_data[:filename]
+
+      # Validate file size
+      size_check = validate_file_size(file_content.bytesize)
+      return size_check if !size_check.success?
+
+      # Determine file type if not provided
+      filetype = determine_filetype(filename)
+
+      # Prepare multipart request
+      response = upload_via_multipart(
+        token: token,
+        channel: to,
+        filename: filename,
+        file_content: file_content,
+        title: title,
+        filetype: filetype,
+        initial_comment: content,
+        thread_ts: options[:thread_ts]
+      )
+
+      if response["ok"]
+        outbound = log_outbound_message(
+          recipient: to,
+          content: "File uploaded: #{filename}",
+          metadata: {
+            file_id: response.dig("file", "id"),
+            file_name: filename,
+            file_url: response.dig("file", "permalink"),
+            agent_id: agent&.id
+          }
+        )
+        ServiceResponse.success(data: { outbound_message: outbound, response: response })
+      else
+        ServiceResponse.failure(error: "Slack file upload failed: #{response["error"]}")
+      end
+    rescue StandardError => e
+      ServiceResponse.failure(error: "File upload error: #{e.message}")
+    end
+
+    # Read a local file and return its content
+    # @param file_path [String] Path to the file
+    # @return [Hash] { content: String, filename: String } or ServiceResponse on error
+    def read_local_file(file_path)
+      file_path_obj = Pathname.new(file_path).expand_path
+
+      # Security: prevent directory traversal
+      return ServiceResponse.failure(error: "Invalid file path") unless file_path_obj.exist?
+
+      if !File.file?(file_path_obj)
+        return ServiceResponse.failure(error: "Path is not a file")
+      end
+
+      content = File.read(file_path_obj, mode: "rb")
+      filename = File.basename(file_path_obj)
+
+      { content: content, filename: filename }
+    rescue StandardError => e
+      ServiceResponse.failure(error: "Failed to read file: #{e.message}")
+    end
+
+    # Download a file from a remote URL
+    # @param url [String] URL to download
+    # @return [Hash] { content: String, filename: String } or ServiceResponse on error
+    def download_remote_file(url)
+      uri = URI(url)
+      response = Net::HTTP.get_response(uri)
+
+      unless response.is_a?(Net::HTTPSuccess)
+        return ServiceResponse.failure(error: "Failed to download file: HTTP #{response.code}")
+      end
+
+      content = response.body
+      filename = File.basename(uri.path)
+      filename = "downloaded_file" if filename.blank?
+
+      { content: content, filename: filename }
+    rescue StandardError => e
+      ServiceResponse.failure(error: "Failed to download file: #{e.message}")
+    end
+
+    # Validate file size against Slack's limits
+    # @param size [Integer] File size in bytes
+    # @return [ServiceResponse]
+    def validate_file_size(size)
+      if size > MAX_FILE_SIZE
+        ServiceResponse.failure(
+          error: "File too large: #{format_bytes(size)}. Max size is #{format_bytes(MAX_FILE_SIZE)}"
+        )
+      else
+        ServiceResponse.success
+      end
+    end
+
+    # Format bytes to human-readable format
+    # @param bytes [Integer]
+    # @return [String]
+    def format_bytes(bytes)
+      units = ["B", "KB", "MB", "GB"]
+      size = bytes.to_f
+      unit_index = 0
+
+      while size >= 1024 && unit_index < units.length - 1
+        size /= 1024
+        unit_index += 1
+      end
+
+      "#{size.round(2)} #{units[unit_index]}"
+    end
+
+    # Determine Slack file type from filename
+    # @param filename [String]
+    # @return [String] Slack filetype or nil for auto-detection
+    def determine_filetype(filename)
+      extension = File.extname(filename).downcase.delete(".")
+
+      filetype_map = {
+        "png" => "png",
+        "jpg" => "jpg",
+        "jpeg" => "jpg",
+        "gif" => "gif",
+        "pdf" => "pdf",
+        "txt" => "text",
+        "md" => "markdown",
+        "html" => "html",
+        "json" => "json",
+        "xml" => "xml",
+        "csv" => "csv",
+        "xlsx" => "excel",
+        "xls" => "excel",
+        "pptx" => "powerpointx",
+        "ppt" => "powerpoint"
+      }
+
+      filetype_map[extension]
+    end
+
+    # Upload file via multipart/form-data to Slack
+    # @param token [String] Bot token
+    # @param channel [String] Channel ID
+    # @param filename [String] Name of file
+    # @param file_content [String] Binary content
+    # @param title [String] Title in Slack
+    # @param filetype [String] Slack filetype
+    # @param initial_comment [String] Comment to introduce file
+    # @param thread_ts [String] Optional thread timestamp
+    # @return [Hash] Slack API response
+    def upload_via_multipart(token:, channel:, filename:, file_content:, title:, filetype:, initial_comment:, thread_ts: nil)
+      uri = URI("#{BASE_URL}/files.upload")
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.open_timeout = 10
+      http.read_timeout = 30 # Longer timeout for file uploads
+
+      boundary = SecureRandom.hex(16)
+      body = build_multipart_body(
+        boundary: boundary,
+        filename: filename,
+        file_content: file_content,
+        title: title,
+        filetype: filetype,
+        initial_comment: initial_comment,
+        channel: channel,
+        thread_ts: thread_ts
+      )
+
+      req = Net::HTTP::Post.new(uri)
+      req["Authorization"] = "Bearer #{token}"
+      req["Content-Type"] = "multipart/form-data; boundary=#{boundary}"
+      req.body = body
+
+      response = http.request(req)
+      JSON.parse(response.body)
+    rescue StandardError => e
+      { "ok" => false, "error" => e.message }
+    end
+
+    # Build multipart/form-data body for file upload
+    # @return [String] Multipart body
+    def build_multipart_body(boundary:, filename:, file_content:, title:, filetype:, initial_comment:, channel:, thread_ts: nil)
+      parts = []
+
+      # Add file
+      parts << "--#{boundary}\r\n"
+      parts << "Content-Disposition: form-data; name=\"file\"; filename=\"#{filename}\"\r\n"
+      parts << "Content-Type: application/octet-stream\r\n\r\n"
+      parts << file_content
+      parts << "\r\n"
+
+      # Add title
+      if title.present?
+        parts << "--#{boundary}\r\n"
+        parts << "Content-Disposition: form-data; name=\"title\"\r\n\r\n"
+        parts << title
+        parts << "\r\n"
+      end
+
+      # Add filetype
+      if filetype.present?
+        parts << "--#{boundary}\r\n"
+        parts << "Content-Disposition: form-data; name=\"filetype\"\r\n\r\n"
+        parts << filetype
+        parts << "\r\n"
+      end
+
+      # Add initial comment
+      if initial_comment.present?
+        parts << "--#{boundary}\r\n"
+        parts << "Content-Disposition: form-data; name=\"initial_comment\"\r\n\r\n"
+        parts << initial_comment
+        parts << "\r\n"
+      end
+
+      # Add channel
+      parts << "--#{boundary}\r\n"
+      parts << "Content-Disposition: form-data; name=\"channels\"\r\n\r\n"
+      parts << channel
+      parts << "\r\n"
+
+      # Add thread_ts if provided
+      if thread_ts.present?
+        parts << "--#{boundary}\r\n"
+        parts << "Content-Disposition: form-data; name=\"thread_ts\"\r\n\r\n"
+        parts << thread_ts.to_s
+        parts << "\r\n"
+      end
+
+      # Add final boundary
+      parts << "--#{boundary}--\r\n"
+
+      parts.join
+    end
 
     def resolve_bot_token(agent = nil)
       # Try agent-specific token first if agent provided
