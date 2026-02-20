@@ -17,12 +17,14 @@ class ChatStreamJob < ApplicationJob
 
     if hashtag_result.bypass_llm
       # Actions handled everything — broadcast response and return
+      # Note: User message already broadcast by controller for instant feedback
       session.append_transcript({ "role" => "user", "content" => user_message, "timestamp" => Time.current.iso8601 })
-      ActionCable.server.broadcast(channel, { type: "user_message", content: user_message })
 
       response = hashtag_result.response
-      session.append_transcript({ "role" => "assistant", "content" => response, "timestamp" => Time.current.iso8601 })
-      ActionCable.server.broadcast(channel, { type: "token", content: response })
+      if response.present?
+        session.append_transcript({ "role" => "assistant", "content" => response, "timestamp" => Time.current.iso8601 })
+        ActionCable.server.broadcast(channel, { type: "token", content: response })
+      end
       ActionCable.server.broadcast(channel, { type: "done", content: response })
       return
     end
@@ -68,19 +70,23 @@ class ChatStreamJob < ApplicationJob
     session.transcript << transcript_entry
     session.save!
 
-    # Broadcast user message (with image URLs + file info for display)
-    broadcast_data = { type: "user_message", content: user_message }
-    if doc_attachments.any?
-      broadcast_data[:files] = doc_attachments.map do |a|
-        { filename: a.filename, content_type: a.content_type, byte_size: a.byte_size }
+    # Note: User message is already broadcast by SessionsController#message
+    # for instant feedback. We only broadcast here if there are attachments
+    # that need URLs resolved (which the controller can't do yet).
+    if image_attachments.any? || doc_attachments.any?
+      broadcast_data = { type: "user_message", content: user_message }
+      if doc_attachments.any?
+        broadcast_data[:files] = doc_attachments.map do |a|
+          { filename: a.filename, content_type: a.content_type, byte_size: a.byte_size }
+        end
       end
-    end
-    if image_attachments.any?
-      broadcast_data[:images] = image_attachments.map do |a|
-        { id: a.id, filename: a.filename, url: rails_blob_url(a) }
+      if image_attachments.any?
+        broadcast_data[:images] = image_attachments.map do |a|
+          { id: a.id, filename: a.filename, url: rails_blob_url(a) }
+        end
       end
+      ActionCable.server.broadcast(channel, broadcast_data)
     end
-    ActionCable.server.broadcast(channel, broadcast_data)
 
     # Resolve provider
     resolver = Providers::Resolver.call(provider_name: agent.model_provider, agent:)
