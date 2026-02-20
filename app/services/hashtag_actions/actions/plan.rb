@@ -37,10 +37,9 @@ module HashtagActions
             phase_context = build_phase_context(plan)
 
             {
-              response: nil,  # Don't return text — the executor already saved the card to transcript
-              bypass: false,  # Agent continues to execute after showing plan
-              status: "ok",
-              prompt_addon: phase_context
+              response: "Work plan generated and displayed above. Ask the user if they'd like to proceed with execution or modify the plan.",
+              bypass: true,  # Don't call LLM — plan card is already displayed
+              status: "ok"
             }
           else
             { response: "Plan generated but couldn't retrieve it from session", bypass: false, status: "error" }
