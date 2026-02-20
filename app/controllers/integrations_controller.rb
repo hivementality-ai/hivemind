@@ -138,7 +138,7 @@ class IntegrationsController < ApplicationController
 
     if api_key.present? && api_token.present?
       store_vault("trello", "api_key", api_key)
-      store_vault("trello", "api_token", api_token)
+      store_vault("trello", "token", api_token)
       redirect_to integrations_path, notice: "Trello credentials saved"
     else
       redirect_to integrations_path, alert: "Both API Key and API Token are required"
@@ -147,7 +147,7 @@ class IntegrationsController < ApplicationController
 
   def test_trello
     api_key = VaultEntry.find_by(namespace: "trello", key: "api_key")&.value
-    api_token = VaultEntry.find_by(namespace: "trello", key: "api_token")&.value
+    api_token = VaultEntry.find_by(namespace: "trello", key: "token")&.value
 
     return render(json: { status: "error", message: "Trello not configured" }, status: :unprocessable_entity) unless api_key
 
