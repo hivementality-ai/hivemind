@@ -6,6 +6,8 @@ module Tools
       action = input["action"]&.downcase
       session = config[:session]
 
+      Rails.logger.info("[PlanModeExecutor] Received action: #{action.inspect}, input: #{input.inspect}")
+
       case action
       when "generate"
         generate_plan(session)
@@ -16,9 +18,11 @@ module Tools
       when "exit"
         exit_plan_mode(session)
       else
+        Rails.logger.error("[PlanModeExecutor] Invalid action: #{action.inspect}")
         ServiceResponse.failure(error: "Invalid action. Use 'generate', 'execute', 'update_phase', or 'exit'")
       end
     rescue StandardError => e
+      Rails.logger.error("[PlanModeExecutor] Error: #{e.message}")
       ServiceResponse.failure(error: "Planning mode operation failed: #{e.message}")
     end
 
