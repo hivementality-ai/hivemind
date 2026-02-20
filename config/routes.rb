@@ -124,6 +124,7 @@ Rails.application.routes.draw do
     namespace :v1 do
       resources :agents, only: [ :index, :show, :create, :update, :destroy ], param: :slug
       resources :sessions, only: [ :index, :show, :destroy ]
+      post "plans/save", to: "plans#save", as: :save_plan
       get "providers/models", to: "providers#models"
       get "hashtag_actions", to: "hashtag_actions#index"
       get "system/version", to: "system#version"

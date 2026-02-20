@@ -900,7 +900,7 @@ export default class extends Controller {
   }
 
   handlePlanMessage(data) {
-    const { action, plan, current_phase, total_phases, phase_data, message } = data
+    const { action, plan, current_phase, total_phases, phase_data, message, summary, markdown, learnings } = data
 
     switch (action) {
       case "display":
@@ -911,6 +911,9 @@ export default class extends Controller {
         break
       case "phase_update":
         this.updatePhaseDisplay(current_phase, total_phases, phase_data)
+        break
+      case "exit":
+        this.displayPlanSummary(summary, markdown, learnings)
         break
     }
   }
@@ -1051,6 +1054,286 @@ export default class extends Controller {
 
     this.messagesTarget.appendChild(phaseDiv)
     this.scrollToBottom()
+  }
+
+  displayPlanSummary(summary, markdown, learnings) {
+    const summaryDiv = document.createElement('div')
+    summaryDiv.className = 'flex justify-start mb-4'
+    
+    const taskName = this.escapeHtml(summary.original_task)
+    const completed = summary.phases_completed
+    const total = summary.total_phases
+    const duration = this.escapeHtml(summary.duration)
+    
+    const learningsHtml = learnings && learnings.length > 0
+      ? learnings.map(l => `<li class="text-xs text-gray-400">- ${this.escapeHtml(l)}</li>`).join('')
+      : '<li class="text-xs text-gray-400">- Plan executed successfully</li>'
+    
+    const resultsHtml = summary.key_results && summary.key_results.length > 0
+      ? summary.key_results.map(r => `<li class="text-xs text-green-400">✓ ${this.escapeHtml(r)}</li>`).join('')
+      : ''
+    
+    summaryDiv.innerHTML = `
+      <div class="max-w-4xl w-full">
+        <div class="flex items-start gap-3">
+          <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
+            ${this.agentInitialValue}
+          </div>
+          <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100 w-full">
+            <div class="text-green-400 font-medium mb-3 flex items-center gap-2">
+              <span>✅</span>
+              <span>Plan Execution Complete</span>
+            </div>
+            
+            <div class="bg-surface-card px-3 py-2 rounded-lg border border-border-default space-y-3 mb-3">
+              <div class="text-sm">
+                <strong class="text-white">Task:</strong>
+                <div class="text-gray-300 ml-2">${taskName}</div>
+              </div>
+              
+              <div class="text-sm">
+                <strong class="text-white">Progress:</strong>
+                <div class="text-gray-300 ml-2">${completed}/${total} phases completed in ${duration}</div>
+                <div class="flex gap-1 mt-1">
+                  ${Array.from({length: total}, (_, i) => `
+                    <div class="h-1 flex-1 rounded-full ${(i + 1) <= completed ? 'bg-green-500' : 'bg-surface-card border border-border-default'}"></div>
+                  `).join('')}
+                </div>
+              </div>
+              
+              ${resultsHtml ? `
+                <div class="text-sm">
+                  <strong class="text-white">Key Results:</strong>
+                  <ul class="ml-2 space-y-1">
+                    ${resultsHtml}
+                  </ul>
+                </div>
+              ` : ''}
+              
+              <div class="text-sm">
+                <strong class="text-white">Insights:</strong>
+                <ul class="ml-2 space-y-1">
+                  ${learningsHtml}
+                </ul>
+              </div>
+            </div>
+            
+            <div class="space-y-2">
+              <button class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs py-2 px-3 rounded font-medium transition"
+                      data-action="click->chat#savePlanSummary"
+                      data-markdown="${this.escapeHtml(markdown)}"
+                      data-task="${this.escapeHtml(taskName)}">
+                💾 Save Plan Summary
+              </button>
+              
+              <div class="flex gap-2">
+                <button class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs py-2 px-3 rounded font-medium transition"
+                        data-action="click->chat#downloadPlanSummary"
+                        data-markdown="${this.escapeHtml(markdown)}"
+                        data-task="${this.escapeHtml(taskName)}">
+                  📥 Download
+                </button>
+                <button class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs py-2 px-3 rounded font-medium transition"
+                        data-action="click->chat#copyPlanSummary"
+                        data-markdown="${this.escapeHtml(markdown)}">
+                  📋 Copy
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+
+    this.messagesTarget.appendChild(summaryDiv)
+    this.scrollToBottom()
+  }
+
+  savePlanSummary(event) {
+    const markdown = event.target.dataset.markdown
+    const taskName = event.target.dataset.task || 'plan-summary'
+    
+    if (!markdown) return
+    
+    const filename = `${taskName.toLowerCase().replace(/\s+/g, '-')}-summary.md`
+    
+    // Show save options
+    this.showSaveOptions(markdown, filename)
+  }
+
+  downloadPlanSummary(event) {
+    const markdown = event.target.dataset.markdown
+    const taskName = event.target.dataset.task || 'plan-summary'
+    
+    if (!markdown) return
+    
+    const filename = `${taskName.toLowerCase().replace(/\s+/g, '-')}-summary.md`
+    const blob = new Blob([markdown], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  copyPlanSummary(event) {
+    const markdown = event.target.dataset.markdown
+    if (!markdown) return
+    
+    navigator.clipboard.writeText(markdown).then(() => {
+      // Show confirmation
+      const originalText = event.target.textContent
+      event.target.textContent = '✓ Copied!'
+      setTimeout(() => {
+        event.target.textContent = originalText
+      }, 2000)
+    }).catch(() => {
+      alert('Failed to copy to clipboard')
+    })
+  }
+
+  showSaveOptions(markdown, filename) {
+    // Create modal for save options
+    const modal = document.createElement('div')
+    modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50'
+    modal.innerHTML = `
+      <div class="bg-surface-raised rounded-lg p-6 max-w-md w-full mx-4 border border-border-default">
+        <h2 class="text-white font-semibold mb-4 flex items-center gap-2">
+          <span>💾</span>
+          Save Plan Summary
+        </h2>
+        
+        <p class="text-text-muted text-sm mb-4">
+          Where would you like to save this plan summary?
+        </p>
+        
+        <div class="space-y-2 mb-6">
+          <button class="w-full text-left bg-surface-card hover:bg-surface-raised border border-border-default rounded p-3 text-sm text-white transition"
+                  data-action="click->chat#workspaceSave"
+                  data-markdown="${this.escapeHtml(markdown)}"
+                  data-filename="${this.escapeHtml(filename)}">
+            <div class="font-semibold">💾 Save to Workspace</div>
+            <div class="text-xs text-text-muted">/workspace/plans/</div>
+          </button>
+          
+          <button class="w-full text-left bg-surface-card hover:bg-surface-raised border border-border-default rounded p-3 text-sm text-white transition"
+                  data-action="click->chat#downloadSave"
+                  data-markdown="${this.escapeHtml(markdown)}"
+                  data-filename="${this.escapeHtml(filename)}">
+            <div class="font-semibold">📥 Download to Computer</div>
+            <div class="text-xs text-text-muted">Save as markdown file</div>
+          </button>
+          
+          <button class="w-full text-left bg-surface-card hover:bg-surface-raised border border-border-default rounded p-3 text-sm text-white transition"
+                  data-action="click->chat#clipboardSave"
+                  data-markdown="${this.escapeHtml(markdown)}">
+            <div class="font-semibold">📋 Copy to Clipboard</div>
+            <div class="text-xs text-text-muted">Ready to paste anywhere</div>
+          </button>
+        </div>
+        
+        <button class="w-full bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 rounded font-medium transition"
+                data-action="click->chat#closeModal">
+          Close
+        </button>
+      </div>
+    `
+    
+    document.body.appendChild(modal)
+    modal.dataset.controller = 'chat'
+    
+    // Close on escape
+    const closeHandler = (e) => {
+      if (e.key === 'Escape') {
+        modal.remove()
+        document.removeEventListener('keydown', closeHandler)
+      }
+    }
+    document.addEventListener('keydown', closeHandler)
+  }
+
+  workspaceSave(event) {
+    const markdown = event.target.closest('button').dataset.markdown
+    const filename = event.target.closest('button').dataset.filename
+    
+    if (!markdown || !filename) return
+    
+    // Send to backend to save to workspace
+    fetch('/api/v1/plans/save', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': this.csrfValue
+      },
+      body: JSON.stringify({
+        filename: filename,
+        content: markdown,
+        location: 'workspace'
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        this.showNotification('✓ Saved to /workspace/plans/' + filename)
+        this.closeModal()
+      } else {
+        alert('Failed to save: ' + data.error)
+      }
+    })
+    .catch(e => alert('Error saving: ' + e.message))
+  }
+
+  downloadSave(event) {
+    const markdown = event.target.closest('button').dataset.markdown
+    const filename = event.target.closest('button').dataset.filename
+    
+    if (!markdown || !filename) return
+    
+    const blob = new Blob([markdown], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    
+    this.closeModal()
+  }
+
+  clipboardSave(event) {
+    const markdown = event.target.closest('button').dataset.markdown
+    
+    if (!markdown) return
+    
+    navigator.clipboard.writeText(markdown).then(() => {
+      this.showNotification('✓ Copied to clipboard!')
+      this.closeModal()
+    }).catch(() => {
+      alert('Failed to copy to clipboard')
+    })
+  }
+
+  closeModal(event) {
+    const modal = document.querySelector('[data-controller="chat"] .fixed')
+    if (modal) modal.remove()
+  }
+
+  showNotification(message) {
+    const notification = document.createElement('div')
+    notification.className = 'fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded shadow-lg text-sm z-50'
+    notification.textContent = message
+    document.body.appendChild(notification)
+    
+    setTimeout(() => {
+      notification.remove()
+    }, 3000)
   }
 
   createPlanningIndicator() {

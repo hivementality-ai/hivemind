@@ -13,8 +13,10 @@ module Tools
         start_execution(session)
       when "update_phase"
         update_execution_phase(session)
+      when "exit"
+        exit_plan_mode(session)
       else
-        ServiceResponse.failure(error: "Invalid action. Use 'generate', 'execute', or 'update_phase'")
+        ServiceResponse.failure(error: "Invalid action. Use 'generate', 'execute', 'update_phase', or 'exit'")
       end
     rescue StandardError => e
       ServiceResponse.failure(error: "Planning mode operation failed: #{e.message}")
@@ -131,6 +133,60 @@ module Tools
 
       output = "Phase #{phase_number} started: #{current_phase_data['name']}"
       ServiceResponse.success(data: { output: output, exit_code: 0 })
+    end
+
+    def exit_plan_mode(session)
+      plan = session.metadata&.dig("current_plan")
+      unless plan.present?
+        return ServiceResponse.failure(error: "No active plan to exit")
+      end
+
+      # Generate summary
+      summary_result = Agents::PlanSummaryGenerator.call(
+        session: session,
+        agent: agent
+      )
+
+      unless summary_result.success?
+        return ServiceResponse.failure(error: summary_result.error)
+      end
+
+      summary_data = summary_result.data
+
+      # Update session metadata - clear planning mode
+      session.metadata ||= {}
+      session.metadata["plan_status"] = "completed"
+      session.metadata["plan_completed_at"] = Time.current.iso8601
+      session.metadata["plan_summary"] = {
+        "original_task" => summary_data[:summary]["original_task"],
+        "phases_completed" => summary_data[:summary]["phases_completed"],
+        "total_phases" => summary_data[:summary]["total_phases"],
+        "duration" => summary_data[:summary]["duration"],
+        "key_results" => summary_data[:summary]["key_results"],
+        "learnings" => summary_data[:learnings]
+      }
+      session.save!
+
+      # Broadcast plan exit with summary to UI
+      ActionCable.server.broadcast(
+        "session_#{session.id}",
+        {
+          type: "plan",
+          action: "exit",
+          summary: summary_data[:summary],
+          markdown: summary_data[:markdown],
+          learnings: summary_data[:learnings],
+          message: "📋 Plan mode exited. Summary generated."
+        }
+      )
+
+      output = "Plan mode exited. Session summary saved."
+      ServiceResponse.success(data: {
+        output: output,
+        exit_code: 0,
+        summary: summary_data[:summary],
+        markdown: summary_data[:markdown]
+      })
     end
   end
 end

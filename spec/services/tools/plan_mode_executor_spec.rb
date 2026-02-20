@@ -249,4 +249,109 @@ RSpec.describe Tools::PlanModeExecutor do
       end
     end
   end
+
+  describe "#call with exit action" do
+    let(:plan) do
+      {
+        "phases" => [
+          { "number" => 1, "name" => "Phase 1" }
+        ]
+      }
+    end
+
+    before do
+      session.update!(metadata: { "current_plan" => plan, "current_phase" => 1 })
+    end
+
+    context "when action is exit" do
+      let(:input) { { "action" => "exit" } }
+
+      before do
+        allow(Agents::PlanSummaryGenerator).to receive(:call).and_return(
+          ServiceResponse.success(data: {
+            summary: {
+              "original_task" => "Test task",
+              "phases_completed" => 1,
+              "total_phases" => 1,
+              "duration" => "1 hour",
+              "key_results" => ["Result 1"]
+            },
+            markdown: "# Plan Summary",
+            learnings: ["Learning 1"]
+          })
+        )
+      end
+
+      it "calls PlanSummaryGenerator" do
+        expect(Agents::PlanSummaryGenerator).to receive(:call).with(
+          session: session,
+          agent: agent
+        ).and_return(ServiceResponse.success(data: {
+          summary: { "original_task" => "Test" },
+          markdown: "# Plan",
+          learnings: []
+        }))
+
+        executor.call
+      end
+
+      it "sets plan status to completed" do
+        executor.call
+        expect(session.reload.metadata["plan_status"]).to eq("completed")
+      end
+
+      it "stores plan summary in metadata" do
+        executor.call
+        summary = session.reload.metadata["plan_summary"]
+
+        expect(summary).to have_key("original_task")
+        expect(summary).to have_key("phases_completed")
+        expect(summary).to have_key("total_phases")
+      end
+
+      it "broadcasts plan exit to UI" do
+        expect(ActionCable.server).to receive(:broadcast).with(
+          "session_#{session.id}",
+          hash_including(
+            type: "plan",
+            action: "exit"
+          )
+        )
+
+        executor.call
+      end
+
+      it "returns success with summary and markdown" do
+        result = executor.call
+
+        expect(result.success?).to be true
+        expect(result.data).to have_key(:summary)
+        expect(result.data).to have_key(:markdown)
+      end
+
+      context "when no plan exists" do
+        before { session.update!(metadata: {}) }
+
+        it "returns failure" do
+          result = executor.call
+          expect(result.success?).to be false
+          expect(result.error).to eq("No active plan to exit")
+        end
+      end
+
+      context "when summary generation fails" do
+        before do
+          allow(Agents::PlanSummaryGenerator).to receive(:call).and_return(
+            ServiceResponse.failure(error: "Generation failed")
+          )
+        end
+
+        it "returns failure with error" do
+          result = executor.call
+          expect(result.success?).to be false
+          expect(result.error).to eq("Generation failed")
+        end
+      end
+    end
+  end
 end

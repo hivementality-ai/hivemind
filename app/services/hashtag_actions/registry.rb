@@ -7,6 +7,7 @@ module HashtagActions
 
     ACTIONS = {
       "plan"      => "HashtagActions::Actions::Plan",
+      "exit"      => "HashtagActions::Actions::ExitPlan",
       "remember"  => "HashtagActions::Actions::Remember",
       "forget"    => "HashtagActions::Actions::Forget",
       "search"    => "HashtagActions::Actions::Search",
