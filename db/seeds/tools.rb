@@ -404,6 +404,30 @@ BUILTIN_TOOLS = [
     }
   },
   {
+    name: "trello",
+    description: "Manage Trello boards, lists, and cards. Create, update, move, and archive cards. Add comments, labels, and members. Search across boards.",
+    executor_type: "trello",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "action" => { "type" => "string", "description" => "Action to perform", "enum" => %w[list_boards get_board list_lists list_cards get_card create_card update_card move_card archive_card add_comment list_labels add_label remove_label list_members assign_member unassign_member search] },
+        "board_id" => { "type" => "string", "description" => "Board ID (for get_board, list_lists, list_labels, list_members, search)" },
+        "list_id" => { "type" => "string", "description" => "List ID (for list_cards, create_card, move_card)" },
+        "card_id" => { "type" => "string", "description" => "Card ID (for get_card, update_card, move_card, archive_card, add_comment, add_label, remove_label, assign_member, unassign_member)" },
+        "name" => { "type" => "string", "description" => "Card name (for create_card, update_card)" },
+        "desc" => { "type" => "string", "description" => "Card description (for create_card, update_card)" },
+        "text" => { "type" => "string", "description" => "Comment text (for add_comment)" },
+        "due" => { "type" => "string", "description" => "Due date ISO 8601 (for create_card, update_card)" },
+        "label_id" => { "type" => "string", "description" => "Label ID (for add_label, remove_label)" },
+        "label_ids" => { "type" => "string", "description" => "Comma-separated label IDs (for create_card)" },
+        "member_id" => { "type" => "string", "description" => "Member ID (for assign_member, unassign_member)" },
+        "position" => { "type" => "string", "description" => "Card position: top or bottom (default: bottom)" },
+        "query" => { "type" => "string", "description" => "Search query (for search)" }
+      },
+      "required" => [ "action" ]
+    }
+  },
+  {
     name: "email",
     description: "Send emails via SMTP. Works with any email provider (Mailtrap, SendGrid, Mailgun, Amazon SES, etc). Supports plain text and HTML emails with CC, BCC, and reply-to.",
     executor_type: "email",
