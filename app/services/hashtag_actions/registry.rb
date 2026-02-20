@@ -6,6 +6,7 @@ module HashtagActions
     # Each executor responds to .call(action:, agent:, session:, context:)
 
     ACTIONS = {
+      "plan"      => "HashtagActions::Actions::Plan",
       "remember"  => "HashtagActions::Actions::Remember",
       "forget"    => "HashtagActions::Actions::Forget",
       "search"    => "HashtagActions::Actions::Search",
