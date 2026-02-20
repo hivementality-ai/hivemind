@@ -332,7 +332,7 @@ templates = [
     description: "Full-stack engineer that writes production-quality code. Clones repos, implements features, writes tests, and opens PRs. Works across Ruby, Python, JavaScript, TypeScript, and more.",
     role: "Software Engineer",
     category: "coding",
-    icon: "👨‍💻",
+    icon: "SE",
     featured: true,
     author: "Hivemind",
     version: "1.0.0",

@@ -14,11 +14,10 @@ class ChannelsController < ApplicationController
 
   def create
     @channel = Channel.new(channel_params)
-
-    # Store credentials in vault if provided
-    store_credentials(params[:credentials]) if params[:credentials].present?
+    @credentials = params[:credentials]&.to_unsafe_h || {}
 
     if @channel.save
+      store_credentials(@credentials) if @credentials.present?
       redirect_to channels_path, notice: "#{@channel.name} channel created"
     else
       render :new, status: :unprocessable_entity
@@ -32,10 +31,11 @@ class ChannelsController < ApplicationController
   end
 
   def update
-    store_credentials(params[:credentials]) if params[:credentials].present?
-    process_agent_assignments(params[:agent_assignments]) if params[:agent_assignments].present?
+    @credentials = params[:credentials]&.to_unsafe_h || {}
 
     if @channel.update(channel_params)
+      store_credentials(@credentials) if @credentials.present?
+      process_agent_assignments(params[:agent_assignments]) if params[:agent_assignments].present?
       redirect_to channels_path, notice: "#{@channel.name} updated"
     else
       render :edit, status: :unprocessable_entity
