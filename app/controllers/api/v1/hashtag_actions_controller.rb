@@ -10,6 +10,7 @@ module Api
       # Returns list of valid hashtag actions with descriptions
       def index
         actions = [
+          { name: "plan", description: "Enter planning mode for structured thinking" },
           { name: "remember", description: "Save something to memory" },
           { name: "forget", description: "Remove a memory" },
           { name: "search", description: "Search memories" },
