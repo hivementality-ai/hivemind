@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["discord", "slack", "slackExtra", "telegram", "whatsapp", "signal", "none"]
+  static targets = ["discord", "slack", "telegram", "whatsapp", "signal", "none"]
   static values = { type: String }
 
   connect() {
@@ -28,20 +28,11 @@ export default class extends Controller {
       this.noneTarget.style.display = type ? "none" : "block"
     }
 
-    // Hide slackExtra
-    if (this.hasSlackExtraTarget) {
-      this.slackExtraTarget.style.display = "none"
-    }
-
     // Show selected
     if (type && platforms.includes(type)) {
       const target = `${type}Target`
       if (this[`has${this.capitalize(type)}Target`]) {
         this[target].style.display = "block"
-      }
-      // Show slack-specific extras
-      if (type === "slack" && this.hasSlackExtraTarget) {
-        this.slackExtraTarget.style.display = "block"
       }
     }
   }

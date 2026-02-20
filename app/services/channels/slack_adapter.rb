@@ -89,15 +89,19 @@ module Channels
     end
 
     def verify_webhook(request)
-      # Slack signing secret verification
-      signing_secret = channel.config&.dig("signing_secret")
+      # In Socket Mode, events come from the connector (internal network) — no signing needed
+      # Check if request is from internal Docker network (connector)
+      remote_ip = request.remote_ip.to_s
+      return true if remote_ip.start_with?("172.") || remote_ip == "127.0.0.1" || remote_ip == "::1"
+
+      # External requests need signing secret verification
+      signing_secret = VaultEntry.find_by(namespace: "channel_credentials", key: "slack_webhook_secret")&.value
       return true unless signing_secret
 
       timestamp = request.headers["X-Slack-Request-Timestamp"]
       signature = request.headers["X-Slack-Signature"]
       return false unless timestamp && signature
 
-      # Reject requests older than 5 minutes
       return false if (Time.now.to_i - timestamp.to_i).abs > 300
 
       sig_basestring = "v0:#{timestamp}:#{request.raw_post}"
@@ -121,8 +125,7 @@ module Channels
     end
 
     def bot_token
-      entry = VaultEntry.find_by(namespace: "channel_credentials", key: "slack_bot_token")
-      entry&.value
+      VaultEntry.find_by(namespace: "channel_credentials", key: "slack_bot_token")&.value
     end
 
     def slack_post(method, body, token)

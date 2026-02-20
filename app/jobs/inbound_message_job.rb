@@ -43,13 +43,16 @@ class InboundMessageJob < ApplicationJob
 
     thread_id = extract_thread_id(message)
 
-    # Route to agent
+    # Route to agent — reply to the Slack channel where the message came from
+    slack_channel_id = message.metadata&.dig("channel_id")
+
     route_to_agent_with_thread_tracking(
       agent: agent,
       message: text,
       channel: channel,
       sender: sender,
-      thread_id: thread_id
+      thread_id: thread_id,
+      slack_channel_id: slack_channel_id
     )
   end
 
@@ -71,7 +74,7 @@ class InboundMessageJob < ApplicationJob
     end
   end
 
-  def route_to_agent_with_thread_tracking(agent:, message:, channel:, sender:, thread_id:)
+  def route_to_agent_with_thread_tracking(agent:, message:, channel:, sender:, thread_id:, slack_channel_id: nil)
     session = find_or_create_session(agent:, channel:, sender:)
 
     # Process hashtag actions before LLM
@@ -89,7 +92,8 @@ class InboundMessageJob < ApplicationJob
           content: hashtag_result.response,
           channel: channel,
           sender: sender,
-          thread_id: thread_id
+          thread_id: thread_id,
+          slack_channel_id: slack_channel_id
         )
       end
       return
@@ -108,7 +112,8 @@ class InboundMessageJob < ApplicationJob
         content: reply,
         channel: channel,
         sender: sender,
-        thread_id: thread_id
+        thread_id: thread_id,
+        slack_channel_id: slack_channel_id
       )
 
       # Track thread ownership if this is a threaded response
@@ -122,27 +127,33 @@ class InboundMessageJob < ApplicationJob
     end
   end
 
-  def send_agent_response(agent:, content:, channel:, sender:, thread_id: nil)
+  def send_agent_response(agent:, content:, channel:, sender:, thread_id: nil, team_context: false, slack_channel_id: nil)
     adapter = Channels::Registry.adapter_for(channel)
+    formatted = format_agent_message(agent:, content:, channel:, team_context:)
 
-    # For Slack, send with agent context and no name prefix (bot identity handles it)
     if channel.channel_type == "slack"
+      # Reply to the Slack channel/DM where the message came from, not the user ID
+      target = slack_channel_id || sender
       options = {}
       options[:thread_ts] = thread_id if thread_id.present?
 
       adapter.send_message(
-        to: sender,
-        content: content,
+        to: target,
+        content: formatted,
         agent: agent,
         **options
       )
     else
-      # For other channels, keep the [AgentName] prefix
-      adapter.send_message(
-        to: sender,
-        content: "[#{agent.name}] #{content}"
-      )
+      adapter.send_message(to: sender, content: formatted)
     end
+  end
+
+  # Only prefix with [AgentName] when multiple agents could be responding (team context)
+  def format_agent_message(agent:, content:, channel:, team_context: false)
+    return content if channel.channel_type == "slack" # Slack uses bot identity
+    return "[#{agent.name}] #{content}" if team_context
+
+    content
   end
 
   def extract_thread_id(message)
@@ -236,11 +247,13 @@ class InboundMessageJob < ApplicationJob
       content: reply
     )
 
-    # Send back via channel with agent name prefix
-    adapter = Channels::Registry.adapter_for(channel)
-    adapter.send_message(
-      to: sender,
-      content: "[#{agent.name}] #{reply}"
+    # Send back via channel with agent name prefix (team context)
+    send_agent_response(
+      agent: agent,
+      content: reply,
+      channel: channel,
+      sender: sender,
+      team_context: true
     )
   rescue StandardError => e
     Rails.logger.error("[InboundMessage] Agent #{agent.name} failed: #{e.message}")
@@ -279,10 +292,8 @@ class InboundMessageJob < ApplicationJob
     )
 
     if hashtag_result.bypass_llm
-      # Hashtag handled everything — send response directly
       if hashtag_result.response.present?
-        adapter = Channels::Registry.adapter_for(channel)
-        adapter.send_message(to: sender, content: "[#{agent.name}] #{hashtag_result.response}")
+        send_agent_response(agent: agent, content: hashtag_result.response, channel: channel, sender: sender)
       end
       return
     end
@@ -290,21 +301,11 @@ class InboundMessageJob < ApplicationJob
     effective_message = hashtag_result.clean_message.presence || message
     result = Sessions::Chat.call(session: session, message: effective_message, agent: agent)
 
-    Rails.logger.info("[InboundMessage] Chat result: success=#{result.success?} data_keys=#{result.data&.keys} reply=#{result.data&.dig(:reply)&.first(50)} content=#{result.data&.dig(:content)&.first(50)}")
-
     reply = result.data[:reply] || result.data[:content] if result.success?
 
     if reply.present?
-      # Prepend hashtag response if any
       reply = "#{hashtag_result.response}\n\n#{reply}" if hashtag_result.response.present?
-
-      Rails.logger.info("[InboundMessage] Sending reply to #{sender}: #{reply.first(100)}")
-      adapter = Channels::Registry.adapter_for(channel)
-      send_result = adapter.send_message(
-        to: sender,
-        content: "[#{agent.name}] #{reply}"
-      )
-      Rails.logger.info("[InboundMessage] Send result: #{send_result.inspect}")
+      send_agent_response(agent: agent, content: reply, channel: channel, sender: sender)
     else
       Rails.logger.warn("[InboundMessage] No reply to send back")
     end
