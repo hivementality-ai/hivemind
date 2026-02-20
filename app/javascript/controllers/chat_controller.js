@@ -808,7 +808,8 @@ export default class extends Controller {
     this.sendBtnTarget.disabled = false
     this.inputTarget.focus()
     
-    // Hide working indicator when stream finishes
+    // Hide all indicators when stream finishes
+    this.hideThinking()
     this.hideWorking()
 
     // Post-process: render images in agent responses
