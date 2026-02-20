@@ -25,7 +25,10 @@ class ChatStreamJob < ApplicationJob
         session.append_transcript({ "role" => "assistant", "content" => response, "timestamp" => Time.current.iso8601 })
         ActionCable.server.broadcast(channel, { type: "token", content: response })
       end
-      ActionCable.server.broadcast(channel, { type: "done", content: response })
+      ActionCable.server.broadcast(channel, { type: "done", content: response.to_s })
+      # Safety: broadcast done again after brief delay to ensure UI clears working state
+      sleep(0.5)
+      ActionCable.server.broadcast(channel, { type: "done", content: "" })
       return
     end
 
