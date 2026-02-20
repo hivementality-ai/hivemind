@@ -21,7 +21,7 @@ module HashtagActions
         
         result = Tools::Executor.call(
           tool: plan_tool,
-          input: { action: "generate", task: task },
+          input: { "action" => "generate", "task" => task },
           agent: agent,
           session: session
         )
