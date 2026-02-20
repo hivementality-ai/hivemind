@@ -37,8 +37,8 @@ module HashtagActions
             phase_context = build_phase_context(plan)
 
             {
-              response: "Work plan generated and displayed above. Ask the user if they'd like to proceed with execution or modify the plan.",
-              bypass: true,  # Don't call LLM — plan card is already displayed
+              response: nil,  # Plan card already saved to transcript by executor
+              bypass: true,   # Don't call LLM
               status: "ok"
             }
           else
