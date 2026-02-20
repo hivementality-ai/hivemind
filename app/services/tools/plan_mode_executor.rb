@@ -228,27 +228,32 @@ module Tools
 
     def format_plan_for_transcript(plan)
       lines = []
-      lines << "📋 **Plan Generated**"
+      lines << "## 📋 Work Plan"
       lines << ""
-      lines << "**Overview**: #{plan['overview']}"
-      lines << "**Context**: #{plan['context']}"
+      lines << "> #{plan['overview']}"
       lines << ""
-      lines << "**Phases**:"
+      lines << "---"
+      lines << ""
       
       plan["phases"].each do |phase|
+        lines << "### Phase #{phase['number']}: #{phase['name']}"
         lines << ""
-        lines << "**Phase #{phase['number']}: #{phase['name']}**"
-        lines << "  • Objectives: #{phase['objectives'].join('; ')}"
-        lines << "  • Approach: #{phase['approach']}"
-        lines << "  • Tools: #{phase['tools_needed'].join(', ')}"
-        lines << "  • Expected Output: #{phase['expected_output']}"
+        phase["objectives"].each do |obj|
+          lines << "- #{obj}"
+        end
+        lines << ""
+        lines << "*Approach:* #{phase['approach']}"
+        lines << ""
       end
       
+      lines << "---"
       lines << ""
-      lines << "**Success Criteria**: #{plan['success_criteria'].join('; ')}"
-      lines << "**Estimated Duration**: #{plan['estimated_duration']}"
+      lines << "**✅ Success Criteria**"
+      plan["success_criteria"].each do |criteria|
+        lines << "- #{criteria}"
+      end
       lines << ""
-      lines << "Ready to execute. I'll work through each phase step by step."
+      lines << "⏱️ *#{plan['estimated_duration']}*"
       
       lines.join("\n")
     end
