@@ -8,6 +8,7 @@ class IntegrationsController < ApplicationController
     @gmail_configured = VaultEntry.exists?(namespace: "google", key: "gmail_address")
     @email_configured = VaultEntry.exists?(namespace: "email", key: "smtp_host")
     @jira_configured = VaultEntry.exists?(namespace: "jira", key: "base_url")
+    @trello_configured = VaultEntry.exists?(namespace: "trello", key: "api_key")
     @search_configured = Search::Resolver.configured?
     @search_provider = Search::Resolver.current_provider_name
     @remotes = CloudStorage::ConfigureRemote.list_remotes
@@ -124,6 +125,42 @@ class IntegrationsController < ApplicationController
     if response.is_a?(Net::HTTPSuccess)
       user = JSON.parse(response.body)
       render json: { status: "connected", user: user["displayName"], email: user["emailAddress"] }
+    else
+      render json: { status: "error", message: "HTTP #{response.code}" }, status: :unprocessable_entity
+    end
+  rescue StandardError => e
+    render json: { status: "error", message: e.message }, status: :unprocessable_entity
+  end
+
+  def update_trello
+    api_key = params[:trello_api_key].to_s.strip
+    api_token = params[:trello_api_token].to_s.strip
+
+    if api_key.present? && api_token.present?
+      store_vault("trello", "api_key", api_key)
+      store_vault("trello", "api_token", api_token)
+      redirect_to integrations_path, notice: "Trello credentials saved"
+    else
+      redirect_to integrations_path, alert: "Both API Key and API Token are required"
+    end
+  end
+
+  def test_trello
+    api_key = VaultEntry.find_by(namespace: "trello", key: "api_key")&.value
+    api_token = VaultEntry.find_by(namespace: "trello", key: "api_token")&.value
+
+    return render(json: { status: "error", message: "Trello not configured" }, status: :unprocessable_entity) unless api_key
+
+    uri = URI("https://api.trello.com/1/members/me?key=#{api_key}&token=#{api_token}")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.open_timeout = 5
+    http.read_timeout = 5
+
+    response = http.request(Net::HTTP::Get.new(uri))
+    if response.is_a?(Net::HTTPSuccess)
+      user = JSON.parse(response.body)
+      render json: { status: "connected", user: user["fullName"], username: user["username"] }
     else
       render json: { status: "error", message: "HTTP #{response.code}" }, status: :unprocessable_entity
     end
