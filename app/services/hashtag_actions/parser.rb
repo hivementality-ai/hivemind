@@ -16,10 +16,10 @@ module HashtagActions
     Action = Struct.new(:name, :payload, :raw, keyword_init: true)
 
     # Hashtags that fully bypass the LLM (response is handled by the action itself)
-    BYPASS_ACTIONS = %w[remember forget search status reset help approve deny].freeze
+    BYPASS_ACTIONS = %w[plan remember forget search status reset help approve deny].freeze
 
     # Hashtags that augment the LLM call (modify behavior but still chat)
-    AUGMENT_ACTIONS = %w[plan mood voice image summarize].freeze
+    AUGMENT_ACTIONS = %w[mood voice image summarize].freeze
 
     # Hashtags that trigger side effects + still chat
     SIDEEFFECT_ACTIONS = %w[todo schedule handoff delegate private].freeze

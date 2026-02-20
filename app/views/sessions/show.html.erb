@@ -77,7 +77,7 @@
                   <span>📋</span>
                   <span>Work Plan</span>
                   <button class="ml-auto text-xs px-2 py-1 bg-blue-600/20 hover:bg-blue-600/30 rounded border border-blue-500/30 text-blue-300"
-                          onclick="const d = this.closest('.bg-surface-raised').querySelector('[data-plan-details]'); if(d) { d.style.display = d.style.display === 'none' ? 'block' : 'none'; this.textContent = d.style.display === 'none' ? 'Show Details' : 'Hide Details'; }">
+                          onclick="var d = this.parentElement.parentElement.querySelector('[data-plan-details]'); if(d) { if(d.style.display === 'none') { d.style.display = 'block'; this.textContent = 'Hide Details'; } else { d.style.display = 'none'; this.textContent = 'Show Details'; } }">
                     Show Details
                   </button>
                 </div>
