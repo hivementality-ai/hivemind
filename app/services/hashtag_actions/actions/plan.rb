@@ -17,28 +17,37 @@ module HashtagActions
           return { response: "Planning mode tool not found", bypass: false, status: "error" }
         end
 
+        Rails.logger.info("[Plan Action] Invoking plan_mode with action=generate, task=#{task.inspect}, agent=#{agent&.name}, session=#{session&.id}")
+        
         result = Tools::Executor.call(
           tool: plan_tool,
           input: { action: "generate", task: task },
           agent: agent,
           session: session
         )
+        
+        Rails.logger.info("[Plan Action] Result: #{result.inspect}")
 
         if result.success?
-          plan = result.data[:plan]
+          # Get the plan from session metadata (it was saved there by the executor)
+          plan = session.metadata&.dig("current_plan")
           
-          # Build a formatted plan response for display
-          plan_summary = format_plan_for_display(plan)
-          
-          # Provide phase context in prompt addon
-          phase_context = build_phase_context(plan)
+          if plan
+            # Build a formatted plan response for display
+            plan_summary = format_plan_for_display(plan)
+            
+            # Provide phase context in prompt addon
+            phase_context = build_phase_context(plan)
 
-          {
-            response: "✅ Plan generated! I'll now execute it phase by phase.\n\n#{plan_summary}",
-            bypass: false,  # Agent continues and can initiate execution
-            status: "ok",
-            prompt_addon: phase_context
-          }
+            {
+              response: "✅ Plan generated! I'll now execute it phase by phase.\n\n#{plan_summary}",
+              bypass: false,  # Agent continues and can initiate execution
+              status: "ok",
+              prompt_addon: phase_context
+            }
+          else
+            { response: "Plan generated but couldn't retrieve it from session", bypass: false, status: "error" }
+          end
         else
           { response: "Failed to generate plan: #{result.error}", bypass: false, status: "error" }
         end
