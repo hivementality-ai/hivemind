@@ -40,8 +40,8 @@ module HashtagActions
             phase_context = build_phase_context(plan)
 
             {
-              response: "✅ Plan generated! I'll now execute it phase by phase.\n\n#{plan_summary}",
-              bypass: false,  # Agent continues and can initiate execution
+              response: plan_summary,  # Return the full plan to the user
+              bypass: false,  # Agent continues to execute after showing plan
               status: "ok",
               prompt_addon: phase_context
             }
