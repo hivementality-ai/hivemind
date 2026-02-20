@@ -8,203 +8,76 @@
     <h1 class="text-3xl font-bold text-white"><%= @provider.name %></h1>
   </div>
 
-  <!-- Edit Form -->
-  <div class="bg-surface-card rounded-xl border border-border-default p-8">
-    <%= form_with model: @provider, url: provider_path(@provider), method: :patch, class: "space-y-6" do |f| %>
-      <% if @provider.errors.any? %>
-        <div class="bg-red-900/50 border border-red-600 text-red-200 px-4 py-3 rounded-lg text-sm">
-          <h3 class="font-semibold mb-2"><%= pluralize(@provider.errors.count, "error") %> prevented this provider from being saved:</h3>
-          <ul class="list-disc list-inside space-y-1">
-            <% @provider.errors.full_messages.each do |message| %>
-              <li><%= message %></li>
-            <% end %>
-          </ul>
-        </div>
-      <% end %>
-
-      <!-- Provider Badge & Status -->
-      <div class="bg-surface-raised rounded-lg border border-border-default p-5">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-4">
-            <div class="w-12 h-12 <%= provider_badge_bg(@provider.adapter_type) %> rounded-lg flex items-center justify-center text-white font-bold text-lg">
-              <%= provider_badge_icon(@provider.adapter_type) %>
-            </div>
-            <div>
-              <h3 class="text-white font-semibold text-lg"><%= @provider.name %></h3>
-              <p class="text-text-muted text-sm"><%= @provider.adapter_type.titleize %></p>
-            </div>
+  <!-- Provider Details Card -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-8 space-y-6">
+    <!-- Provider Badge & Status -->
+    <div class="bg-surface-raised rounded-lg border border-border-default p-5">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 <%= provider_badge_bg(@provider.adapter_type) %> rounded-lg flex items-center justify-center text-white font-bold text-lg">
+            <%= provider_badge_icon(@provider.adapter_type) %>
           </div>
-          <% if @provider.enabled? %>
-            <span class="px-3 py-1 bg-green-900/50 border border-green-700/50 rounded-full text-green-300 text-xs font-medium">
-              ✓ Active
-            </span>
-          <% else %>
-            <span class="px-3 py-1 bg-gray-900/50 border border-gray-700/50 rounded-full text-gray-400 text-xs font-medium">
-              ✗ Inactive
-            </span>
-          <% end %>
+          <div>
+            <h3 class="text-white font-semibold text-lg"><%= @provider.name %></h3>
+            <p class="text-text-muted text-sm"><%= @provider.adapter_type.titleize %></p>
+          </div>
         </div>
+        <% if @provider.enabled? %>
+          <span class="px-3 py-1 bg-green-900/50 border border-green-700/50 rounded-full text-green-300 text-xs font-medium">
+            ✓ Active
+          </span>
+        <% else %>
+          <span class="px-3 py-1 bg-gray-900/50 border border-gray-700/50 rounded-full text-gray-400 text-xs font-medium">
+            ✗ Inactive
+          </span>
+        <% end %>
       </div>
+    </div>
 
-      <!-- API Key Section -->
-      <div class="space-y-4">
+    <!-- API Key Status (Encrypted) -->
+    <div class="bg-surface-raised rounded-lg border border-border-default p-5">
+      <div class="flex items-center justify-between">
         <div>
-          <label class="block text-text-primary font-semibold mb-2">
-            API Key
-            <% if @api_key.present? %>
-              <span class="ml-2 inline-block px-2 py-1 bg-green-900/50 border border-green-700/50 rounded text-green-300 text-xs font-medium">Currently Set</span>
-            <% else %>
-              <span class="ml-2 inline-block px-2 py-1 bg-yellow-900/50 border border-yellow-700/50 rounded text-yellow-300 text-xs font-medium">Not Set</span>
-            <% end %>
-          </label>
-          <%= f.text_field :api_key,
-              class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-mono text-sm",
-              placeholder: placeholder_for(@provider.adapter_type),
-              autocomplete: "off",
-              value: @api_key %>
-          <p class="text-text-faint text-xs mt-2">
-            <% case @provider.adapter_type %>
-              <% when "anthropic" %>
-                Get a key at <a href="https://console.anthropic.com/" target="_blank" class="text-brand-light hover:underline">console.anthropic.com</a>
-              <% when "openai" %>
-                Get a key at <a href="https://platform.openai.com/" target="_blank" class="text-brand-light hover:underline">platform.openai.com</a>
-              <% when "ollama" %>
-                Leave blank for local Ollama (no API key needed). Modify the URL in Advanced Settings if running on another machine.
-            <% end %>
-          </p>
+          <h4 class="text-text-primary font-semibold mb-1">API Credentials</h4>
+          <p class="text-text-muted text-sm">All API keys are encrypted at rest</p>
         </div>
+        <% if @api_key.present? %>
+          <span class="px-3 py-1 bg-green-900/50 border border-green-700/50 rounded text-green-300 text-xs font-medium">
+            ✓ Configured
+          </span>
+        <% else %>
+          <span class="px-3 py-1 bg-yellow-900/50 border border-yellow-700/50 rounded text-yellow-300 text-xs font-medium">
+            Not Set
+          </span>
+        <% end %>
+      </div>
+    </div>
 
-        <% if @provider.adapter_type == "ollama" %>
-          <!-- Ollama Advanced Settings -->
-          <details class="mt-4">
-            <summary class="text-text-muted text-sm cursor-pointer hover:text-white transition select-none flex items-center gap-2">
-              <span class="text-lg">▶</span> Advanced Settings
-            </summary>
-            <div class="mt-3 p-4 bg-surface-overlay rounded-lg border border-border-default space-y-3">
-              <div>
-                <label class="block text-text-primary font-medium text-sm mb-1">Ollama URL</label>
-                <input type="text"
-                       id="ollama-custom-url"
-                       class="w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
-                       placeholder="http://host.docker.internal:11434"
-                       value="http://host.docker.internal:11434">
-                <p class="text-text-faint text-xs mt-1">
-                  Change this if Ollama is running on another machine (e.g. <code class="text-text-muted">http://192.168.1.100:11434</code>)
-                </p>
-                <button type="button" onclick="detectOllamaModels()"
-                        class="mt-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded-lg transition cursor-pointer">
-                  Check Connection
-                </button>
+    <!-- Models Configuration -->
+    <% if @selected_models.present? %>
+      <div class="bg-surface-raised rounded-lg border border-border-default p-5">
+        <h4 class="text-text-primary font-semibold mb-3">Available Models</h4>
+        <div class="space-y-2">
+          <% @selected_models.each do |model| %>
+            <div class="flex items-center justify-between p-3 bg-surface-overlay rounded-lg border border-border-default/50">
+              <div class="flex items-center gap-2">
+                <span class="text-white text-sm"><%= model["id"] %></span>
+                <% if model["default"] %>
+                  <span class="px-2 py-0.5 bg-brand/20 border border-brand/50 rounded text-brand text-xs font-medium">Default</span>
+                <% end %>
               </div>
             </div>
-          </details>
-        <% end %>
-      </div>
-
-      <!-- Model Selection -->
-      <div class="space-y-4">
-        <label class="block text-text-primary font-semibold">Select Available Models</label>
-
-        <!-- Anthropic/OpenAI Static Model List -->
-        <% if @provider.adapter_type != "ollama" %>
-          <div class="space-y-2" id="model-list">
-            <% @available_models.each do |model| %>
-              <% is_selected = @selected_models.any? { |m| m["id"] == model[:id] } %>
-              <label class="flex items-start gap-3 p-4 bg-surface-raised rounded-lg cursor-pointer hover:bg-surface-overlay transition group border border-border-default/50">
-                <input type="checkbox"
-                       name="provider_config[models][]"
-                       value="<%= model[:id] %>"
-                       <%= "checked" if is_selected %>
-                       class="mt-1 w-4 h-4 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay flex-shrink-0">
-                <div class="flex-1">
-                  <span class="text-white text-sm font-medium block"><%= model[:name] %></span>
-                  <p class="text-text-muted text-xs"><%= model[:desc] %></p>
-                </div>
-              </label>
-            <% end %>
-          </div>
-        <% else %>
-          <!-- Ollama Dynamic Model List -->
-          <div id="ollama-models-container" class="space-y-2">
-            <p class="text-text-muted text-sm">Click "Check Connection" above to detect installed Ollama models.</p>
-          </div>
-        <% end %>
-      </div>
-
-      <!-- Default Model Selection -->
-      <% if @available_models.present? || @provider.adapter_type != "ollama" %>
-        <div class="space-y-2">
-          <label class="block text-text-primary font-semibold text-sm">Default Model</label>
-          <select name="provider_config[default_model]"
-                  class="w-full px-4 py-2 bg-surface-raised border border-border-default rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand">
-            <option value="">Select a default...</option>
-            <% if @provider.adapter_type == "anthropic" %>
-              <option value="claude-sonnet-4-5" <%= "selected" if @selected_models.any? { |m| m["default"] && m["id"] == "claude-sonnet-4-5" } %>>Claude Sonnet 4.5</option>
-              <option value="claude-opus-4-6" <%= "selected" if @selected_models.any? { |m| m["default"] && m["id"] == "claude-opus-4-6" } %>>Claude Opus 4.6</option>
-              <option value="claude-haiku-4-5" <%= "selected" if @selected_models.any? { |m| m["default"] && m["id"] == "claude-haiku-4-5" } %>>Claude Haiku 4.5</option>
-            <% elsif @provider.adapter_type == "openai" %>
-              <option value="gpt-5.2" <%= "selected" if @selected_models.any? { |m| m["default"] && m["id"] == "gpt-5.2" } %>>GPT-5.2</option>
-              <option value="gpt-5.2-mini" <%= "selected" if @selected_models.any? { |m| m["default"] && m["id"] == "gpt-5.2-mini" } %>>GPT-5.2 Mini</option>
-              <option value="gpt-5.2-nano" <%= "selected" if @selected_models.any? { |m| m["default"] && m["id"] == "gpt-5.2-nano" } %>>GPT-5.2 Nano</option>
-              <option value="o3" <%= "selected" if @selected_models.any? { |m| m["default"] && m["id"] == "o3" } %>>o3</option>
-              <option value="o4-mini" <%= "selected" if @selected_models.any? { |m| m["default"] && m["id"] == "o4-mini" } %>>o4-mini</option>
-            <% end %>
-          </select>
+          <% end %>
         </div>
-      <% end %>
-
-      <!-- Form Actions -->
-      <div class="flex gap-3 pt-4 border-t border-border-default">
-        <%= f.submit "Save Changes", class: "px-6 py-2 bg-brand hover:bg-brand-dark text-white font-semibold rounded-lg transition" %>
-        <%= link_to "Cancel", providers_path, class: "px-6 py-2 bg-surface-raised hover:bg-surface-overlay text-white font-semibold rounded-lg transition" %>
       </div>
     <% end %>
   </div>
 
-  <!-- Ollama Detection Script -->
-  <script>
-    function detectOllamaModels() {
-      const urlInput = document.getElementById('ollama-custom-url');
-      const url = urlInput ? urlInput.value : 'http://host.docker.internal:11434';
-      const container = document.getElementById('ollama-models-container');
-
-      container.innerHTML = '<p class="text-text-muted text-sm">Detecting models...</p>';
-
-      fetch(`/setup/ollama_models?url=${encodeURIComponent(url)}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.status === 'connected' && data.models.length > 0) {
-            let html = '<p class="text-green-300 text-sm font-medium mb-2">✓ Connected — ' + data.models.length + ' model(s) found</p>';
-            html += '<div class="space-y-2">';
-            data.models.forEach((m, i) => {
-              html += `
-                <label class="flex items-start gap-3 p-4 bg-surface-raised rounded-lg cursor-pointer hover:bg-surface-overlay transition group border border-border-default/50">
-                  <input type="checkbox" name="provider_config[models][]" value="${m.id}" ${i === 0 ? 'checked' : ''}
-                         class="mt-1 w-4 h-4 rounded border-gray-500 text-purple-600 focus:ring-purple-500 bg-surface-overlay flex-shrink-0">
-                  <div class="flex-1">
-                    <span class="text-white text-sm font-medium block">${m.name}</span>
-                    <p class="text-text-muted text-xs">${m.parameter_size || m.size + 'GB'}${m.family ? ' · ' + m.family : ''}</p>
-                  </div>
-                </label>`;
-            });
-            html += '</div>';
-            container.innerHTML = html;
-          } else if (data.status === 'connected') {
-            container.innerHTML = '<p class="text-yellow-300 text-sm">Ollama is running but no models installed. Run: <code class="text-text-primary font-mono text-xs">ollama pull llama3.2:3b</code></p>';
-          } else {
-            showOllamaError(data.message || 'Could not connect');
-          }
-        })
-        .catch(() => {
-          showOllamaError('Could not reach Ollama. Make sure it is installed and running.');
-        });
-    }
-
-    function showOllamaError(msg) {
-      const container = document.getElementById('ollama-models-container');
-      container.innerHTML = `
-        <p class="text-red-300 text-sm mb-2">⚠ Error: ${msg}</p>
-        <p class="text-text-faint text-xs">Install Ollama from <a href="https://ollama.com/" target="_blank" class="text-brand-light hover:underline">ollama.com</a></p>`;
-    }
-  </script>
+  <!-- Action Footer -->
+  <div class="flex gap-3 pt-6">
+    <%= button_to "Edit Credentials", edit_provider_path(@provider, edit_mode: true),
+        method: :get,
+        class: "px-6 py-2 bg-brand hover:bg-brand-dark text-white font-semibold rounded-lg transition" %>
+    <%= link_to "Back to Providers", providers_path, class: "px-6 py-2 bg-surface-raised hover:bg-surface-overlay text-white font-semibold rounded-lg transition" %>
+  </div>
 </div>

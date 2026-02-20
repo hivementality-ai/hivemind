@@ -16,11 +16,14 @@ class ProvidersController < ApplicationController
   end
 
   # GET /providers/:id/edit
-  # Edit provider configuration, API keys, and models
+  # Show provider details with option to edit credentials
   def edit
     @available_models = available_models_for(@provider.adapter_type)
     @selected_models = @provider.model_definitions || []
     @api_key = @provider.api_key
+    
+    # If edit_mode=true, render the form view; otherwise render the show view
+    render :edit_form if params[:edit_mode] == "true"
   end
 
   # PATCH/PUT /providers/:id
@@ -52,12 +55,12 @@ class ProvidersController < ApplicationController
         Setting.set("default_model_#{@provider.adapter_type}", default_model)
       end
 
-      redirect_to providers_path, notice: "Provider updated successfully."
+      redirect_to provider_path(@provider), notice: "Provider updated successfully."
     else
       @available_models = available_models_for(@provider.adapter_type)
       @selected_models = @provider.model_definitions || []
       @api_key = @provider.api_key
-      render :edit, status: :unprocessable_entity
+      render :edit_form, status: :unprocessable_entity
     end
   end
 
