@@ -64,8 +64,10 @@ module Tools
 
       # Format plan for display in chat
       plan_message = format_plan_for_transcript(plan)
+      Rails.logger.info("[PlanModeExecutor] Formatted plan message (#{plan_message.bytesize} bytes)")
 
       # Save plan as assistant message in transcript so it persists
+      Rails.logger.info("[PlanModeExecutor] Saving plan to transcript for session #{session.id}")
       session.append_transcript({
         "role" => "assistant",
         "content" => plan_message,
@@ -74,6 +76,7 @@ module Tools
         "plan_data" => plan
       })
       session.save!
+      Rails.logger.info("[PlanModeExecutor] Plan saved. Transcript now has #{session.transcript.length} messages")
 
       # Broadcast plan to UI
       ActionCable.server.broadcast(
