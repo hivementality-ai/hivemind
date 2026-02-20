@@ -41,56 +41,66 @@ module Tools
         return ServiceResponse.failure(error: "Task is required for plan generation")
       end
 
-      # Generate plan using the PlanGenerator service
-      plan_result = Agents::PlanGenerator.call(
-        agent: agent,
-        task: task,
-        session: session
-      )
+      begin
+        # Generate plan using the PlanGenerator service
+        Rails.logger.info("[PlanModeExecutor] Calling PlanGenerator for task: #{task.inspect}")
+        plan_result = Agents::PlanGenerator.call(
+          agent: agent,
+          task: task,
+          session: session
+        )
+        Rails.logger.info("[PlanModeExecutor] PlanGenerator result: #{plan_result.inspect}")
 
-      unless plan_result.success?
-        return ServiceResponse.failure(error: plan_result.error)
+        unless plan_result.success?
+          Rails.logger.error("[PlanModeExecutor] PlanGenerator failed: #{plan_result.error}")
+          return ServiceResponse.failure(error: plan_result.error)
+        end
+
+        plan = plan_result.data[:plan]
+        Rails.logger.info("[PlanModeExecutor] Got plan with #{plan['phases'].length} phases")
+
+        # Store plan in session metadata
+        session.metadata ||= {}
+        session.metadata["current_plan"] = plan
+        session.metadata["plan_generated_at"] = Time.current.iso8601
+        session.metadata["plan_status"] = "generated"
+        session.metadata["current_phase"] = 0
+        session.save!
+        Rails.logger.info("[PlanModeExecutor] Stored plan in session metadata")
+
+        # Format plan for display in chat
+        plan_message = format_plan_for_transcript(plan)
+        Rails.logger.info("[PlanModeExecutor] Formatted plan message (#{plan_message.bytesize} bytes)")
+
+        # Save plan as assistant message in transcript so it persists
+        Rails.logger.info("[PlanModeExecutor] Saving plan to transcript for session #{session.id}")
+        session.append_transcript({
+          "role" => "assistant",
+          "content" => plan_message,
+          "timestamp" => Time.current.iso8601,
+          "type" => "plan",
+          "plan_data" => plan
+        })
+        session.save!
+        Rails.logger.info("[PlanModeExecutor] Plan saved. Transcript now has #{session.transcript.length} messages")
+
+        # Broadcast plan to UI
+        ActionCable.server.broadcast(
+          "session_#{session.id}",
+          {
+            type: "plan",
+            action: "display",
+            plan: plan,
+            message: "📋 Plan generated. Ready to execute."
+          }
+        )
+
+        output = "Plan generated with #{plan['phases'].length} phases. Ready to execute."
+        ServiceResponse.success(data: { output: output, exit_code: 0, plan: plan })
+      rescue StandardError => e
+        Rails.logger.error("[PlanModeExecutor] Error in generate_plan: #{e.message}\n#{e.backtrace.join("\n")}")
+        ServiceResponse.failure(error: "Error generating plan: #{e.message}")
       end
-
-      plan = plan_result.data[:plan]
-
-      # Store plan in session metadata
-      session.metadata ||= {}
-      session.metadata["current_plan"] = plan
-      session.metadata["plan_generated_at"] = Time.current.iso8601
-      session.metadata["plan_status"] = "generated"
-      session.metadata["current_phase"] = 0
-      session.save!
-
-      # Format plan for display in chat
-      plan_message = format_plan_for_transcript(plan)
-      Rails.logger.info("[PlanModeExecutor] Formatted plan message (#{plan_message.bytesize} bytes)")
-
-      # Save plan as assistant message in transcript so it persists
-      Rails.logger.info("[PlanModeExecutor] Saving plan to transcript for session #{session.id}")
-      session.append_transcript({
-        "role" => "assistant",
-        "content" => plan_message,
-        "timestamp" => Time.current.iso8601,
-        "type" => "plan",
-        "plan_data" => plan
-      })
-      session.save!
-      Rails.logger.info("[PlanModeExecutor] Plan saved. Transcript now has #{session.transcript.length} messages")
-
-      # Broadcast plan to UI
-      ActionCable.server.broadcast(
-        "session_#{session.id}",
-        {
-          type: "plan",
-          action: "display",
-          plan: plan,
-          message: "📋 Plan generated. Ready to execute."
-        }
-      )
-
-      output = "Plan generated with #{plan['phases'].length} phases. Ready to execute."
-      ServiceResponse.success(data: { output: output, exit_code: 0, plan: plan })
     end
 
     def start_execution(session)
