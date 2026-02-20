@@ -30,17 +30,14 @@ module HashtagActions
 
         if result.success?
           # Get the plan from session metadata (it was saved there by the executor)
-          plan = session.metadata&.dig("current_plan")
+          plan = session.reload.metadata&.dig("current_plan")
           
           if plan
-            # Build a formatted plan response for display
-            plan_summary = format_plan_for_display(plan)
-            
-            # Provide phase context in prompt addon
+            # Provide phase context in prompt addon so agent knows the plan
             phase_context = build_phase_context(plan)
 
             {
-              response: plan_summary,  # Return the full plan to the user
+              response: nil,  # Don't return text — the executor already saved the card to transcript
               bypass: false,  # Agent continues to execute after showing plan
               status: "ok",
               prompt_addon: phase_context
