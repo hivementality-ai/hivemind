@@ -62,6 +62,19 @@ module Tools
       session.metadata["current_phase"] = 0
       session.save!
 
+      # Format plan for display in chat
+      plan_message = format_plan_for_transcript(plan)
+
+      # Save plan as assistant message in transcript so it persists
+      session.append_transcript({
+        "role" => "assistant",
+        "content" => plan_message,
+        "timestamp" => Time.current.iso8601,
+        "type" => "plan",
+        "plan_data" => plan
+      })
+      session.save!
+
       # Broadcast plan to UI
       ActionCable.server.broadcast(
         "session_#{session.id}",
@@ -198,6 +211,33 @@ module Tools
         summary: summary_data[:summary],
         markdown: summary_data[:markdown]
       })
+    end
+
+    def format_plan_for_transcript(plan)
+      lines = []
+      lines << "📋 **Plan Generated**"
+      lines << ""
+      lines << "**Overview**: #{plan['overview']}"
+      lines << "**Context**: #{plan['context']}"
+      lines << ""
+      lines << "**Phases**:"
+      
+      plan["phases"].each do |phase|
+        lines << ""
+        lines << "**Phase #{phase['number']}: #{phase['name']}**"
+        lines << "  • Objectives: #{phase['objectives'].join('; ')}"
+        lines << "  • Approach: #{phase['approach']}"
+        lines << "  • Tools: #{phase['tools_needed'].join(', ')}"
+        lines << "  • Expected Output: #{phase['expected_output']}"
+      end
+      
+      lines << ""
+      lines << "**Success Criteria**: #{plan['success_criteria'].join('; ')}"
+      lines << "**Estimated Duration**: #{plan['estimated_duration']}"
+      lines << ""
+      lines << "Ready to execute. I'll work through each phase step by step."
+      
+      lines.join("\n")
     end
   end
 end
