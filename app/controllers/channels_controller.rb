@@ -18,6 +18,7 @@ class ChannelsController < ApplicationController
 
     if @channel.save
       store_credentials(@credentials) if @credentials.present?
+      configure_connector(@channel, @credentials) if @credentials.present?
       redirect_to channels_path, notice: "#{@channel.name} channel created"
     else
       render :new, status: :unprocessable_entity
@@ -35,7 +36,7 @@ class ChannelsController < ApplicationController
 
     if @channel.update(channel_params)
       store_credentials(@credentials) if @credentials.present?
-      process_agent_assignments(params[:agent_assignments]) if params[:agent_assignments].present?
+      configure_connector(@channel, @credentials) if @credentials.present?
       redirect_to channels_path, notice: "#{@channel.name} updated"
     else
       render :edit, status: :unprocessable_entity
@@ -57,13 +58,31 @@ class ChannelsController < ApplicationController
     params.require(:channel).permit(:name, :channel_type, :enabled, config: {})
   end
 
+  def configure_connector(channel, creds)
+    return unless channel.channel_type == "slack"
+
+    app_token = creds["slack_app_token"].presence || VaultEntry.find_by(namespace: "channel_credentials", key: "slack_app_token")&.value
+    bot_token = creds["slack_bot_token"].presence || VaultEntry.find_by(namespace: "channel_credentials", key: "slack_bot_token")&.value
+    return unless app_token && bot_token
+
+    connector_url = channel.config&.dig("connector_url") || "http://connector:3002"
+
+    Net::HTTP.post(
+      URI("#{connector_url}/slack/configure"),
+      { app_token: app_token, bot_token: bot_token, channel_id: channel.id }.to_json,
+      "Content-Type" => "application/json"
+    )
+  rescue StandardError => e
+    Rails.logger.warn("[Channels] Failed to configure Slack connector: #{e.message}")
+  end
+
   def store_credentials(creds)
     creds.each do |key, value|
       next if value.blank?
 
       entry = VaultEntry.find_or_initialize_by(
         namespace: "channel_credentials",
-        key: "#{@channel.channel_type}_#{key}"
+        key: key
       )
       entry.value = value
       entry.save!

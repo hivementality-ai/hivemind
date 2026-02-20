@@ -1,13 +1,15 @@
 /**
- * Hivemind Connector — WhatsApp Bridge
+ * Hivemind Connector — Multi-Platform Messaging Bridge
  *
- * Connects to WhatsApp Web via Baileys, forwards messages to the
- * Hivemind Rails app webhook, and exposes a REST API for sending replies.
+ * Connects to WhatsApp (Baileys) and Slack (Socket Mode), forwards messages
+ * to the Hivemind Rails app webhook, and exposes a REST API for sending replies.
  *
  * Environment variables:
  *   HIVEMIND_URL     — Rails app URL (default: http://app:3000)
  *   CONNECTOR_PORT   — Port for the REST API (default: 3002)
  *   AUTH_STORE_PATH  — Where to store WhatsApp auth state (default: ./auth)
+ *   SLACK_APP_TOKEN  — Slack App-Level Token (xapp-...) for Socket Mode
+ *   SLACK_BOT_TOKEN  — Slack Bot User OAuth Token (xoxb-...)
  */
 
 const {
@@ -341,9 +343,97 @@ function normalizeJid(input) {
   return `${cleaned}@s.whatsapp.net`;
 }
 
+// ─── Slack Socket Mode ────────────────────────────────────────────────
+
+const { SlackBridge } = require("./slack");
+let slackBridge = null;
+
+// Slack API endpoints
+app.get("/slack/health", (req, res) => {
+  if (!slackBridge) {
+    return res.json({ status: "not_configured" });
+  }
+  res.json({ status: "connected", ...slackBridge.status });
+});
+
+app.post("/slack/send", async (req, res) => {
+  try {
+    if (!slackBridge) {
+      return res.status(400).json({ error: "Slack not configured" });
+    }
+    const { channel, text, thread_ts } = req.body;
+    if (!channel || !text) {
+      return res.status(400).json({ error: "channel and text required" });
+    }
+    const result = await slackBridge.sendMessage({ channel, text, threadTs: thread_ts });
+    res.json({ status: "sent", ts: result.ts });
+  } catch (err) {
+    logger.error({ err }, "Failed to send Slack message");
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/slack/react", async (req, res) => {
+  try {
+    if (!slackBridge) {
+      return res.status(400).json({ error: "Slack not configured" });
+    }
+    const { channel, timestamp, emoji } = req.body;
+    if (!channel || !timestamp || !emoji) {
+      return res.status(400).json({ error: "channel, timestamp, and emoji required" });
+    }
+    await slackBridge.addReaction({ channel, timestamp, emoji });
+    res.json({ status: "reacted" });
+  } catch (err) {
+    logger.error({ err }, "Failed to react on Slack");
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Configure Slack via API (so Rails can pass tokens from vault)
+app.post("/slack/configure", async (req, res) => {
+  try {
+    const { app_token, bot_token, channel_id } = req.body;
+    if (!app_token || !bot_token) {
+      return res.status(400).json({ error: "app_token and bot_token required" });
+    }
+
+    // Stop existing bridge if running
+    if (slackBridge) {
+      await slackBridge.stop();
+      slackBridge = null;
+    }
+
+    slackBridge = new SlackBridge({
+      appToken: app_token,
+      botToken: bot_token,
+      hivemindUrl: HIVEMIND_URL,
+      channelId: channel_id,
+    });
+
+    await slackBridge.start();
+    res.json({ status: "connected", ...slackBridge.status });
+  } catch (err) {
+    logger.error({ err }, "Failed to configure Slack");
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Start ────────────────────────────────────────────────────────────
 
 startWhatsApp().catch((err) => {
   logger.error({ err }, "Failed to start WhatsApp connection");
   process.exit(1);
 });
+
+// Auto-start Slack if env vars are set
+if (process.env.SLACK_APP_TOKEN && process.env.SLACK_BOT_TOKEN) {
+  slackBridge = new SlackBridge({
+    appToken: process.env.SLACK_APP_TOKEN,
+    botToken: process.env.SLACK_BOT_TOKEN,
+    hivemindUrl: HIVEMIND_URL,
+  });
+  slackBridge.start().catch((err) => {
+    logger.error({ err }, "Failed to start Slack bridge");
+  });
+}

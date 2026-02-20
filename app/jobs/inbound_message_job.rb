@@ -43,13 +43,16 @@ class InboundMessageJob < ApplicationJob
 
     thread_id = extract_thread_id(message)
 
-    # Route to agent
+    # Route to agent — reply to the Slack channel where the message came from
+    slack_channel_id = message.metadata&.dig("channel_id")
+
     route_to_agent_with_thread_tracking(
       agent: agent,
       message: text,
       channel: channel,
       sender: sender,
-      thread_id: thread_id
+      thread_id: thread_id,
+      slack_channel_id: slack_channel_id
     )
   end
 
@@ -71,7 +74,7 @@ class InboundMessageJob < ApplicationJob
     end
   end
 
-  def route_to_agent_with_thread_tracking(agent:, message:, channel:, sender:, thread_id:)
+  def route_to_agent_with_thread_tracking(agent:, message:, channel:, sender:, thread_id:, slack_channel_id: nil)
     session = find_or_create_session(agent:, channel:, sender:)
 
     # Process hashtag actions before LLM
@@ -89,7 +92,8 @@ class InboundMessageJob < ApplicationJob
           content: hashtag_result.response,
           channel: channel,
           sender: sender,
-          thread_id: thread_id
+          thread_id: thread_id,
+          slack_channel_id: slack_channel_id
         )
       end
       return
@@ -108,7 +112,8 @@ class InboundMessageJob < ApplicationJob
         content: reply,
         channel: channel,
         sender: sender,
-        thread_id: thread_id
+        thread_id: thread_id,
+        slack_channel_id: slack_channel_id
       )
 
       # Track thread ownership if this is a threaded response
@@ -122,16 +127,18 @@ class InboundMessageJob < ApplicationJob
     end
   end
 
-  def send_agent_response(agent:, content:, channel:, sender:, thread_id: nil, team_context: false)
+  def send_agent_response(agent:, content:, channel:, sender:, thread_id: nil, team_context: false, slack_channel_id: nil)
     adapter = Channels::Registry.adapter_for(channel)
     formatted = format_agent_message(agent:, content:, channel:, team_context:)
 
     if channel.channel_type == "slack"
+      # Reply to the Slack channel/DM where the message came from, not the user ID
+      target = slack_channel_id || sender
       options = {}
       options[:thread_ts] = thread_id if thread_id.present?
 
       adapter.send_message(
-        to: sender,
+        to: target,
         content: formatted,
         agent: agent,
         **options

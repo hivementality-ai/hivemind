@@ -39,7 +39,7 @@
 
     <div>
       <h3 class="text-white font-semibold mb-3">📨 Message Routing</h3>
-      <p class="text-text-faint text-sm mb-4">Where should incoming messages go? Users can override with @mentions.</p>
+      <p class="text-text-faint text-sm mb-4">Where should incoming messages go?</p>
 
       <div class="space-y-4">
         <div>
@@ -84,7 +84,7 @@
       <div class="space-y-4" data-channel-fields-target="discord" style="display: none;">
         <div>
           <label class="block text-text-muted text-sm mb-1">Bot Token</label>
-          <%= text_field_tag "credentials[bot_token]", creds["bot_token"], placeholder: "Paste your Discord bot token...",
+          <%= text_field_tag "credentials[discord_bot_token]", creds["discord_bot_token"], placeholder: "Paste your Discord bot token...",
               class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm",
               autocomplete: "off" %>
           <p class="text-text-faint text-xs mt-1">From <a href="https://discord.com/developers/applications" target="_blank" class="text-brand-light hover:underline">Discord Developer Portal</a> → Bot → Token</p>
@@ -100,6 +100,8 @@
           <ol class="text-text-muted text-sm space-y-2 list-decimal list-inside">
             <li>Go to <a href="https://api.slack.com/apps" target="_blank" class="text-brand-light hover:underline">api.slack.com/apps</a> → <strong class="text-white">Create New App</strong> → <strong class="text-white">From scratch</strong></li>
             <li>Name the app after your agent (e.g. "Bobby") and select your workspace</li>
+            <li>Go to <strong class="text-white">Socket Mode</strong> in the sidebar and <strong class="text-white">enable it</strong></li>
+            <li>When prompted, generate an <strong class="text-white">App-Level Token</strong> with the <code class="text-amber-300">connections:write</code> scope — copy it into the <strong class="text-white">App Token</strong> field below</li>
             <li>Go to <strong class="text-white">OAuth & Permissions</strong> and add these <strong class="text-white">Bot Token Scopes</strong>:
               <div class="mt-1 ml-4 flex flex-wrap gap-1.5">
                 <% %w[app_mentions:read channels:history channels:read chat:write groups:history im:history im:read im:write reactions:write users:read].each do |scope| %>
@@ -109,16 +111,13 @@
             </li>
             <li>Click <strong class="text-white">Install to Workspace</strong> and authorize</li>
             <li>Copy the <strong class="text-white">Bot User OAuth Token</strong> (<code class="text-amber-300">xoxb-...</code>) into the <strong class="text-white">Bot Token</strong> field below</li>
-            <li>Go to <strong class="text-white">Basic Information → App Credentials</strong> and copy the <strong class="text-white">Signing Secret</strong> into the <strong class="text-white">Signing Secret</strong> field below</li>
-            <li>Go to <strong class="text-white">Event Subscriptions</strong>, toggle it on, and set the <strong class="text-white">Request URL</strong> to:
-              <code class="block mt-1 px-3 py-1.5 bg-surface-card rounded text-xs text-brand-light break-all"><%= "#{request.base_url}/webhooks/slack" %></code>
-            </li>
-            <li>Under <strong class="text-white">Subscribe to bot events</strong>, add:
+            <li>Go to <strong class="text-white">Event Subscriptions</strong>, toggle it on, and subscribe to these bot events:
               <div class="mt-1 ml-4 flex flex-wrap gap-1.5">
                 <% %w[message.channels message.groups message.im app_mention].each do |event| %>
                   <code class="px-1.5 py-0.5 bg-surface-card rounded text-xs text-amber-300"><%= event %></code>
                 <% end %>
               </div>
+              <p class="text-text-faint text-xs mt-1 ml-4">No Request URL needed — Socket Mode handles delivery via WebSocket</p>
             </li>
             <li>Click <strong class="text-white">Save Changes</strong></li>
             <li>Invite the bot to your channels: <code class="text-amber-300">/invite @YourBot</code></li>
@@ -132,14 +131,15 @@
         </div>
 
         <div>
-          <label class="block text-text-muted text-sm mb-1">Bot Token</label>
-          <%= text_field_tag "credentials[bot_token]", creds["bot_token"], placeholder: "xoxb-...",
+          <label class="block text-text-muted text-sm mb-1">App Token</label>
+          <%= text_field_tag "credentials[slack_app_token]", creds["slack_app_token"], placeholder: "xapp-...",
               class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm",
               autocomplete: "off" %>
+          <p class="text-text-faint text-xs mt-1">App-Level Token with <code class="text-amber-300">connections:write</code> scope — enables Socket Mode (no public URL needed)</p>
         </div>
         <div>
-          <label class="block text-text-muted text-sm mb-1">Signing Secret</label>
-          <%= text_field_tag "credentials[webhook_secret]", creds["webhook_secret"], placeholder: "Your Slack signing secret...",
+          <label class="block text-text-muted text-sm mb-1">Bot Token</label>
+          <%= text_field_tag "credentials[slack_bot_token]", creds["slack_bot_token"], placeholder: "xoxb-...",
               class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm",
               autocomplete: "off" %>
         </div>
@@ -149,7 +149,7 @@
       <div class="space-y-4" data-channel-fields-target="telegram" style="display: none;">
         <div>
           <label class="block text-text-muted text-sm mb-1">Bot Token</label>
-          <%= text_field_tag "credentials[bot_token]", creds["bot_token"], placeholder: "123456789:ABCdef...",
+          <%= text_field_tag "credentials[telegram_bot_token]", creds["telegram_bot_token"], placeholder: "123456789:ABCdef...",
               class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm",
               autocomplete: "off" %>
           <p class="text-text-faint text-xs mt-1">From <a href="https://t.me/BotFather" target="_blank" class="text-brand-light hover:underline">@BotFather</a> on Telegram</p>
