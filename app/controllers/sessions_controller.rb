@@ -69,15 +69,7 @@ class SessionsController < ApplicationController
     attachment_ids = process_attachments
 
     # Broadcast user message immediately for instant feedback
-    broadcast_data = { type: "user_message", content: user_message }
-    if attachment_ids.any?
-      attachments = ChatAttachment.where(id: attachment_ids)
-      broadcast_data[:images] = attachments.select { |a| a.content_type.start_with?('image/') }
-                                           .map { |a| { id: a.id, filename: a.filename, url: rails_blob_url(a) } }
-      broadcast_data[:files] = attachments.select { |a| !a.content_type.start_with?('image/') }
-                                          .map { |a| { filename: a.filename, content_type: a.content_type, byte_size: a.byte_size } }
-    end
-    ActionCable.server.broadcast("session_#{@session.id}", broadcast_data)
+    ActionCable.server.broadcast("session_#{@session.id}", { type: "user_message", content: user_message })
 
     # Enqueue the actual processing job
     ChatStreamJob.perform_later(@session.id, user_message.to_s, attachment_ids)
