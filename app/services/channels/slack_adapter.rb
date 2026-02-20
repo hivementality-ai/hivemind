@@ -34,14 +34,24 @@ module Channels
         metadata[:bot_user_id] = payload.dig(:authorizations, 0, :user_id)
       end
 
+      # Handle file uploads from Slack users
+      file_ids = []
+      if event[:files].present? && event[:files].any?
+        event[:files].each do |file|
+          file_id = download_and_store_slack_file(file, event[:channel])
+          file_ids << file_id if file_id
+        end
+      end
+
       inbound = log_inbound_message(
         external_id: event[:ts].to_s,
         sender: event[:user].to_s,
         content: event[:text].to_s,
-        metadata: metadata
+        metadata: metadata,
+        file_ids: file_ids
       )
 
-      ServiceResponse.success(data: { inbound_message: inbound })
+      ServiceResponse.success(data: { inbound_message: inbound, file_ids: file_ids })
     rescue StandardError => e
       ServiceResponse.failure(error: "Slack receive failed: #{e.message}")
     end
@@ -412,6 +422,60 @@ module Channels
       JSON.parse(http.request(req).body)
     rescue StandardError => e
       { "ok" => false, "error" => e.message }
+    end
+
+    def download_and_store_slack_file(file, channel_id)
+      # file is a hash with: id, name, mimetype, size, permalink, etc.
+      token = bot_token
+      return nil unless token && file[:permalink_public]
+
+      # Download the file from Slack
+      file_data = download_file(file[:permalink_public], token)
+      return nil unless file_data
+
+      # Store as temporary file in workspace/uploads
+      workspace_dir = File.join(Dir.home, ".openclaw", "workspace", "uploads")
+      FileUtils.mkdir_p(workspace_dir)
+      
+      # Sanitize filename and store with timestamp
+      safe_name = File.basename(file[:name]).gsub(/[^\w.-]/, "_")
+      timestamp = Time.current.strftime("%Y%m%d_%H%M%S")
+      filename = "slack_#{channel_id}_#{timestamp}_#{safe_name}"
+      filepath = File.join(workspace_dir, filename)
+      
+      File.binwrite(filepath, file_data)
+
+      # Return file info for storage
+      {
+        filename: filename,
+        filepath: filepath,
+        size: file_data.bytesize,
+        mimetype: file[:mimetype],
+        slack_file_id: file[:id],
+        source: "slack"
+      }
+    rescue StandardError => e
+      Rails.logger.error("Slack file download failed: #{e.message}")
+      nil
+    end
+
+    def download_file(url, token)
+      uri = URI(url)
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = uri.scheme == "https"
+      http.open_timeout = 15
+      http.read_timeout = 60
+
+      req = Net::HTTP::Get.new(uri)
+      req["Authorization"] = "Bearer #{token}"
+
+      response = http.request(req)
+      return nil unless response.is_a?(Net::HTTPSuccess)
+
+      response.body
+    rescue StandardError => e
+      Rails.logger.error("File download failed: #{e.message}")
+      nil
     end
   end
 end
