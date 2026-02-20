@@ -128,13 +128,12 @@ module Tools
     end
 
     def resolve_api_key(provider)
-      # Check provider config first
-      key = provider.config&.dig("api_key")
-      return key if key.present?
+      # Check vault for OpenAI API key
+      entry = VaultEntry.find_by(namespace: "providers", key: "openai_api_key", agent_id: nil)
+      return entry.value if entry.present?
 
-      # Check vault
-      entry = VaultEntry.find_by(namespace: "providers", key: "openai_api_key")
-      entry&.value
+      # Fallback to environment variable
+      ENV["OPENAI_API_KEY"].presence
     rescue StandardError
       nil
     end
