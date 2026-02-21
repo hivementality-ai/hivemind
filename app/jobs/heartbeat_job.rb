@@ -39,17 +39,33 @@ class HeartbeatJob < ApplicationJob
 
     Rails.logger.info("[Heartbeat] Running with model #{agent.llm_model}")
 
+    started_at = Time.current
     result = Sessions::Chat.call(session: session, message: prompt, agent: agent)
+    duration_ms = ((Time.current - started_at) * 1000).to_i
 
     # Restore model
     if config["model"].present? && config["model"] != original_model
       agent.update_column(:llm_model, original_model)
     end
 
-    return unless result.success?
+    usage = result&.data&.dig(:usage) || {}
+    reply = result&.success? ? result.data[:reply].to_s.strip : nil
+    is_ok = reply.blank? || reply.match?(/\AHEARTBEAT_OK\z/i)
 
-    reply = result.data[:reply].to_s.strip
-    return if reply.blank? || reply.match?(/\AHEARTBEAT_OK\z/i)
+    # Track the run
+    HeartbeatRun.create!(
+      agent: agent,
+      session: session,
+      status: result&.success? ? (is_ok ? "ok" : "action_taken") : "error",
+      summary: result&.success? ? reply&.truncate(2000) : result&.error&.truncate(2000),
+      input_tokens: usage[:input_tokens] || 0,
+      output_tokens: usage[:output_tokens] || 0,
+      duration_ms: duration_ms,
+      model: agent.llm_model,
+      metadata: { tasks_count: load_tasks.size }
+    )
+
+    return if !result&.success? || is_ok
 
     ActionCable.server.broadcast(
       "session_#{session.session_key}",
@@ -57,6 +73,15 @@ class HeartbeatJob < ApplicationJob
     )
   rescue StandardError => e
     Rails.logger.error("[Heartbeat] Failed: #{e.message}")
+
+    # Track error runs too
+    HeartbeatRun.create(
+      agent: Agent.system_assistant,
+      status: "error",
+      summary: e.message.truncate(2000),
+      duration_ms: 0,
+      metadata: { backtrace: e.backtrace&.first(3) }
+    )
   end
 
   private
