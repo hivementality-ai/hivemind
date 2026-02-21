@@ -75,9 +75,8 @@
 
   <!-- Action Footer -->
   <div class="flex gap-3 pt-6">
-    <%= button_to "Edit Credentials", edit_provider_path(@provider, edit_mode: true),
-        method: :get,
-        class: "px-6 py-2 bg-brand hover:bg-brand-dark text-white font-semibold rounded-lg transition" %>
+    <%= link_to "Edit Credentials", edit_provider_path(@provider, edit_mode: true),
+        class: "px-6 py-2 bg-brand hover:bg-brand-dark text-white font-semibold rounded-lg transition inline-block" %>
     <%= link_to "Back to Providers", providers_path, class: "px-6 py-2 bg-surface-raised hover:bg-surface-overlay text-white font-semibold rounded-lg transition" %>
   </div>
 </div>

@@ -21,10 +21,7 @@ class IntegrationsController < ApplicationController
     if token.present?
       store_vault("github", "token", token)
 
-      # Configure gh CLI in workspace container
-      configure_github_cli(token)
-
-      redirect_to integrations_path, notice: "GitHub connected — gh CLI configured in workspace"
+      redirect_to integrations_path, notice: "GitHub connected"
     else
       redirect_to integrations_path, alert: "Personal access token required"
     end
@@ -247,25 +244,7 @@ class IntegrationsController < ApplicationController
 
   private
 
-  def configure_github_cli(token)
-    # Write token to workspace volume so gh CLI can use it
-    auth_dir = "/workspace/.hivemind/github"
-    FileUtils.mkdir_p(auth_dir)
-    File.write("#{auth_dir}/token", token)
-    File.chmod(0o600, "#{auth_dir}/token")
-
-    # Configure gh in workspace container via docker exec
-    begin
-      require "open3"
-      Open3.capture3(
-        "docker", "exec", "hivemind-workspace-1",
-        "bash", "-c",
-        "echo '#{token}' | gh auth login --with-token 2>/dev/null || true"
-      )
-    rescue StandardError => e
-      Rails.logger.warn("GitHub CLI setup in workspace failed: #{e.message}")
-    end
-  end
+  # GitHub CLI auth is handled lazily by the shell executor when agents need it
 
   def store_vault(namespace, key, value)
     entry = VaultEntry.find_or_initialize_by(namespace: namespace, key: key)
