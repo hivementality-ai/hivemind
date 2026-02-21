@@ -35,7 +35,17 @@
             </div>
           </div>
           <p class="text-text-muted text-sm line-clamp-2"><%= skill.description || skill.content.truncate(120) %></p>
-          <div class="mt-3 text-gray-600 text-xs">
+          <% if skill.tools.any? %>
+            <div class="mt-3 flex flex-wrap gap-1">
+              <% skill.tools.order(:name).limit(5).each do |tool| %>
+                <span class="px-2 py-0.5 text-xs rounded-full bg-brand-glow/30 text-brand-light"><%= tool.name %></span>
+              <% end %>
+              <% if skill.tools.count > 5 %>
+                <span class="px-2 py-0.5 text-xs rounded-full bg-surface-raised text-text-muted">+<%= skill.tools.count - 5 %></span>
+              <% end %>
+            </div>
+          <% end %>
+          <div class="mt-2 text-gray-600 text-xs">
             <%= skill.agents.count %> agent<%= skill.agents.count == 1 ? '' : 's' %> using this
           </div>
         <% end %>

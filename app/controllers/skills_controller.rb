@@ -5,7 +5,7 @@ class SkillsController < ApplicationController
   before_action :set_skill, only: [ :show, :edit, :update, :destroy, :toggle ]
 
   def index
-    @skills = Skill.order(:name)
+    @skills = Skill.includes(:tools, :agents).order(:name)
     @categories = Skill.distinct.pluck(:category).compact.sort
   end
 
