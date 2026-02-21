@@ -32,7 +32,7 @@ gem "rack-attack"
 
 # LLM Providers
 gem "ruby-openai", "~> 7.0"
-gem "anthropic", "~> 1.19"
+gem "anthropic", "~> 1.23"
 
 # HTTP Client (for webhooks, web fetch, etc.)
 gem "faraday", "~> 2.0"
