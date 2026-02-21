@@ -464,7 +464,7 @@ Hivemind supports two authentication methods:
 
 | Method | Use Case | How It Works |
 |--------|----------|--------------|
-| **Web login** (Devise) | Browser UI — manage agents, teams, settings, chat | Email + password. Created during setup wizard or via `rails console`. Session-based with CSRF protection. |
+| **Web login** | Browser UI — manage agents, teams, settings, chat | Email + password. Created during setup wizard. Session-based with CSRF protection. |
 | **API tokens** | Programmatic access — scripts, CI/CD, external apps | Bearer tokens (`hv_...`) passed via `Authorization` header. SHA-256 hashed at rest. Revocable, with optional expiration. |
 
 **API token usage:**
@@ -515,20 +515,14 @@ docker compose up -d
 
 # Logs
 docker compose logs -f                # All containers
-docker compose logs app -f          # Just the app
-docker compose logs worker -f        # Just the worker
+docker compose logs app -f            # Just the app
+docker compose logs worker -f         # Just the worker
 
 # Status
 docker compose ps
 
-# Console
-docker compose exec app bin/rails console
-
-# Run migrations
-docker compose exec app bin/rails db:migrate
-
-# Re-seed tools (after adding new ones)
-docker compose exec app bin/rails runner "load 'db/seeds/tools.rb'"
+# Database setup (first time only)
+docker compose exec app bin/setup
 
 # Rebuild after code changes
 docker compose build app worker && docker compose up -d app worker
