@@ -108,4 +108,58 @@
       <p class="text-text-faint text-sm text-center py-4">No tasks yet. Your agents can add tasks using the <code class="text-text-muted">heartbeat_write</code> tool.</p>
     <% end %>
   </div>
+
+  <!-- Recent Runs -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mt-6">
+    <h2 class="text-lg font-semibold text-white mb-2">Recent Runs</h2>
+    <p class="text-text-faint text-sm mb-4">History of heartbeat executions.</p>
+
+    <% if @runs.any? %>
+      <div class="space-y-2">
+        <% @runs.each do |run| %>
+          <div class="bg-surface-base rounded-lg px-4 py-3">
+            <div class="flex items-center justify-between mb-1">
+              <div class="flex items-center gap-2">
+                <% case run.status %>
+                <% when "ok" %>
+                  <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                  <span class="text-green-400 text-xs font-medium">OK</span>
+                <% when "action_taken" %>
+                  <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                  <span class="text-amber-400 text-xs font-medium">Action Taken</span>
+                <% when "error" %>
+                  <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                  <span class="text-red-400 text-xs font-medium">Error</span>
+                <% when "skipped" %>
+                  <span class="w-2 h-2 rounded-full bg-gray-400"></span>
+                  <span class="text-gray-400 text-xs font-medium">Skipped</span>
+                <% end %>
+                <span class="text-text-muted text-xs">·</span>
+                <span class="text-text-primary text-xs"><%= run.agent.name %></span>
+                <span class="text-text-muted text-xs">·</span>
+                <span class="text-text-faint text-xs"><%= run.model %></span>
+              </div>
+              <div class="flex items-center gap-3 text-text-faint text-xs">
+                <% if run.total_tokens > 0 %>
+                  <span><%= number_with_delimiter(run.total_tokens) %> tokens</span>
+                <% end %>
+                <% if run.duration_ms.present? %>
+                  <span><%= (run.duration_ms / 1000.0).round(1) %>s</span>
+                <% end %>
+                <span><%= time_ago_in_words(run.created_at) %> ago</span>
+              </div>
+            </div>
+            <% if run.summary.present? && run.status != "ok" %>
+              <p class="text-text-muted text-sm mt-1 line-clamp-2"><%= run.summary.truncate(300) %></p>
+            <% end %>
+            <% if run.session.present? %>
+              <%= link_to "View session →", session_path(run.session), class: "text-brand-light text-xs hover:underline" %>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="text-text-faint text-sm text-center py-4">No heartbeat runs yet. Enable heartbeat and trigger one to see results here.</p>
+    <% end %>
+  </div>
 </div>

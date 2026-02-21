@@ -5,6 +5,7 @@ class HeartbeatsController < ApplicationController
 
   def index
     @config = heartbeat_config
+    @runs = HeartbeatRun.includes(:agent, :session).recent
   end
 
   def update

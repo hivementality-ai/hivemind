@@ -35,6 +35,7 @@ class Agent < ApplicationRecord
   has_many :agent_channels, dependent: :destroy
   has_many :channels, through: :agent_channels
   has_many :channel_threads, dependent: :destroy
+  has_many :heartbeat_runs, dependent: :destroy
 
   enum :status, { idle: 0, thinking: 1, executing: 2, waiting: 3, error: 4 }, default: :idle
 
