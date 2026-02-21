@@ -29,7 +29,7 @@
           <%= f.password_field :password, autocomplete: "new-password",
               placeholder: "••••••••",
               class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent" %>
-          <p class="text-text-faint text-xs mt-1"><%= @minimum_password_length %> characters minimum</p>
+          <p class="text-text-faint text-xs mt-1"><%= @minimum_password_length %> characters minimum — must include uppercase, lowercase, digit, and special character</p>
         </div>
 
         <div>
