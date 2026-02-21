@@ -12,6 +12,14 @@ class AgentTemplate < ApplicationRecord
   scope :featured, -> { where(featured: true) }
   scope :by_category, ->(category) { where(category: category) if category.present? }
 
+  def enabled_skill_names
+    skills_config.dig("enabled") || []
+  end
+
+  def enabled_tool_names
+    tools_config.dig("enabled") || []
+  end
+
   def deploy(name: nil, team: nil)
     Agents::CreateFromTemplate.call(
       template: self,

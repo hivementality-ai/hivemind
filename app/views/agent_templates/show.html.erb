@@ -38,6 +38,28 @@
         <% end %>
       </div>
       
+      <% if @template.enabled_skill_names.any? %>
+        <div class="mb-6">
+          <h2 class="text-lg font-semibold mb-2">Skills</h2>
+          <div class="flex flex-wrap gap-2">
+            <% @template.enabled_skill_names.each do |skill_name| %>
+              <span class="px-3 py-1 bg-brand/20 text-brand-light text-sm rounded-full"><%= skill_name.titleize %></span>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+
+      <% if @template.enabled_tool_names.any? %>
+        <div class="mb-6">
+          <h2 class="text-lg font-semibold mb-2">Tools</h2>
+          <div class="flex flex-wrap gap-2">
+            <% @template.enabled_tool_names.each do |tool_name| %>
+              <span class="px-3 py-1 bg-surface-base text-text-primary text-sm rounded-full"><%= tool_name.titleize %></span>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+
       <% if @template.system_prompt.present? %>
         <div class="mb-6">
           <h2 class="text-lg font-semibold mb-2">System Prompt</h2>

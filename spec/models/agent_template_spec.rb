@@ -55,6 +55,40 @@ RSpec.describe AgentTemplate, type: :model do
     end
   end
 
+  describe "#enabled_skill_names" do
+    it "returns skill names from skills_config" do
+      template = build(:agent_template, skills_config: { "enabled" => %w[github git] })
+      expect(template.enabled_skill_names).to eq(%w[github git])
+    end
+
+    it "returns empty array when skills_config is empty" do
+      template = build(:agent_template, skills_config: {})
+      expect(template.enabled_skill_names).to eq([])
+    end
+
+    it "returns empty array when skills_config has no enabled key" do
+      template = build(:agent_template, skills_config: { "other" => "value" })
+      expect(template.enabled_skill_names).to eq([])
+    end
+  end
+
+  describe "#enabled_tool_names" do
+    it "returns tool names from tools_config" do
+      template = build(:agent_template, tools_config: { "enabled" => %w[shell web_search] })
+      expect(template.enabled_tool_names).to eq(%w[shell web_search])
+    end
+
+    it "returns empty array when tools_config is empty" do
+      template = build(:agent_template, tools_config: {})
+      expect(template.enabled_tool_names).to eq([])
+    end
+
+    it "returns empty array when tools_config has no enabled key" do
+      template = build(:agent_template, tools_config: { "other" => "value" })
+      expect(template.enabled_tool_names).to eq([])
+    end
+  end
+
   describe "skills_config" do
     it "defaults to empty hash" do
       template = build(:agent_template)

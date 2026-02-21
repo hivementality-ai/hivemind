@@ -27,6 +27,25 @@ RSpec.describe AgentTemplatesController, type: :controller do
       expect(assigns(:templates)).to eq([ template2 ])
     end
 
+    context 'with skills and tools configured' do
+      let!(:template_with_config) do
+        create(:agent_template,
+          category: 'coding',
+          skills_config: { "enabled" => %w[github git] },
+          tools_config: { "enabled" => %w[shell web_search file_read] }
+        )
+      end
+
+      it 'renders skills and tools on the index page' do
+        get :index
+        expect(response.body).to include('Github')
+        expect(response.body).to include('Git')
+        expect(response.body).to include('Shell')
+        expect(response.body).to include('Web Search')
+        expect(response.body).to include('File Read')
+      end
+    end
+
     context 'when not authenticated' do
       before { sign_out user }
 
