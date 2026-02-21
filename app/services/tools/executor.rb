@@ -33,6 +33,7 @@ module Tools
       "http_request" => Tools::HttpRequestExecutor,
       "pdf_read" => Tools::PdfReadExecutor,
       "jira" => Tools::JiraExecutor,
+      "trello" => Tools::TrelloExecutor,
       "email" => Tools::EmailExecutor,
       "custom_script" => Tools::CustomScriptExecutor,
       "coding_agent" => Tools::CodingAgentExecutor,
