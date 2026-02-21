@@ -85,7 +85,7 @@
 
         <!-- Actions -->
         <div class="flex gap-2">
-          <%= link_to edit_provider_path(provider), class: "flex-1 px-3 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition text-center" do %>
+          <%= link_to edit_provider_path(provider, edit_mode: true), class: "flex-1 px-3 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition text-center" do %>
             Edit
           <% end %>
           <%= link_to provider_path(provider), class: "flex-1 px-3 py-2 bg-surface-raised hover:bg-surface-overlay text-white text-sm font-medium rounded-lg transition text-center" do %>
