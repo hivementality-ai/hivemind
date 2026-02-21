@@ -28,7 +28,32 @@
           <h3 class="text-xl font-bold mb-2"><%= template.name %></h3>
           <p class="text-text-muted text-sm mb-3"><%= template.role %></p>
           <p class="text-text-primary mb-4 line-clamp-3"><%= template.description %></p>
-          
+
+          <% if template.enabled_skill_names.any? %>
+            <div class="mb-3">
+              <h4 class="text-xs font-semibold text-text-muted uppercase mb-1">Skills</h4>
+              <div class="flex flex-wrap gap-1">
+                <% template.enabled_skill_names.each do |skill_name| %>
+                  <span class="px-2 py-0.5 bg-brand/20 text-brand-light text-xs rounded-full"><%= skill_name.titleize %></span>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+
+          <% if template.enabled_tool_names.any? %>
+            <div class="mb-4">
+              <h4 class="text-xs font-semibold text-text-muted uppercase mb-1">Tools</h4>
+              <div class="flex flex-wrap gap-1">
+                <% template.enabled_tool_names.first(5).each do |tool_name| %>
+                  <span class="px-2 py-0.5 bg-surface-base text-text-faint text-xs rounded-full"><%= tool_name.titleize %></span>
+                <% end %>
+                <% if template.enabled_tool_names.size > 5 %>
+                  <span class="px-2 py-0.5 bg-surface-base text-text-faint text-xs rounded-full">+<%= template.enabled_tool_names.size - 5 %> more</span>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+
           <div class="flex items-center justify-between">
             <span class="text-xs text-text-faint uppercase"><%= template.category %></span>
             <%= link_to "Deploy", agent_template_path(template), 
