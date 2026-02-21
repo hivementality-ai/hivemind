@@ -1,4 +1,4 @@
-<div class="flex flex-col h-[calc(100vh-4rem)]" data-controller="chat" data-chat-session-id-value="<%= @session.id %>" data-chat-agent-name-value="<%= @agent.name %>" data-chat-agent-initial-value="<%= @agent.name[0].upcase %>" data-chat-message-url-value="<%= message_session_path(@session) %>" data-chat-csrf-value="<%= form_authenticity_token %>">
+<div class="flex flex-col h-[calc(100vh-4rem)]" data-controller="chat" data-chat-session-id-value="<%= @session.id %>" data-chat-agent-name-value="<%= @agent.name %>" data-chat-agent-initial-value="<%= @agent.name[0].upcase %>" data-chat-agent-avatar-value="<%= @agent.avatar.attached? ? rails_blob_path(@agent.avatar, only_path: true) : '' %>" data-chat-message-url-value="<%= message_session_path(@session) %>" data-chat-csrf-value="<%= form_authenticity_token %>">
   <!-- Header -->
   <div class="flex items-center gap-4 px-6 py-4 border-b border-border-default bg-surface-card/50 flex-shrink-0">
     <%= link_to sessions_path, class: "text-text-muted hover:text-white transition" do %>
@@ -6,9 +6,7 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
       </svg>
     <% end %>
-    <div class="w-10 h-10 bg-brand rounded-lg flex items-center justify-center text-white font-bold">
-      <%= @agent.name[0].upcase %>
-    </div>
+    <%= agent_avatar(@agent, size: :md) %>
     <div>
       <h1 class="text-white font-semibold"><%= @agent.name %></h1>
       <p class="text-text-muted text-xs"><%= @agent.role %> · <%= @agent.llm_model %> · <%= @agent.model_provider %></p>
@@ -69,9 +67,7 @@
         <div class="flex justify-start mb-4">
           <div class="max-w-4xl w-full">
             <div class="flex items-start gap-3">
-              <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
-                <%= @agent.name[0].upcase %>
-              </div>
+              <%= agent_avatar(@agent, size: :sm) %>
               <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100 w-full">
                 <div class="text-blue-400 font-medium mb-3 flex items-center gap-2">
                   <span>📋</span>
@@ -130,9 +126,7 @@
         <div class="flex justify-start">
           <div class="max-w-2xl">
             <div class="flex items-start gap-3">
-              <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
-                <%= @agent.name[0].upcase %>
-              </div>
+              <%= agent_avatar(@agent, size: :sm) %>
               <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
                 <div class="whitespace-pre-wrap chat-content"><%= msg["content"] %></div>
               </div>
@@ -146,9 +140,7 @@
   <!-- Streaming indicator -->
   <div class="px-6 hidden" data-chat-target="thinking">
     <div class="flex items-start gap-3">
-      <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-        <%= @agent.name[0].upcase %>
-      </div>
+      <%= agent_avatar(@agent, size: :sm) %>
       <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-text-muted">
         <div class="flex gap-1">
           <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
@@ -162,9 +154,7 @@
   <!-- Working indicator (shown when tool calls are hidden) -->
   <div class="px-6 hidden" data-chat-target="working">
     <div class="flex items-start gap-3">
-      <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-        <%= @agent.name[0].upcase %>
-      </div>
+      <%= agent_avatar(@agent, size: :sm) %>
       <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-text-muted">
         <div class="flex items-center gap-2">
           <div class="flex gap-1">

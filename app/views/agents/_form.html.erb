@@ -12,6 +12,24 @@
   <!-- Identity -->
   <div class="bg-surface-card rounded-xl border border-border-default p-6">
     <h2 class="text-lg font-semibold text-white mb-4">Identity</h2>
+
+    <!-- Avatar -->
+    <div class="flex items-center gap-4 mb-6">
+      <% if agent.avatar.attached? %>
+        <%= image_tag rails_blob_path(agent.avatar, only_path: true), class: "w-16 h-16 rounded-xl object-cover border-2 border-border-default" %>
+      <% else %>
+        <div class="w-16 h-16 bg-brand rounded-xl flex items-center justify-center text-white font-bold text-2xl">
+          <%= agent.name.present? ? agent.name[0].upcase : "?" %>
+        </div>
+      <% end %>
+      <div>
+        <%= form.label :avatar, "Avatar", class: "block text-sm font-medium text-text-primary mb-1" %>
+        <%= form.file_field :avatar, accept: "image/*",
+            class: "text-sm text-text-muted file:mr-2 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-surface-raised file:text-text-primary hover:file:bg-surface-overlay file:cursor-pointer" %>
+        <p class="text-text-faint text-xs mt-1">Square image recommended. PNG, JPG, or WebP.</p>
+      </div>
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <%= form.label :name, class: "block text-sm font-medium text-text-primary mb-1" %>

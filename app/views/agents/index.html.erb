@@ -29,7 +29,10 @@
           <% @agents.each do |agent| %>
             <tr class="hover:bg-surface-raised transition">
               <td class="px-6 py-4 whitespace-nowrap">
-                <%= link_to agent.name, agent_path(agent), class: "text-brand-light hover:text-brand-light font-medium" %>
+                <div class="flex items-center gap-3">
+                  <%= agent_avatar(agent, size: :sm) %>
+                  <%= link_to agent.name, agent_path(agent), class: "text-brand-light hover:text-brand-light font-medium" %>
+                </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-text-primary">
                 <%= agent.role&.titleize || "-" %>

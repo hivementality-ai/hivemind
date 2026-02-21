@@ -4,7 +4,7 @@ import { marked } from "marked"
 
 export default class extends Controller {
   static targets = ["messages", "input", "sendBtn", "thinking", "thinkingContent", "tokenCount", "emptyState", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown", "toolCallsToggle", "working"]
-  static values = { sessionId: Number, agentName: String, agentInitial: String, messageUrl: String, csrf: String }
+  static values = { sessionId: Number, agentName: String, agentInitial: String, agentAvatar: String, messageUrl: String, csrf: String }
 
   connect() {
     this.consumer = createConsumer()
@@ -16,6 +16,7 @@ export default class extends Controller {
     this.hashtagActions = []
     this.hashtagDropdownVisible = false
     this.planningMode = false
+    this._agentAvatarHtml = null
 
     // Configure marked for safe, sane defaults
     marked.setOptions({
@@ -504,9 +505,7 @@ export default class extends Controller {
         <div class="flex justify-start">
           <div class="max-w-2xl">
             <div class="flex items-start gap-3">
-              <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
-                ${this.agentInitialValue}
-              </div>
+              ${this.agentAvatarHtml}
               <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
                 <div class="whitespace-pre-wrap chat-content" id="${id}"></div>
               </div>
@@ -667,9 +666,7 @@ export default class extends Controller {
       <div class="flex justify-start">
         <div class="max-w-2xl">
           <div class="flex items-start gap-3">
-            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
-              ${this.agentInitialValue}
-            </div>
+            ${this.agentAvatarHtml}
             <div class="bg-blue-900/30 border border-blue-600/50 rounded-2xl rounded-bl-md px-4 py-3">
               <div class="flex items-center gap-2 text-blue-400 text-sm font-medium mb-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -718,9 +715,7 @@ export default class extends Controller {
       <div class="flex justify-start">
         <div class="max-w-2xl">
           <div class="flex items-start gap-3">
-            <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
-              ${this.agentInitialValue}
-            </div>
+            ${this.agentAvatarHtml}
             <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3">
               ${contentHtml}
             </div>
@@ -925,9 +920,7 @@ export default class extends Controller {
     planDiv.innerHTML = `
       <div class="max-w-4xl w-full">
         <div class="flex items-start gap-3">
-          <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
-            ${this.agentInitialValue}
-          </div>
+          ${this.agentAvatarHtml}
           <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100 w-full">
             <div class="text-blue-400 font-medium mb-3 flex items-center gap-2">
               <span>📋</span>
@@ -1006,9 +999,7 @@ export default class extends Controller {
     executionDiv.innerHTML = `
       <div class="max-w-2xl">
         <div class="flex items-start gap-3">
-          <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
-            ${this.agentInitialValue}
-          </div>
+          ${this.agentAvatarHtml}
           <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
             <div class="text-green-400 font-medium mb-2 flex items-center gap-2">
               <span>🚀</span>
@@ -1037,9 +1028,7 @@ export default class extends Controller {
     phaseDiv.innerHTML = `
       <div class="max-w-2xl">
         <div class="flex items-start gap-3">
-          <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
-            ${this.agentInitialValue}
-          </div>
+          ${this.agentAvatarHtml}
           <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
             <div class="text-cyan-400 font-medium mb-2 flex items-center gap-2">
               <span>📍</span>
@@ -1078,9 +1067,7 @@ export default class extends Controller {
     summaryDiv.innerHTML = `
       <div class="max-w-4xl w-full">
         <div class="flex items-start gap-3">
-          <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
-            ${this.agentInitialValue}
-          </div>
+          ${this.agentAvatarHtml}
           <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100 w-full">
             <div class="text-green-400 font-medium mb-3 flex items-center gap-2">
               <span>✅</span>
@@ -1356,9 +1343,7 @@ export default class extends Controller {
     summaryDiv.innerHTML = `
       <div class="max-w-2xl">
         <div class="flex items-start gap-3">
-          <div class="w-8 h-8 bg-surface-raised rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
-            ${this.agentInitialValue}
-          </div>
+          ${this.agentAvatarHtml}
           <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
             <div class="text-amber-400 font-medium mb-2 flex items-center gap-2">
               <span>📋</span>
@@ -1380,5 +1365,15 @@ export default class extends Controller {
     const div = document.createElement("div")
     div.textContent = text
     return div.innerHTML
+  }
+
+  get agentAvatarHtml() {
+    if (this._agentAvatarHtml !== null) return this._agentAvatarHtml
+    if (this.agentAvatarValue) {
+      this._agentAvatarHtml = `<img src="${this.agentAvatarValue}" class="w-8 h-8 rounded-lg object-cover flex-shrink-0" alt="${this.agentNameValue}" />`
+    } else {
+      this._agentAvatarHtml = `<div class="w-8 h-8 bg-brand rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0">${this.agentInitialValue}</div>`
+    }
+    return this._agentAvatarHtml
   }
 }
