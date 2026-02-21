@@ -90,17 +90,15 @@
                     <%= time_ago_in_words(session.last_activity_at || session.created_at) %> ago
                   </p>
                 </div>
-                <% if session.metadata&.dig("channel") %>
+                <% if session.origin_channel_type.present? %>
                   <span class="text-xs flex-shrink-0">
-                    <% case session.metadata["channel"].to_s.downcase %>
+                    <% case session.origin_channel_type %>
                       <% when "whatsapp" %>
-                        <span class="text-green-400">💬</span>
-                      <% when "slack" %>
-                        <span class="text-blue-400">#</span>
+                        <span class="px-1.5 py-0.5 bg-green-900/50 border border-green-700/50 rounded text-green-300 text-xs">WhatsApp</span>
                       <% when "telegram" %>
-                        <span class="text-cyan-400">✈️</span>
+                        <span class="px-1.5 py-0.5 bg-cyan-900/50 border border-cyan-700/50 rounded text-cyan-300 text-xs">Telegram</span>
                       <% when "discord" %>
-                        <span class="text-purple-400">🎮</span>
+                        <span class="px-1.5 py-0.5 bg-purple-900/50 border border-purple-700/50 rounded text-purple-300 text-xs">Discord</span>
                     <% end %>
                   </span>
                 <% end %>
