@@ -13,14 +13,27 @@ module Tools
       target = Agent.visible.enabled.where("LOWER(name) = ?", agent_name.downcase).first
       return ServiceResponse.failure(error: "Agent '#{agent_name}' not found. Available: #{available_agents}") unless target
 
-      # Create or find a delegation session
-      session = Session.find_or_create_by!(
-        agent: target,
-        title: "📋 Delegated by #{agent&.name || 'System'}"
-      ) do |s|
-        s.session_key = "delegate-#{target.id}-#{agent&.id || 'system'}"
-        s.status = "active"
-        s.metadata = { type: "delegation", delegated_by: agent&.name }
+      # Reuse existing heartbeat session if delegated by system assistant,
+      # otherwise create/find a standard delegation session
+      session = if agent&.system_agent?
+        Session.find_or_create_by!(
+          agent: target,
+          origin_channel_type: "heartbeat"
+        ) do |s|
+          s.session_key = "heartbeat-agent-#{target.id}"
+          s.title = "🫀 #{target.name} Heartbeat"
+          s.status = "active"
+          s.metadata = { type: "heartbeat", delegated_by: agent.name }
+        end
+      else
+        Session.find_or_create_by!(
+          agent: target,
+          title: "📋 Delegated by #{agent&.name || 'System'}"
+        ) do |s|
+          s.session_key = "delegate-#{target.id}-#{agent&.id || 'system'}"
+          s.status = "active"
+          s.metadata = { type: "delegation", delegated_by: agent&.name }
+        end
       end
 
       result = Sessions::Chat.call(
