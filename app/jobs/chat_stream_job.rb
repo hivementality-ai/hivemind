@@ -186,6 +186,9 @@ class ChatStreamJob < ApplicationJob
       # Store memory
       store_memory(agent:, session:, user_message:, assistant_response: full_content)
 
+      # Deliver to origin channel (e.g., WhatsApp) if this session came from one
+      Channels::OriginDelivery.call(session: session, content: full_content, agent: agent)
+
       ActionCable.server.broadcast(channel, { type: "done", content: full_content })
 
     rescue StandardError => e

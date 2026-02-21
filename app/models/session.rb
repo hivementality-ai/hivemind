@@ -3,6 +3,7 @@
 class Session < ApplicationRecord
   belongs_to :agent
   belongs_to :team_chat_session, optional: true
+  belongs_to :origin_channel, class_name: "Channel", optional: true, foreign_key: :origin_channel_id
 
   has_many :transcript_archives, dependent: :destroy
   has_many :usage_records, dependent: :destroy
@@ -14,6 +15,16 @@ class Session < ApplicationRecord
 
   scope :active_sessions, -> { where(status: :active) }
   scope :recent, -> { where("last_activity_at > ?", 24.hours.ago) }
+  scope :from_whatsapp, -> { where(origin_channel_type: "whatsapp") }
+
+  def whatsapp_origin?
+    origin_channel_type == "whatsapp"
+  end
+
+  def origin_delivery_info
+    return nil unless origin_channel_type.present? && origin_sender.present?
+    { channel_type: origin_channel_type, channel_id: origin_channel_id, sender: origin_sender }
+  end
 
   after_initialize :set_defaults
 

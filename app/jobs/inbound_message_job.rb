@@ -317,6 +317,13 @@ class InboundMessageJob < ApplicationJob
       s.agent = agent
       s.title = "#{channel.channel_type.titleize} — #{sender}"
       s.status = "active"
+
+      # Track origin for WhatsApp so responses auto-route back
+      if channel.channel_type == "whatsapp"
+        s.origin_channel_type = "whatsapp"
+        s.origin_channel_id = channel.id
+        s.origin_sender = sender
+      end
     end
   end
 
