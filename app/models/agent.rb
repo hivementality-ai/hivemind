@@ -16,6 +16,8 @@ class Agent < ApplicationRecord
     }
   }.freeze
 
+  has_one_attached :avatar
+
   belongs_to :team, optional: true
 
   has_many :sessions, dependent: :destroy

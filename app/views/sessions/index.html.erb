@@ -22,9 +22,7 @@
           <div class="bg-surface-card rounded-xl border border-border-default p-6 hover:border-brand/50 transition">
             <!-- Agent Header -->
             <div class="flex items-center gap-3 mb-4">
-              <div class="w-10 h-10 bg-brand rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                <%= agent.name[0].upcase %>
-              </div>
+              <%= agent_avatar(agent, size: :md) %>
               <div class="flex-1">
                 <h3 class="text-white font-semibold"><%= agent.name %></h3>
                 <p class="text-text-muted text-xs"><%= agent.role %> · <%= agent.llm_model %></p>
@@ -81,9 +79,7 @@
           <% active_sessions.each do |session| %>
             <%= link_to session_path(session), class: "block bg-surface-raised border border-border-default/50 rounded-lg p-3 hover:border-brand transition group" do %>
               <div class="flex items-start gap-3 mb-2">
-                <div class="w-6 h-6 bg-brand rounded flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                  <%= session.agent.name[0].upcase %>
-                </div>
+                <%= agent_avatar(session.agent, size: :xs) %>
                 <div class="flex-1 min-w-0">
                   <h4 class="text-white font-medium text-sm"><%= session.agent.name %></h4>
                   <p class="text-text-faint text-xs">
