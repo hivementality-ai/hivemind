@@ -215,6 +215,129 @@ skills = [
       - `git stash` / `git stash pop` for temporary saves
       - Never force-push to main/master
     CONTENT
+  },
+  {
+    name: "ticket-planning",
+    description: "Write clear, actionable tickets — stories, bugs, tasks, and subtasks. Software-agnostic planning skill.",
+    category: "project-management",
+    content: <<~CONTENT
+      # Ticket Planning
+
+      You are skilled at breaking down work into clear, actionable tickets. This applies to any project management tool (Jira, Trello, Linear, GitHub Issues, etc.).
+
+      ## Planning Workflow
+
+      When asked to plan work for a feature or project:
+
+      1. **Understand the goal** — Ask clarifying questions if the request is vague
+      2. **Break it down** — Decompose into logical units of work
+      3. **Write clear tickets** — Each ticket needs a clear title, description, and acceptance criteria
+      4. **Organize hierarchy** — Group related work (epic → stories → subtasks)
+      5. **Confirm before creating** — Always present the plan for approval first
+
+      ## When to Ask Questions
+
+      Before writing tickets, identify gaps. Ask clarifying questions when:
+
+      - **Scope is unclear** — "Should this include mobile, or just web?"
+      - **Users aren't defined** — "Who is the primary user? Admin? End user? Both?"
+      - **Success criteria are missing** — "How will we know this is done? What does 'working' look like?"
+      - **Edge cases aren't addressed** — "What happens if the user has no data? What if they're offline?"
+      - **Dependencies are unknown** — "Does this need the new API to be deployed first?"
+      - **Priority conflicts** — "This touches the same code as ticket X — should we do that first?"
+      - **Design isn't specified** — "Is there a mockup, or should I propose a layout?"
+      - **Performance expectations** — "How many concurrent users should this handle? Any latency targets?"
+      - **Error handling** — "What should happen when [X] fails? Show an error? Retry? Fallback?"
+      - **Data questions** — "Where does this data come from? How often does it update? Who owns it?"
+      - **Backwards compatibility** — "Can we break the existing API, or do we need to support both?"
+
+      **Rule of thumb:** If you're making assumptions to write the ticket, those assumptions should be questions instead.
+
+      ## Ticket Types
+
+      | Type | When to use |
+      |------|-------------|
+      | **Epic** | Large feature or initiative (contains stories) |
+      | **Story** | User-facing functionality ("As a user, I can...") |
+      | **Task** | Technical work that isn't directly user-facing |
+      | **Bug** | Something broken that needs fixing |
+      | **Sub-task** | Small unit of work under a story/task (completable in a day) |
+
+      ## Writing Good Titles
+
+      - Start with a verb: "Add", "Fix", "Update", "Remove", "Implement", "Create"
+      - Be specific: "Add user avatar upload to agent settings" not "Avatar feature"
+      - Keep under 80 characters
+      - Include the component or area when helpful: "API: Add rate limiting to /users endpoint"
+
+      ## Writing Good Descriptions
+
+      Use this structure:
+
+      ```
+      ## Context
+      [Why this work is needed — the problem or opportunity]
+
+      ## Requirements
+      - [ ] Requirement 1
+      - [ ] Requirement 2
+
+      ## Acceptance Criteria
+      - [ ] AC 1: [specific, testable outcome]
+      - [ ] AC 2: [specific, testable outcome]
+
+      ## Technical Notes
+      [Implementation guidance, constraints, dependencies, or relevant links]
+      ```
+
+      ### For Bugs, use:
+      ```
+      ## Description
+      [What's happening vs. what should happen]
+
+      ## Steps to Reproduce
+      1. Step 1
+      2. Step 2
+      3. Step 3
+
+      ## Expected Behavior
+      [What should happen]
+
+      ## Actual Behavior
+      [What actually happens]
+
+      ## Environment
+      [Browser, OS, version, etc. if relevant]
+      ```
+
+      ## Priority Guidelines
+
+      - **Critical/Highest** — System down, data loss, security vulnerability
+      - **High** — Blocks other work, affects many users, deadline-sensitive
+      - **Medium** — Standard feature work, improvements
+      - **Low** — Nice to have, minor improvements
+      - **Lowest** — Tech debt, cleanup, future considerations
+
+      ## Estimation Guidelines
+
+      When estimating work:
+      - **Small (S)** — A few hours, straightforward, well-understood
+      - **Medium (M)** — 1-2 days, some complexity or unknowns
+      - **Large (L)** — 3-5 days, significant complexity, may need design
+      - **X-Large (XL)** — More than a week — should be broken down further
+
+      If a ticket feels XL, it's probably an epic that needs decomposition.
+
+      ## Best Practices
+
+      - **One concern per ticket** — Don't bundle unrelated work
+      - **Subtasks should be completable in a day** — If not, break them down more
+      - **Acceptance criteria are testable** — "Works correctly" is not testable; "Returns 200 with JSON body containing user.name" is
+      - **Link dependencies** — Note if ticket A must be done before ticket B
+      - **Label consistently** — Use labels like "frontend", "backend", "infrastructure", "docs", "design"
+      - **Include context** — Future-you (or someone else) needs to understand why, not just what
+      - **Don't over-specify implementation** — Describe the outcome, not every line of code
+    CONTENT
   }
 ]
 
@@ -227,7 +350,8 @@ SKILL_TOOL_MAP = {
   "summarize" => [ "web_fetch", "pdf_read", "file_read" ],
   "google-calendar" => [ "http_request" ],
   "docker" => [ "shell" ],
-  "git" => [ "shell", "file_read", "file_write", "file_edit" ]
+  "git" => [ "shell", "file_read", "file_write", "file_edit" ],
+  "ticket-planning" => [ "ask_user", "file_read", "web_fetch" ]
 }.freeze
 
 skills.each do |attrs|
