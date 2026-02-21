@@ -103,30 +103,32 @@ module Tools
     def imap_fetch(folder:, limit:)
       with_imap do |imap|
         imap.select(folder)
-        ids = imap.search([ "ALL" ])
-        recent_ids = ids.last(limit)
-        return [] if recent_ids.empty?
+        uids = imap.uid_search([ "ALL" ])
+        recent_uids = uids.last(limit)
+        return [] if recent_uids.empty?
 
-        fetch_messages(imap, recent_ids).reverse
+        fetch_messages(imap, recent_uids).reverse
       end
     end
 
     def imap_search(query:, limit:)
       with_imap do |imap|
-        imap.select("INBOX")
+        folder = input["folder"].to_s.strip.presence || "INBOX"
+        imap.select(folder)
 
         # IMAP search: try subject, from, and body
-        ids = imap.search([ "OR", "SUBJECT", query, "FROM", query ])
-        recent_ids = ids.last(limit)
-        return [] if recent_ids.empty?
+        uids = imap.uid_search([ "OR", "SUBJECT", query, "FROM", query ])
+        recent_uids = uids.last(limit)
+        return [] if recent_uids.empty?
 
-        fetch_messages(imap, recent_ids).reverse
+        fetch_messages(imap, recent_uids).reverse
       end
     end
 
     def imap_get(uid:)
       with_imap do |imap|
-        imap.select("INBOX")
+        folder = input["folder"].to_s.strip.presence || "INBOX"
+        imap.select(folder)
         data = imap.uid_fetch(uid, [ "ENVELOPE", "BODY[TEXT]", "BODY[HEADER.FIELDS (MESSAGE-ID)]" ])
         return nil unless data&.first
 
@@ -183,8 +185,11 @@ module Tools
     # ─── SMTP ──────────────────────────────────────────────────────
 
     def smtp_send(to:, subject:, body:, in_reply_to: nil)
+      address = gmail_address
+      password = gmail_password
+
       mail = Mail.new do
-        from    gmail_address
+        from    address
         to      to
         subject subject
         body    body
@@ -192,14 +197,22 @@ module Tools
 
       mail["In-Reply-To"] = in_reply_to if in_reply_to
 
-      # Delegate to instance method for credentials
-      address = gmail_address
-      password = gmail_password
-
       smtp = Net::SMTP.new("smtp.gmail.com", 587)
       smtp.enable_starttls
       smtp.start("gmail.com", address, password, :login) do |server|
         server.send_message(mail.to_s, address, to)
+      end
+    end
+
+    def format_email_list(emails, header)
+      if emails.any?
+        lines = emails.map do |e|
+          flag = e[:read] ? "  " : "🆕"
+          "#{flag} [#{e[:uid]}] #{e[:from]} — #{e[:subject]} (#{e[:date]})"
+        end
+        ServiceResponse.success(data: { output: "#{header}:\n#{lines.join("\n")}", exit_code: 0 })
+      else
+        ServiceResponse.success(data: { output: "#{header}: No messages found.", exit_code: 0 })
       end
     end
 
