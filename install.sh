@@ -296,6 +296,33 @@ build_and_start() {
 }
 
 # ----------------------------------------------------------
+# Install CLI
+# ----------------------------------------------------------
+install_cli() {
+  local cli_src="$HIVEMIND_DIR/bin/hivemind"
+  local cli_dest="/usr/local/bin/hivemind"
+
+  if [ ! -f "$cli_src" ]; then
+    warn "CLI script not found at $cli_src — skipping"
+    return
+  fi
+
+  info "Installing hivemind CLI..."
+
+  # Detect if we can write to /usr/local/bin
+  if [ -w "/usr/local/bin" ]; then
+    ln -sf "$cli_src" "$cli_dest"
+  elif command -v sudo &>/dev/null; then
+    sudo ln -sf "$cli_src" "$cli_dest"
+  else
+    warn "Cannot write to /usr/local/bin — add $cli_src to your PATH manually"
+    return
+  fi
+
+  ok "CLI installed: hivemind (→ $cli_dest)"
+}
+
+# ----------------------------------------------------------
 # Done
 # ----------------------------------------------------------
 print_success() {
@@ -307,8 +334,10 @@ print_success() {
   echo -e "  ${BOLD}Open:${NC}      http://localhost:8080"
   echo -e "  ${BOLD}Location:${NC}  $HIVEMIND_DIR"
   echo -e "  ${BOLD}Logs:${NC}      cd $HIVEMIND_DIR && docker compose logs -f"
-  echo -e "  ${BOLD}Stop:${NC}      cd $HIVEMIND_DIR && docker compose down"
-  echo -e "  ${BOLD}Restart:${NC}   cd $HIVEMIND_DIR && docker compose up -d"
+  echo -e "  ${BOLD}Stop:${NC}      hivemind stop"
+  echo -e "  ${BOLD}Restart:${NC}   hivemind restart"
+  echo -e "  ${BOLD}Update:${NC}    hivemind update"
+  echo -e "  ${BOLD}CLI Help:${NC}  hivemind --help"
   echo ""
   echo -e "  ${CYAN}Next: Create your account and add your first agent in Mission Control.${NC}"
   echo -e "  ${CYAN}Add API keys and integrations under Settings → Integrations.${NC}"
@@ -337,6 +366,7 @@ main() {
   setup_repo
   setup_env
   setup_shared_workspace
+  install_cli
   build_and_start
   print_success
 }
