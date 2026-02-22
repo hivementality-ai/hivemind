@@ -1,8 +1,13 @@
 # frozen_string_literal: true
 
+require "net/http"
+require "json"
+require "pathname"
+
 module Channels
   class DiscordAdapter < BaseAdapter
     BASE_URL = "https://discord.com/api/v10"
+    MAX_FILE_SIZE = 25.megabytes # Discord's file size limit (Nitro: 100MB, but bots get 25MB)
 
     def receive(message)
       payload = message.deep_symbolize_keys
@@ -51,8 +56,20 @@ module Channels
       bot_token = resolve_bot_token(agent)
       return ServiceResponse.failure(error: "Bot token not configured") unless bot_token
 
+      # Handle file uploads if file_path or url is provided
+      if options[:file_path].present? || options[:url].present?
+        return upload_file(
+          to: to,
+          bot_token: bot_token,
+          agent: agent,
+          content: content,
+          **options
+        )
+      end
+
       payload = { content: content }
       payload[:embeds] = options[:embeds] if options[:embeds]
+      payload[:flags] = options[:flags] if options[:flags] # Ephemeral support (flags: 64)
 
       # Thread support: send to thread channel or use message_reference
       target_channel = options[:thread_id] || to
@@ -124,6 +141,79 @@ module Channels
       ServiceResponse.failure(error: "Discord react failed: #{e.message}")
     end
 
+    # Respond to a Discord interaction (slash command, button, etc.) with ephemeral or public response
+    def respond_to_interaction(interaction_id:, interaction_token:, content: nil, ephemeral: true, embeds: nil)
+      payload = { type: 4 } # CHANNEL_MESSAGE_WITH_SOURCE
+      payload[:data] = {}
+      payload[:data][:content] = content if content.present?
+      payload[:data][:embeds] = embeds if embeds.present?
+      payload[:data][:flags] = 64 if ephemeral # 64 = ephemeral/private message
+
+      # Interaction responses don't need bot token - they use interaction_id and token
+      conn = Faraday.new(url: BASE_URL) do |f|
+        f.request :json
+        f.adapter Faraday.default_adapter
+      end
+
+      response = conn.post(
+        "/interactions/#{interaction_id}/#{interaction_token}/callback",
+        payload.to_json,
+        { "Content-Type" => "application/json" }
+      )
+
+      if response.success? || response.status == 204
+        ServiceResponse.success(data: { ephemeral: ephemeral })
+      else
+        ServiceResponse.failure(error: "Interaction response failed: #{response.status} #{response.body}")
+      end
+    rescue StandardError => e
+      ServiceResponse.failure(error: "Discord interaction response failed: #{e.message}")
+    end
+
+    # Build a Discord embed object for rich message formatting
+    # @param title [String] Embed title
+    # @param description [String] Embed description/body text
+    # @param color [Integer] Color as integer (e.g., 0x5865F2 for Discord blurple)
+    # @param fields [Array<Hash>] Array of { name:, value:, inline: } field objects
+    # @param footer [String] Footer text
+    # @param thumbnail [String] Thumbnail image URL
+    # @param url [String] Title hyperlink URL
+    # @return [Hash] Discord embed object ready for use in send_message embeds array
+    def self.build_embed(title: nil, description: nil, color: nil, fields: nil, footer: nil, thumbnail: nil, url: nil)
+      embed = {}
+      embed[:title] = title if title
+      embed[:description] = description if description
+      embed[:color] = color || 0x5865F2 # Discord blurple default
+      embed[:url] = url if url
+      embed[:fields] = fields if fields
+      embed[:footer] = { text: footer } if footer
+      embed[:thumbnail] = { url: thumbnail } if thumbnail
+      embed[:timestamp] = Time.current.iso8601
+      embed
+    end
+
+    # Helper to create a Discord embed (rich message)
+    # @param title [String] Title of the embed
+    # @param description [String] Main description
+    # @param color [Integer] Color as integer (e.g., 0xFF0000 for red)
+    # @param fields [Array<Hash>] Array of { name, value, inline }
+    # @param footer [String] Footer text
+    # @param author [String] Author name
+    # @return [Hash] Embed object for Discord API
+    def create_embed(title: nil, description: nil, color: nil, fields: nil, footer: nil, author: nil, url: nil, thumbnail_url: nil)
+      embed = {}
+      embed[:title] = title if title.present?
+      embed[:description] = description if description.present?
+      embed[:color] = color if color.present?
+      embed[:url] = url if url.present?
+      embed[:thumbnail] = { url: thumbnail_url } if thumbnail_url.present?
+      embed[:fields] = fields if fields.present?
+      embed[:footer] = { text: footer } if footer.present?
+      embed[:author] = { name: author } if author.present?
+      
+      embed
+    end
+
     def verify_webhook(request)
       # Discord uses Ed25519 signature verification for interaction endpoints
       signature = request.headers["X-Signature-Ed25519"]
@@ -181,16 +271,19 @@ module Channels
         VaultEntry.find_by(namespace: "channel_credentials", key: "discord_public_key")&.value
     end
 
-    def discord_request(method, path, body, token)
+    def discord_request(method, path, body, token, interaction_endpoint: false)
       conn = Faraday.new(url: BASE_URL) do |f|
         f.request :json if body
         f.adapter Faraday.default_adapter
       end
 
-      conn.run_request(method, path, body&.to_json, {
-        "Authorization" => "Bot #{token}",
-        "Content-Type" => "application/json"
-      })
+      headers = { "Content-Type" => "application/json" }
+      # Interaction endpoints use the app id and token, not the bot token
+      unless interaction_endpoint
+        headers["Authorization"] = "Bot #{token}"
+      end
+
+      conn.run_request(method, path, body&.to_json, headers)
     end
 
     def receive_interaction(payload)
@@ -220,6 +313,173 @@ module Channels
       else
         ""
       end
+    end
+
+    # Upload a file to Discord via multipart/form-data
+    # @param to [String] Channel ID where file will be uploaded
+    # @param bot_token [String] Discord bot token
+    # @param agent [Agent] Optional agent for metadata
+    # @param content [String] Text to accompany file
+    # @param file_path [String] Local file path to upload
+    # @param url [String] Remote URL to download and upload
+    # @param options [Hash] Additional options (thread_id, etc.)
+    # @return [ServiceResponse]
+    def upload_file(to:, bot_token:, agent:, content:, file_path: nil, url: nil, **options)
+      # Validate that we have a file source
+      return ServiceResponse.failure(error: "Either file_path or url must be provided") unless file_path.present? || url.present?
+
+      # Download or read file
+      file_data = if file_path.present?
+                    read_local_file(file_path)
+                  else
+                    download_remote_file(url)
+                  end
+
+      return file_data if file_data.is_a?(ServiceResponse) && !file_data.success?
+
+      file_content = file_data[:content]
+      filename = file_data[:filename]
+
+      # Prepare multipart request
+      response = upload_via_multipart(
+        bot_token: bot_token,
+        channel: to,
+        filename: filename,
+        file_content: file_content,
+        message_content: content,
+        thread_id: options[:thread_id]
+      )
+
+      if response.success?
+        result = JSON.parse(response.body)
+        outbound = log_outbound_message(
+          recipient: to,
+          content: "File uploaded: #{filename}",
+          metadata: {
+            message_id: result["id"],
+            file_name: filename,
+            channel_id: to,
+            agent_id: agent&.id
+          }
+        )
+        ServiceResponse.success(data: { outbound_message: outbound, response: result })
+      else
+        ServiceResponse.failure(error: "Discord file upload failed: #{response.status} #{response.body}")
+      end
+    rescue StandardError => e
+      ServiceResponse.failure(error: "File upload error: #{e.message}")
+    end
+
+    # Read a local file and return its content
+    # @param file_path [String] Path to the file
+    # @return [Hash] { content: String, filename: String } or ServiceResponse on error
+    def read_local_file(file_path)
+      file_path_obj = Pathname.new(file_path).expand_path
+
+      # Security: prevent directory traversal
+      return ServiceResponse.failure(error: "Invalid file path") unless file_path_obj.exist?
+
+      if !File.file?(file_path_obj)
+        return ServiceResponse.failure(error: "Path is not a file")
+      end
+
+      content = File.read(file_path_obj, mode: "rb")
+      filename = File.basename(file_path_obj)
+
+      { content: content, filename: filename }
+    rescue StandardError => e
+      ServiceResponse.failure(error: "Failed to read file: #{e.message}")
+    end
+
+    # Download a file from a remote URL
+    # @param url [String] URL to download
+    # @return [Hash] { content: String, filename: String } or ServiceResponse on error
+    def download_remote_file(url)
+      uri = URI(url)
+      response = Net::HTTP.get_response(uri)
+
+      unless response.is_a?(Net::HTTPSuccess)
+        return ServiceResponse.failure(error: "Failed to download file: HTTP #{response.code}")
+      end
+
+      content = response.body
+      filename = File.basename(uri.path)
+      filename = "downloaded_file" if filename.blank?
+
+      { content: content, filename: filename }
+    rescue StandardError => e
+      ServiceResponse.failure(error: "Failed to download file: #{e.message}")
+    end
+
+    # Upload file via multipart form data
+    # Discord API expects: form-data with 'payload_json' and 'files[0]'
+    # @return [Net::HTTPResponse]
+    def upload_via_multipart(bot_token:, channel:, filename:, file_content:, message_content: nil, thread_id: nil)
+      url = "#{BASE_URL}/channels/#{thread_id || channel}/messages"
+      uri = URI(url)
+
+      Net::HTTP.start(uri.host, uri.port, use_ssl: true) do |http|
+        request = Net::HTTP::Post.new(uri.path)
+        request["Authorization"] = "Bot #{bot_token}"
+
+        # Build multipart body
+        boundary = "----DiscordFormBoundary#{SecureRandom.hex(16)}"
+        body = build_multipart_body(
+          boundary: boundary,
+          message_content: message_content,
+          filename: filename,
+          file_content: file_content
+        )
+
+        request["Content-Type"] = "multipart/form-data; boundary=#{boundary}"
+        request.body = body
+
+        http.request(request)
+      end
+    end
+
+    # Determine MIME content type from filename
+    def determine_content_type(filename)
+      ext = File.extname(filename).downcase
+      {
+        ".png" => "image/png",
+        ".jpg" => "image/jpeg",
+        ".jpeg" => "image/jpeg",
+        ".gif" => "image/gif",
+        ".webp" => "image/webp",
+        ".pdf" => "application/pdf",
+        ".txt" => "text/plain",
+        ".json" => "application/json",
+        ".mp3" => "audio/mpeg",
+        ".mp4" => "video/mp4",
+        ".zip" => "application/zip"
+      }[ext] || "application/octet-stream"
+    end
+
+    # Build multipart form body for file upload
+    def build_multipart_body(boundary:, message_content:, filename:, file_content:)
+      body = []
+
+      # Add payload_json (Discord API requirement)
+      payload = { content: message_content.presence || "File upload" }
+      payload_json = JSON.generate(payload)
+
+      body << "--#{boundary}"
+      body << 'Content-Disposition: form-data; name="payload_json"'
+      body << "Content-Type: application/json"
+      body << ""
+      body << payload_json
+
+      # Add file
+      body << "--#{boundary}"
+      body << "Content-Disposition: form-data; name=\"files[0]\"; filename=\"#{filename}\""
+      body << "Content-Type: application/octet-stream"
+      body << ""
+      body << file_content
+      body << "--#{boundary}--"
+
+      # Join with proper line endings
+      body.join("\r\n").force_encoding("BINARY")
     end
   end
 end

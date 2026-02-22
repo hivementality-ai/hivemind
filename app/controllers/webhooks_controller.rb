@@ -36,7 +36,22 @@ class WebhooksController < ApplicationController
 
       # Discord interaction response (ACK)
       if result.data[:interaction]
-        render json: { type: 5 } # DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+        inbound = result.data[:inbound_message]
+        command = inbound&.content.to_s
+
+        if command.match?(/^\/(?:help|status|ping|info)\b/)
+          # Respond immediately with ephemeral message for simple info commands
+          render json: {
+            type: 4, # CHANNEL_MESSAGE_WITH_SOURCE
+            data: {
+              content: ephemeral_interaction_response(command),
+              flags: 64 # EPHEMERAL - only visible to the invoking user
+            }
+          }
+        else
+          # Defer response for commands that need agent processing
+          render json: { type: 5 } # DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+        end
         return
       end
 
@@ -67,6 +82,28 @@ class WebhooksController < ApplicationController
     unless adapter.verify_webhook(request)
       Rails.logger.warn("Webhook verification failed for #{params[:channel_type]} from #{request.remote_ip}")
       render json: { error: "Unauthorized" }, status: :unauthorized
+    end
+  end
+
+  def ephemeral_interaction_response(command)
+    case command
+    when /^\/ping/
+      "🏓 Pong! Hivemind is online."
+    when /^\/status/
+      agents = Agent.visible.enabled
+      agent_list = agents.map { |a| "• **#{a.name}** — #{a.role}" }.join("\n")
+      "📊 **Hivemind Status**\n\n**Agents online:** #{agents.count}\n#{agent_list}"
+    when /^\/help/
+      "🐝 **Hivemind Help**\n\n" \
+        "Just @ mention an agent to talk to them!\n" \
+        "Available commands:\n" \
+        "• `/ping` — Check if Hivemind is online\n" \
+        "• `/status` — See active agents\n" \
+        "• `/help` — Show this message"
+    when /^\/info/
+      "ℹ️ **Hivemind** — Multi-agent AI platform\nVersion: #{Rails.application.config.respond_to?(:version) ? Rails.application.config.version : '1.0'}"
+    else
+      "Command received. Processing..."
     end
   end
 
