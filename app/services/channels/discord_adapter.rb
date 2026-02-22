@@ -473,7 +473,7 @@ module Channels
       # Add file
       body << "--#{boundary}"
       body << "Content-Disposition: form-data; name=\"files[0]\"; filename=\"#{filename}\""
-      body << "Content-Type: application/octet-stream"
+      body << "Content-Type: #{determine_content_type(filename)}"
       body << ""
       body << file_content
       body << "--#{boundary}--"
