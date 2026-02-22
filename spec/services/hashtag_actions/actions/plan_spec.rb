@@ -16,13 +16,13 @@ RSpec.describe HashtagActions::Actions::Plan do
         {
           "number" => 1,
           "name" => "Research",
-          "objectives" => ["Research requirements", "Check existing code"],
+          "objectives" => [ "Research requirements", "Check existing code" ],
           "approach" => "Review docs and codebase",
-          "tools_needed" => ["file_read", "web_search"],
+          "tools_needed" => [ "file_read", "web_search" ],
           "expected_output" => "Understanding of requirements"
         }
       ],
-      "success_criteria" => ["Feature works", "Tests pass"],
+      "success_criteria" => [ "Feature works", "Tests pass" ],
       "estimated_duration" => "2 hours"
     }
   end

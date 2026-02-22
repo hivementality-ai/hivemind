@@ -7,6 +7,6 @@ class AddOriginToSessions < ActiveRecord::Migration[8.1]
     add_column :sessions, :origin_sender, :string
 
     add_index :sessions, :origin_channel_type
-    add_index :sessions, [:origin_channel_type, :origin_sender]
+    add_index :sessions, [ :origin_channel_type, :origin_sender ]
   end
 end

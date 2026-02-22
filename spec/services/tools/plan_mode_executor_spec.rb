@@ -18,13 +18,13 @@ RSpec.describe Tools::PlanModeExecutor do
             {
               "number" => 1,
               "name" => "Setup",
-              "objectives" => ["Create database schema", "Setup authentication library"],
+              "objectives" => [ "Create database schema", "Setup authentication library" ],
               "approach" => "Create migrations and configure gems",
-              "tools_needed" => ["database", "gems"],
+              "tools_needed" => [ "database", "gems" ],
               "expected_output" => "Database tables and auth library configured"
             }
           ],
-          "success_criteria" => ["Users can sign up", "Users can log in"],
+          "success_criteria" => [ "Users can sign up", "Users can log in" ],
           "estimated_duration" => "2-3 hours"
         }
       end
@@ -168,8 +168,8 @@ RSpec.describe Tools::PlanModeExecutor do
       let(:plan) do
         {
           "phases" => [
-            { "number" => 1, "name" => "Phase 1", "objectives" => ["Obj 1"] },
-            { "number" => 2, "name" => "Phase 2", "objectives" => ["Obj 2"] }
+            { "number" => 1, "name" => "Phase 1", "objectives" => [ "Obj 1" ] },
+            { "number" => 2, "name" => "Phase 2", "objectives" => [ "Obj 2" ] }
           ]
         }
       end
@@ -274,10 +274,10 @@ RSpec.describe Tools::PlanModeExecutor do
               "phases_completed" => 1,
               "total_phases" => 1,
               "duration" => "1 hour",
-              "key_results" => ["Result 1"]
+              "key_results" => [ "Result 1" ]
             },
             markdown: "# Plan Summary",
-            learnings: ["Learning 1"]
+            learnings: [ "Learning 1" ]
           })
         )
       end

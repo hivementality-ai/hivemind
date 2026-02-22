@@ -21,29 +21,29 @@ RSpec.describe Agents::PlanSummaryGenerator do
         {
           "number" => 1,
           "name" => "Setup",
-          "objectives" => ["Initialize project"],
+          "objectives" => [ "Initialize project" ],
           "approach" => "Create project structure",
-          "tools_needed" => ["shell"],
+          "tools_needed" => [ "shell" ],
           "expected_output" => "Project ready"
         },
         {
           "number" => 2,
           "name" => "API Endpoints",
-          "objectives" => ["Create endpoints"],
+          "objectives" => [ "Create endpoints" ],
           "approach" => "Implement controllers",
-          "tools_needed" => ["file_write"],
+          "tools_needed" => [ "file_write" ],
           "expected_output" => "Endpoints working"
         },
         {
           "number" => 3,
           "name" => "Authentication",
-          "objectives" => ["Add JWT"],
+          "objectives" => [ "Add JWT" ],
           "approach" => "Implement JWT auth",
-          "tools_needed" => ["file_write"],
+          "tools_needed" => [ "file_write" ],
           "expected_output" => "Auth working"
         }
       ],
-      "success_criteria" => ["API works", "Auth works"],
+      "success_criteria" => [ "API works", "Auth works" ],
       "estimated_duration" => "4 hours"
     }
   end

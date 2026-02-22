@@ -7,9 +7,9 @@ module HashtagActions
         # Extract task from payload if provided, otherwise use the clean message
         task = if payload.present?
                  payload.strip
-               else
+        else
                  clean_message&.strip.presence || "General task planning"
-               end
+        end
 
         # Invoke the plan_mode tool to generate a plan
         plan_tool = Tool.find_by(name: "plan_mode")
@@ -18,20 +18,20 @@ module HashtagActions
         end
 
         Rails.logger.info("[Plan Action] Invoking plan_mode with action=generate, task=#{task.inspect}, agent=#{agent&.name}, session=#{session&.id}")
-        
+
         result = Tools::Executor.call(
           tool: plan_tool,
           input: { "action" => "generate", "task" => task },
           agent: agent,
           session: session
         )
-        
+
         Rails.logger.info("[Plan Action] Result: #{result.inspect}")
 
         if result.success?
           # Get the plan from session metadata (it was saved there by the executor)
           plan = session.reload.metadata&.dig("current_plan")
-          
+
           if plan
             # Provide phase context in prompt addon so agent knows the plan
             phase_context = build_phase_context(plan)
@@ -62,7 +62,7 @@ module HashtagActions
         lines << ""
         lines << "---"
         lines << ""
-        
+
         plan["phases"].each do |phase|
           lines << "### Phase #{phase['number']}: #{phase['name']}"
           lines << ""
@@ -73,7 +73,7 @@ module HashtagActions
           lines << "*Approach:* #{phase['approach']}"
           lines << ""
         end
-        
+
         lines << "---"
         lines << ""
         lines << "**✅ Success Criteria**"
@@ -82,7 +82,7 @@ module HashtagActions
         end
         lines << ""
         lines << "⏱️ *#{plan['estimated_duration']}*"
-        
+
         lines.join("\n")
       end
 
@@ -100,7 +100,7 @@ module HashtagActions
           2. Execute the objectives for the current phase
           3. Track your progress and show what you've accomplished
           4. When ready, move to the next phase
-          
+
           You can reference the plan whenever needed to stay on track.
         CONTEXT
       end

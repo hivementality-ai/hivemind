@@ -13,21 +13,21 @@ RSpec.describe "Planning Mode", type: :feature do
         {
           "number" => 1,
           "name" => "Database Setup",
-          "objectives" => ["Create users table"],
+          "objectives" => [ "Create users table" ],
           "approach" => "Write database migration",
-          "tools_needed" => ["shell", "file_write"],
+          "tools_needed" => [ "shell", "file_write" ],
           "expected_output" => "Users table created"
         },
         {
           "number" => 2,
           "name" => "Authentication Routes",
-          "objectives" => ["Create login endpoint"],
+          "objectives" => [ "Create login endpoint" ],
           "approach" => "Build controllers and views",
-          "tools_needed" => ["file_write", "shell"],
+          "tools_needed" => [ "file_write", "shell" ],
           "expected_output" => "Login page accessible"
         }
       ],
-      "success_criteria" => ["Users can log in", "Sessions persist"],
+      "success_criteria" => [ "Users can log in", "Sessions persist" ],
       "estimated_duration" => "4 hours"
     }
   end
@@ -35,7 +35,7 @@ RSpec.describe "Planning Mode", type: :feature do
   describe "Plan generation flow" do
     before do
       create(:tool, name: "plan_mode", executor_type: "plan_mode")
-      
+
       # Mock LLM response
       allow_any_instance_of(Anthropic::Client).to receive(:messages).and_return(
         double(
@@ -143,7 +143,7 @@ RSpec.describe "Planning Mode", type: :feature do
     end
 
     it "transitions to next phase" do
-      session.update!(metadata: { 
+      session.update!(metadata: {
         "current_plan" => plan,
         "plan_status" => "executing",
         "current_phase" => 1
@@ -162,7 +162,7 @@ RSpec.describe "Planning Mode", type: :feature do
     end
 
     it "broadcasts phase transition" do
-      session.update!(metadata: { 
+      session.update!(metadata: {
         "current_plan" => plan,
         "plan_status" => "executing",
         "current_phase" => 1

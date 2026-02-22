@@ -111,7 +111,7 @@ RSpec.describe ProvidersController, type: :controller do
       create(:provider_config, name: 'Zebra', adapter_type: 'anthropic')
       create(:provider_config, name: 'Apple', adapter_type: 'openai')
       get :index
-      expect(assigns(:providers).map(&:name)).to eq(['Apple', 'Zebra'])
+      expect(assigns(:providers).map(&:name)).to eq([ 'Apple', 'Zebra' ])
     end
   end
 
@@ -181,7 +181,7 @@ RSpec.describe ProvidersController, type: :controller do
           id: anthropic_provider.id,
           provider_config: {
             api_key: 'sk-ant-test-key-123',
-            models: ['claude-sonnet-4-5', 'claude-haiku-4-5'],
+            models: [ 'claude-sonnet-4-5', 'claude-haiku-4-5' ],
             default_model: 'claude-sonnet-4-5'
           }
         }
@@ -202,7 +202,7 @@ RSpec.describe ProvidersController, type: :controller do
           id: anthropic_provider.id,
           provider_config: {
             api_key: 'sk-ant-test-key',
-            models: ['claude-sonnet-4-5'],
+            models: [ 'claude-sonnet-4-5' ],
             default_model: 'claude-sonnet-4-5'
           }
         }
@@ -215,7 +215,7 @@ RSpec.describe ProvidersController, type: :controller do
           id: anthropic_provider.id,
           provider_config: {
             api_key: 'sk-ant-test-key',
-            models: ['claude-sonnet-4-5'],
+            models: [ 'claude-sonnet-4-5' ],
             default_model: 'claude-opus-4-6'
           }
         }
@@ -237,7 +237,7 @@ RSpec.describe ProvidersController, type: :controller do
           id: anthropic_provider.id,
           provider_config: {
             api_key: '',
-            models: ['claude-haiku-4-5'],
+            models: [ 'claude-haiku-4-5' ],
             default_model: 'claude-haiku-4-5'
           }
         }
@@ -278,7 +278,7 @@ RSpec.describe ProvidersController, type: :controller do
         provider_config: {
           api_key: 'sk-test',
           default_model: 'claude-sonnet-4-5',
-          models: ['claude-sonnet-4-5']
+          models: [ 'claude-sonnet-4-5' ]
         }
       }
       expect(response).to redirect_to(provider_path(anthropic_provider))

@@ -33,15 +33,15 @@ module Api
       def save_to_workspace(filename, content)
         # Sanitize filename
         safe_filename = File.basename(filename).gsub(/[^a-zA-Z0-9._-]/, "_")
-        
+
         # Ensure plans directory exists
         plans_dir = "/workspace/plans"
         FileUtils.mkdir_p(plans_dir) unless Dir.exist?(plans_dir)
-        
+
         # Write file
         filepath = File.join(plans_dir, safe_filename)
         File.write(filepath, content)
-        
+
         {
           success: true,
           message: "Plan summary saved",

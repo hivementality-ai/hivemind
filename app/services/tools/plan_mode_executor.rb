@@ -5,7 +5,7 @@ module Tools
     def call
       Rails.logger.info("[PlanModeExecutor] Full input: #{input.inspect}")
       Rails.logger.info("[PlanModeExecutor] Full config: #{config.inspect}")
-      
+
       action = input["action"]&.downcase
       session = config[:session]
 
@@ -234,7 +234,7 @@ module Tools
       lines << ""
       lines << "---"
       lines << ""
-      
+
       plan["phases"].each do |phase|
         lines << "### Phase #{phase['number']}: #{phase['name']}"
         lines << ""
@@ -245,7 +245,7 @@ module Tools
         lines << "*Approach:* #{phase['approach']}"
         lines << ""
       end
-      
+
       lines << "---"
       lines << ""
       lines << "**✅ Success Criteria**"
@@ -254,7 +254,7 @@ module Tools
       end
       lines << ""
       lines << "⏱️ *#{plan['estimated_duration']}*"
-      
+
       lines.join("\n")
     end
   end

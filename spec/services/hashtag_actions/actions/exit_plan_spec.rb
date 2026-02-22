@@ -11,9 +11,9 @@ RSpec.describe HashtagActions::Actions::ExitPlan do
       "overview" => "Test plan",
       "context" => "Testing",
       "phases" => [
-        { "number" => 1, "name" => "Phase 1", "objectives" => ["Test"] }
+        { "number" => 1, "name" => "Phase 1", "objectives" => [ "Test" ] }
       ],
-      "success_criteria" => ["Works"],
+      "success_criteria" => [ "Works" ],
       "estimated_duration" => "1 hour"
     }
   end
@@ -24,7 +24,7 @@ RSpec.describe HashtagActions::Actions::ExitPlan do
       "phases_completed" => 1,
       "total_phases" => 1,
       "duration" => "30 minutes",
-      "key_results" => ["Completed phase 1"]
+      "key_results" => [ "Completed phase 1" ]
     }
   end
 

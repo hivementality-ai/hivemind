@@ -21,7 +21,7 @@ class ProvidersController < ApplicationController
     @available_models = available_models_for(@provider.adapter_type)
     @selected_models = @provider.model_definitions || []
     @api_key = @provider.api_key
-    
+
     # If edit_mode=true, render the form view; otherwise render the show view
     render :edit_form if params[:edit_mode] == "true"
   end
