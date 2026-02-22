@@ -5,6 +5,14 @@
 <h1 align="center">Hivemind</h1>
 
 <p align="center">
+  <a href="https://github.com/hivementality-ai/hivemind/actions/workflows/ci.yml"><img src="https://github.com/hivementality-ai/hivemind/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://codecov.io/gh/hivementality-ai/hivemind"><img src="https://codecov.io/gh/hivementality-ai/hivemind/branch/main/graph/badge.svg" alt="Coverage"></a>
+  <img src="https://img.shields.io/badge/license-AGPLv3-blue.svg" alt="License">
+  <img src="https://img.shields.io/badge/ruby-3.4.8-red.svg" alt="Ruby">
+  <img src="https://img.shields.io/badge/rails-8-red.svg" alt="Rails">
+</p>
+
+<p align="center">
   <strong>Multi-agent AI team platform.</strong><br>
   Deploy teams of AI agents that collaborate, use tools, and connect to your messaging channels.<br>
   Self-hosted. Open source.
