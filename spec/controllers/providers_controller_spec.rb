@@ -206,7 +206,7 @@ RSpec.describe ProvidersController, type: :controller do
             default_model: 'claude-sonnet-4-5'
           }
         }
-        expect(response).to redirect_to(providers_path)
+        expect(response).to redirect_to(provider_path(anthropic_provider))
         expect(flash[:notice]).to include('Provider updated successfully')
       end
 
@@ -264,7 +264,7 @@ RSpec.describe ProvidersController, type: :controller do
         }
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response).to render_template(:edit)
+        expect(response).to render_template(:edit_form)
       end
     end
   end
@@ -281,7 +281,7 @@ RSpec.describe ProvidersController, type: :controller do
           models: ['claude-sonnet-4-5']
         }
       }
-      expect(response).to redirect_to(providers_path)
+      expect(response).to redirect_to(provider_path(anthropic_provider))
     end
 
     it 'prevents mass assignment of other attributes' do

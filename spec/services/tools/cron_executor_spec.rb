@@ -95,19 +95,20 @@ RSpec.describe Tools::CronExecutor, type: :service do
         expect(response.error).to include("schedule required")
       end
 
-      it "validates job_class is required" do
+      it "defaults job_class to ScheduledAgentJob when empty" do
         input = {
           "action" => "create",
           "name" => "Task",
           "schedule" => "0 9 * * *",
           "job_class" => "",
-          "confirm" => "true"
+          "confirm" => "false"
         }
         executor = described_class.new(agent: agent, input: input)
         response = executor.call
 
-        expect(response.success?).to be false
-        expect(response.error).to include("job_class required")
+        expect(response.success?).to be true
+        task = ScheduledTask.last
+        expect(task.job_class).to eq("ScheduledAgentJob")
       end
 
       it "accepts job_params as hash" do

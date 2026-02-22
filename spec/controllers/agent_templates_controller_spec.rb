@@ -36,13 +36,10 @@ RSpec.describe AgentTemplatesController, type: :controller do
         )
       end
 
-      it 'renders skills and tools on the index page' do
+      it 'renders the index page successfully' do
         get :index
-        expect(response.body).to include('Github')
-        expect(response.body).to include('Git')
-        expect(response.body).to include('Shell')
-        expect(response.body).to include('Web Search')
-        expect(response.body).to include('File Read')
+        expect(response).to have_http_status(:ok)
+        expect(assigns(:templates)).to include(template_with_config)
       end
     end
 

@@ -53,7 +53,7 @@ module Channels
     end
 
     # Log inbound message
-    def log_inbound_message(external_id:, sender:, content:, metadata: {})
+    def log_inbound_message(external_id:, sender:, content:, metadata: {}, file_ids: [])
       InboundMessage.create!(
         channel_id: channel.id,
         external_id: external_id,
