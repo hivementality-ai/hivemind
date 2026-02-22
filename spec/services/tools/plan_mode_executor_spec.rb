@@ -245,7 +245,7 @@ RSpec.describe Tools::PlanModeExecutor do
       it "returns failure with error message" do
         result = executor.call
         expect(result.success?).to be false
-        expect(result.error).to include("Planning mode operation failed")
+        expect(result.error).to include("Error generating plan")
       end
     end
   end
