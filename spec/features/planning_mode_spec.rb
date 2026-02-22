@@ -213,17 +213,18 @@ RSpec.describe "Planning Mode", type: :feature do
         clean_message: "Please plan building a REST API"
       )
 
-      allow(Tools::Executor).to receive(:call).and_return(
+      allow(Tools::Executor).to receive(:call) do |**args|
+        args[:session].update!(metadata: (args[:session].metadata || {}).merge("current_plan" => plan))
         ServiceResponse.success(data: { plan: plan })
-      )
+      end
 
       result = action.execute
 
       expect(result[:status]).to eq("ok")
-      expect(result[:response]).to include("Plan generated")
+      expect(result[:bypass]).to be true
     end
 
-    it "formats plan for display in the response" do
+    it "returns nil response (plan displayed via card)" do
       action = HashtagActions::Actions::Plan.new(
         agent: agent,
         session: session,
@@ -231,19 +232,17 @@ RSpec.describe "Planning Mode", type: :feature do
         clean_message: nil
       )
 
-      allow(Tools::Executor).to receive(:call).and_return(
+      allow(Tools::Executor).to receive(:call) do |**args|
+        args[:session].update!(metadata: (args[:session].metadata || {}).merge("current_plan" => plan))
         ServiceResponse.success(data: { plan: plan })
-      )
+      end
 
       result = action.execute
-      response = result[:response]
-
-      expect(response).to include("Database Setup")
-      expect(response).to include("Authentication Routes")
-      expect(response).to include("Success Criteria")
+      expect(result[:response]).to be_nil
+      expect(result[:bypass]).to be true
     end
 
-    it "provides phase context in prompt addon for agent" do
+    it "saves plan to session metadata" do
       action = HashtagActions::Actions::Plan.new(
         agent: agent,
         session: session,
@@ -251,17 +250,13 @@ RSpec.describe "Planning Mode", type: :feature do
         clean_message: nil
       )
 
-      allow(Tools::Executor).to receive(:call).and_return(
+      allow(Tools::Executor).to receive(:call) do |**args|
+        args[:session].update!(metadata: (args[:session].metadata || {}).merge("current_plan" => plan))
         ServiceResponse.success(data: { plan: plan })
-      )
+      end
 
-      result = action.execute
-      addon = result[:prompt_addon]
-
-      expect(addon).to include("Phase 1")
-      expect(addon).to include("Database Setup")
-      expect(addon).to include("## Phase N")
-      expect(addon).to include("execute this plan phase by phase")
+      action.execute
+      expect(session.reload.metadata["current_plan"]).to eq(plan)
     end
   end
 
