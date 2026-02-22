@@ -44,8 +44,6 @@ module Channels
     end
 
     def check_mention_routing
-      return nil unless slack_channel? && bot_mention?
-
       mentioned_user_id = extract_mentioned_bot_id
       return nil unless mentioned_user_id
 
@@ -58,11 +56,10 @@ module Channels
     end
 
     def check_thread_ownership
-      return nil unless thread_id.present?
+      tid = thread_id
+      return nil unless tid.present?
 
-      thread_owner = ChannelThread.thread_owner(channel: channel, thread_id: thread_id)
-
-      # Only return if agent is still enabled
+      thread_owner = ChannelThread.thread_owner(channel: channel, thread_id: tid)
       thread_owner if thread_owner&.enabled?
     end
 
@@ -87,27 +84,46 @@ module Channels
       Agent.visible.enabled.first
     end
 
-    # Helper methods for Slack-specific logic
-    def slack_channel?
-      channel.channel_type == "slack"
-    end
-
-    def bot_mention?
-      message_text&.match?(/<@U[A-Z0-9]+>/)
-    end
+    # --- Platform-aware mention detection ---
 
     def extract_mentioned_bot_id
-      match = message_text&.match(/<@(U[A-Z0-9]+)>/)
-      match&.[](1)
+      text = message_text
+      return nil unless text.present?
+
+      case channel.channel_type
+      when "slack"
+        # Slack format: <@U1234567890>
+        match = text.match(/<@(U[A-Z0-9]+)>/)
+        match&.[](1)
+      when "discord"
+        # Discord format: <@123456789012345678> (numeric snowflake IDs)
+        match = text.match(/<@!?(\d+)>/)
+        match&.[](1)
+      end
     end
 
+    # --- Platform-aware thread ID extraction ---
+
     def thread_id
+      case channel.channel_type
+      when "slack"
+        extract_metadata_value("thread_ts")
+      when "discord"
+        # Discord threads use channel IDs; thread_id is stored in metadata
+        extract_metadata_value("thread_id") || extract_metadata_value("channel_id")
+      else
+        extract_metadata_value("thread_ts") || extract_metadata_value("thread_id")
+      end
+    end
+
+    def extract_metadata_value(key)
       if message.is_a?(InboundMessage)
-        message.metadata&.dig("thread_ts") || message.metadata&.dig(:thread_ts)
+        message.metadata&.dig(key) || message.metadata&.dig(key.to_sym)
       elsif message.respond_to?(:dig)
-        message.dig(:metadata, "thread_ts") || message.dig(:metadata, :thread_ts)
+        message.dig(:metadata, key) || message.dig(:metadata, key.to_sym) ||
+          message.dig("metadata", key)
       elsif message.respond_to?(:metadata)
-        message.metadata&.dig("thread_ts") || message.metadata&.dig(:thread_ts)
+        message.metadata&.dig(key) || message.metadata&.dig(key.to_sym)
       end
     end
 
@@ -115,7 +131,7 @@ module Channels
       if message.is_a?(InboundMessage)
         message.content
       elsif message.respond_to?(:dig)
-        message.dig(:content)
+        message.dig(:content) || message.dig("content")
       elsif message.respond_to?(:content)
         message.content
       else
