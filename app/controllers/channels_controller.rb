@@ -19,6 +19,7 @@ class ChannelsController < ApplicationController
     if @channel.save
       store_credentials(@credentials) if @credentials.present?
       configure_connector(@channel, @credentials) if @credentials.present?
+      process_agent_assignments(params[:agent_assignments].to_unsafe_h) if params[:agent_assignments].present?
       redirect_to channels_path, notice: "#{@channel.name} channel created"
     else
       render :new, status: :unprocessable_entity
@@ -37,6 +38,7 @@ class ChannelsController < ApplicationController
     if @channel.update(channel_params)
       store_credentials(@credentials) if @credentials.present?
       configure_connector(@channel, @credentials) if @credentials.present?
+      process_agent_assignments(params[:agent_assignments].to_unsafe_h) if params[:agent_assignments].present?
       redirect_to channels_path, notice: "#{@channel.name} updated"
     else
       render :edit, status: :unprocessable_entity

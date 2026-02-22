@@ -1,7 +1,7 @@
 <div>
   <h3 class="text-white font-semibold mb-3">🤖 Agent Bot Assignments</h3>
   <p class="text-text-faint text-sm mb-4">
-    Configure individual bot tokens for each agent. Each agent can have their own bot identity in Slack.
+    Configure individual bot tokens for each agent. Each agent can have their own bot identity in <%= channel.channel_type&.titleize || "this platform" %>.
   </p>
 
   <div id="agent-assignments" class="space-y-4">
@@ -30,7 +30,7 @@
           <div>
             <%= label_tag "agent_assignments[#{agent.id}][bot_token]", "Bot Token", class: "block text-text-muted text-sm mb-1" %>
             <%= password_field_tag "agent_assignments[#{agent.id}][bot_token]", nil,
-                placeholder: has_assignment && agent_channel.has_bot_token? ? "••••••••••••" : "xoxb-...",
+                placeholder: has_assignment && agent_channel.has_bot_token? ? "••••••••••••" : (channel.channel_type == "discord" ? "Bot token from Discord Developer Portal" : "xoxb-..."),
                 class: "w-full px-3 py-2 bg-surface-card border border-border-default rounded text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand text-sm",
                 disabled: !has_assignment %>
           </div>
