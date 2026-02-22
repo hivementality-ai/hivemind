@@ -65,6 +65,11 @@ group :development, :test do
   gem "rubocop-rails-omakase", require: false
 end
 
+# Discord support
+gem "websocket-client-simple", "~> 0.8"
+gem "concurrent-ruby", "~> 1.3"
+gem "ed25519", "~> 1.3"
+
 group :development do
   gem "web-console"
 end

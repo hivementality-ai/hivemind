@@ -28,6 +28,18 @@ class WebhooksController < ApplicationController
         return
       end
 
+      # Discord PING/PONG interaction verification
+      if result.data[:pong]
+        render json: { type: 1 }
+        return
+      end
+
+      # Discord interaction response (ACK)
+      if result.data[:interaction]
+        render json: { type: 5 } # DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+        return
+      end
+
       # Route inbound message to agent if present
       if result.data[:inbound_message]
         InboundMessageJob.perform_later(result.data[:inbound_message].id)
