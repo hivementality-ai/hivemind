@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_20_210203) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_23_171345) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -315,7 +315,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_20_210203) do
     t.bigint "agent_id", null: false
     t.text "content", null: false
     t.datetime "created_at", null: false
-    t.vector "embedding", limit: 1536
+    t.vector "embedding", limit: 768
     t.jsonb "metadata", default: {}, null: false
     t.bigint "source_id"
     t.string "source_type"

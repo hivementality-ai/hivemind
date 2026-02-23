@@ -30,9 +30,9 @@ RSpec.describe MemoryEntry, type: :model do
   describe ".search_similar" do
     let(:agent) { create(:agent) }
     # Create entries with real 1536-dim embeddings for vector search
-    let(:embedding1) { Array.new(1536) { |i| (i % 10) * 0.1 } }
-    let(:embedding2) { Array.new(1536) { |i| (i % 10) * 0.1 + 0.01 } }
-    let(:embedding3) { Array.new(1536) { |i| (i % 10) * -0.1 } }
+    let(:embedding1) { Array.new(768) { |i| (i % 10) * 0.1 } }
+    let(:embedding2) { Array.new(768) { |i| (i % 10) * 0.1 + 0.01 } }
+    let(:embedding3) { Array.new(768) { |i| (i % 10) * -0.1 } }
     let!(:entry1) { create(:memory_entry, agent: agent, embedding: embedding1) }
     let!(:entry2) { create(:memory_entry, agent: agent, embedding: embedding2) }
     let!(:entry3) { create(:memory_entry, agent: agent, embedding: embedding3) }
@@ -56,9 +56,9 @@ RSpec.describe MemoryEntry, type: :model do
 
   describe ".search_with_threshold" do
     let(:agent) { create(:agent) }
-    let(:embedding) { Array.new(1536) { |i| (i % 10) * 0.1 } }
-    let(:similar_embedding) { Array.new(1536) { |i| (i % 10) * 0.1 + 0.001 } }
-    let(:different_embedding) { Array.new(1536) { rand(-1.0..1.0) } }
+    let(:embedding) { Array.new(768) { |i| (i % 10) * 0.1 } }
+    let(:similar_embedding) { Array.new(768) { |i| (i % 10) * 0.1 + 0.001 } }
+    let(:different_embedding) { Array.new(768) { rand(-1.0..1.0) } }
     let!(:similar_entry) { create(:memory_entry, agent: agent, embedding: similar_embedding) }
     let!(:different_entry) { create(:memory_entry, agent: agent, embedding: different_embedding) }
 
@@ -73,7 +73,7 @@ RSpec.describe MemoryEntry, type: :model do
     let(:agent) { create(:agent) }
 
     it "returns true when embedding is present" do
-      entry = create(:memory_entry, agent: agent, embedding: Array.new(1536, 0.1))
+      entry = create(:memory_entry, agent: agent, embedding: Array.new(768, 0.1))
       expect(entry.embedded?).to be true
     end
 
