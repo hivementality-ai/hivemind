@@ -50,9 +50,9 @@ module Memory
 
     def format_results(entries)
       entries.map do |entry|
-        similarity = entry.respond_to?(:neighbor_distance) && entry.neighbor_distance
-          ? (1 - entry.neighbor_distance).round(4)
-          : nil
+        similarity = if entry.respond_to?(:neighbor_distance) && entry.neighbor_distance
+                      (1 - entry.neighbor_distance).round(4)
+                    end
 
         {
           id: entry.id,

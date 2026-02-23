@@ -14,9 +14,11 @@ module Tools
       if memories.any?
         output = memories.map.with_index do |mem, i|
           time = mem.created_at.strftime("%Y-%m-%d %H:%M")
-          similarity = mem.respond_to?(:neighbor_distance) && mem.neighbor_distance
-            ? " (#{((1 - mem.neighbor_distance) * 100).round(1)}% match)"
-            : ""
+          similarity = if mem.respond_to?(:neighbor_distance) && mem.neighbor_distance
+                        " (#{((1 - mem.neighbor_distance) * 100).round(1)}% match)"
+                      else
+                        ""
+                      end
           "#{i + 1}. [#{time}]#{similarity} #{mem.content.truncate(500)}"
         end.join("\n\n")
 
