@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_23_171345) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_23_173239) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -313,15 +313,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_23_171345) do
 
   create_table "memory_entries", force: :cascade do |t|
     t.bigint "agent_id", null: false
+    t.boolean "consolidated", default: false, null: false
     t.text "content", null: false
     t.datetime "created_at", null: false
     t.vector "embedding", limit: 768
+    t.float "importance", default: 0.5, null: false
+    t.datetime "last_accessed_at"
+    t.string "memory_type", default: "episodic", null: false
     t.jsonb "metadata", default: {}, null: false
     t.bigint "source_id"
     t.string "source_type"
     t.datetime "updated_at", null: false
+    t.index ["agent_id", "memory_type"], name: "index_memory_entries_on_agent_id_and_memory_type"
     t.index ["agent_id"], name: "index_memory_entries_on_agent_id"
+    t.index ["consolidated"], name: "index_memory_entries_on_consolidated"
     t.index ["embedding"], name: "index_memory_entries_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
+    t.index ["importance"], name: "index_memory_entries_on_importance"
+    t.index ["memory_type"], name: "index_memory_entries_on_memory_type"
     t.index ["source_type", "source_id"], name: "index_memory_entries_on_source_type_and_source_id"
   end
 

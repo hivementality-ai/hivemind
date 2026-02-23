@@ -2,32 +2,49 @@
 
 module Memory
   class Store
-    def self.call(agent:, content:, source: nil, metadata: {}, async: true)
-      new(agent:, content:, source:, metadata:, async:).call
+    def self.call(agent:, content:, source: nil, metadata: {}, memory_type: "episodic", importance: 0.5, async: true)
+      new(agent:, content:, source:, metadata:, memory_type:, importance:, async:).call
     end
 
-    def initialize(agent:, content:, source: nil, metadata: {}, async: true)
+    def initialize(agent:, content:, source: nil, metadata: {}, memory_type: "episodic", importance: 0.5, async: true)
       @agent = agent
       @content = content
       @source = source
       @metadata = metadata
+      @memory_type = memory_type
+      @importance = importance
       @async = async
     end
 
     def call
       return ServiceResponse.failure(error: "Content cannot be blank") if @content.blank?
 
-      # Create the entry first (without embedding if async)
       if @async
+        # Create entry, enqueue embedding + dedup check
         memory_entry = create_entry(embedding: nil)
         MemoryEmbeddingJob.perform_later(memory_entry.id) if memory_entry.persisted?
       else
         embedding = Memory::Embedding.generate(@content)
+
+        # Check for duplicates if we have an embedding
+        if embedding
+          existing = MemoryEntry.find_duplicate(embedding: embedding, agent: @agent)
+          if existing
+            # Merge: update the existing entry with fresher content
+            existing.update!(
+              content: @content,
+              metadata: existing.metadata.merge(@metadata),
+              importance: [@importance, existing.importance].max
+            )
+            return ServiceResponse.success(data: { memory_entry: existing, merged: true })
+          end
+        end
+
         memory_entry = create_entry(embedding: embedding)
       end
 
       if memory_entry.persisted?
-        ServiceResponse.success(data: { memory_entry: })
+        ServiceResponse.success(data: { memory_entry:, merged: false })
       else
         ServiceResponse.failure(error: memory_entry.errors.full_messages)
       end
@@ -43,7 +60,9 @@ module Memory
         content: @content,
         embedding: embedding,
         source: @source,
-        metadata: @metadata
+        metadata: @metadata,
+        memory_type: @memory_type,
+        importance: @importance
       )
     end
   end

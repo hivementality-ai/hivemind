@@ -2,15 +2,16 @@
 
 module Memory
   class Search
-    def self.call(agent:, query:, limit: 10, threshold: 0.7)
-      new(agent:, query:, limit:, threshold:).call
+    def self.call(agent:, query:, limit: 10, threshold: 0.7, weighted: true)
+      new(agent:, query:, limit:, threshold:, weighted:).call
     end
 
-    def initialize(agent:, query:, limit: 10, threshold: 0.7)
+    def initialize(agent:, query:, limit: 10, threshold: 0.7, weighted: true)
       @agent = agent
       @query = query
       @limit = limit
       @threshold = threshold
+      @weighted = weighted
     end
 
     def call
@@ -24,12 +25,17 @@ module Memory
         return ServiceResponse.success(data: { query: @query, results: format_results(results), count: results.length })
       end
 
-      results = MemoryEntry.search_with_threshold(
-        embedding: query_embedding,
-        agent: @agent,
-        threshold: @threshold,
-        limit: @limit
-      )
+      results = if @weighted
+                  MemoryEntry.relevance_search(embedding: query_embedding, agent: @agent, limit: @limit)
+                else
+                  MemoryEntry.search_with_threshold(
+                    embedding: query_embedding, agent: @agent,
+                    threshold: @threshold, limit: @limit
+                  )
+                end
+
+      # Touch accessed timestamps
+      results.each(&:touch_accessed!)
 
       ServiceResponse.success(data: {
         query: @query,
@@ -52,6 +58,8 @@ module Memory
           id: entry.id,
           content: entry.content,
           similarity: similarity,
+          memory_type: entry.memory_type,
+          importance: entry.importance,
           source_type: entry.source_type,
           source_id: entry.source_id,
           metadata: entry.metadata,

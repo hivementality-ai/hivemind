@@ -65,6 +65,9 @@ module Sessions
       # 9. Auto-store memory from this exchange (async-friendly)
       store_memory(agent:, user_message: @message, assistant_response: content)
 
+      # 10. Trigger consolidation for longer sessions (every 20 turns)
+      maybe_consolidate
+
       ServiceResponse.success(data: { content:, usage: })
     rescue StandardError => e
       Rails.logger.error("[Sessions::Chat] Error: #{e.message}")
@@ -186,6 +189,19 @@ module Sessions
       )
     rescue StandardError => e
       Rails.logger.warn("[Sessions::Chat] Failed to record usage: #{e.message}")
+    end
+
+    # ----- Memory Consolidation -----
+
+    def maybe_consolidate
+      transcript_size = @session.transcript&.size || 0
+
+      # Consolidate every 20 turns (10 user + 10 assistant messages)
+      return unless transcript_size > 0 && (transcript_size % 20).zero?
+
+      MemoryConsolidationJob.perform_later(@session.id)
+    rescue StandardError => e
+      Rails.logger.warn("[Sessions::Chat] Consolidation trigger failed: #{e.message}")
     end
   end
 end
