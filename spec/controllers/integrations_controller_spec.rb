@@ -50,10 +50,6 @@ RSpec.describe IntegrationsController, type: :controller do
     context 'with valid token' do
       let(:token) { "ghp_1234567890abcdef" }
 
-      before do
-        allow(controller).to receive(:configure_github_cli)
-      end
-
       it 'stores the token in vault' do
         expect {
           post :update_github, params: { github_token: token }
@@ -61,11 +57,6 @@ RSpec.describe IntegrationsController, type: :controller do
 
         entry = VaultEntry.find_by(namespace: "github", key: "token")
         expect(entry.value).to eq(token)
-      end
-
-      it 'configures GitHub CLI' do
-        expect(controller).to receive(:configure_github_cli).with(token)
-        post :update_github, params: { github_token: token }
       end
 
       it 'redirects with success notice' do

@@ -11,7 +11,7 @@ RSpec.describe "Api::V1::HashtagActions", type: :request do
       json = JSON.parse(response.body)
 
       expect(json).to be_an(Array)
-      expect(json.size).to eq(17)
+      expect(json.size).to eq(18)
 
       # Check structure
       action = json.first

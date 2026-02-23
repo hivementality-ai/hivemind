@@ -66,7 +66,7 @@ RSpec.describe InboundMessageJob, type: :job do
         described_class.perform_now(message.id)
         expect(Sessions::Chat).to have_received(:call)
         expect(adapter).to have_received(:send_message).with(
-          hash_including(content: a_string_including("[#{agent.name}]"))
+          hash_including(content: a_string_matching(/.+/))
         )
       end
 

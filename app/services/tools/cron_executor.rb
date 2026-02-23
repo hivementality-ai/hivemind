@@ -121,7 +121,9 @@ module Tools
 
       # Execute the job immediately
       begin
-        job_class = Object.const_get(task.job_class)
+        job_class = resolve_job_class(task.job_class)
+        return ServiceResponse.failure(error: "Unknown or disallowed job class: #{task.job_class}") unless job_class
+
         job_class.perform_now(**(task.job_params || {}))
 
         ServiceResponse.success(data: {
@@ -140,6 +142,19 @@ module Tools
 
         ServiceResponse.failure(error: "Job execution failed: #{e.message}")
       end
+    end
+
+    ALLOWED_JOB_CLASSES = %w[
+      ScheduledAgentJob
+      SubAgentJob
+    ].freeze
+
+    def resolve_job_class(class_name)
+      return nil unless ALLOWED_JOB_CLASSES.include?(class_name)
+
+      class_name.constantize
+    rescue NameError
+      nil
     end
 
     def create_scheduled_task(name, schedule, job_class, job_params, description)

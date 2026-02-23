@@ -41,7 +41,7 @@ RSpec.describe SetupController, type: :controller do
   describe 'POST #create_account' do
     it 'creates user and redirects to provider' do
       expect {
-        post :create_account, params: { user: { email: 'test@example.com', password: 'password123', password_confirmation: 'password123' } }
+        post :create_account, params: { user: { email: 'test@example.com', password: 'Password123!', password_confirmation: 'Password123!' } }
       }.to change(User, :count).by(1)
       expect(response).to redirect_to(setup_provider_path)
       expect(User.last.role).to eq('owner')

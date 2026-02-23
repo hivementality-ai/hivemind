@@ -28,12 +28,13 @@ module Tools
 
       # Execute find command with glob pattern
       # Use -name for simple patterns, -path for complex patterns with directories
+      safe_pattern = WorkspaceIo.shell_escape(pattern)
       find_cmd = if pattern.include?("/")
         # Complex pattern with directory structure - use -path
-        "find #{WorkspaceIo.shell_escape(full_path)} -path '#{pattern}' -type f | head -#{MAX_FILES}"
+        "find #{WorkspaceIo.shell_escape(full_path)} -path #{safe_pattern} -type f | head -#{MAX_FILES}"
       else
         # Simple filename pattern - use -name
-        "find #{WorkspaceIo.shell_escape(full_path)} -name '#{pattern}' -type f | head -#{MAX_FILES}"
+        "find #{WorkspaceIo.shell_escape(full_path)} -name #{safe_pattern} -type f | head -#{MAX_FILES}"
       end
 
       stdout, stderr, status = Open3.capture3(

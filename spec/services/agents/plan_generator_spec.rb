@@ -16,25 +16,25 @@ RSpec.describe Agents::PlanGenerator do
           {
             "number" => 1,
             "name" => "Database Setup",
-            "objectives" => ["Create user table", "Add password hashing"],
+            "objectives" => [ "Create user table", "Add password hashing" ],
             "approach" => "Write migration and configure bcrypt",
-            "tools_needed" => ["rails migration", "bcrypt gem"],
+            "tools_needed" => [ "rails migration", "bcrypt gem" ],
             "expected_output" => "User table with encrypted passwords"
           },
           {
             "number" => 2,
             "name" => "Authentication Routes",
-            "objectives" => ["Create signup endpoint", "Create login endpoint"],
+            "objectives" => [ "Create signup endpoint", "Create login endpoint" ],
             "approach" => "Build controller actions and views",
-            "tools_needed" => ["rails controller", "form helpers"],
+            "tools_needed" => [ "rails controller", "form helpers" ],
             "expected_output" => "Working signup and login pages"
           },
           {
             "number" => 3,
             "name" => "Session Management",
-            "objectives" => ["Implement session storage", "Add logout functionality"],
+            "objectives" => [ "Implement session storage", "Add logout functionality" ],
             "approach" => "Use Rails session middleware",
-            "tools_needed" => ["rails sessions"],
+            "tools_needed" => [ "rails sessions" ],
             "expected_output" => "User sessions persisting across requests"
           }
         ],

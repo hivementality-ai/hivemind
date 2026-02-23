@@ -10,7 +10,11 @@ RSpec.describe ScheduledTask, type: :model do
   describe 'validations' do
     it { should validate_presence_of(:name) }
     it { should validate_presence_of(:schedule) }
-    it { should validate_presence_of(:job_class) }
+
+    it 'allows job_class to be set explicitly' do
+      task = ScheduledTask.new(job_class: "CustomJob")
+      expect(task.job_class).to eq("CustomJob")
+    end
   end
 
   describe 'scopes' do

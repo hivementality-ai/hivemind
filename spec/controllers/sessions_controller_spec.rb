@@ -84,10 +84,9 @@ RSpec.describe SessionsController, type: :controller do
     end
 
     context 'with invalid agent' do
-      it 'raises ActiveRecord::RecordNotFound' do
-        expect {
-          post :create, params: { agent_id: 999999 }
-        }.to raise_error(ActiveRecord::RecordNotFound)
+      it 'returns 404' do
+        post :create, params: { agent_id: 999999 }
+        expect(response).to have_http_status(:not_found)
       end
     end
 

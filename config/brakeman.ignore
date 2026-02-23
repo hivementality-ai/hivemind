@@ -54,7 +54,31 @@
     },
     {
       "fingerprint": "0dcaaea6789f0c08c8ce76f559f26dc016d528ce3543c2915de6cb0fb91f079f",
-      "note": "Ollama URL is user-provided during setup — validated as HTTP URI, used only for local model detection"
+      "note": "Ollama URL is user-provided during setup \u2014 validated as HTTP URI, used only for local model detection"
+    },
+    {
+      "fingerprint": "79770329b85047f80227d131cc80d6358fd442a83cc02643a2768a580111efde",
+      "note": "Glob executor: pattern is shell_escaped, runs in isolated workspace container"
+    },
+    {
+      "fingerprint": "42239107414e72caff8d49d8142bce28e4a7849936a5d91693253e9545bc0b99",
+      "note": "Shell executor: paths use SecureRandom.hex, runs in isolated workspace container"
+    },
+    {
+      "fingerprint": "b1713fc97bca9481b64984928958829337b9c88e4030bf3a32ccdee6369d2bb7",
+      "note": "Shell executor cleanup: paths use SecureRandom.hex, runs in isolated container"
+    },
+    {
+      "fingerprint": "f84e3f1263939fe7ba90c784a0078690db0d8434af90f1be49b0ad469b35cfdc",
+      "note": "WorkspaceIo: path is shell_escaped, runs in isolated workspace container"
+    },
+    {
+      "fingerprint": "0c60d325558edf4ad04ba98f32b3dc4c29162b1f561737c9dd1f7ed081d90324",
+      "note": "Agent role is intentionally settable by admins"
+    },
+    {
+      "fingerprint": "e8a4755b9673b6dde053be9a12ce611d0cbe0bf63d96cf4757131d0eb74002a6",
+      "note": "False positive: Net::HTTP.new with URI, not file access"
     }
   ],
   "updated": "2026-02-15",

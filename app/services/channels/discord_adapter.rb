@@ -210,7 +210,7 @@ module Channels
       embed[:fields] = fields if fields.present?
       embed[:footer] = { text: footer } if footer.present?
       embed[:author] = { name: author } if author.present?
-      
+
       embed
     end
 
@@ -331,9 +331,9 @@ module Channels
       # Download or read file
       file_data = if file_path.present?
                     read_local_file(file_path)
-                  else
+      else
                     download_remote_file(url)
-                  end
+      end
 
       return file_data if file_data.is_a?(ServiceResponse) && !file_data.success?
 

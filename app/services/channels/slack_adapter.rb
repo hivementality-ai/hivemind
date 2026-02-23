@@ -150,9 +150,9 @@ module Channels
       # Download or read file
       file_data = if file_path.present?
                     read_local_file(file_path)
-                  else
+      else
                     download_remote_file(url)
-                  end
+      end
 
       return file_data if file_data.is_a?(ServiceResponse) && !file_data.success?
 
@@ -255,7 +255,7 @@ module Channels
     # @param bytes [Integer]
     # @return [String]
     def format_bytes(bytes)
-      units = ["B", "KB", "MB", "GB"]
+      units = [ "B", "KB", "MB", "GB" ]
       size = bytes.to_f
       unit_index = 0
 
@@ -436,13 +436,13 @@ module Channels
       # Store as temporary file in workspace/uploads
       workspace_dir = File.join(Dir.home, ".openclaw", "workspace", "uploads")
       FileUtils.mkdir_p(workspace_dir)
-      
+
       # Sanitize filename and store with timestamp
       safe_name = File.basename(file[:name]).gsub(/[^\w.-]/, "_")
       timestamp = Time.current.strftime("%Y%m%d_%H%M%S")
       filename = "slack_#{channel_id}_#{timestamp}_#{safe_name}"
       filepath = File.join(workspace_dir, filename)
-      
+
       File.binwrite(filepath, file_data)
 
       # Return file info for storage

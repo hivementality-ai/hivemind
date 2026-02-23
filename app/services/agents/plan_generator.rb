@@ -100,15 +100,15 @@ module Agents
 
       begin
         plan = JSON.parse(json_match[0])
-        
+
         # Validate structure
         required_keys = %w[overview context phases success_criteria estimated_duration]
         return nil unless required_keys.all? { |k| plan[k].present? }
-        
+
         # Validate phases
         phases = plan["phases"]
         return nil unless phases.is_a?(Array) && phases.any?
-        
+
         phases.each do |phase|
           return nil unless phase["number"].present? && phase["name"].present? && phase["objectives"].present?
         end

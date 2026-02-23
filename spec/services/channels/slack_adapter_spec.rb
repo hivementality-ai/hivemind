@@ -37,7 +37,7 @@ RSpec.describe Channels::SlackAdapter do
 
     context 'with file upload (local file)' do
       let(:temp_file) do
-        file = Tempfile.new(['test', '.png'], encoding: 'ascii-8bit')
+        file = Tempfile.new([ 'test', '.png' ], encoding: 'ascii-8bit')
         file.write("\x89PNG\r\n\x1a\n" + "test content")
         file.rewind
         file
@@ -76,7 +76,7 @@ RSpec.describe Channels::SlackAdapter do
 
       it 'validates file size limits' do
         # Create a large-ish temp file to test size validation
-        large_file = Tempfile.new(['large', '.bin'], encoding: 'ascii-8bit')
+        large_file = Tempfile.new([ 'large', '.bin' ], encoding: 'ascii-8bit')
         # Write 1 MB of data (well below limit but large enough to test)
         large_file.write("x" * (1024 * 1024))
         large_file.rewind
@@ -176,7 +176,7 @@ RSpec.describe Channels::SlackAdapter do
 
     context 'with file metadata' do
       let(:temp_file) do
-        file = Tempfile.new(['doc', '.txt'], encoding: 'ascii-8bit')
+        file = Tempfile.new([ 'doc', '.txt' ], encoding: 'ascii-8bit')
         file.write("Important document")
         file.rewind
         file
