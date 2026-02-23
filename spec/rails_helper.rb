@@ -49,6 +49,7 @@ RSpec.configure do |config|
   # Devise test helpers
   config.include Devise::Test::ControllerHelpers, type: :controller
   config.include Devise::Test::IntegrationHelpers, type: :request
+  config.include Devise::Test::IntegrationHelpers, type: :system
 
   # Remove fixture path since we're using factories
   config.fixture_paths = []
@@ -70,6 +71,14 @@ RSpec.configure do |config|
 
   config.before do
     DatabaseCleaner.strategy = :transaction
+  end
+
+  # System specs use a separate browser thread — must use truncation
+  config.before(:each, type: :system) do
+    DatabaseCleaner.strategy = :truncation
+  end
+
+  config.before do
     DatabaseCleaner.start
   end
 
