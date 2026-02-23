@@ -156,43 +156,60 @@ cmd_console() {
 }
 
 cmd_import() {
-  local source="${1:-}"
-  if [ -z "$source" ]; then
-    echo "Usage: hivemind import <openclaw-workspace-path>"
+  require_dir
+
+  local source="${1:-$HOME/.openclaw/workspace}"
+  local agent_slug="${2:-}"
+
+  if [ ! -d "$source" ]; then
+    echo -e "${BOLD}Usage:${NC} hivemind import [openclaw-workspace-path] [agent-slug]"
     echo ""
-    echo "Imports OpenClaw workspace files into Hivemind's shared workspace."
-    echo "Copies: SOUL.md, MEMORY.md, USER.md, TOOLS.md, skills/, memory/"
+    echo "  Imports an OpenClaw workspace into Hivemind — creates the agent,"
+    echo "  copies workspace files, and imports memories into the database."
+    echo ""
+    echo "  Default path: ~/.openclaw/workspace"
+    echo ""
+    echo "  Examples:"
+    echo "    hivemind import                          # uses default path"
+    echo "    hivemind import ~/my-openclaw-workspace"
+    echo "    hivemind import ~/.openclaw/workspace aria  # import as existing agent"
     exit 1
   fi
 
-  [ -d "$source" ] || fail "Directory not found: $source"
+  # Check for IDENTITY.md to show what we're importing
+  if [ -f "$source/IDENTITY.md" ]; then
+    local agent_name
+    agent_name="$(grep -oP '\*\*Name:\*\*\s*\K.+' "$source/IDENTITY.md" 2>/dev/null || echo "Unknown")"
+    info "Found OpenClaw agent: ${BOLD}$agent_name${NC}"
+  fi
 
-  local dest="$HOME/hivemind-agents-shared"
-  mkdir -p "$dest"
+  info "Importing from $source..."
+  echo ""
 
-  info "Importing OpenClaw workspace from $source..."
+  # Run the Rails importer (handles agent creation, file copy, memory import)
+  local slug_arg=""
+  if [ -n "$agent_slug" ]; then
+    slug_arg="AGENT_SLUG=$agent_slug"
+  fi
 
-  # Copy known workspace files
-  local files=("SOUL.md" "MEMORY.md" "USER.md" "TOOLS.md" "AGENTS.md" "IDENTITY.md" "HEARTBEAT.md")
-  for f in "${files[@]}"; do
-    if [ -f "$source/$f" ]; then
-      cp "$source/$f" "$dest/$f"
-      ok "Copied $f"
-    fi
-  done
+  docker compose exec -e OPENCLAW_WORKSPACE="/tmp/openclaw-import" $slug_arg app bash -c "
+    rm -rf /tmp/openclaw-import && mkdir -p /tmp/openclaw-import
+  " 2>/dev/null
 
-  # Copy directories
-  local dirs=("skills" "memory")
-  for d in "${dirs[@]}"; do
-    if [ -d "$source/$d" ]; then
-      cp -r "$source/$d" "$dest/$d"
-      ok "Copied $d/"
-    fi
-  done
+  # Copy workspace into the app container
+  docker compose cp "$source/." app:/tmp/openclaw-import/ 2>/dev/null
+
+  # Run the import task
+  docker compose exec -e OPENCLAW_WORKSPACE="/tmp/openclaw-import" ${slug_arg:+-e $slug_arg} app \
+    rails "memory:import_openclaw[/tmp/openclaw-import${agent_slug:+,$agent_slug}]"
+
+  # Clean up
+  docker compose exec app rm -rf /tmp/openclaw-import 2>/dev/null
 
   echo ""
-  ok "Import complete → $dest"
-  echo -e "  Files are available to agents at ${BOLD}/app/agents-shared/${NC}"
+  ok "Import complete!"
+  echo -e "  Workspace files available at ${BOLD}/app/agents-shared/${NC}"
+  echo -e "  Memory embeddings will generate in the background."
 }
 
 cmd_version() {

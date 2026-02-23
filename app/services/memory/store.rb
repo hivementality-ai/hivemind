@@ -2,33 +2,49 @@
 
 module Memory
   class Store
-    def self.call(agent:, content:, source: nil, metadata: {})
-      new(agent:, content:, source:, metadata:).call
+    def self.call(agent:, content:, source: nil, metadata: {}, memory_type: "episodic", importance: 0.5, async: true)
+      new(agent:, content:, source:, metadata:, memory_type:, importance:, async:).call
     end
 
-    def initialize(agent:, content:, source: nil, metadata: {})
+    def initialize(agent:, content:, source: nil, metadata: {}, memory_type: "episodic", importance: 0.5, async: true)
       @agent = agent
       @content = content
       @source = source
       @metadata = metadata
+      @memory_type = memory_type
+      @importance = importance
+      @async = async
     end
 
     def call
       return ServiceResponse.failure(error: "Content cannot be blank") if @content.blank?
 
-      embedding = generate_embedding(@content)
-      return ServiceResponse.failure(error: "Failed to generate embedding") unless embedding
+      if @async
+        # Create entry, enqueue embedding + dedup check
+        memory_entry = create_entry(embedding: nil)
+        MemoryEmbeddingJob.perform_later(memory_entry.id) if memory_entry.persisted?
+      else
+        embedding = Memory::Embedding.generate(@content)
 
-      memory_entry = MemoryEntry.create(
-        agent: @agent,
-        content: @content,
-        embedding: embedding,
-        source: @source,
-        metadata: @metadata
-      )
+        # Check for duplicates if we have an embedding
+        if embedding
+          existing = MemoryEntry.find_duplicate(embedding: embedding, agent: @agent)
+          if existing
+            # Merge: update the existing entry with fresher content
+            existing.update!(
+              content: @content,
+              metadata: existing.metadata.merge(@metadata),
+              importance: [@importance, existing.importance].max
+            )
+            return ServiceResponse.success(data: { memory_entry: existing, merged: true })
+          end
+        end
+
+        memory_entry = create_entry(embedding: embedding)
+      end
 
       if memory_entry.persisted?
-        ServiceResponse.success(data: { memory_entry: })
+        ServiceResponse.success(data: { memory_entry:, merged: false })
       else
         ServiceResponse.failure(error: memory_entry.errors.full_messages)
       end
@@ -38,83 +54,16 @@ module Memory
 
     private
 
-    def generate_embedding(text)
-      # Get the provider configuration for the agent
-      provider = @agent.model_provider || "openai"
-
-      case provider
-      when "openai"
-        generate_openai_embedding(text)
-      when "anthropic"
-        # Anthropic doesn't provide embeddings yet, fallback to OpenAI
-        generate_openai_embedding(text)
-      when "ollama"
-        generate_ollama_embedding(text)
-      else
-        generate_openai_embedding(text) # Default fallback
-      end
-    end
-
-    def generate_openai_embedding(text)
-      # Use OpenAI's text-embedding-3-small model (1536 dimensions)
-      vault_entry = VaultEntry.find_by(
-        namespace: "provider_credentials",
-        key: "openai_api_key"
+    def create_entry(embedding:)
+      MemoryEntry.create(
+        agent: @agent,
+        content: @content,
+        embedding: embedding,
+        source: @source,
+        metadata: @metadata,
+        memory_type: @memory_type,
+        importance: @importance
       )
-
-      return nil unless vault_entry
-
-      api_key = vault_entry.encrypted_value
-
-      response = Faraday.post(
-        "https://api.openai.com/v1/embeddings",
-        { model: "text-embedding-3-small", input: text }.to_json,
-        {
-          "Authorization" => "Bearer #{api_key}",
-          "Content-Type" => "application/json"
-        }
-      )
-
-      if response.success?
-        result = JSON.parse(response.body)
-        result.dig("data", 0, "embedding")
-      else
-        Rails.logger.error("OpenAI embedding failed: #{response.body}")
-        nil
-      end
-    rescue StandardError => e
-      Rails.logger.error("OpenAI embedding error: #{e.message}")
-      nil
-    end
-
-    def generate_ollama_embedding(text)
-      # Use Ollama's embedding endpoint (default model: nomic-embed-text)
-      provider_config = ProviderConfig.find_by(adapter_type: "ollama", enabled: true)
-      base_url = provider_config&.base_url || "http://localhost:11434"
-
-      response = Faraday.post(
-        "#{base_url}/api/embeddings",
-        { model: "nomic-embed-text", prompt: text }.to_json,
-        { "Content-Type" => "application/json" }
-      )
-
-      if response.success?
-        result = JSON.parse(response.body)
-        embedding = result["embedding"]
-
-        # Pad or truncate to 1536 dimensions to match OpenAI format
-        if embedding.length < 1536
-          embedding + Array.new(1536 - embedding.length, 0.0)
-        else
-          embedding.take(1536)
-        end
-      else
-        Rails.logger.error("Ollama embedding failed: #{response.body}")
-        nil
-      end
-    rescue StandardError => e
-      Rails.logger.error("Ollama embedding error: #{e.message}")
-      nil
     end
   end
 end

@@ -325,6 +325,95 @@ setup_shared_workspace() {
 }
 
 # ----------------------------------------------------------
+# Optional: Semantic memory (Ollama + nomic-embed-text)
+# ----------------------------------------------------------
+setup_memory_embeddings() {
+  local has_ollama=false
+  local has_model=false
+
+  # Detect existing Ollama installation
+  if command -v ollama &>/dev/null; then
+    has_ollama=true
+    # Check if nomic-embed-text is already pulled
+    if ollama list 2>/dev/null | grep -q "nomic-embed-text"; then
+      has_model=true
+    fi
+  fi
+
+  echo ""
+  echo -e "${BOLD}${CYAN}🧠 Semantic Memory${NC}"
+  echo -e "  Hivemind agents can remember conversations and recall them"
+  echo -e "  using semantic search (meaning-based, not just keywords)."
+  echo ""
+
+  if [ "$has_ollama" = true ] && [ "$has_model" = true ]; then
+    ok "Ollama and nomic-embed-text already installed — semantic memory is ready!"
+    echo "MEMORY_EMBEDDINGS_ENABLED=true" >> "$HIVEMIND_DIR/.env"
+    echo "MEMORY_EMBEDDINGS_PROVIDER=ollama" >> "$HIVEMIND_DIR/.env"
+    return
+  elif [ "$has_ollama" = true ]; then
+    echo -e "  ${GREEN}✓${NC} Ollama is already installed."
+    echo -e "  Just need to pull the embedding model (~274MB)."
+  else
+    echo -e "  This requires a local embedding model via ${BOLD}Ollama${NC} (~274MB download, ~500MB RAM)."
+    echo -e "  It runs locally — no API keys, no external calls, fully private."
+  fi
+
+  echo ""
+  echo -e "  ${YELLOW}Without this, agents still remember — but search is keyword-only.${NC}"
+  echo ""
+
+  local enable_embeddings
+  read -rp "$(echo -e "${CYAN}▸${NC}") Enable semantic memory? [Y/n] " enable_embeddings
+  enable_embeddings="${enable_embeddings:-Y}"
+
+  if [[ ! "$enable_embeddings" =~ ^[Yy] ]]; then
+    warn "Skipping semantic memory — agents will use keyword-based recall"
+    echo "MEMORY_EMBEDDINGS_ENABLED=false" >> "$HIVEMIND_DIR/.env"
+    return
+  fi
+
+  # Install Ollama if not present
+  if [ "$has_ollama" = false ]; then
+    info "Installing Ollama..."
+    if [ "$OS" = "mac" ]; then
+      if command -v brew &>/dev/null; then
+        brew install ollama
+      else
+        curl -fsSL https://ollama.com/install.sh | sh
+      fi
+    else
+      curl -fsSL https://ollama.com/install.sh | sh
+    fi
+
+    if ! command -v ollama &>/dev/null; then
+      warn "Ollama installation failed — skipping semantic memory"
+      echo "MEMORY_EMBEDDINGS_ENABLED=false" >> "$HIVEMIND_DIR/.env"
+      return
+    fi
+
+    ok "Ollama installed"
+  fi
+
+  # Start Ollama if not running
+  if ! ollama list &>/dev/null 2>&1; then
+    info "Starting Ollama..."
+    ollama serve &>/dev/null &
+    sleep 3
+  fi
+
+  # Pull the embedding model if not present
+  if [ "$has_model" = false ]; then
+    info "Pulling nomic-embed-text model (~274MB)..."
+    ollama pull nomic-embed-text
+  fi
+
+  ok "Semantic memory ready (Ollama + nomic-embed-text)"
+  echo "MEMORY_EMBEDDINGS_ENABLED=true" >> "$HIVEMIND_DIR/.env"
+  echo "MEMORY_EMBEDDINGS_PROVIDER=ollama" >> "$HIVEMIND_DIR/.env"
+}
+
+# ----------------------------------------------------------
 # Build and start
 # ----------------------------------------------------------
 build_and_start() {
@@ -428,6 +517,7 @@ main() {
   setup_repo
   setup_env
   setup_shared_workspace
+  setup_memory_embeddings
   install_cli
   build_and_start
   print_success
