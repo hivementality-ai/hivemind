@@ -48,6 +48,60 @@ detect_os() {
 }
 
 # ----------------------------------------------------------
+# Install a single package on Linux (helper)
+# ----------------------------------------------------------
+install_linux_package() {
+  local pkg="$1"
+  command -v "$pkg" &>/dev/null && return
+  info "Installing $pkg..."
+  if command -v apt-get &>/dev/null; then
+    sudo apt-get update -qq && sudo apt-get install -y -qq "$pkg"
+  elif command -v dnf &>/dev/null; then
+    sudo dnf install -y -q "$pkg"
+  elif command -v yum &>/dev/null; then
+    sudo yum install -y -q "$pkg"
+  elif command -v pacman &>/dev/null; then
+    sudo pacman -S --noconfirm "$pkg"
+  elif command -v zypper &>/dev/null; then
+    sudo zypper install -y "$pkg"
+  else
+    fail "Cannot install $pkg — no supported package manager found. Install it manually."
+  fi
+  ok "$pkg installed"
+}
+
+# ----------------------------------------------------------
+# Install prerequisites (git, curl, brew, etc.)
+# ----------------------------------------------------------
+install_prerequisites() {
+  if [ "$OS" = "mac" ]; then
+    # Xcode Command Line Tools (provides git, curl, make, etc.)
+    if ! xcode-select -p &>/dev/null; then
+      info "Installing Xcode Command Line Tools (this may take a few minutes)..."
+      xcode-select --install 2>/dev/null || true
+      # Wait for installation to complete
+      until xcode-select -p &>/dev/null; do
+        sleep 5
+      done
+    fi
+    ok "Xcode Command Line Tools installed"
+
+    # Homebrew
+    if ! command -v brew &>/dev/null; then
+      info "Installing Homebrew..."
+      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+      # Add to PATH for this session (Apple Silicon vs Intel)
+      eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv 2>/dev/null)"
+    fi
+    ok "Homebrew available"
+
+  else  # Linux
+    install_linux_package git
+    install_linux_package curl
+  fi
+}
+
+# ----------------------------------------------------------
 # Install Docker if missing
 # ----------------------------------------------------------
 install_docker() {
@@ -65,11 +119,11 @@ install_docker() {
       brew install --cask docker
     else
       echo ""
-      echo -e "${YELLOW}Docker Desktop is required on macOS.${NC}"
-      echo "Install it from: https://docs.docker.com/desktop/install/mac-install/"
+      warn "Homebrew not found — cannot auto-install Docker Desktop."
+      echo -e "  Install it from: ${BOLD}https://docs.docker.com/desktop/install/mac-install/${NC}"
       echo ""
-      echo "After installing, open Docker Desktop and wait for it to start,"
-      echo "then re-run this script."
+      echo "  After installing, open Docker Desktop and wait for it to start,"
+      echo "  then re-run this script."
       exit 1
     fi
 
@@ -115,19 +169,26 @@ install_docker() {
 check_compose() {
   if docker compose version &>/dev/null 2>&1; then
     ok "Docker Compose available: $(docker compose version --short 2>/dev/null || echo 'v2')"
-  else
-    fail "Docker Compose not found. Install Docker Desktop (mac) or docker-compose-plugin (linux)."
+    return
   fi
+
+  # Attempt auto-install on Linux
+  if [ "$OS" = "linux" ]; then
+    info "Docker Compose plugin not found — attempting install..."
+    install_linux_package docker-compose-plugin
+    if docker compose version &>/dev/null 2>&1; then
+      ok "Docker Compose available: $(docker compose version --short 2>/dev/null || echo 'v2')"
+      return
+    fi
+  fi
+
+  fail "Docker Compose not found. Install Docker Desktop (macOS) or docker-compose-plugin (Linux)."
 }
 
 # ----------------------------------------------------------
 # Clone or locate repo
 # ----------------------------------------------------------
 setup_repo() {
-  if ! command -v git &>/dev/null; then
-    fail "git is required. Install it first."
-  fi
-
   # If we're already inside the repo (script run from repo dir)
   if [ -f "./docker-compose.yml" ] && [ -f "./.env.example" ]; then
     HIVEMIND_DIR="$(pwd)"
@@ -361,6 +422,7 @@ print_success() {
 main() {
   header
   detect_os
+  install_prerequisites
   install_docker
   check_compose
   setup_repo
