@@ -1,4 +1,4 @@
-name: CI
+name: System Tests
 
 on:
   pull_request:
@@ -6,24 +6,7 @@ on:
     branches: [ main ]
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          bundler-cache: true
-
-      - name: RuboCop
-        run: bundle exec rubocop
-
-      - name: Brakeman security scan
-        run: bundle exec brakeman --no-pager -i config/brakeman.ignore -q
-
-  test:
+  system-tests:
     runs-on: ubuntu-latest
 
     services:
@@ -68,16 +51,21 @@ jobs:
         with:
           bundler-cache: true
 
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
       - name: Setup database
         run: bin/rails db:prepare
 
-      - name: Run tests
-        run: bundle exec rspec --exclude-pattern "spec/system/**/*_spec.rb"
+      - name: Run system tests
+        run: bundle exec rspec spec/system
 
-      - name: Upload coverage to Codecov
-        if: always()
-        uses: codecov/codecov-action@v5
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage/.resultset.json
-          fail_ci_if_error: false
+          name: system-test-screenshots
+          path: tmp/capybara/
+          retention-days: 7
