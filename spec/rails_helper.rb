@@ -3,8 +3,7 @@
 # Start SimpleCov before anything else
 require 'simplecov'
 SimpleCov.formatters = SimpleCov::Formatter::MultiFormatter.new([
-  SimpleCov::Formatter::HTMLFormatter,
-  SimpleCov::Formatter::JSONFormatter
+  SimpleCov::Formatter::HTMLFormatter
 ])
 SimpleCov.start 'rails' do
   add_filter '/spec/'
