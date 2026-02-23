@@ -20,7 +20,8 @@ class MemoryExtractionJob < ApplicationJob
     - If nothing worth remembering, return []
     - Do NOT extract episodic summaries — just facts and preferences
 
-    Return ONLY the JSON array.
+    IMPORTANT: Return ONLY a raw JSON array. No explanation, no markdown, no text before or after.
+    If nothing is worth remembering, return exactly: []
   PROMPT
 
   def perform(agent_id, user_message, assistant_response)
@@ -73,7 +74,19 @@ class MemoryExtractionJob < ApplicationJob
     return [] unless response.success?
 
     content = response.data[:content].to_s.strip
+
+    # Try to extract JSON array from response (LLM may include extra text)
     json_str = content.gsub(/\A```json?\s*/, "").gsub(/\s*```\z/, "")
+
+    # If the response doesn't start with [, try to find the JSON array in the text
+    unless json_str.start_with?("[")
+      match = json_str.match(/\[.*\]/m)
+      json_str = match[0] if match
+    end
+
+    # Empty array shortcut
+    return [] if json_str.strip == "[]" || !json_str.include?("[")
+
     parsed = JSON.parse(json_str)
 
     return [] unless parsed.is_a?(Array)
