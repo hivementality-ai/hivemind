@@ -220,7 +220,7 @@ class ChatStreamJob < ApplicationJob
 
     memory_context = recall_memories(agent:, session:)
     if memory_context.present?
-      system_prompt += "\n\n## Relevant Memories\n#{memory_context}\n\nUse these memories naturally when relevant. Don't mention you're recalling memories."
+      system_prompt += "\n\n#{memory_context}"
     end
 
     # Inject mood from session metadata
@@ -288,23 +288,11 @@ class ChatStreamJob < ApplicationJob
     query = last_user_msg["content"].to_s
     return nil if query.length < 5
 
-    keywords = query.downcase.split(/\s+/).reject { |w| w.length < 4 }.first(5)
-    return nil if keywords.empty?
-
-    memories = keywords.flat_map do |kw|
-      MemoryEntry.where(agent:)
-                 .where("LOWER(content) LIKE ?", "%#{MemoryEntry.sanitize_sql_like(kw)}%")
-                 .order(created_at: :desc)
-                 .limit(3)
-                 .to_a
-    end
-
-    recent = MemoryEntry.where(agent:).order(created_at: :desc).limit(3).to_a
-    all_memories = (memories + recent).uniq(&:id).first(5)
-
-    return nil if all_memories.empty?
-
-    all_memories.map { |m| "- #{m.content.truncate(200)}" }.join("\n")
+    result = Memory::ContextBuilder.call(agent: agent, query: query)
+    result[:context]
+  rescue StandardError => e
+    Rails.logger.warn("Memory recall failed: #{e.message}")
+    nil
   end
 
   def track_usage(agent:, session:, usage:)
@@ -358,14 +346,22 @@ class ChatStreamJob < ApplicationJob
   end
 
   def store_memory(agent:, session:, user_message:, assistant_response:)
-    return if user_message.length < 20
+    return if user_message.length < 20 && assistant_response.length < 50
 
-    MemoryEntry.create(
+    content = "User asked: #{user_message.truncate(200)}\nAssistant: #{assistant_response.truncate(500)}"
+
+    entry = MemoryEntry.create(
       agent:,
-      content: "User asked: #{user_message.truncate(200)}\nAssistant: #{assistant_response.truncate(300)}",
+      content:,
       source: session,
+      memory_type: "episodic",
       metadata: { session_id: session.id, stored_at: Time.current.iso8601 }
     )
+
+    if entry.persisted?
+      MemoryEmbeddingJob.perform_later(entry.id)
+      MemoryExtractionJob.perform_later(agent.id, user_message, assistant_response)
+    end
   rescue StandardError => e
     Rails.logger.warn("Memory store failed: #{e.message}")
   end

@@ -21,6 +21,10 @@ RSpec.describe ChatStreamJob, type: :job do
     allow(Providers::Resolver).to receive(:call).and_return(resolver_result)
     allow(Agents::ContextManager).to receive(:new).and_return(context_manager)
     allow(CostEstimator).to receive(:estimate).and_return(5)
+
+    # Stub memory system (avoids Ollama HTTP calls)
+    allow(Memory::ContextBuilder).to receive(:call).and_return({ context: nil, entries: [] })
+    allow(Memory::Embedding).to receive(:generate).and_return(nil)
   end
 
   describe "#perform" do
