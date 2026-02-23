@@ -73,3 +73,10 @@ jobs:
 
       - name: Run tests
         run: bundle exec rspec
+
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage/.resultset.json
+          fail_ci_if_error: false
