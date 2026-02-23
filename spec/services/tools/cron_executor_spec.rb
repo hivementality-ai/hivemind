@@ -228,14 +228,7 @@ RSpec.describe Tools::CronExecutor, type: :service do
       end
 
       it "executes a task with valid job class" do
-        # Create a mock job class
-        stub_const("TestExecutableJob", Class.new do
-          def self.perform_now(**params)
-            # Mock job execution
-          end
-        end)
-
-        task = create(:scheduled_task, agent: agent, job_class: "TestExecutableJob")
+        task = create(:scheduled_task, agent: agent, job_class: "ScheduledAgentJob")
         input = { "action" => "run", "task_id" => task.id.to_s }
         executor = described_class.new(agent: agent, input: input)
         response = executor.call
@@ -251,7 +244,7 @@ RSpec.describe Tools::CronExecutor, type: :service do
         response = executor.call
 
         expect(response.success?).to be false
-        expect(response.error).to include("Job class not found")
+        expect(response.error).to include("Unknown or disallowed job class")
       end
     end
 

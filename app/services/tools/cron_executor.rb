@@ -124,7 +124,7 @@ module Tools
         job_class = resolve_job_class(task.job_class)
         return ServiceResponse.failure(error: "Unknown or disallowed job class: #{task.job_class}") unless job_class
 
-        job_class.perform_now(**(task.job_params || {}))
+        job_class.perform_now(task.id, **(task.job_params || {}))
 
         ServiceResponse.success(data: {
           output: "Executed #{task.name} ✅",

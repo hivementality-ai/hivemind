@@ -16,8 +16,13 @@ module Memory
     def call
       return ServiceResponse.failure(error: "Query cannot be blank") if @query.blank?
 
-      query_embedding = generate_embedding(@query)
-      return ServiceResponse.failure(error: "Failed to generate query embedding") unless query_embedding
+      query_embedding = Memory::Embedding.generate(@query)
+
+      # Fall back to keyword search if embedding generation fails
+      unless query_embedding
+        results = keyword_fallback
+        return ServiceResponse.success(data: { query: @query, results: format_results(results), count: results.length })
+      end
 
       results = MemoryEntry.search_with_threshold(
         embedding: query_embedding,
@@ -26,23 +31,10 @@ module Memory
         limit: @limit
       )
 
-      # Enrich results with similarity scores
-      enriched_results = results.map do |entry|
-        {
-          id: entry.id,
-          content: entry.content,
-          similarity: (1 - entry.neighbor_distance).round(4),
-          source_type: entry.source_type,
-          source_id: entry.source_id,
-          metadata: entry.metadata,
-          created_at: entry.created_at
-        }
-      end
-
       ServiceResponse.success(data: {
         query: @query,
-        results: enriched_results,
-        count: enriched_results.length
+        results: format_results(results),
+        count: results.length
       })
     rescue StandardError => e
       ServiceResponse.failure(error: "Memory search failed: #{e.message}")
@@ -50,79 +42,37 @@ module Memory
 
     private
 
-    def generate_embedding(text)
-      # Reuse the same logic from Memory::Store
-      # In production, this could be extracted to a shared service
-      provider = @agent.model_provider || "openai"
+    def format_results(entries)
+      entries.map do |entry|
+        similarity = entry.respond_to?(:neighbor_distance) && entry.neighbor_distance
+          ? (1 - entry.neighbor_distance).round(4)
+          : nil
 
-      case provider
-      when "openai"
-        generate_openai_embedding(text)
-      when "anthropic"
-        generate_openai_embedding(text)
-      when "ollama"
-        generate_ollama_embedding(text)
-      else
-        generate_openai_embedding(text)
-      end
-    end
-
-    def generate_openai_embedding(text)
-      vault_entry = VaultEntry.find_by(
-        namespace: "provider_credentials",
-        key: "openai_api_key"
-      )
-
-      return nil unless vault_entry
-
-      api_key = vault_entry.encrypted_value
-
-      response = Faraday.post(
-        "https://api.openai.com/v1/embeddings",
-        { model: "text-embedding-3-small", input: text }.to_json,
         {
-          "Authorization" => "Bearer #{api_key}",
-          "Content-Type" => "application/json"
+          id: entry.id,
+          content: entry.content,
+          similarity: similarity,
+          source_type: entry.source_type,
+          source_id: entry.source_id,
+          metadata: entry.metadata,
+          created_at: entry.created_at
         }
-      )
-
-      if response.success?
-        result = JSON.parse(response.body)
-        result.dig("data", 0, "embedding")
-      else
-        nil
       end
-    rescue StandardError => e
-      Rails.logger.error("OpenAI embedding error: #{e.message}")
-      nil
     end
 
-    def generate_ollama_embedding(text)
-      provider_config = ProviderConfig.find_by(adapter_type: "ollama", enabled: true)
-      base_url = provider_config&.base_url || "http://localhost:11434"
+    # ILIKE fallback when embedding generation is unavailable
+    def keyword_fallback
+      keywords = @query.downcase.split(/\s+/).reject { |w| w.length < 3 }.first(5)
 
-      response = Faraday.post(
-        "#{base_url}/api/embeddings",
-        { model: "nomic-embed-text", prompt: text }.to_json,
-        { "Content-Type" => "application/json" }
-      )
+      scope = MemoryEntry.where(agent: @agent)
 
-      if response.success?
-        result = JSON.parse(response.body)
-        embedding = result["embedding"]
-
-        # Pad or truncate to 1536 dimensions
-        if embedding.length < 1536
-          embedding + Array.new(1536 - embedding.length, 0.0)
-        else
-          embedding.take(1536)
-        end
+      if keywords.any?
+        conditions = keywords.map { "LOWER(content) LIKE ?" }
+        values = keywords.map { |kw| "%#{MemoryEntry.sanitize_sql_like(kw)}%" }
+        scope.where(conditions.join(" OR "), *values)
       else
-        nil
-      end
-    rescue StandardError => e
-      Rails.logger.error("Ollama embedding error: #{e.message}")
-      nil
+        scope
+      end.order(created_at: :desc).limit(@limit)
     end
   end
 end

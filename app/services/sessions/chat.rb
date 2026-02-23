@@ -76,26 +76,36 @@ module Sessions
     # ----- Memory Recall -----
 
     def recall_memories(agent:, query:)
-      entries = MemoryEntry.where(agent:)
-                           .where("content ILIKE ?", "%#{sanitize_query(query)}%")
-                           .order(created_at: :desc)
-                           .limit(5)
+      query_embedding = Memory::Embedding.generate(query)
+
+      if query_embedding
+        # Semantic search via pgvector
+        semantic = MemoryEntry.where(agent: agent)
+                              .nearest_neighbors(:embedding, query_embedding, distance: "cosine")
+                              .limit(5)
+      else
+        # Keyword fallback if embedding generation fails
+        keywords = query.downcase.gsub(/[^a-z0-9\s]/, "").split.reject { |w| w.length < 4 }.first(3)
+        semantic = if keywords.any?
+                     conditions = keywords.map { "LOWER(content) LIKE ?" }
+                     values = keywords.map { |kw| "%#{MemoryEntry.sanitize_sql_like(kw)}%" }
+                     MemoryEntry.where(agent: agent).where(conditions.join(" OR "), *values)
+                                .order(created_at: :desc).limit(5)
+                   else
+                     MemoryEntry.none
+                   end
+      end
 
       # Also grab the most recent memories regardless of relevance
-      recent = MemoryEntry.where(agent:)
+      recent = MemoryEntry.where(agent: agent)
                           .order(created_at: :desc)
                           .limit(3)
 
       # Combine, dedupe, limit
-      (entries + recent).uniq(&:id).first(5)
+      (semantic.to_a + recent.to_a).uniq(&:id).first(5)
     rescue StandardError => e
       Rails.logger.warn("[Sessions::Chat] Memory recall failed: #{e.message}")
       []
-    end
-
-    def sanitize_query(query)
-      # Extract key terms for ILIKE search (simple keyword extraction)
-      query.gsub(/[^a-zA-Z0-9\s]/, "").split.reject { |w| w.length < 4 }.first(3).join("%")
     end
 
     # ----- Memory Storage -----
@@ -106,10 +116,10 @@ module Sessions
 
       content = "User asked: #{user_message.truncate(200)}\nAgent responded: #{assistant_response.truncate(500)}"
 
-      MemoryEntry.create(
+      # Create entry without embedding; async job will generate it
+      entry = MemoryEntry.create(
         agent:,
         content:,
-        embedding: [], # Empty until pgvector/embeddings are wired
         source: @session,
         metadata: {
           session_id: @session.id,
@@ -117,6 +127,8 @@ module Sessions
           stored_at: Time.current.iso8601
         }
       )
+
+      MemoryEmbeddingJob.perform_later(entry.id) if entry.persisted?
     rescue StandardError => e
       Rails.logger.warn("[Sessions::Chat] Memory storage failed: #{e.message}")
     end
