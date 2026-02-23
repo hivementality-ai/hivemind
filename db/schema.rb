@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_19_162653) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_20_210203) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -279,6 +279,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_19_162653) do
     t.index ["status"], name: "index_device_pairings_on_status"
   end
 
+  create_table "heartbeat_runs", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.datetime "created_at", null: false
+    t.integer "duration_ms"
+    t.integer "input_tokens", default: 0
+    t.jsonb "metadata", default: {}
+    t.string "model"
+    t.integer "output_tokens", default: 0
+    t.bigint "session_id"
+    t.string "status", default: "ok", null: false
+    t.text "summary"
+    t.datetime "updated_at", null: false
+    t.index ["agent_id"], name: "index_heartbeat_runs_on_agent_id"
+    t.index ["created_at"], name: "index_heartbeat_runs_on_created_at"
+    t.index ["session_id"], name: "index_heartbeat_runs_on_session_id"
+    t.index ["status"], name: "index_heartbeat_runs_on_status"
+  end
+
   create_table "inbound_messages", force: :cascade do |t|
     t.bigint "channel_id", null: false
     t.text "content"
@@ -358,6 +376,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_19_162653) do
     t.bigint "input_tokens"
     t.datetime "last_activity_at"
     t.jsonb "metadata"
+    t.bigint "origin_channel_id"
+    t.string "origin_channel_type"
+    t.string "origin_sender"
     t.bigint "output_tokens"
     t.string "session_key"
     t.integer "status"
@@ -369,6 +390,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_19_162653) do
     t.index ["agent_id", "status"], name: "index_sessions_on_agent_id_and_status"
     t.index ["agent_id"], name: "index_sessions_on_agent_id"
     t.index ["last_activity_at"], name: "index_sessions_on_last_activity_at"
+    t.index ["origin_channel_type", "origin_sender"], name: "index_sessions_on_origin_channel_type_and_origin_sender"
+    t.index ["origin_channel_type"], name: "index_sessions_on_origin_channel_type"
     t.index ["session_key"], name: "index_sessions_on_session_key", unique: true
     t.index ["team_chat_session_id"], name: "index_sessions_on_team_chat_session_id"
   end
@@ -588,6 +611,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_19_162653) do
   add_foreign_key "chat_attachments", "sessions"
   add_foreign_key "coding_agent_tasks", "agents"
   add_foreign_key "coding_agent_tasks", "sessions"
+  add_foreign_key "heartbeat_runs", "agents"
+  add_foreign_key "heartbeat_runs", "sessions"
   add_foreign_key "inbound_messages", "channels"
   add_foreign_key "memory_entries", "agents"
   add_foreign_key "outbound_messages", "channels"
