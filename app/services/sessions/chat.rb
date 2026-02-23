@@ -25,11 +25,11 @@ module Sessions
 
       adapter = resolver.data[:adapter]
 
-      # 3. Recall relevant memories
-      memories = recall_memories(agent:, query: @message)
+      # 3. Build memory context (preferences + relevant + recent)
+      memory_result = Memory::ContextBuilder.call(agent:, query: @message)
 
-      # 4. Build messages array from transcript + memories
-      messages = build_messages(agent:, memories:)
+      # 4. Build messages array from transcript + memory context
+      messages = build_messages(agent:, memory_context: memory_result[:context])
 
       # 5. Call the LLM
       options = { model: agent.llm_model }
@@ -62,10 +62,13 @@ module Sessions
       # 8. Record usage for budgets/analytics
       record_usage(agent:, input_tokens:, output_tokens:)
 
-      # 9. Auto-store memory from this exchange (async-friendly)
+      # 9. Auto-store raw memory from this exchange
       store_memory(agent:, user_message: @message, assistant_response: content)
 
-      # 10. Trigger consolidation for longer sessions (every 20 turns)
+      # 10. Extract facts/preferences in background (real-time learning)
+      MemoryExtractionJob.perform_later(agent.id, @message, content)
+
+      # 11. Trigger consolidation for longer sessions (every 20 turns)
       maybe_consolidate
 
       ServiceResponse.success(data: { content:, usage: })
@@ -75,41 +78,6 @@ module Sessions
     end
 
     private
-
-    # ----- Memory Recall -----
-
-    def recall_memories(agent:, query:)
-      query_embedding = Memory::Embedding.generate(query)
-
-      if query_embedding
-        # Semantic search via pgvector
-        semantic = MemoryEntry.where(agent: agent)
-                              .nearest_neighbors(:embedding, query_embedding, distance: "cosine")
-                              .limit(5)
-      else
-        # Keyword fallback if embedding generation fails
-        keywords = query.downcase.gsub(/[^a-z0-9\s]/, "").split.reject { |w| w.length < 4 }.first(3)
-        semantic = if keywords.any?
-                     conditions = keywords.map { "LOWER(content) LIKE ?" }
-                     values = keywords.map { |kw| "%#{MemoryEntry.sanitize_sql_like(kw)}%" }
-                     MemoryEntry.where(agent: agent).where(conditions.join(" OR "), *values)
-                                .order(created_at: :desc).limit(5)
-                   else
-                     MemoryEntry.none
-                   end
-      end
-
-      # Also grab the most recent memories regardless of relevance
-      recent = MemoryEntry.where(agent: agent)
-                          .order(created_at: :desc)
-                          .limit(3)
-
-      # Combine, dedupe, limit
-      (semantic.to_a + recent.to_a).uniq(&:id).first(5)
-    rescue StandardError => e
-      Rails.logger.warn("[Sessions::Chat] Memory recall failed: #{e.message}")
-      []
-    end
 
     # ----- Memory Storage -----
 
@@ -138,11 +106,11 @@ module Sessions
 
     # ----- Message Building -----
 
-    def build_messages(agent:, memories: [])
+    def build_messages(agent:, memory_context: nil)
       messages = []
 
       # System prompt with memory context
-      system_content = build_system_prompt(agent:, memories:)
+      system_content = build_system_prompt(agent:, memory_context:)
       messages << { role: "system", content: system_content } if system_content.present?
 
       # Conversation history from transcript (last 50 messages to stay within context)
@@ -154,23 +122,14 @@ module Sessions
       messages
     end
 
-    def build_system_prompt(agent:, memories: [])
+    def build_system_prompt(agent:, memory_context: nil)
       parts = []
 
       # Core identity / soul
       parts << agent.full_system_prompt if agent.full_system_prompt.present?
 
-      # Inject relevant memories
-      if memories.any?
-        memory_text = memories.map { |m| "- #{m.content}" }.join("\n")
-        parts << <<~MEMORY
-          ## Your Memories
-          You have the following relevant memories from past interactions:
-          #{memory_text}
-
-          Use these memories naturally in conversation when relevant. Don't mention that you're "recalling memories" — just use the knowledge.
-        MEMORY
-      end
+      # Inject memory context (built by Memory::ContextBuilder)
+      parts << memory_context if memory_context.present?
 
       parts.join("\n\n")
     end
