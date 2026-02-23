@@ -466,6 +466,22 @@ Platform-agnostic commands that work in any chat context — web, team chat, or 
 
 Hashtag actions that bypass the LLM (like `#status`, `#help`) respond instantly without consuming tokens.
 
+### Agent Memory
+
+Agents remember conversations and can recall past interactions using `#remember`, `#search`, and `#forget`. Memory is stored per-agent in PostgreSQL.
+
+For **semantic memory** (meaning-based recall, not just keyword matching), Hivemind needs an embedding model to generate vector representations of memories. The install script will offer to set this up for you using [Ollama](https://ollama.com) + `nomic-embed-text` — a lightweight, free, fully local model (~274MB, ~500MB RAM). No API keys or external services required.
+
+If you prefer, you can use OpenAI's embedding API instead — add your API key under **Settings → Integrations**.
+
+Without an embedding model, agents still save and recall memories using keyword search. Semantic search is optional but recommended.
+
+| Config | Default | Description |
+|--------|---------|-------------|
+| `MEMORY_EMBEDDINGS_ENABLED` | `true` | Enable/disable embedding generation |
+| `MEMORY_EMBEDDINGS_PROVIDER` | `ollama` | `ollama` or `openai` |
+| `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` | Ollama API endpoint |
+
 ### Authentication
 
 Hivemind supports two authentication methods:
