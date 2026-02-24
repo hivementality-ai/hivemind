@@ -48,6 +48,7 @@ class SessionsController < ApplicationController
     @agent = @session.agent
     @messages = @session.transcript || []
     @attachments = @session.chat_attachments.includes(file_attachment: :blob).index_by(&:message_index)
+    @processing = Redis.current.get("session_processing:#{@session.id}") == "1"
   end
 
   # POST /sessions/:id/message — send a message (async via Sidekiq + ActionCable)

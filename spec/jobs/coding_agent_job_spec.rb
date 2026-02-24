@@ -51,14 +51,14 @@ RSpec.describe CodingAgentJob, type: :job do
         cmd = job.send(:build_cli_command, "claude", "Fix bug", "claude-3-5-sonnet")
         expect(cmd).to include("claude")
         expect(cmd).to include("--dangerously-skip-permissions")
-        expect(cmd).to include("Fix bug")
+        expect(cmd).to include("Fix\\ bug")
         expect(cmd).to include("--model claude-3-5-sonnet")
       end
 
       it "builds codex command" do
         cmd = job.send(:build_cli_command, "codex", "Fix bug", nil)
         expect(cmd).to include("codex exec --full-auto")
-        expect(cmd).to include("Fix bug")
+        expect(cmd).to include("Fix\\ bug")
       end
 
       it "builds aider command" do
