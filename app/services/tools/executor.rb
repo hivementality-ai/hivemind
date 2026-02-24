@@ -15,6 +15,7 @@ module Tools
       "image" => Tools::ImageExecutor,
       "image_generate" => Tools::ImageGenerateExecutor,
       "cron" => Tools::CronExecutor,
+      "cron_script" => Tools::CronScriptExecutor,
       "message" => Tools::MessageExecutor,
       "heartbeat_write" => Tools::HeartbeatWriteExecutor,
       "delegate" => Tools::DelegateExecutor,
