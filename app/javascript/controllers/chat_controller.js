@@ -285,7 +285,8 @@ export default class extends Controller {
       case "processing":
         if (data.active) {
           this.streaming = true
-          this.showWorking()
+          // Don't show working indicator here — let thinking bubble handle initial state.
+          // Working indicator is shown by tool_start when tool calls are hidden.
         } else {
           this.hideWorking()
           this.streaming = false
