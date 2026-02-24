@@ -77,7 +77,8 @@ feat: markdown rendering in chat messages
 
 ## Code Style
 
-- **Ruby:** Follow Rails conventions. Use service objects for business logic.
+- **Ruby:** Follow Rails conventions. Use service objects for business logic. See [Rails Best Practices](docs/rails_best_practices.md).
+- **Testing:** See [RSpec Best Practices](docs/rspec_best_practices.md).
 - **JavaScript:** Stimulus controllers. Keep them focused.
 - **CSS:** Tailwind utility classes. Custom CSS in `application.css` only when needed.
 - **Views:** ERB templates. Keep logic minimal — use helpers and partials.
