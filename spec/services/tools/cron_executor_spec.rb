@@ -57,12 +57,8 @@ RSpec.describe Tools::CronExecutor, type: :service do
         response = executor.call
 
         expect(response.success?).to be true
-        expect(response.data[:status]).to eq("pending_confirmation")
-        expect(response.data[:confirmation_id]).to be_present
-        expect(response.data[:explanation]).to include(
-          frequency: "Every Monday at 09:00",
-          agent: "TestAgent"
-        )
+        expect(response.data[:output]).to include("NOT saved yet")
+        expect(response.data[:output]).to include("confirm_create")
       end
 
       it "validates name is required" do
@@ -124,7 +120,7 @@ RSpec.describe Tools::CronExecutor, type: :service do
         response = executor.call
 
         expect(response.success?).to be true
-        expect(response.data[:status]).to eq("pending_confirmation")
+        expect(response.data[:output]).to include("NOT saved yet")
       end
     end
 

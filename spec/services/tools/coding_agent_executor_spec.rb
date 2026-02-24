@@ -107,31 +107,28 @@ RSpec.describe Tools::CodingAgentExecutor do
         expect(CodingAgentTask.count).to eq(0)
       end
 
-      it "rejects task with shell metacharacters" do
+      it "accepts task with backticks (escaped via Shellwords)" do
         input["task"] = "Add authentication `rm -rf /`"
 
         result = subject.call
-        expect(result).not_to be_success
-        expect(result.error).to eq("Task contains invalid characters")
-        expect(CodingAgentTask.count).to eq(0)
+        expect(result).to be_success
+        expect(CodingAgentTask.count).to eq(1)
       end
 
-      it "rejects task with single quotes" do
+      it "accepts task with single quotes (escaped via Shellwords)" do
         input["task"] = "Add authentication with 'Devise'"
 
         result = subject.call
-        expect(result).not_to be_success
-        expect(result.error).to eq("Task contains invalid characters")
-        expect(CodingAgentTask.count).to eq(0)
+        expect(result).to be_success
+        expect(CodingAgentTask.count).to eq(1)
       end
 
-      it "rejects task with dollar signs" do
+      it "accepts task with dollar signs (escaped via Shellwords)" do
         input["task"] = "Add $USER authentication"
 
         result = subject.call
-        expect(result).not_to be_success
-        expect(result.error).to eq("Task contains invalid characters")
-        expect(CodingAgentTask.count).to eq(0)
+        expect(result).to be_success
+        expect(CodingAgentTask.count).to eq(1)
       end
     end
 
