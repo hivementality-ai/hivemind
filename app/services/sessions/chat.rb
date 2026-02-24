@@ -111,13 +111,12 @@ module Sessions
     def build_messages(agent:, memory_context: nil)
       messages = []
 
-      # System prompt — split into cacheable blocks for prompt caching
-      core_prompt = agent.full_system_prompt.presence
-      system_blocks = []
-      system_blocks << { type: "text", text: core_prompt } if core_prompt.present?
+      # System prompt — structured as cacheable blocks
+      agent_obj = @session.agent
+      system_blocks = agent_obj.respond_to?(:system_prompt_blocks) ? agent_obj.system_prompt_blocks : [{ type: "text", text: agent_obj.full_system_prompt.presence || "You are #{agent_obj.name}" }]
+
       system_blocks << { type: "text", text: memory_context } if memory_context.present?
 
-      # Inject conversation summary for compressed older context
       if @session.conversation_summary.present?
         system_blocks << { type: "text", text: "## Conversation So Far\n#{@session.conversation_summary}" }
       end

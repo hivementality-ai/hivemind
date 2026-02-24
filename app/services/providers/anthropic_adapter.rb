@@ -150,7 +150,10 @@ module Providers
           current_block_type = nil
         when "message_start"
           if event.message.respond_to?(:usage) && event.message.usage
-            usage[:input_tokens] = event.message.usage.input_tokens
+            u = event.message.usage
+            usage[:input_tokens] = u.input_tokens
+            usage[:cache_creation_input_tokens] = u.respond_to?(:cache_creation_input_tokens) ? u.cache_creation_input_tokens : nil
+            usage[:cache_read_input_tokens] = u.respond_to?(:cache_read_input_tokens) ? u.cache_read_input_tokens : nil
           end
         when "message_delta"
           if event.respond_to?(:usage) && event.usage
@@ -184,7 +187,9 @@ module Providers
 
       usage = {
         input_tokens: response.usage&.input_tokens,
-        output_tokens: response.usage&.output_tokens
+        output_tokens: response.usage&.output_tokens,
+        cache_creation_input_tokens: response.usage&.respond_to?(:cache_creation_input_tokens) ? response.usage.cache_creation_input_tokens : nil,
+        cache_read_input_tokens: response.usage&.respond_to?(:cache_read_input_tokens) ? response.usage.cache_read_input_tokens : nil
       }
 
       tool_calls = nil if tool_calls.empty?

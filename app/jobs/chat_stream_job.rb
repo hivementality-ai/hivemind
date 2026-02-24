@@ -193,6 +193,7 @@ class ChatStreamJob < ApplicationJob
 
       # Track usage
       usage = result&.data&.dig(:usage) || {}
+      Rails.logger.info("[ChatStreamJob] Usage: in=#{usage[:input_tokens]} out=#{usage[:output_tokens]} cache_create=#{usage[:cache_creation_input_tokens]} cache_read=#{usage[:cache_read_input_tokens]}")
       track_usage(agent:, session:, usage:)
 
       # Store memory
@@ -266,10 +267,13 @@ class ChatStreamJob < ApplicationJob
   def build_messages(session:, agent:, current_images: [], prompt_addons: [])
     messages = []
 
-    # System prompt — split into cacheable blocks for prompt caching
-    core_prompt = agent.full_system_prompt.presence || "You are #{agent.name}, a helpful AI assistant."
+    # System prompt — structured as cacheable blocks
+    # Block 1: core identity + role (very stable)
+    # Block 2: skills (stable, often the biggest chunk)
+    # Block 3: memory + context (semi-stable, changes across sessions)
+    system_blocks = agent.respond_to?(:system_prompt_blocks) ? agent.system_prompt_blocks : [{ type: "text", text: agent.full_system_prompt.presence || "You are #{agent.name}, a helpful AI assistant." }]
 
-    # Dynamic context (memory, mood, addons) — changes more often but still cacheable
+    # Dynamic context block (memory, mood, addons, summary)
     dynamic_parts = []
     memory_context = recall_memories(agent:, session:)
     dynamic_parts << memory_context if memory_context.present?
@@ -280,13 +284,10 @@ class ChatStreamJob < ApplicationJob
 
     prompt_addons.each { |addon| dynamic_parts << addon }
 
-    # Inject conversation summary if available (compressed older context)
     if session.conversation_summary.present?
       dynamic_parts << "## Conversation So Far\n#{session.conversation_summary}"
     end
 
-    # Build system content as array of blocks for prompt caching
-    system_blocks = [{ type: "text", text: core_prompt }]
     if dynamic_parts.any?
       system_blocks << { type: "text", text: dynamic_parts.join("\n\n") }
     end
