@@ -540,6 +540,7 @@ export default class extends Controller {
   }
 
   showThinking() {
+    this.hideWorking()
     if (this.hasThinkingTarget) {
       this.thinkingTarget.classList.remove("hidden")
       this.scrollToBottom()
@@ -553,6 +554,7 @@ export default class extends Controller {
   }
 
   showWorking() {
+    this.hideThinking()
     if (this.hasWorkingTarget) {
       this.workingTarget.classList.remove("hidden")
       this.scrollToBottom()
