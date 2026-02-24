@@ -31,6 +31,9 @@ abort("FATAL: Refusing to run specs in #{Rails.env} mode! Tests MUST run in the 
 require 'rspec/rails'
 require 'shoulda/matchers'
 require 'webmock/rspec'
+
+# Allow localhost connections for Capybara system specs (browser <-> server)
+WebMock.disable_net_connect!(allow_localhost: true)
 require 'factory_bot_rails'
 
 # Load support files

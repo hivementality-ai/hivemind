@@ -10,6 +10,6 @@ class AddMemoryTypeAndImportanceToMemoryEntries < ActiveRecord::Migration[8.0]
     add_index :memory_entries, :memory_type
     add_index :memory_entries, :importance
     add_index :memory_entries, :consolidated
-    add_index :memory_entries, [:agent_id, :memory_type]
+    add_index :memory_entries, [ :agent_id, :memory_type ]
   end
 end

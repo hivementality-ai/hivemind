@@ -16,9 +16,9 @@ module Tools
           time = mem.created_at.strftime("%Y-%m-%d %H:%M")
           similarity = if mem.respond_to?(:neighbor_distance) && mem.neighbor_distance
                         " (#{((1 - mem.neighbor_distance) * 100).round(1)}% match)"
-                      else
+          else
                         ""
-                      end
+          end
           "#{i + 1}. [#{time}]#{similarity} #{mem.content.truncate(500)}"
         end.join("\n\n")
 

@@ -34,7 +34,7 @@ module Memory
             existing.update!(
               content: @content,
               metadata: existing.metadata.merge(@metadata),
-              importance: [@importance, existing.importance].max
+              importance: [ @importance, existing.importance ].max
             )
             return ServiceResponse.success(data: { memory_entry: existing, merged: true })
           end

@@ -25,7 +25,7 @@ class MemoryEmbeddingJob < ApplicationJob
       duplicate.update!(
         content: entry.content,
         metadata: duplicate.metadata.merge(entry.metadata),
-        importance: [entry.importance, duplicate.importance].max
+        importance: [ entry.importance, duplicate.importance ].max
       )
       entry.destroy!
     else
