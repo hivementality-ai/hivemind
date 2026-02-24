@@ -662,6 +662,10 @@ export default class extends Controller {
     this.hideAgentThinking()
     this.finishStreamBubble()
 
+    // Unlock the input so user can respond
+    this.streaming = false
+    this.sendBtnTarget.disabled = false
+
     const html = `
       <div class="flex justify-start">
         <div class="max-w-2xl">
