@@ -369,7 +369,8 @@ class ChatStreamJob < ApplicationJob
       llm_model: agent.llm_model,
       input_tokens:,
       output_tokens:,
-      cost_cents: cost
+      cost_cents: cost,
+      request_payload: usage[:request_payload]
     )
   end
 

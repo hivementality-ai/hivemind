@@ -126,6 +126,7 @@ module Providers
       full_thinking = +""
       current_block_type = nil
       usage = {}
+      usage[:request_payload] = sanitize_payload_for_logging(params)
 
       params[:request_options] = oauth_request_options if oauth_token?
       stream = client.messages.stream(**params)
@@ -189,12 +190,53 @@ module Providers
         input_tokens: response.usage&.input_tokens,
         output_tokens: response.usage&.output_tokens,
         cache_creation_input_tokens: response.usage&.respond_to?(:cache_creation_input_tokens) ? response.usage.cache_creation_input_tokens : nil,
-        cache_read_input_tokens: response.usage&.respond_to?(:cache_read_input_tokens) ? response.usage.cache_read_input_tokens : nil
+        cache_read_input_tokens: response.usage&.respond_to?(:cache_read_input_tokens) ? response.usage.cache_read_input_tokens : nil,
+        request_payload: sanitize_payload_for_logging(params)
       }
 
       tool_calls = nil if tool_calls.empty?
 
       ServiceResponse.success(data: { content:, thinking:, tool_calls:, usage: })
+    end
+
+    # Capture the request payload for debugging, truncating large content
+    def sanitize_payload_for_logging(params)
+      payload = params.deep_dup
+      # Truncate message content to keep storage reasonable
+      if payload[:messages].is_a?(Array)
+        payload[:messages] = payload[:messages].map do |msg|
+          msg = msg.dup
+          if msg[:content].is_a?(String) && msg[:content].length > 500
+            msg[:content] = msg[:content][0..500] + "... [truncated #{msg[:content].length} chars]"
+          elsif msg[:content].is_a?(Array)
+            msg[:content] = msg[:content].map do |block|
+              block = block.dup
+              if block[:text].is_a?(String) && block[:text].length > 500
+                block[:text] = block[:text][0..500] + "... [truncated #{block[:text].length} chars]"
+              end
+              block
+            end
+          end
+          msg
+        end
+      end
+      # Truncate system blocks too
+      if payload[:system].is_a?(Array)
+        payload[:system] = payload[:system].map do |block|
+          block = block.dup
+          if block[:text].is_a?(String) && block[:text].length > 500
+            block[:text] = block[:text][0..500] + "... [truncated #{block[:text].length} chars]"
+          end
+          block
+        end
+      elsif payload[:system].is_a?(String) && payload[:system].length > 500
+        payload[:system] = payload[:system][0..500] + "... [truncated #{payload[:system].length} chars]"
+      end
+      # Strip tools schema (verbose, not useful for prompt debugging)
+      payload[:tools] = payload[:tools]&.map { |t| { name: t[:name] } } if payload[:tools]
+      payload.except(:request_options)
+    rescue StandardError => e
+      { error: "Failed to capture payload: #{e.message}" }
     end
   end
 end
