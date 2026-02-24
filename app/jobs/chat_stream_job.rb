@@ -257,7 +257,7 @@ class ChatStreamJob < ApplicationJob
     Tool.enabled.builtin.to_a
   end
 
-  TRANSCRIPT_CHAR_BUDGET = 20_000 # ~5K tokens — prevents runaway context from long sessions
+  TRANSCRIPT_CHAR_BUDGET = 8_000 # ~2K tokens — keeps context tight, prevents runaway input costs
 
   def build_messages(session:, agent:, current_images: [], prompt_addons: [])
     messages = []

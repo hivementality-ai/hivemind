@@ -106,7 +106,7 @@ module Sessions
 
     # ----- Message Building -----
 
-    TRANSCRIPT_CHAR_BUDGET = 20_000 # ~5K tokens
+    TRANSCRIPT_CHAR_BUDGET = 8_000 # ~2K tokens
 
     def build_messages(agent:, memory_context: nil)
       messages = []
