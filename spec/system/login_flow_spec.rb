@@ -16,8 +16,8 @@ RSpec.describe "Login flow", type: :system do
 
     expect(page).to have_content("Sign in to Hivemind")
 
-    fill_in "Email", with: "tester@hivemind.dev"
-    fill_in "Password", with: "Password1!"
+    fill_in "user_email", with: "tester@hivemind.dev"
+    fill_in "user_password", with: "Password1!"
     click_button "Sign in"
 
     expect(page).to have_content("Mission Control")
@@ -26,8 +26,8 @@ RSpec.describe "Login flow", type: :system do
   it "rejects invalid credentials and stays on login" do
     visit root_path
 
-    fill_in "Email", with: "tester@hivemind.dev"
-    fill_in "Password", with: "wrongpassword"
+    fill_in "user_email", with: "tester@hivemind.dev"
+    fill_in "user_password", with: "wrongpassword"
     click_button "Sign in"
 
     expect(page).to have_content("Sign in to Hivemind")
