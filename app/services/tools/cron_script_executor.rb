@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "open3"
+require "shellwords"
 require "timeout"
 
 module Tools
@@ -196,7 +197,7 @@ module Tools
       BASH
 
       IO.popen(
-        [ "docker", "exec", "-i", WORKSPACE_CONTAINER, "bash", "-c", "cat > #{exec_script_path} && chmod 755 #{exec_script_path}" ],
+        [ "docker", "exec", "-i", WORKSPACE_CONTAINER, "bash", "-c", "cat > #{Shellwords.shellescape(exec_script_path)} && chmod 755 #{Shellwords.shellescape(exec_script_path)}" ],
         "w"
       ) { |io| io.write(script_content) }
 
@@ -206,7 +207,7 @@ module Tools
         stdout, _stderr, status = Open3.capture3(
           "docker", "exec", WORKSPACE_CONTAINER,
           "bash", "-c",
-          "#{exec_script_path} 2>&1; echo \"__HIVEMIND_EXIT__$?\""
+          "#{Shellwords.shellescape(exec_script_path)} 2>&1; echo \"__HIVEMIND_EXIT__$?\""
         )
       end
 
@@ -222,7 +223,7 @@ module Tools
       # Cleanup
       Open3.capture3(
         "docker", "exec", WORKSPACE_CONTAINER,
-        "bash", "-c", "rm -f #{exec_script_path}"
+        "bash", "-c", "rm -f #{Shellwords.shellescape(exec_script_path)}"
       ) rescue nil
 
       [ stdout.to_s, exit_code ]
