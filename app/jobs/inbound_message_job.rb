@@ -60,15 +60,20 @@ class InboundMessageJob < ApplicationJob
     # Parse @mentions from the message
     mentioned_team, mentioned_agent, clean_text = parse_mentions(text)
 
+    # Extract reply target channel for platforms where sender != channel
+    # (e.g., Discord sender is a user ID but replies go to a channel ID)
+    reply_channel_id = message.metadata&.dig("channel_id")
+    thread_id = message.metadata&.dig("thread_id")
+
     # Route to the right destination
     if mentioned_team
-      route_to_team(team: mentioned_team, message: clean_text, channel:, sender:)
+      route_to_team(team: mentioned_team, message: clean_text, channel:, sender:, reply_channel_id: reply_channel_id)
     elsif mentioned_agent
-      route_to_agent(agent: mentioned_agent, message: clean_text, channel:, sender:)
+      route_to_agent(agent: mentioned_agent, message: clean_text, channel:, sender:, reply_channel_id: reply_channel_id, thread_id: thread_id)
     elsif default_team(channel)
-      route_to_team(team: default_team(channel), message: text, channel:, sender:)
+      route_to_team(team: default_team(channel), message: text, channel:, sender:, reply_channel_id: reply_channel_id)
     elsif default_agent(channel)
-      route_to_agent(agent: default_agent(channel), message: text, channel:, sender:)
+      route_to_agent(agent: default_agent(channel), message: text, channel:, sender:, reply_channel_id: reply_channel_id, thread_id: thread_id)
     else
       Rails.logger.warn("[InboundMessage] No routing target for channel #{channel.id}")
     end
@@ -127,15 +132,28 @@ class InboundMessageJob < ApplicationJob
     end
   end
 
-  def send_agent_response(agent:, content:, channel:, sender:, thread_id: nil, team_context: false, slack_channel_id: nil)
+  def send_agent_response(agent:, content:, channel:, sender:, thread_id: nil, team_context: false, slack_channel_id: nil, reply_channel_id: nil)
     adapter = Channels::Registry.adapter_for(channel)
     formatted = format_agent_message(agent:, content:, channel:, team_context:)
 
-    if channel.channel_type == "slack"
+    case channel.channel_type
+    when "slack"
       # Reply to the Slack channel/DM where the message came from, not the user ID
-      target = slack_channel_id || sender
+      target = slack_channel_id || reply_channel_id || sender
       options = {}
       options[:thread_ts] = thread_id if thread_id.present?
+
+      adapter.send_message(
+        to: target,
+        content: formatted,
+        agent: agent,
+        **options
+      )
+    when "discord"
+      # Discord sender is a user ID, but messages must be sent to a channel ID
+      target = reply_channel_id || sender
+      options = {}
+      options[:thread_id] = thread_id if thread_id.present?
 
       adapter.send_message(
         to: target,
@@ -184,7 +202,7 @@ class InboundMessageJob < ApplicationJob
 
   # ─── Team Routing ───────────────────────────────────────────────
 
-  def route_to_team(team:, message:, channel:, sender:)
+  def route_to_team(team:, message:, channel:, sender:, reply_channel_id: nil)
     # Find or create a team chat session for this sender
     tcs = TeamChatSession.find_or_create_by!(
       team: team,
@@ -209,12 +227,12 @@ class InboundMessageJob < ApplicationJob
 
     agents.each do |agent|
       process_team_agent_response(
-        agent:, team:, tcs:, message:, channel:, sender:
+        agent:, team:, tcs:, message:, channel:, sender:, reply_channel_id: reply_channel_id
       )
     end
   end
 
-  def process_team_agent_response(agent:, team:, tcs:, message:, channel:, sender:)
+  def process_team_agent_response(agent:, team:, tcs:, message:, channel:, sender:, reply_channel_id: nil)
     # Get or create per-agent session within this team chat
     session = Session.find_or_create_by!(
       agent: agent,
@@ -253,7 +271,8 @@ class InboundMessageJob < ApplicationJob
       content: reply,
       channel: channel,
       sender: sender,
-      team_context: true
+      team_context: true,
+      reply_channel_id: reply_channel_id
     )
   rescue StandardError => e
     Rails.logger.error("[InboundMessage] Agent #{agent.name} failed: #{e.message}")
@@ -281,7 +300,7 @@ class InboundMessageJob < ApplicationJob
 
   # ─── Single Agent Routing ──────────────────────────────────────
 
-  def route_to_agent(agent:, message:, channel:, sender:)
+  def route_to_agent(agent:, message:, channel:, sender:, reply_channel_id: nil, thread_id: nil)
     session = find_or_create_session(agent:, channel:, sender:)
 
     # Process hashtag actions before LLM
@@ -293,7 +312,7 @@ class InboundMessageJob < ApplicationJob
 
     if hashtag_result.bypass_llm
       if hashtag_result.response.present?
-        send_agent_response(agent: agent, content: hashtag_result.response, channel: channel, sender: sender)
+        send_agent_response(agent: agent, content: hashtag_result.response, channel: channel, sender: sender, reply_channel_id: reply_channel_id, thread_id: thread_id)
       end
       return
     end
@@ -305,7 +324,7 @@ class InboundMessageJob < ApplicationJob
 
     if reply.present?
       reply = "#{hashtag_result.response}\n\n#{reply}" if hashtag_result.response.present?
-      send_agent_response(agent: agent, content: reply, channel: channel, sender: sender)
+      send_agent_response(agent: agent, content: reply, channel: channel, sender: sender, reply_channel_id: reply_channel_id, thread_id: thread_id)
     else
       Rails.logger.warn("[InboundMessage] No reply to send back")
     end
