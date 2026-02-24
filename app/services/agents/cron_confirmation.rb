@@ -71,7 +71,8 @@ module Agents
         status: "pending_confirmation",
         confirmation_id: confirmation_id,
         explanation: explanation,
-        expires_in_minutes: CONFIRMATION_TTL / 60
+        expires_in_minutes: CONFIRMATION_TTL / 60,
+        next_step: "Present the explanation to the user. Once they approve, call the cron tool again with action: 'confirm_create' and confirmation_id: '#{confirmation_id}' to persist the task."
       }
     end
 
