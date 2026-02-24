@@ -151,11 +151,11 @@ module Agents
         )
 
         if exec_result.success?
-          result = exec_result.data[:output].to_s
+          result = sanitize_utf8(exec_result.data[:output].to_s)
           broadcast(type: "tool_result", tool: tool_name, output: result.truncate(500), success: true)
           track_tool_call(tool_name, tool_input, result, true)
         else
-          result = "Error: #{exec_result.error}"
+          result = sanitize_utf8("Error: #{exec_result.error}")
           broadcast(type: "tool_result", tool: tool_name, output: result.truncate(500), success: false)
           track_tool_call(tool_name, tool_input, result, false)
         end
@@ -168,6 +168,10 @@ module Agents
       return unless usage
       @total_usage[:input_tokens] += (usage[:input_tokens] || 0)
       @total_usage[:output_tokens] += (usage[:output_tokens] || 0)
+    end
+
+    def sanitize_utf8(str)
+      str.encode("UTF-8", invalid: :replace, undef: :replace, replace: " ").scrub(" ")
     end
 
     def broadcast(data)

@@ -18,7 +18,11 @@ module Tools
 
       output, exit_code = execute_in_workspace(command)
 
-      ServiceResponse.success(data: { output: output.to_s.truncate(MAX_OUTPUT), exit_code: exit_code })
+      sanitized_output = output.to_s
+                                .encode("UTF-8", invalid: :replace, undef: :replace, replace: " ")
+                                .scrub(" ")
+                                .truncate(MAX_OUTPUT)
+      ServiceResponse.success(data: { output: sanitized_output, exit_code: exit_code })
     rescue Timeout::Error
       ServiceResponse.failure(error: "Command timed out after #{EXEC_TIMEOUT}s")
     rescue StandardError => e
