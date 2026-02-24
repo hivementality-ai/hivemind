@@ -8,10 +8,6 @@ class ChatStreamJob < ApplicationJob
     agent = session.agent
     channel = "session_#{session.id}"
 
-    # Mark session as processing so UI can show indicator on reconnect
-    set_processing(session.id, true)
-    ActionCable.server.broadcast(channel, { type: "processing", active: true })
-
     # ── Hashtag Actions ──────────────────────────────────────────
     hashtag_result = HashtagActions::Processor.call(
       message: user_message,
@@ -198,24 +194,10 @@ class ChatStreamJob < ApplicationJob
     rescue StandardError => e
       ActionCable.server.broadcast(channel, { type: "error", content: "Error: #{e.message}" })
       Rails.logger.error("ChatStreamJob error: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")
-    ensure
-      set_processing(session.id, false)
-      ActionCable.server.broadcast(channel, { type: "processing", active: false })
     end
   end
 
   private
-
-  def set_processing(session_id, active)
-    key = "session_processing:#{session_id}"
-    if active
-      Redis.current.setex(key, 600, "1") # 10 min TTL as safety net
-    else
-      Redis.current.del(key)
-    end
-  rescue StandardError => e
-    Rails.logger.warn("Failed to set processing flag: #{e.message}")
-  end
 
   def rails_blob_url(attachment)
     return nil unless attachment.file.attached?

@@ -4,7 +4,7 @@ import { marked } from "marked"
 
 export default class extends Controller {
   static targets = ["messages", "input", "sendBtn", "thinking", "thinkingContent", "tokenCount", "emptyState", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown", "toolCallsToggle", "working"]
-  static values = { sessionId: Number, agentName: String, agentInitial: String, agentAvatar: String, messageUrl: String, csrf: String, processing: Boolean }
+  static values = { sessionId: Number, agentName: String, agentInitial: String, agentAvatar: String, messageUrl: String, csrf: String }
 
   connect() {
     this.consumer = createConsumer()
@@ -36,12 +36,6 @@ export default class extends Controller {
     this.initializeToolCallsToggle()
     this.renderExistingMarkdown()
     this.scrollToBottom()
-
-    // If agent was processing when page loaded, show working indicator
-    if (this.processingValue) {
-      this.streaming = true
-      this.showWorking()
-    }
     
     // Close hashtag dropdown when clicking outside
     this._boundOutsideClick = this.handleOutsideClick.bind(this)
@@ -278,15 +272,6 @@ export default class extends Controller {
         break
       case "done":
         this.finishStream()
-        break
-      case "processing":
-        if (data.active) {
-          this.streaming = true
-          this.showWorking()
-        } else {
-          this.hideWorking()
-          this.streaming = false
-        }
         break
       case "error":
         this.hideThinking()
