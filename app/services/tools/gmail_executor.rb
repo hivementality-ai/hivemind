@@ -133,38 +133,38 @@ module Tools
 
       # Extract from: operator
       if remaining.sub!(/from:(\S+)/i, "")
-        criteria += ["FROM", $1]
+        criteria += [ "FROM", $1 ]
       end
 
       # Extract to: operator
       if remaining.sub!(/to:(\S+)/i, "")
-        criteria += ["TO", $1]
+        criteria += [ "TO", $1 ]
       end
 
       # Extract subject: operator
       if remaining.sub!(/subject:"([^"]+)"/i, "") || remaining.sub!(/subject:(\S+)/i, "")
-        criteria += ["SUBJECT", $1]
+        criteria += [ "SUBJECT", $1 ]
       end
 
       # Extract newer_than: operator (convert to IMAP SINCE)
       if remaining.sub!(/newer_than:(\d+)([dhm])/i, "")
         days = case $2
-               when "d" then $1.to_i
-               when "h" then ($1.to_i / 24.0).ceil.clamp(1, 365)
-               when "m" then $1.to_i * 30
-               else $1.to_i
-               end
+        when "d" then $1.to_i
+        when "h" then ($1.to_i / 24.0).ceil.clamp(1, 365)
+        when "m" then $1.to_i * 30
+        else $1.to_i
+        end
         since_date = (Time.current - days.days).strftime("%d-%b-%Y")
-        criteria += ["SINCE", since_date]
+        criteria += [ "SINCE", since_date ]
       end
 
       # Any remaining text becomes an OR subject/from search
       remaining.strip!
       if remaining.present?
-        criteria += ["OR", "SUBJECT", remaining, "FROM", remaining]
+        criteria += [ "OR", "SUBJECT", remaining, "FROM", remaining ]
       end
 
-      criteria.empty? ? ["ALL"] : criteria
+      criteria.empty? ? [ "ALL" ] : criteria
     end
 
     def imap_get(uid:)
