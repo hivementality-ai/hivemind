@@ -198,6 +198,9 @@ class ChatStreamJob < ApplicationJob
       # Store memory
       store_memory(agent:, session:, user_message:, assistant_response: full_content)
 
+      # Summarize older transcript to keep future requests lean
+      maybe_summarize(session)
+
       # Deliver to origin channel (e.g., WhatsApp) if this session came from one
       Channels::OriginDelivery.call(session: session, content: full_content, agent: agent)
 
@@ -257,7 +260,8 @@ class ChatStreamJob < ApplicationJob
     Tool.enabled.builtin.to_a
   end
 
-  TRANSCRIPT_CHAR_BUDGET = 8_000 # ~2K tokens — keeps context tight, prevents runaway input costs
+  SUMMARIZE_EVERY = 6 # Summarize after every 6 new transcript entries (~3 turns)
+  RAW_MESSAGES_TO_KEEP = 4 # Keep last 4 messages raw (2 full turns)
 
   def build_messages(session:, agent:, current_images: [], prompt_addons: [])
     messages = []
@@ -276,6 +280,11 @@ class ChatStreamJob < ApplicationJob
 
     prompt_addons.each { |addon| dynamic_parts << addon }
 
+    # Inject conversation summary if available (compressed older context)
+    if session.conversation_summary.present?
+      dynamic_parts << "## Conversation So Far\n#{session.conversation_summary}"
+    end
+
     # Build system content as array of blocks for prompt caching
     system_blocks = [{ type: "text", text: core_prompt }]
     if dynamic_parts.any?
@@ -284,11 +293,11 @@ class ChatStreamJob < ApplicationJob
 
     messages << { role: "system", content: system_blocks }
 
-    # Add transcript history with token budget (replaces .last(50))
+    # Only send last few raw messages — older context lives in the summary
     transcript = session.transcript
-    budgeted = select_transcript_within_budget(transcript)
-    budgeted.each_with_index do |msg, idx|
-      if msg["role"] == "user" && msg["images"].present? && idx == budgeted.size - 1
+    recent = transcript.last(RAW_MESSAGES_TO_KEEP)
+    recent.each_with_index do |msg, idx|
+      if msg["role"] == "user" && msg["images"].present? && idx == recent.size - 1
         # Current message with images — build multimodal content
         messages << build_vision_message(msg, current_images)
       elsif msg["role"] == "user" && msg["images"].present?
@@ -329,32 +338,6 @@ class ChatStreamJob < ApplicationJob
     content_blocks << { type: "text", text: text } if text.present?
 
     { role: "user", content: content_blocks }
-  end
-
-  # Select transcript messages from newest to oldest within a character budget.
-  # Always includes at least the most recent message.
-  def select_transcript_within_budget(transcript)
-    return [] if transcript.blank?
-
-    budget = TRANSCRIPT_CHAR_BUDGET
-    selected = []
-
-    transcript.reverse_each do |msg|
-      content_size = msg["content"].to_s.length
-      # Account for tool call content which can be huge
-      if msg["tool_calls"].present?
-        content_size += msg["tool_calls"].to_json.length
-      end
-
-      if selected.any? && budget - content_size < 0
-        break
-      end
-
-      budget -= content_size
-      selected.unshift(msg)
-    end
-
-    selected
   end
 
   def recall_memories(agent:, session:)
@@ -419,6 +402,20 @@ class ChatStreamJob < ApplicationJob
       Rails.logger.warn("Failed to save doc to workspace: #{e.message}")
       nil
     end
+  end
+
+  # Trigger rolling summarization every N transcript entries.
+  # The summary job compresses older messages into ~200 tokens.
+  def maybe_summarize(session)
+    transcript_size = session.transcript&.size || 0
+    summarized_through = session.summary_through_index || 0
+    unsummarized = transcript_size - summarized_through
+
+    return if unsummarized < SUMMARIZE_EVERY + RAW_MESSAGES_TO_KEEP
+
+    ConversationSummaryJob.perform_later(session.id)
+  rescue StandardError => e
+    Rails.logger.warn("[ChatStreamJob] Summary trigger failed: #{e.message}")
   end
 
   def store_memory(agent:, session:, user_message:, assistant_response:)

@@ -106,7 +106,7 @@ module Sessions
 
     # ----- Message Building -----
 
-    TRANSCRIPT_CHAR_BUDGET = 8_000 # ~2K tokens
+    RAW_MESSAGES_TO_KEEP = 4
 
     def build_messages(agent:, memory_context: nil)
       messages = []
@@ -117,34 +117,22 @@ module Sessions
       system_blocks << { type: "text", text: core_prompt } if core_prompt.present?
       system_blocks << { type: "text", text: memory_context } if memory_context.present?
 
+      # Inject conversation summary for compressed older context
+      if @session.conversation_summary.present?
+        system_blocks << { type: "text", text: "## Conversation So Far\n#{@session.conversation_summary}" }
+      end
+
       if system_blocks.any?
         messages << { role: "system", content: system_blocks }
       end
 
-      # Conversation history with token budget (replaces last(50))
+      # Only send last few raw messages — older context lives in the summary
       transcript = @session.transcript || []
-      select_transcript_within_budget(transcript).each do |entry|
+      transcript.last(RAW_MESSAGES_TO_KEEP).each do |entry|
         messages << { role: entry["role"], content: entry["content"] }
       end
 
       messages
-    end
-
-    def select_transcript_within_budget(transcript)
-      return [] if transcript.blank?
-
-      budget = TRANSCRIPT_CHAR_BUDGET
-      selected = []
-
-      transcript.reverse_each do |msg|
-        content_size = msg["content"].to_s.length
-        break if selected.any? && budget - content_size < 0
-
-        budget -= content_size
-        selected.unshift(msg)
-      end
-
-      selected
     end
 
     # ----- Usage Tracking -----
