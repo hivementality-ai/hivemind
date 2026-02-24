@@ -21,8 +21,7 @@ module Tools
       timeout = DEFAULT_TIMEOUT if timeout.zero?
       timeout = MAX_TIMEOUT if timeout > MAX_TIMEOUT
 
-      # Security: sanitize task input to prevent shell injection
-      return ServiceResponse.failure(error: "Task contains invalid characters") if task.include?("'") || task.include?("`") || task.include?("$")
+      # Security: task is passed through Shellwords.shellescape in CodingAgentJob
 
       # Find session from context
       session = find_session

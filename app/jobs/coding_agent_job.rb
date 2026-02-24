@@ -151,20 +151,21 @@ class CodingAgentJob < ApplicationJob
   end
 
   def build_cli_command(cli, task, model)
-    escaped_task = task.gsub('"', '\\"')
+    require "shellwords"
+    escaped_task = Shellwords.shellescape(task)
 
     case cli
     when "claude"
-      cmd = "claude --dangerously-skip-permissions -p \"#{escaped_task}\""
-      cmd += " --model #{model}" if model.present?
+      cmd = "claude --dangerously-skip-permissions -p #{escaped_task}"
+      cmd += " --model #{Shellwords.shellescape(model)}" if model.present?
       cmd
     when "codex"
-      cmd = "codex exec --full-auto \"#{escaped_task}\""
-      cmd += " --model #{model}" if model.present?
+      cmd = "codex exec --full-auto #{escaped_task}"
+      cmd += " --model #{Shellwords.shellescape(model)}" if model.present?
       cmd
     when "aider"
-      cmd = "aider --yes-always --message \"#{escaped_task}\""
-      cmd += " --model #{model}" if model.present?
+      cmd = "aider --yes-always --message #{escaped_task}"
+      cmd += " --model #{Shellwords.shellescape(model)}" if model.present?
       cmd
     else
       raise ArgumentError, "Unknown CLI: #{cli}"
