@@ -82,6 +82,43 @@
 
       <!-- Discord -->
       <div class="space-y-4" data-channel-fields-target="discord" style="display: none;">
+        <!-- Setup Guide -->
+        <div class="bg-surface-base rounded-lg border border-border-default p-5">
+          <h4 class="text-white font-medium mb-3">🤖 Discord Bot Setup</h4>
+          <p class="text-text-muted text-sm mb-3">Each Discord bot connects to <strong class="text-white">one agent</strong>. To add more agents, create a separate Discord application and channel for each.</p>
+          <ol class="text-text-muted text-sm space-y-2 list-decimal list-inside">
+            <li>Go to <a href="https://discord.com/developers/applications" target="_blank" class="text-brand-light hover:underline">discord.com/developers/applications</a> → <strong class="text-white">New Application</strong></li>
+            <li>Name the application after your agent (e.g. "Bobby") and click <strong class="text-white">Create</strong></li>
+            <li>Go to <strong class="text-white">Bot</strong> in the sidebar</li>
+            <li>Click <strong class="text-white">Reset Token</strong> to generate a bot token — copy it into the <strong class="text-white">Bot Token</strong> field below</li>
+            <li>Under <strong class="text-white">Privileged Gateway Intents</strong>, enable these intents:
+              <div class="mt-1 ml-4 flex flex-wrap gap-1.5">
+                <% %w[MESSAGE_CONTENT SERVER_MEMBERS PRESENCE].each do |intent| %>
+                  <code class="px-1.5 py-0.5 bg-surface-card rounded text-xs text-amber-300"><%= intent %></code>
+                <% end %>
+              </div>
+              <p class="text-text-faint text-xs mt-1 ml-4"><strong class="text-white">MESSAGE CONTENT</strong> is required for the bot to read messages</p>
+            </li>
+            <li>Go to <strong class="text-white">OAuth2</strong> in the sidebar</li>
+            <li>Under <strong class="text-white">OAuth2 URL Generator</strong>, select the <code class="text-amber-300">bot</code> scope</li>
+            <li>Under <strong class="text-white">Bot Permissions</strong>, select:
+              <div class="mt-1 ml-4 flex flex-wrap gap-1.5">
+                <% ["Send Messages", "Read Message History", "View Channels", "Add Reactions", "Use Slash Commands"].each do |perm| %>
+                  <code class="px-1.5 py-0.5 bg-surface-card rounded text-xs text-amber-300"><%= perm %></code>
+                <% end %>
+              </div>
+            </li>
+            <li>Copy the generated URL at the bottom and <strong class="text-white">open it in your browser</strong> to invite the bot to your server</li>
+            <li>Select your Discord server and click <strong class="text-white">Authorize</strong></li>
+          </ol>
+          <div class="mt-4 bg-surface-card rounded-lg px-4 py-3 border border-border-default">
+            <p class="text-text-muted text-sm">
+              <strong class="text-white">💡 Multiple agents?</strong>
+              Each agent needs its own Discord application and bot. Just repeat these steps for each agent and create a new channel here for each bot.
+            </p>
+          </div>
+        </div>
+
         <div>
           <label class="block text-text-muted text-sm mb-1">Bot Token</label>
           <%= text_field_tag "credentials[discord_bot_token]", creds["discord_bot_token"], placeholder: "Paste your Discord bot token...",
