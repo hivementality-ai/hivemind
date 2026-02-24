@@ -153,10 +153,11 @@ BUILTIN_TOOLS = [
     requires_approval: false,
     parameters_schema: {
       "properties" => {
-        "action" => { "type" => "string", "description" => "Action: list, create, delete, run", "enum" => %w[list create delete run] },
+        "action" => { "type" => "string", "description" => "Action: list, create, confirm_create, delete, run", "enum" => %w[list create confirm_create delete run] },
         "name" => { "type" => "string", "description" => "Task name (for create)" },
         "schedule" => { "type" => "string", "description" => "Cron expression, e.g. '0 13 * * *' for 8am CT (for create)" },
         "prompt" => { "type" => "string", "description" => "Instructions for the agent to execute when the task fires. The agent wakes up in a new session with this prompt and can use all its tools (gmail, web_search, etc.)." },
+        "confirmation_id" => { "type" => "string", "description" => "Confirmation ID returned by create action (for confirm_create)" },
         "task_id" => { "type" => "string", "description" => "Task ID (for delete/run)" }
       },
       "required" => [ "action" ]
