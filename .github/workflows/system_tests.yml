@@ -61,6 +61,8 @@ jobs:
 
       - name: Run system tests
         run: bundle exec rspec spec/system
+        env:
+          DISABLE_SIMPLECOV: "1"
 
       - name: Upload screenshots on failure
         if: failure()

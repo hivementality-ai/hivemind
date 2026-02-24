@@ -1,25 +1,27 @@
 # frozen_string_literal: true
 
-# Start SimpleCov before anything else
-require 'simplecov'
-SimpleCov.formatters = SimpleCov::Formatter::MultiFormatter.new([
-  SimpleCov::Formatter::HTMLFormatter
-])
-SimpleCov.start 'rails' do
-  add_filter '/spec/'
-  add_filter '/config/'
-  add_filter '/vendor/'
-  add_filter '/app/channels/'
-  add_filter '/app/mailers/'
-  add_filter '/app/helpers/'
+# Start SimpleCov before anything else (skip for system tests)
+unless ENV['DISABLE_SIMPLECOV']
+  require 'simplecov'
+  SimpleCov.formatters = SimpleCov::Formatter::MultiFormatter.new([
+    SimpleCov::Formatter::HTMLFormatter
+  ])
+  SimpleCov.start 'rails' do
+    add_filter '/spec/'
+    add_filter '/config/'
+    add_filter '/vendor/'
+    add_filter '/app/channels/'
+    add_filter '/app/mailers/'
+    add_filter '/app/helpers/'
 
-  # Coverage thresholds — raise as coverage improves
-  minimum_coverage 30
-  minimum_coverage_by_file 0
+    # Coverage thresholds — raise as coverage improves
+    minimum_coverage 30
+    minimum_coverage_by_file 0
 
-  # Track branch coverage
-  enable_coverage :branch
-  minimum_coverage branch: 10
+    # Track branch coverage
+    enable_coverage :branch
+    minimum_coverage branch: 10
+  end
 end
 
 require 'spec_helper'
