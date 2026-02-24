@@ -116,13 +116,55 @@ module Tools
         folder = input["folder"].to_s.strip.presence || "INBOX"
         imap.select(folder)
 
-        # IMAP search: try subject, from, and body
-        uids = imap.uid_search([ "OR", "SUBJECT", query, "FROM", query ])
+        # Parse Gmail-style search operators into IMAP search criteria
+        criteria = parse_search_query(query)
+        uids = imap.uid_search(criteria)
         recent_uids = uids.last(limit)
         return [] if recent_uids.empty?
 
         fetch_messages(imap, recent_uids).reverse
       end
+    end
+
+    # Convert Gmail-style queries (from:, subject:, newer_than:) to IMAP search criteria
+    def parse_search_query(query)
+      criteria = []
+      remaining = query.dup
+
+      # Extract from: operator
+      if remaining.sub!(/from:(\S+)/i, "")
+        criteria += ["FROM", $1]
+      end
+
+      # Extract to: operator
+      if remaining.sub!(/to:(\S+)/i, "")
+        criteria += ["TO", $1]
+      end
+
+      # Extract subject: operator
+      if remaining.sub!(/subject:"([^"]+)"/i, "") || remaining.sub!(/subject:(\S+)/i, "")
+        criteria += ["SUBJECT", $1]
+      end
+
+      # Extract newer_than: operator (convert to IMAP SINCE)
+      if remaining.sub!(/newer_than:(\d+)([dhm])/i, "")
+        days = case $2
+               when "d" then $1.to_i
+               when "h" then ($1.to_i / 24.0).ceil.clamp(1, 365)
+               when "m" then $1.to_i * 30
+               else $1.to_i
+               end
+        since_date = (Time.current - days.days).strftime("%d-%b-%Y")
+        criteria += ["SINCE", since_date]
+      end
+
+      # Any remaining text becomes an OR subject/from search
+      remaining.strip!
+      if remaining.present?
+        criteria += ["OR", "SUBJECT", remaining, "FROM", remaining]
+      end
+
+      criteria.empty? ? ["ALL"] : criteria
     end
 
     def imap_get(uid:)
