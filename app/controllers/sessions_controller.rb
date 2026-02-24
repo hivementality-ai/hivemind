@@ -3,7 +3,7 @@
 class SessionsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_agent, only: [ :create ]
-  before_action :set_session, only: [ :show, :message ]
+  before_action :set_session, only: [ :show, :message, :interrupt ]
 
   # GET /sessions — list all sessions
   def index
@@ -75,6 +75,32 @@ class SessionsController < ApplicationController
     # Enqueue the actual processing job
     ChatStreamJob.perform_later(@session.id, user_message.to_s, attachment_ids)
     head :ok
+  end
+
+  # POST /sessions/:id/interrupt — cancel, redirect, or inject into active agent
+  def interrupt
+    signal_type = params[:type].to_s.strip
+    message = params[:message].to_s.strip
+
+    unless SessionSignal::TYPES.include?(signal_type)
+      render json: { error: "Invalid signal type. Must be: #{SessionSignal::TYPES.join(', ')}" }, status: :unprocessable_entity
+      return
+    end
+
+    if signal_type != "cancel" && message.blank?
+      render json: { error: "Message required for #{signal_type}" }, status: :unprocessable_entity
+      return
+    end
+
+    SessionSignal.set(@session.id, type: signal_type, message: message.presence)
+
+    # Broadcast to UI immediately for visual feedback
+    ActionCable.server.broadcast(
+      "session_#{@session.id}",
+      { type: "interrupt_sent", signal_type: signal_type, message: message.presence }
+    )
+
+    render json: { status: "signal_sent", type: signal_type }
   end
 
   private

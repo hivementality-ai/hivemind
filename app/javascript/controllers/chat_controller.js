@@ -3,8 +3,8 @@ import { createConsumer } from "@rails/actioncable"
 import { marked } from "marked"
 
 export default class extends Controller {
-  static targets = ["messages", "input", "sendBtn", "thinking", "thinkingContent", "tokenCount", "emptyState", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown", "toolCallsToggle", "working"]
-  static values = { sessionId: Number, agentName: String, agentInitial: String, agentAvatar: String, messageUrl: String, csrf: String, processing: Boolean }
+  static targets = ["messages", "input", "sendBtn", "stopBtn", "thinking", "thinkingContent", "tokenCount", "emptyState", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown", "toolCallsToggle", "working"]
+  static values = { sessionId: Number, agentName: String, agentInitial: String, agentAvatar: String, messageUrl: String, interruptUrl: String, csrf: String, processing: Boolean }
 
   connect() {
     this.consumer = createConsumer()
@@ -282,6 +282,17 @@ export default class extends Controller {
       case "done":
         this.finishStream()
         break
+      case "cancelled":
+        this.appendSystemNotice("⏹ Agent stopped")
+        this.finishStream()
+        break
+      case "redirected":
+        this.appendSystemNotice("↪ Redirecting...")
+        this.finishStream()
+        break
+      case "inject":
+        this.appendUserMessage(data.content)
+        break
       case "processing":
         if (data.active) {
           this.streaming = true
@@ -304,10 +315,19 @@ export default class extends Controller {
   async send() {
     const message = this.inputTarget.value.trim()
     if (!message && this.pendingImages.length === 0 && this.pendingFiles.length === 0) return
-    if (this.streaming) return
+
+    // If agent is streaming, redirect instead of blocking
+    if (this.streaming) {
+      if (message) {
+        this.sendInterrupt("redirect", message)
+        this.inputTarget.value = ""
+        this.inputTarget.style.height = "auto"
+      }
+      return
+    }
 
     this.streaming = true
-    this.sendBtnTarget.disabled = true
+    this.showStopButton()
     this.inputTarget.value = ""
     this.inputTarget.style.height = "auto"
     
@@ -818,6 +838,44 @@ export default class extends Controller {
     this.scrollToBottom()
   }
 
+  stopAgent() {
+    this.sendInterrupt("cancel")
+  }
+
+  async sendInterrupt(type, message = null) {
+    try {
+      const body = new URLSearchParams({ type })
+      if (message) body.append("message", message)
+
+      await fetch(this.interruptUrlValue, {
+        method: "POST",
+        headers: { "X-CSRF-Token": this.csrfValue },
+        body: body
+      })
+    } catch (e) {
+      console.error("Failed to send interrupt:", e)
+    }
+  }
+
+  showStopButton() {
+    if (this.hasStopBtnTarget) this.stopBtnTarget.classList.remove("hidden")
+  }
+
+  hideStopButton() {
+    if (this.hasStopBtnTarget) this.stopBtnTarget.classList.add("hidden")
+  }
+
+  appendSystemNotice(text) {
+    const html = `
+      <div class="flex justify-center my-2">
+        <div class="px-3 py-1 bg-surface-raised rounded-full text-text-muted text-sm">
+          ${this.escapeHtml(text)}
+        </div>
+      </div>`
+    this.messagesTarget.insertAdjacentHTML("beforeend", html)
+    this.scrollToBottom()
+  }
+
   formatFileSize(bytes) {
     if (bytes < 1024) return `${bytes}B`
     if (bytes < 1048576) return `${(bytes/1024).toFixed(1)}KB`
@@ -842,6 +900,7 @@ export default class extends Controller {
     this.streamBubble = null
     this.streamRawText = ""
     this.sendBtnTarget.disabled = false
+    this.hideStopButton()
     this.inputTarget.focus()
     
     // Hide all indicators when stream finishes

@@ -203,6 +203,25 @@ class ChatStreamJob < ApplicationJob
 
       ActionCable.server.broadcast(channel, { type: "done", content: full_content })
 
+    rescue AgentInterrupted
+      # User cancelled — save partial output and notify
+      if full_content.present?
+        session.append_transcript({ "role" => "assistant", "content" => full_content + "\n\n_[Cancelled by user]_", "timestamp" => Time.current.iso8601 })
+      end
+      ActionCable.server.broadcast(channel, { type: "cancelled", content: full_content })
+      Rails.logger.info("ChatStreamJob: cancelled by user for session #{session.id}")
+
+    rescue AgentRedirected => e
+      # User redirected — save partial output, then start new task
+      if full_content.present?
+        session.append_transcript({ "role" => "assistant", "content" => full_content + "\n\n_[Redirected by user]_", "timestamp" => Time.current.iso8601 })
+      end
+      ActionCable.server.broadcast(channel, { type: "redirected", content: e.redirect_message })
+      Rails.logger.info("ChatStreamJob: redirected for session #{session.id}")
+
+      # Fire new ChatStreamJob with the redirect message
+      ChatStreamJob.perform_later(session.id, e.redirect_message, [])
+
     rescue StandardError => e
       ActionCable.server.broadcast(channel, { type: "error", content: "Error: #{e.message}" })
       Rails.logger.error("ChatStreamJob error: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")
