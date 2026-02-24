@@ -29,14 +29,16 @@ class ScheduledScriptJob < ApplicationJob
 
     script_path = task.job_params&.dig("script_path")
     unless script_path.present?
-      task.update(last_error_at: Time.current, last_error_message: "No script_path configured")
+      task.update(last_error_at: Time.current)
+      Rails.logger.error("ScheduledScriptJob: No script_path configured for task #{task.id}")
       return
     end
 
     # Create a session to log the output
     session = agent.sessions.create!(
+      session_key: "script-#{SecureRandom.hex(8)}",
       title: "Script: #{task.name}",
-      session_type: "scheduled"
+      metadata: { type: "scheduled_script" }
     )
 
     output, exit_code = execute_script(script_path)
@@ -56,7 +58,6 @@ class ScheduledScriptJob < ApplicationJob
       task.update!(
         last_run_at: Time.current,
         last_error_at: Time.current,
-        last_error_message: output.to_s.truncate(500),
         next_run_at: calculate_next_run(task.schedule)
       )
 
@@ -67,7 +68,7 @@ class ScheduledScriptJob < ApplicationJob
       ))
     end
   rescue StandardError => e
-    task&.update(last_error_at: Time.current, last_error_message: e.message)
+    task&.update(last_error_at: Time.current)
     Rails.logger.error("ScheduledScriptJob failed for task #{scheduled_task_id}: #{e.message}")
   end
 

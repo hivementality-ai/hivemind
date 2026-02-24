@@ -152,11 +152,8 @@ module Tools
       if exit_code == 0
         ServiceResponse.success(data: { output: "Executed #{task.name} ✅\n#{output}".truncate(MAX_OUTPUT), exit_code: exit_code })
       else
-        task.update!(last_error_at: Time.current, last_error_message: output.to_s.truncate(500))
-        ServiceResponse.failure(
-          error: "Script exited with code #{exit_code}",
-          data: { output: output.to_s.truncate(MAX_OUTPUT), exit_code: exit_code }
-        )
+        task.update!(last_error_at: Time.current)
+        ServiceResponse.failure(error: "Script exited with code #{exit_code}: #{output.to_s.truncate(500)}")
       end
     end
 

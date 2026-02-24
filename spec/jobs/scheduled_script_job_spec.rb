@@ -26,7 +26,6 @@ RSpec.describe ScheduledScriptJob, type: :job do
 
       task.reload
       expect(task.last_error_at).to be_present
-      expect(task.last_error_message).to include("No script_path configured")
     end
 
     it "executes the script and updates last_run_at on success" do
@@ -55,7 +54,7 @@ RSpec.describe ScheduledScriptJob, type: :job do
 
       session = Session.last
       expect(session.title).to include("Script:")
-      expect(session.session_type).to eq("scheduled")
+      expect(session.metadata["type"]).to eq("scheduled_script")
     end
 
     it "records error info on script failure" do
@@ -71,7 +70,6 @@ RSpec.describe ScheduledScriptJob, type: :job do
       task.reload
       expect(task.last_run_at).to be_present
       expect(task.last_error_at).to be_present
-      expect(task.last_error_message).to include("Error: file not found")
     end
 
     it "stores output in session metadata" do
@@ -100,7 +98,6 @@ RSpec.describe ScheduledScriptJob, type: :job do
 
       task.reload
       expect(task.last_error_at).to be_present
-      expect(task.last_error_message).to include("Docker is down")
     end
   end
 end
