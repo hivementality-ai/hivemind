@@ -259,7 +259,7 @@ Full group chat where agents collaborate via @mentions. Tag `@AgentName` for a s
 | **Cloud** | `cloud_storage` (Drive/S3/Dropbox/OneDrive/B2/SFTP) |
 | **Communication** | `email` (SMTP), `gmail` (IMAP), `message` (5 platforms) |
 | **Integrations** | `jira` (issues, JQL, transitions), `http_request` (any API) |
-| **Scheduling** | `cron` (scheduled tasks) |
+| **Scheduling** | `cron` (prompt-based scheduled agent turns), `cron_script` (script-based scheduled tasks) |
 | **File Delivery** | `file_send` (share files to chat), `image_generate` (DALL-E 3) |
 | **Coding** | `coding_agent` (Claude Code/Codex/Aider), `coding_agent_status` |
 | **Orchestration** | `delegate` (sync), `spawn` (async sub-agent), `spawn_status` |
@@ -361,8 +361,27 @@ A hidden system agent ("Assistant") runs on a configurable interval (5min to 24h
 Three levels of agent collaboration:
 
 - **`delegate`** — Synchronous. Call another agent, wait for response, return result.
-- **`spawn`** — Asynchronous. Fire off a sub-agent task, get a task ID, keep working. Check status later with `spawn_status`.
+- **`spawn`** — Asynchronous with callback. Fire off a sub-agent task — when it completes, the result is automatically injected back into the parent agent's session. The parent agent wakes up, processes the result, and can take further action. All server-side, works whether the user is watching or not. Recursion guard at 3 levels deep.
 - **Team Chat** — Conversational. @mention agents in group chat for natural collaboration.
+
+### Agent Interrupt
+
+Users can interrupt agents mid-execution — no more waiting for a long tool loop to finish:
+
+- **Cancel (■ button)** — Stops the agent immediately. Partial output saved to transcript.
+- **Redirect (send message while agent is working)** — Stops current work, starts on the new message.
+- **Inject (API)** — Adds context to the conversation mid-tool-loop without stopping the agent.
+
+Signals are Redis-backed with a 60-second TTL. The tool loop checks for signals before each LLM call and tool execution.
+
+### Scheduled Tasks
+
+Two types of scheduled tasks:
+
+- **`cron`** — Prompt-based. Agent wakes up in a fresh session with full tool access and follows the prompt instructions. Two-stage confirmation flow for safety.
+- **`cron_script`** — Script-based. Runs a script (`.py`, `.rb`, `.sh`) in the workspace container on schedule. Output and exit code captured to a session for logging.
+
+Use prompt-based cron when the agent needs to think and use tools. Use script cron for deterministic, repeatable tasks.
 
 ### Coding Agent
 
