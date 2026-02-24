@@ -52,7 +52,7 @@ module Memory
       context_text = if sections.any?
                        header = "## Your Memories\nUse these naturally in conversation. Don't mention that you're recalling memories.\n\n"
                        header + sections.join("\n\n")
-                     end
+      end
 
       { context: context_text, entries: all_entries }
     rescue StandardError => e
@@ -130,9 +130,9 @@ module Memory
         @budget_remaining -= line.length
       end
 
-      return [nil, []] if lines.empty?
+      return [ nil, [] ] if lines.empty?
 
-      ["### #{title}\n#{lines.join("\n")}", used]
+      [ "### #{title}\n#{lines.join("\n")}", used ]
     end
   end
 end

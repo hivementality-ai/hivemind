@@ -1,25 +1,27 @@
 # frozen_string_literal: true
 
-# Start SimpleCov before anything else
-require 'simplecov'
-SimpleCov.formatters = SimpleCov::Formatter::MultiFormatter.new([
-  SimpleCov::Formatter::HTMLFormatter
-])
-SimpleCov.start 'rails' do
-  add_filter '/spec/'
-  add_filter '/config/'
-  add_filter '/vendor/'
-  add_filter '/app/channels/'
-  add_filter '/app/mailers/'
-  add_filter '/app/helpers/'
+# Start SimpleCov before anything else (skip for system tests)
+unless ENV['DISABLE_SIMPLECOV']
+  require 'simplecov'
+  SimpleCov.formatters = SimpleCov::Formatter::MultiFormatter.new([
+    SimpleCov::Formatter::HTMLFormatter
+  ])
+  SimpleCov.start 'rails' do
+    add_filter '/spec/'
+    add_filter '/config/'
+    add_filter '/vendor/'
+    add_filter '/app/channels/'
+    add_filter '/app/mailers/'
+    add_filter '/app/helpers/'
 
-  # Coverage thresholds — raise as coverage improves
-  minimum_coverage 30
-  minimum_coverage_by_file 0
+    # Coverage thresholds — raise as coverage improves
+    minimum_coverage 30
+    minimum_coverage_by_file 0
 
-  # Track branch coverage
-  enable_coverage :branch
-  minimum_coverage branch: 10
+    # Track branch coverage
+    enable_coverage :branch
+    minimum_coverage branch: 10
+  end
 end
 
 require 'spec_helper'
@@ -31,6 +33,9 @@ abort("FATAL: Refusing to run specs in #{Rails.env} mode! Tests MUST run in the 
 require 'rspec/rails'
 require 'shoulda/matchers'
 require 'webmock/rspec'
+
+# Allow localhost connections for Capybara system specs (browser <-> server)
+WebMock.disable_net_connect!(allow_localhost: true)
 require 'factory_bot_rails'
 
 # Load support files
@@ -49,6 +54,7 @@ RSpec.configure do |config|
   # Devise test helpers
   config.include Devise::Test::ControllerHelpers, type: :controller
   config.include Devise::Test::IntegrationHelpers, type: :request
+  config.include Devise::Test::IntegrationHelpers, type: :system
 
   # Remove fixture path since we're using factories
   config.fixture_paths = []
@@ -70,6 +76,14 @@ RSpec.configure do |config|
 
   config.before do
     DatabaseCleaner.strategy = :transaction
+  end
+
+  # System specs use a separate browser thread — must use truncation
+  config.before(:each, type: :system) do
+    DatabaseCleaner.strategy = :truncation
+  end
+
+  config.before do
     DatabaseCleaner.start
   end
 

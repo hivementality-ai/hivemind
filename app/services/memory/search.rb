@@ -27,12 +27,12 @@ module Memory
 
       results = if @weighted
                   MemoryEntry.relevance_search(embedding: query_embedding, agent: @agent, limit: @limit)
-                else
+      else
                   MemoryEntry.search_with_threshold(
                     embedding: query_embedding, agent: @agent,
                     threshold: @threshold, limit: @limit
                   )
-                end
+      end
 
       # Touch accessed timestamps
       results.each(&:touch_accessed!)
@@ -52,7 +52,7 @@ module Memory
       entries.map do |entry|
         similarity = if entry.respond_to?(:neighbor_distance) && entry.neighbor_distance
                       (1 - entry.neighbor_distance).round(4)
-                    end
+        end
 
         {
           id: entry.id,

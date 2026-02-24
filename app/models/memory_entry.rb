@@ -54,7 +54,7 @@ class MemoryEntry < ApplicationRecord
       recency = recency_score(entry.created_at, half_life_days: recency_half_life_days)
       score = (0.7 * similarity) + (0.3 * recency)
 
-      [entry, score]
+      [ entry, score ]
     end.sort_by { |_, score| -score }.first(limit).map(&:first)
   end
 

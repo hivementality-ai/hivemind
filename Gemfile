@@ -79,4 +79,6 @@ group :test do
   gem "webmock"
   gem "database_cleaner-active_record"
   gem "rails-controller-testing"
+  gem "capybara"
+  gem "selenium-webdriver"
 end

@@ -2,7 +2,7 @@
 
 namespace :memory do
   desc "Import OpenClaw workspace memories into Hivemind agent"
-  task :import_openclaw, [:path, :agent_slug] => :environment do |_t, args|
+  task :import_openclaw, [ :path, :agent_slug ] => :environment do |_t, args|
     path = args[:path] || ENV["OPENCLAW_WORKSPACE"] || File.expand_path("~/.openclaw/workspace")
     agent_slug = args[:agent_slug] || ENV["AGENT_SLUG"]
 
