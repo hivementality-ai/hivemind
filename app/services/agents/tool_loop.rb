@@ -26,6 +26,9 @@ module Agents
       llm_tools = @tools.map(&:to_llm_tool)
 
       loop do
+        # Check for interrupt signal before LLM call
+        check_signal!
+
         # Call LLM
         result = call_llm(llm_tools)
         return result unless result&.success?
@@ -139,6 +142,9 @@ module Agents
           next { tool_use_id:, tool_name:, result: }
         end
 
+        # Check for interrupt signal before tool execution
+        check_signal!
+
         # Broadcast that we're running a tool
         broadcast(type: "tool_start", tool: tool_name, input: tool_input)
 
@@ -161,6 +167,25 @@ module Agents
         end
 
         { tool_use_id:, tool_name:, result: }
+      end
+    end
+
+    def check_signal!
+      signal = SessionSignal.check(@session.id)
+      return unless signal
+
+      case signal[:type]
+      when "cancel"
+        Rails.logger.info("ToolLoop: cancel signal received for session #{@session.id}")
+        raise AgentInterrupted
+      when "redirect"
+        Rails.logger.info("ToolLoop: redirect signal received for session #{@session.id}")
+        raise AgentRedirected.new(signal[:message])
+      when "inject"
+        Rails.logger.info("ToolLoop: inject signal received for session #{@session.id}, injecting context")
+        # Add the injected message to the conversation context
+        @messages << { role: "user", content: signal[:message] }.with_indifferent_access
+        broadcast(type: "inject", content: signal[:message])
       end
     end
 

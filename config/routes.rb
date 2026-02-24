@@ -28,6 +28,7 @@ Rails.application.routes.draw do
   resources :sessions, only: [ :index, :show, :create ] do
     member do
       post :message
+      post :interrupt
     end
   end
 
