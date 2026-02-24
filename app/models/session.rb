@@ -26,11 +26,13 @@ class Session < ApplicationRecord
     { channel_type: origin_channel_type, channel_id: origin_channel_id, sender: origin_sender }
   end
 
+  before_save :sanitize_transcript_encoding
   after_initialize :set_defaults
 
   def append_transcript(entry)
     self.transcript ||= []
-    self.transcript << entry.merge(timestamp: Time.current.iso8601)
+    sanitized = entry.transform_values { |v| v.is_a?(String) ? sanitize_utf8(v) : v }
+    self.transcript << sanitized.merge(timestamp: Time.current.iso8601)
     self.last_activity_at = Time.current
     save!
   end
@@ -56,6 +58,22 @@ class Session < ApplicationRecord
   end
 
   private
+
+  def sanitize_utf8(str)
+    str.encode("UTF-8", invalid: :replace, undef: :replace, replace: " ")
+       .gsub(/\xC2\xA0/, " ") # non-breaking space
+       .scrub(" ")
+  end
+
+  def sanitize_transcript_encoding
+    return unless transcript.is_a?(Array)
+
+    self.transcript = transcript.map do |entry|
+      next entry unless entry.is_a?(Hash)
+
+      entry.transform_values { |v| v.is_a?(String) ? sanitize_utf8(v) : v }
+    end
+  end
 
   def set_defaults
     self.transcript ||= []

@@ -6,6 +6,7 @@ class MemoryEntry < ApplicationRecord
 
   has_neighbors :embedding
 
+  before_save :sanitize_content_encoding
   validates :content, presence: true
   validates :memory_type, inclusion: { in: %w[episodic semantic procedural preference] }
 
@@ -90,5 +91,16 @@ class MemoryEntry < ApplicationRecord
   def self.recency_score(created_at, half_life_days: 7)
     age_days = (Time.current - created_at) / 1.day
     Math.exp(-Math.log(2) * age_days / half_life_days)
+  end
+
+  private
+
+  def sanitize_content_encoding
+    return unless content.is_a?(String)
+
+    self.content = content
+      .encode("UTF-8", invalid: :replace, undef: :replace, replace: " ")
+      .gsub(/\xC2\xA0/, " ")
+      .scrub(" ")
   end
 end
