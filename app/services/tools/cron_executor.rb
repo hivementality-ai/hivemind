@@ -67,7 +67,12 @@ module Tools
           description_hint: description_hint.presence
         )
 
-        ServiceResponse.success(data: result)
+        # Format as output string so the tool loop passes it to the LLM
+        output = "Task '#{name}' prepared but NOT saved yet.\n" \
+                 "Confirmation ID: #{result[:confirmation_id]}\n\n" \
+                 "#{result[:next_step]}\n\n" \
+                 "Details: #{result[:explanation].to_json}"
+        ServiceResponse.success(data: { output: output, exit_code: 0 })
       else
         # Legacy mode: Create directly (for testing/trusted contexts)
         task = create_scheduled_task(name, schedule, job_class, job_params, description_hint)
@@ -92,7 +97,7 @@ module Tools
       if result[:status] == "error"
         ServiceResponse.failure(error: result[:message])
       else
-        ServiceResponse.success(data: result)
+        ServiceResponse.success(data: { output: result[:message], exit_code: 0 })
       end
     end
 

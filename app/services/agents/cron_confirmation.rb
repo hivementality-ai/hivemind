@@ -72,13 +72,15 @@ module Agents
         confirmation_id: confirmation_id,
         explanation: explanation,
         expires_in_minutes: CONFIRMATION_TTL / 60,
-        next_step: "Present the explanation to the user. Once they approve, call the cron tool again with action: 'confirm_create' and confirmation_id: '#{confirmation_id}' to persist the task."
+        next_step: "IMPORTANT: The task is NOT saved yet. You MUST immediately call the cron tool again with action: 'confirm_create' and confirmation_id: '#{confirmation_id}' to persist it. Do NOT call 'create' again."
       }
     end
 
     def confirm_and_persist(confirmation_id)
       # Retrieve pending confirmation from Redis
+      Rails.logger.info("CRON_CONFIRM: Looking up confirmation_id=#{confirmation_id.inspect} (length=#{confirmation_id&.length})")
       pending = retrieve_pending_confirmation(confirmation_id)
+      Rails.logger.info("CRON_CONFIRM: Retrieved pending=#{pending.nil? ? 'NIL' : 'found'}")
       return { status: "error", message: "Confirmation expired or invalid" } if pending.nil?
 
       # Verify agent matches
@@ -157,7 +159,11 @@ module Agents
     def store_pending_confirmation(confirmation_id, data)
       redis = Redis.current
       key = "#{REDIS_NAMESPACE}:#{confirmation_id}"
+      Rails.logger.info("CRON_CONFIRM: Storing key=#{key} (id length=#{confirmation_id.length})")
       redis.setex(key, CONFIRMATION_TTL, JSON.generate(data))
+      # Verify it was stored
+      verify = redis.get(key)
+      Rails.logger.info("CRON_CONFIRM: Verify after store: #{verify.nil? ? 'NIL!' : 'OK'}")
     rescue StandardError => e
       Rails.logger.warn("Failed to store pending confirmation: #{e.message}")
       # Don't fail entirely, just log the issue
