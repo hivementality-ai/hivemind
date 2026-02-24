@@ -82,8 +82,8 @@ module Sessions
     # ----- Memory Storage -----
 
     def store_memory(agent:, user_message:, assistant_response:)
-      # Only store meaningful exchanges (skip short greetings)
-      return if user_message.length < 20 && assistant_response.length < 50
+      # Only store meaningful exchanges (skip short greetings/small talk)
+      return if user_message.length < 50 && assistant_response.length < 50
 
       content = "User asked: #{user_message.truncate(200)}\nAgent responded: #{assistant_response.truncate(500)}"
 
@@ -106,32 +106,45 @@ module Sessions
 
     # ----- Message Building -----
 
+    TRANSCRIPT_CHAR_BUDGET = 20_000 # ~5K tokens
+
     def build_messages(agent:, memory_context: nil)
       messages = []
 
-      # System prompt with memory context
-      system_content = build_system_prompt(agent:, memory_context:)
-      messages << { role: "system", content: system_content } if system_content.present?
+      # System prompt — split into cacheable blocks for prompt caching
+      core_prompt = agent.full_system_prompt.presence
+      system_blocks = []
+      system_blocks << { type: "text", text: core_prompt } if core_prompt.present?
+      system_blocks << { type: "text", text: memory_context } if memory_context.present?
 
-      # Conversation history from transcript (last 50 messages to stay within context)
+      if system_blocks.any?
+        messages << { role: "system", content: system_blocks }
+      end
+
+      # Conversation history with token budget (replaces last(50))
       transcript = @session.transcript || []
-      transcript.last(50).each do |entry|
+      select_transcript_within_budget(transcript).each do |entry|
         messages << { role: entry["role"], content: entry["content"] }
       end
 
       messages
     end
 
-    def build_system_prompt(agent:, memory_context: nil)
-      parts = []
+    def select_transcript_within_budget(transcript)
+      return [] if transcript.blank?
 
-      # Core identity / soul
-      parts << agent.full_system_prompt if agent.full_system_prompt.present?
+      budget = TRANSCRIPT_CHAR_BUDGET
+      selected = []
 
-      # Inject memory context (built by Memory::ContextBuilder)
-      parts << memory_context if memory_context.present?
+      transcript.reverse_each do |msg|
+        content_size = msg["content"].to_s.length
+        break if selected.any? && budget - content_size < 0
 
-      parts.join("\n\n")
+        budget -= content_size
+        selected.unshift(msg)
+      end
+
+      selected
     end
 
     # ----- Usage Tracking -----

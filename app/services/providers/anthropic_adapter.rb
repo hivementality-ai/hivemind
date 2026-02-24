@@ -83,7 +83,9 @@ module Providers
       }
 
       system_content = system_msg&.dig(:content) || system_msg&.dig("content")
-      params[:system] = system_content.to_s if system_content.present?
+      if system_content.present?
+        params[:system] = build_cached_system(system_content)
+      end
 
       if tools.any?
         params[:tools] = tools.map do |t|
@@ -102,6 +104,21 @@ module Providers
       end
 
       params
+    end
+
+    # Convert system content into Anthropic's cached content block format.
+    # Accepts either a plain string or an array of {type:, text:} hashes.
+    # Each block gets cache_control so Anthropic caches the static prefix.
+    def build_cached_system(content)
+      blocks = if content.is_a?(Array)
+                 content.map do |block|
+                   b = block.to_h.with_indifferent_access
+                   { type: "text", text: b[:text].to_s, cache_control: { type: "ephemeral" } }
+                 end
+               else
+                 [{ type: "text", text: content.to_s, cache_control: { type: "ephemeral" } }]
+               end
+      blocks.reject { |b| b[:text].blank? }
     end
 
     def stream_chat(client:, params:, &block)

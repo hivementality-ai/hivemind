@@ -257,33 +257,38 @@ class ChatStreamJob < ApplicationJob
     Tool.enabled.builtin.to_a
   end
 
+  TRANSCRIPT_CHAR_BUDGET = 20_000 # ~5K tokens — prevents runaway context from long sessions
+
   def build_messages(session:, agent:, current_images: [], prompt_addons: [])
     messages = []
 
-    # System prompt
-    system_prompt = agent.full_system_prompt.presence || "You are #{agent.name}, a helpful AI assistant."
+    # System prompt — split into cacheable blocks for prompt caching
+    core_prompt = agent.full_system_prompt.presence || "You are #{agent.name}, a helpful AI assistant."
 
+    # Dynamic context (memory, mood, addons) — changes more often but still cacheable
+    dynamic_parts = []
     memory_context = recall_memories(agent:, session:)
-    if memory_context.present?
-      system_prompt += "\n\n#{memory_context}"
-    end
+    dynamic_parts << memory_context if memory_context.present?
 
-    # Inject mood from session metadata
     if (mood = session.metadata&.dig("mood"))
-      system_prompt += "\n\n## Style Override\nAdjust your communication style: #{mood}"
+      dynamic_parts << "## Style Override\nAdjust your communication style: #{mood}"
     end
 
-    # Inject hashtag action prompt addons
-    prompt_addons.each do |addon|
-      system_prompt += "\n\n#{addon}"
+    prompt_addons.each { |addon| dynamic_parts << addon }
+
+    # Build system content as array of blocks for prompt caching
+    system_blocks = [{ type: "text", text: core_prompt }]
+    if dynamic_parts.any?
+      system_blocks << { type: "text", text: dynamic_parts.join("\n\n") }
     end
 
-    messages << { role: "system", content: system_prompt }
+    messages << { role: "system", content: system_blocks }
 
-    # Add transcript history (last 50 messages)
-    transcript = session.transcript.last(50)
-    transcript.each_with_index do |msg, idx|
-      if msg["role"] == "user" && msg["images"].present? && idx == transcript.size - 1
+    # Add transcript history with token budget (replaces .last(50))
+    transcript = session.transcript
+    budgeted = select_transcript_within_budget(transcript)
+    budgeted.each_with_index do |msg, idx|
+      if msg["role"] == "user" && msg["images"].present? && idx == budgeted.size - 1
         # Current message with images — build multimodal content
         messages << build_vision_message(msg, current_images)
       elsif msg["role"] == "user" && msg["images"].present?
@@ -324,6 +329,32 @@ class ChatStreamJob < ApplicationJob
     content_blocks << { type: "text", text: text } if text.present?
 
     { role: "user", content: content_blocks }
+  end
+
+  # Select transcript messages from newest to oldest within a character budget.
+  # Always includes at least the most recent message.
+  def select_transcript_within_budget(transcript)
+    return [] if transcript.blank?
+
+    budget = TRANSCRIPT_CHAR_BUDGET
+    selected = []
+
+    transcript.reverse_each do |msg|
+      content_size = msg["content"].to_s.length
+      # Account for tool call content which can be huge
+      if msg["tool_calls"].present?
+        content_size += msg["tool_calls"].to_json.length
+      end
+
+      if selected.any? && budget - content_size < 0
+        break
+      end
+
+      budget -= content_size
+      selected.unshift(msg)
+    end
+
+    selected
   end
 
   def recall_memories(agent:, session:)
@@ -391,7 +422,7 @@ class ChatStreamJob < ApplicationJob
   end
 
   def store_memory(agent:, session:, user_message:, assistant_response:)
-    return if user_message.length < 20 && assistant_response.length < 50
+    return if user_message.length < 50 && assistant_response.length < 50
 
     content = "User asked: #{user_message.truncate(200)}\nAssistant: #{assistant_response.truncate(500)}"
 
