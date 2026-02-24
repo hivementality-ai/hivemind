@@ -40,7 +40,18 @@
     <% end %>
 
     <% @messages.each_with_index do |msg, idx| %>
-      <% if msg["role"] == "user" %>
+      <% if msg["source"] == "sub_agent" %>
+        <div class="flex justify-start">
+          <div class="max-w-2xl w-full">
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-full bg-purple-600/30 border border-purple-500/50 flex items-center justify-center text-purple-300 text-xs font-bold flex-shrink-0 mt-1">🔀</div>
+              <div class="bg-purple-900/20 border border-purple-500/30 rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
+                <div class="prose prose-invert prose-sm max-w-none markdown-content"><%= msg["content"] %></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% elsif msg["role"] == "user" %>
         <div class="flex justify-end">
           <div class="max-w-2xl">
             <div class="bg-brand rounded-2xl rounded-br-md px-4 py-3 text-white">

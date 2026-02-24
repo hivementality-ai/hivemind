@@ -267,6 +267,9 @@ export default class extends Controller {
       case "coding_agent_complete":
         this.completeCodingAgent(data.message, data.output_summary, data.task_key, data.duration)
         break
+      case "sub_agent_callback":
+        this.appendSubAgentCallback(data.content)
+        break
       case "agent_question":
         this.showAgentQuestion(data.question, data.timestamp)
         break
@@ -793,6 +796,22 @@ export default class extends Controller {
       pre.textContent = outputSummary
       pre.scrollTop = pre.scrollHeight
     }
+    this.scrollToBottom()
+  }
+
+  appendSubAgentCallback(content) {
+    const html = `
+      <div class="flex justify-start">
+        <div class="max-w-2xl w-full">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-full bg-purple-600/30 border border-purple-500/50 flex items-center justify-center text-purple-300 text-xs font-bold flex-shrink-0 mt-1">🔀</div>
+            <div class="bg-purple-900/20 border border-purple-500/30 rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
+              <div class="prose prose-invert prose-sm max-w-none">${this.renderMarkdown(content)}</div>
+            </div>
+          </div>
+        </div>
+      </div>`
+    this.messagesTarget.insertAdjacentHTML("beforeend", html)
     this.scrollToBottom()
   }
 

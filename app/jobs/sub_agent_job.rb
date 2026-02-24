@@ -3,6 +3,8 @@
 class SubAgentJob < ApplicationJob
   queue_as :default
 
+  MAX_CALLBACK_DEPTH = 3
+
   def perform(sub_agent_task_id)
     sat = SubAgentTask.find(sub_agent_task_id)
     sat.update!(status: "running", started_at: Time.current)
@@ -39,29 +41,89 @@ class SubAgentJob < ApplicationJob
         completed_at: Time.current
       )
 
-      # Notify parent via ActionCable
-      notify_parent(sat, reply)
+      callback_to_parent(sat, reply, success: true)
     else
       sat.update!(
         status: "failed",
         result: "Error: #{result.error}",
         completed_at: Time.current
       )
-      notify_parent(sat, "Sub-agent failed: #{result.error}")
+
+      callback_to_parent(sat, "Sub-agent failed: #{result.error}", success: false)
     end
   rescue StandardError => e
     sat&.update!(status: "failed", result: "Error: #{e.message}", completed_at: Time.current)
     Rails.logger.error("[SubAgent] Task #{sub_agent_task_id} failed: #{e.message}")
+
+    # Still try to callback on error so parent knows
+    callback_to_parent(sat, "Sub-agent error: #{e.message}", success: false) if sat&.parent_session
   end
 
   private
 
-  def notify_parent(sat, reply)
+  # Inject the sub-agent's result back into the parent agent's session.
+  # The parent agent receives it as a new message and can act on it.
+  def callback_to_parent(sat, reply, success:)
+    return unless sat&.parent_session
+
+    # Check recursion depth to prevent infinite spawn chains
+    depth = callback_depth(sat)
+    if depth >= MAX_CALLBACK_DEPTH
+      Rails.logger.warn("[SubAgent] Callback depth #{depth} reached max #{MAX_CALLBACK_DEPTH}, skipping callback for task #{sat.task_key}")
+      broadcast_completion_only(sat, reply, success:)
+      return
+    end
+
+    status_emoji = success ? "✅" : "❌"
+    duration = sat.duration_seconds ? " in #{sat.duration_seconds}s" : ""
+
+    # Build a clear message the parent agent can parse and act on
+    callback_message = <<~MSG.strip
+      [Sub-agent result#{duration}] #{status_emoji} #{sat.child_agent.name} — #{sat.task.truncate(100)}
+
+      #{reply.truncate(2000)}
+
+      (Task ID: #{sat.task_key} | Use spawn_status for full output if truncated)
+    MSG
+
+    # Fire ChatStreamJob on the parent session so the parent agent processes the result
+    ChatStreamJob.perform_later(
+      sat.parent_session.id,
+      callback_message,
+      [] # no attachments
+    )
+
+    Rails.logger.info("[SubAgent] Callback fired to parent session #{sat.parent_session.id} for task #{sat.task_key}")
+  end
+
+  # Calculate callback depth by walking the parent chain
+  def callback_depth(sat)
+    depth = 0
+    current = sat.parent_session
+
+    while current
+      break unless current.metadata&.dig("type") == "sub_agent"
+
+      parent_task_id = current.metadata&.dig("parent_task_id")
+      break unless parent_task_id
+
+      depth += 1
+      parent_task = SubAgentTask.find_by(id: parent_task_id)
+      break unless parent_task
+
+      current = parent_task.parent_session
+    end
+
+    depth
+  end
+
+  # Fallback: just broadcast to ActionCable (no agent processing)
+  # Used when recursion depth is exceeded
+  def broadcast_completion_only(sat, reply, success:)
     return unless sat.parent_session
 
-    # Broadcast to parent's session
     ActionCable.server.broadcast(
-      "session_#{sat.parent_session.session_key}",
+      "session_#{sat.parent_session.id}",
       {
         type: "sub_agent_complete",
         task_key: sat.task_key,
@@ -69,6 +131,8 @@ class SubAgentJob < ApplicationJob
         task: sat.task.truncate(100),
         result: reply.truncate(2000),
         duration: sat.duration_seconds,
+        success: success,
+        depth_limited: true,
         timestamp: Time.current.iso8601
       }
     )
