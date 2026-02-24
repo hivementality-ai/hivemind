@@ -164,6 +164,23 @@ BUILTIN_TOOLS = [
     }
   },
   {
+    name: "cron_script",
+    description: "Schedule scripts to run on a cron schedule. Instead of a prompt, point to a script file (Python, Ruby, or Shell) that runs in the workspace. Gives agents a bigger playground for complex scheduled tasks.",
+    executor_type: "cron_script",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "action" => { "type" => "string", "description" => "Action: list, create, confirm_create, delete, run, update_script", "enum" => %w[list create confirm_create delete run update_script] },
+        "name" => { "type" => "string", "description" => "Task name (for create)" },
+        "schedule" => { "type" => "string", "description" => "Cron expression, e.g. '0 9 * * *' (for create)" },
+        "script_path" => { "type" => "string", "description" => "Path to the script file in workspace, e.g. /workspace/scripts/daily_report.py (for create/update_script)" },
+        "task_id" => { "type" => "string", "description" => "Task ID (for delete/run/update_script)" },
+        "confirmation_id" => { "type" => "string", "description" => "Confirmation ID returned by create action (for confirm_create)" }
+      },
+      "required" => ["action"]
+    }
+  },
+  {
     name: "message",
     description: "Send messages via connected channels (Discord, Slack, Telegram, WhatsApp, Signal). Can also list available channels and react to messages.",
     executor_type: "message",

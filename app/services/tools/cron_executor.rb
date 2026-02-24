@@ -151,6 +151,7 @@ module Tools
 
     ALLOWED_JOB_CLASSES = %w[
       ScheduledAgentJob
+      ScheduledScriptJob
       SubAgentJob
     ].freeze
 
