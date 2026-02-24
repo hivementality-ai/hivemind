@@ -8,7 +8,7 @@ class Agent < ApplicationRecord
     history_size: 30,
     warning_threshold: 10,
     critical_threshold: 20,
-    circuit_breaker_threshold: 50,
+    circuit_breaker_threshold: 100,
     detectors: {
       generic_repeat: true,
       ping_pong: true,
