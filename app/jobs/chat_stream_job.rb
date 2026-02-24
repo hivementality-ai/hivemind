@@ -54,9 +54,17 @@ class ChatStreamJob < ApplicationJob
       end
     end
 
+    # Detect sub-agent callbacks and broadcast them to UI
+    is_callback = user_message.start_with?("[Sub-agent result")
+    if is_callback
+      ActionCable.server.broadcast(channel, { type: "sub_agent_callback", content: user_message })
+    end
+
     # Build transcript entry (with image/file refs)
     # Use effective_message so the LLM sees file paths on subsequent turns
+    # Sub-agent callbacks use "user" role for LLM compatibility but are marked as callbacks
     transcript_entry = { "role" => "user", "content" => effective_message, "timestamp" => Time.current.iso8601 }
+    transcript_entry["source"] = "sub_agent" if is_callback
     if image_attachments.any?
       transcript_entry["images"] = image_attachments.map do |a|
         { "attachment_id" => a.id, "content_type" => a.content_type, "filename" => a.filename }
