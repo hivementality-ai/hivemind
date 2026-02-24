@@ -1,5 +1,9 @@
 #!/bin/bash -e
 
+# Ensure shared workspace directories exist and are writable by both containers
+mkdir -p /workspace/uploads
+chmod 777 /workspace/uploads 2>/dev/null || true
+
 # If running the rails server then create or migrate existing database
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
   ./bin/rails db:prepare
