@@ -177,7 +177,7 @@ BUILTIN_TOOLS = [
         "task_id" => { "type" => "string", "description" => "Task ID (for delete/run/update_script)" },
         "confirmation_id" => { "type" => "string", "description" => "Confirmation ID returned by create action (for confirm_create)" }
       },
-      "required" => ["action"]
+      "required" => [ "action" ]
     }
   },
   {

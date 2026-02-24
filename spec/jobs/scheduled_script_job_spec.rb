@@ -35,7 +35,7 @@ RSpec.describe ScheduledScriptJob, type: :job do
 
       allow_any_instance_of(described_class).to receive(:execute_script)
         .with("/workspace/scripts/report.py")
-        .and_return(["Report generated\n", 0])
+        .and_return([ "Report generated\n", 0 ])
 
       described_class.new.perform(task.id)
 
@@ -49,7 +49,7 @@ RSpec.describe ScheduledScriptJob, type: :job do
         job_params: { "script_path" => "/workspace/scripts/report.py" })
 
       allow_any_instance_of(described_class).to receive(:execute_script)
-        .and_return(["Done\n", 0])
+        .and_return([ "Done\n", 0 ])
 
       expect { described_class.new.perform(task.id) }.to change(Session, :count).by(1)
 
@@ -64,7 +64,7 @@ RSpec.describe ScheduledScriptJob, type: :job do
 
       allow_any_instance_of(described_class).to receive(:execute_script)
         .with("/workspace/scripts/bad.sh")
-        .and_return(["Error: file not found", 1])
+        .and_return([ "Error: file not found", 1 ])
 
       described_class.new.perform(task.id)
 
@@ -79,7 +79,7 @@ RSpec.describe ScheduledScriptJob, type: :job do
         job_params: { "script_path" => "/workspace/scripts/report.py" })
 
       allow_any_instance_of(described_class).to receive(:execute_script)
-        .and_return(["Report output here\n", 0])
+        .and_return([ "Report output here\n", 0 ])
 
       described_class.new.perform(task.id)
 

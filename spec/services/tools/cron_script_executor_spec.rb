@@ -256,7 +256,7 @@ RSpec.describe Tools::CronScriptExecutor, type: :service do
 
         allow_any_instance_of(described_class).to receive(:execute_script)
           .with("/workspace/scripts/test.sh")
-          .and_return(["Hello from script\n", 0])
+          .and_return([ "Hello from script\n", 0 ])
 
         input = { "action" => "run", "task_id" => task.id.to_s }
         executor = described_class.new(agent: agent, input: input)
@@ -274,7 +274,7 @@ RSpec.describe Tools::CronScriptExecutor, type: :service do
 
         allow_any_instance_of(described_class).to receive(:execute_script)
           .with("/workspace/scripts/bad.sh")
-          .and_return(["Error: something went wrong", 1])
+          .and_return([ "Error: something went wrong", 1 ])
 
         input = { "action" => "run", "task_id" => task.id.to_s }
         executor = described_class.new(agent: agent, input: input)

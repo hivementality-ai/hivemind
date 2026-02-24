@@ -90,7 +90,7 @@ class ScheduledScriptJob < ApplicationJob
     BASH
 
     IO.popen(
-      ["docker", "exec", "-i", WORKSPACE_CONTAINER, "bash", "-c", "cat > #{exec_script_path} && chmod 755 #{exec_script_path}"],
+      [ "docker", "exec", "-i", WORKSPACE_CONTAINER, "bash", "-c", "cat > #{exec_script_path} && chmod 755 #{exec_script_path}" ],
       "w"
     ) { |io| io.write(script_content) }
 
@@ -109,9 +109,9 @@ class ScheduledScriptJob < ApplicationJob
                   code = lines.last.sub("__HIVEMIND_EXIT__", "").strip.to_i
                   stdout = lines[0..-2].join
                   code
-                else
+    else
                   status&.exitstatus || 1
-                end
+    end
 
     # Cleanup
     Open3.capture3(
@@ -119,9 +119,9 @@ class ScheduledScriptJob < ApplicationJob
       "bash", "-c", "rm -f #{exec_script_path}"
     ) rescue nil
 
-    [stdout.to_s, exit_code]
+    [ stdout.to_s, exit_code ]
   rescue Timeout::Error
-    ["Script timed out after #{EXEC_TIMEOUT}s", 1]
+    [ "Script timed out after #{EXEC_TIMEOUT}s", 1 ]
   end
 
   def ensure_exec_dir
