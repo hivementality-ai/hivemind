@@ -148,15 +148,15 @@ BUILTIN_TOOLS = [
   },
   {
     name: "cron",
-    description: "Manage scheduled tasks. Create recurring jobs, list existing schedules, delete or manually run tasks.",
+    description: "Manage scheduled tasks. When a task fires, a new agent session is created and the agent receives the prompt with full access to all its tools (gmail, web_search, etc.). This is NOT a shell cron — it's an agent turn.",
     executor_type: "cron",
     requires_approval: false,
     parameters_schema: {
       "properties" => {
         "action" => { "type" => "string", "description" => "Action: list, create, delete, run", "enum" => %w[list create delete run] },
         "name" => { "type" => "string", "description" => "Task name (for create)" },
-        "schedule" => { "type" => "string", "description" => "Cron expression or interval (for create)" },
-        "command" => { "type" => "string", "description" => "Shell command to run (for create)" },
+        "schedule" => { "type" => "string", "description" => "Cron expression, e.g. '0 13 * * *' for 8am CT (for create)" },
+        "prompt" => { "type" => "string", "description" => "Instructions for the agent to execute when the task fires. The agent wakes up in a new session with this prompt and can use all its tools (gmail, web_search, etc.)." },
         "task_id" => { "type" => "string", "description" => "Task ID (for delete/run)" }
       },
       "required" => [ "action" ]
