@@ -65,12 +65,23 @@ cmd_update() {
   echo -e "${BOLD}🐝 Updating Hivemind${NC}"
   echo ""
 
+  local use_rc=false
+  if [ "${1:-}" = "--rc" ]; then
+    use_rc=true
+  fi
+
   # Fetch tags
   info "Fetching latest release..."
   git fetch origin --tags --quiet
 
   local latest_tag
-  latest_tag="$(git tag --sort=-version:refname | head -n 1)"
+  if [ "$use_rc" = true ]; then
+    # Include release candidates
+    latest_tag="$(git tag --sort=-version:refname | head -n 1)"
+  else
+    # Stable releases only (exclude -rc tags)
+    latest_tag="$(git tag --sort=-version:refname | grep -v '\-rc' | head -n 1)"
+  fi
 
   if [ -z "$latest_tag" ]; then
     warn "No release tags found — pulling main"
