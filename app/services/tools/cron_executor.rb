@@ -130,7 +130,7 @@ module Tools
         return ServiceResponse.failure(error: "Unknown or disallowed job class: #{task.job_class}") unless job_class
 
         # Pass task ID as first argument for ScheduledAgentJob/SubAgentJob compatibility
-        job_class.perform_now(task.id, **(task.job_params || {}))
+        job_class.perform_now(task.id)
 
         ServiceResponse.success(data: {
           output: "Executed #{task.name} ✅",
@@ -142,8 +142,7 @@ module Tools
         # Update task with error info
         task.update(
           last_run_at: Time.current,
-          last_error_at: Time.current,
-          last_error_message: e.message
+          last_error_at: Time.current
         )
 
         ServiceResponse.failure(error: "Job execution failed: #{e.message}")
