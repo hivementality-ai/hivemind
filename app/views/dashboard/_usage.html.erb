@@ -1,0 +1,101 @@
+<!-- Period Toggle -->
+<div class="flex gap-2 mb-8">
+  <% %w[day week month].each do |p| %>
+    <%= link_to p.capitalize, dashboard_path(tab: "usage", period: p),
+        class: "px-4 py-2 rounded-lg text-sm font-medium transition #{@period == p ? 'bg-brand text-white' : 'bg-surface-card text-text-primary hover:bg-surface-raised'}" %>
+  <% end %>
+</div>
+
+<!-- Summary Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+  <div class="bg-surface-card rounded-xl border border-border-default p-6">
+    <p class="text-text-muted text-sm mb-1">Total Sessions</p>
+    <p class="text-3xl font-bold text-white"><%= @summary[:total_sessions] || 0 %></p>
+  </div>
+
+  <div class="bg-surface-card rounded-xl border border-border-default p-6">
+    <p class="text-text-muted text-sm mb-1">API Requests</p>
+    <p class="text-3xl font-bold text-white"><%= number_with_delimiter(@summary[:total_requests] || 0) %></p>
+  </div>
+
+  <div class="bg-surface-card rounded-xl border border-border-default p-6">
+    <p class="text-text-muted text-sm mb-1">Total Tokens</p>
+    <p class="text-3xl font-bold text-white"><%= number_with_delimiter(@summary[:total_tokens] || 0) %></p>
+    <p class="text-text-faint text-xs mt-1">
+      <%= number_with_delimiter(@summary[:total_input_tokens] || 0) %> in /
+      <%= number_with_delimiter(@summary[:total_output_tokens] || 0) %> out
+    </p>
+  </div>
+
+  <div class="bg-surface-card rounded-xl border border-border-default p-6">
+    <p class="text-text-muted text-sm mb-1">Total Cost</p>
+    <p class="text-3xl font-bold text-green-400">$<%= sprintf("%.4f", @summary[:total_cost_dollars] || 0) %></p>
+    <p class="text-text-faint text-xs mt-1">
+      ~$<%= sprintf("%.4f", @summary[:avg_cost_per_request] || 0) %> per request
+    </p>
+  </div>
+</div>
+
+<!-- Per-Agent Table -->
+<div class="bg-surface-card rounded-xl border border-border-default overflow-hidden">
+  <div class="px-6 py-4 border-b border-border-default">
+    <h2 class="text-lg font-semibold text-white">Agent Performance</h2>
+  </div>
+
+  <% if @per_agent.any? %>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead class="bg-surface-base/50 text-text-muted text-xs uppercase tracking-wider">
+          <tr>
+            <th class="px-6 py-3 text-left">Agent</th>
+            <th class="px-6 py-3 text-left">Role</th>
+            <th class="px-6 py-3 text-right">Sessions</th>
+            <th class="px-6 py-3 text-right">Requests</th>
+            <th class="px-6 py-3 text-right">Tokens</th>
+            <th class="px-6 py-3 text-right">Cost</th>
+            <th class="px-6 py-3 text-right">Models</th>
+            <th class="px-6 py-3 text-right"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-border-default">
+          <% @per_agent.each do |stat| %>
+            <tr class="hover:bg-surface-raised/50 transition">
+              <td class="px-6 py-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 bg-brand rounded-lg flex items-center justify-center text-white font-bold text-xs">
+                    <%= stat[:agent].name[0].upcase %>
+                  </div>
+                  <span class="font-medium text-white"><%= stat[:agent].name %></span>
+                </div>
+              </td>
+              <td class="px-6 py-4 text-text-muted text-sm"><%= stat[:agent].role %></td>
+              <td class="px-6 py-4 text-right text-white"><%= stat[:sessions] %></td>
+              <td class="px-6 py-4 text-right text-white"><%= stat[:requests] %></td>
+              <td class="px-6 py-4 text-right text-sm">
+                <span class="text-blue-400"><%= number_with_delimiter(stat[:input_tokens]) %></span>
+                <span class="text-text-faint">/</span>
+                <span class="text-amber-400"><%= number_with_delimiter(stat[:output_tokens]) %></span>
+              </td>
+              <td class="px-6 py-4 text-right text-sm">
+                <span class="text-green-400">$<%= sprintf("%.4f", stat[:cost_cents] / 100.0) %></span>
+              </td>
+              <td class="px-6 py-4 text-right">
+                <% stat[:models_used].each do |model| %>
+                  <span class="inline-block px-2 py-0.5 text-xs rounded-full bg-surface-raised text-text-primary ml-1"><%= model %></span>
+                <% end %>
+              </td>
+              <td class="px-6 py-4 text-right">
+                <%= link_to "Details →", analytic_path(stat[:agent], period: @period),
+                    class: "text-brand-light hover:text-brand-light text-sm" %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <div class="px-6 py-12 text-center text-text-muted">
+      No usage data for this period. Start chatting with your agents to see analytics here.
+    </div>
+  <% end %>
+</div>
