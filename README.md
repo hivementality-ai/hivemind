@@ -138,6 +138,27 @@ Think of Hivemind as **an office for AI agents**. You hire them (templates), giv
 
 ---
 
+## What Can I Do with Hivemind?
+
+Here are some real examples to spark ideas:
+
+| # | Use Case | How It Works |
+|---|----------|-------------|
+| 🛠️ | **Build a dev team that ships code while you sleep** | Create specialized agents — one writes code, one reviews PRs, one runs tests. Assign them GitHub + Docker + shell tools, put them on a team, and point them at your backlog. They collaborate via team chat and open PRs for your approval. |
+| 📧 | **Manage and send emails on your behalf** | Connect SMTP + IMAP integrations, give an agent the email skill, and let it draft replies, triage your inbox, or send outreach. It reads context from past conversations so responses stay on-brand. |
+| 💬 | **Run multiple specialized bots in Slack or Discord** | Each agent gets its own bot identity in your workspace. A support bot answers customer questions, a deploy bot handles releases, and a standup bot collects daily updates — all managed from one Hivemind instance. |
+| 📊 | **Monitor infrastructure and alert you** | Give an agent shell + Docker tools with a cron schedule. It checks container health, disk usage, and API uptime every 15 minutes. When something breaks, it messages you on WhatsApp or Discord with the diagnosis. |
+| 🔍 | **Research anything and deliver a report** | An agent with web browsing, web search, and file tools can deep-dive into competitors, market trends, or technical topics. It writes structured reports and saves them to your workspace. |
+| 🎫 | **Automate Jira ticket → PR workflows** | Import your Jira integration, teach an agent your codebase conventions via skills, and point it at tickets. It reads the ticket, writes a plan, generates code with tests, and opens a draft PR — all hands-free. |
+| 🔌 | **Connect to any API without writing code** | Import an OpenAPI/Swagger spec (Stripe, Twilio, HubSpot, your internal APIs) and agents can call those endpoints immediately. No custom tool code needed. |
+| 📝 | **Generate and publish content on a schedule** | A writing agent with web search + a cron job can research topics, write blog posts, and open PRs to your site repo on a biweekly cadence. You just review and merge. |
+| 🏗️ | **Delegate one-off tasks to disposable agents** | Spawn a sub-agent for a specific job — "migrate this CSV to the new schema" or "audit these 50 dependencies for vulnerabilities." It runs in isolation, reports back, and cleans up. |
+| 🧠 | **Build agents that learn and improve over time** | Hivemind's memory system stores interactions, extracts facts, and builds semantic knowledge. Your agents remember past decisions, user preferences, and lessons learned — getting better the more they work. |
+
+> **The pattern:** Pick a role → assign the right tools and skills → connect a channel → let it work. Hivemind handles orchestration, memory, credentials, and collaboration.
+
+---
+
 ## Quick Start
 
 ### One-line install
