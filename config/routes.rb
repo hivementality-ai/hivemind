@@ -78,7 +78,11 @@ Rails.application.routes.draw do
   post "heartbeat/trigger", to: "heartbeats#trigger", as: :trigger_heartbeat
 
   # Analytics
-  resources :analytics, only: [ :index, :show ]
+  resources :analytics, only: [ :index, :show ] do
+    member do
+      get "payload/:usage_id", action: :payload, as: :payload
+    end
+  end
 
   # Platform
   get "platform/status", to: "platform#status", as: :platform_status

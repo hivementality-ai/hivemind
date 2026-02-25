@@ -30,6 +30,19 @@ class AnalyticsController < ApplicationController
       flash.now[:alert] = response.error
       @analytics = {}
     end
+
+    # Recent API calls for the requests table
+    @recent_requests = @agent.usage_records
+                             .order(created_at: :desc)
+                             .limit(50)
+  end
+
+  def payload
+    @agent = Agent.find_by_slug(params[:id])
+    return render file: "public/404.html", status: :not_found unless @agent
+
+    @usage = @agent.usage_records.find_by(id: params[:usage_id])
+    return render file: "public/404.html", status: :not_found unless @usage
   end
 
   private
