@@ -223,10 +223,7 @@ module Providers
         end
       end
       # System blocks: store in full — no truncation
-      # Keep tool names + descriptions (skip full input_schema to save space)
-      if payload[:tools].is_a?(Array)
-        payload[:tools] = payload[:tools].map { |t| { name: t[:name], description: t[:description] } }
-      end
+      # Store full tool definitions (name, description, input_schema) — no stripping
       payload.except(:request_options)
     rescue StandardError => e
       { error: "Failed to capture payload: #{e.message}" }
