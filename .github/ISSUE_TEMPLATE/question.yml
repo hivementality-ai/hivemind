@@ -1,0 +1,29 @@
+name: Question
+description: Ask a question about setup, usage, or architecture
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question? Ask here, or join our [Discord](https://discord.gg/Cww4rFz7) for faster help.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: What do you need help with?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What have you tried? Include config snippets, logs, or screenshots if relevant.
+      render: shell
+
+  - type: input
+    id: version
+    attributes:
+      label: Hivemind version (if applicable)
+      placeholder: "2026.02.1"
