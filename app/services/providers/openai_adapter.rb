@@ -45,8 +45,13 @@ module Providers
 
     def build_chat_params(messages:, tools:, options:)
       # Format messages for OpenAI API
+      # If system content is an array of blocks (from structured prompt), join text
       formatted = messages.map do |m|
         m = m.to_h.with_indifferent_access
+        if m[:role] == "system" && m[:content].is_a?(Array)
+          joined = m[:content].map { |b| b.to_h.with_indifferent_access[:text].to_s }.reject(&:blank?).join("\n\n")
+          next { role: "system", content: joined }
+        end
         if m[:role] == "tool"
           { role: "tool", tool_call_id: m[:tool_use_id], content: m[:content].to_s }
         elsif m[:role] == "assistant" && m[:tool_calls].present?
@@ -111,10 +116,12 @@ module Providers
         end
 
         if chunk["usage"]
+          cached = chunk.dig("usage", "prompt_tokens_details", "cached_tokens")
           usage = {
             input_tokens: chunk["usage"]["prompt_tokens"],
             output_tokens: chunk["usage"]["completion_tokens"]
           }
+          usage[:cached_input_tokens] = cached if cached && cached > 0
         end
       }))
 
@@ -125,10 +132,12 @@ module Providers
       response = client.chat(parameters: params)
       content = response.dig("choices", 0, "message", "content")
       raw_tool_calls = response.dig("choices", 0, "message", "tool_calls")
+      cached = response.dig("usage", "prompt_tokens_details", "cached_tokens")
       usage = {
         input_tokens: response.dig("usage", "prompt_tokens"),
         output_tokens: response.dig("usage", "completion_tokens")
       }
+      usage[:cached_input_tokens] = cached if cached && cached > 0
 
       # Normalize OpenAI tool calls to our internal format
       tool_calls = raw_tool_calls&.map do |tc|

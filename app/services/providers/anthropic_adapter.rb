@@ -83,7 +83,9 @@ module Providers
       }
 
       system_content = system_msg&.dig(:content) || system_msg&.dig("content")
-      params[:system] = system_content.to_s if system_content.present?
+      if system_content.present?
+        params[:system] = build_cached_system(system_content)
+      end
 
       if tools.any?
         params[:tools] = tools.map do |t|
@@ -104,11 +106,27 @@ module Providers
       params
     end
 
+    # Convert system content into Anthropic's cached content block format.
+    # Accepts either a plain string or an array of {type:, text:} hashes.
+    # Each block gets cache_control so Anthropic caches the static prefix.
+    def build_cached_system(content)
+      blocks = if content.is_a?(Array)
+                 content.map do |block|
+                   b = block.to_h.with_indifferent_access
+                   { type: "text", text: b[:text].to_s, cache_control: { type: "ephemeral" } }
+                 end
+               else
+                 [{ type: "text", text: content.to_s, cache_control: { type: "ephemeral" } }]
+               end
+      blocks.reject { |b| b[:text].blank? }
+    end
+
     def stream_chat(client:, params:, &block)
       full_content = +""
       full_thinking = +""
       current_block_type = nil
       usage = {}
+      usage[:request_payload] = sanitize_payload_for_logging(params)
 
       params[:request_options] = oauth_request_options if oauth_token?
       stream = client.messages.stream(**params)
@@ -133,7 +151,10 @@ module Providers
           current_block_type = nil
         when "message_start"
           if event.message.respond_to?(:usage) && event.message.usage
-            usage[:input_tokens] = event.message.usage.input_tokens
+            u = event.message.usage
+            usage[:input_tokens] = u.input_tokens
+            usage[:cache_creation_input_tokens] = u.respond_to?(:cache_creation_input_tokens) ? u.cache_creation_input_tokens : nil
+            usage[:cache_read_input_tokens] = u.respond_to?(:cache_read_input_tokens) ? u.cache_read_input_tokens : nil
           end
         when "message_delta"
           if event.respond_to?(:usage) && event.usage
@@ -167,12 +188,45 @@ module Providers
 
       usage = {
         input_tokens: response.usage&.input_tokens,
-        output_tokens: response.usage&.output_tokens
+        output_tokens: response.usage&.output_tokens,
+        cache_creation_input_tokens: response.usage&.respond_to?(:cache_creation_input_tokens) ? response.usage.cache_creation_input_tokens : nil,
+        cache_read_input_tokens: response.usage&.respond_to?(:cache_read_input_tokens) ? response.usage.cache_read_input_tokens : nil,
+        request_payload: sanitize_payload_for_logging(params)
       }
 
       tool_calls = nil if tool_calls.empty?
 
       ServiceResponse.success(data: { content:, thinking:, tool_calls:, usage: })
+    end
+
+    # Capture the request payload for debugging.
+    # System blocks stored in full (that's the point of this feature).
+    # Message content truncated at 2000 chars (tool outputs can be huge).
+    def sanitize_payload_for_logging(params)
+      payload = params.deep_dup
+      # Truncate message content (tool results can be massive)
+      if payload[:messages].is_a?(Array)
+        payload[:messages] = payload[:messages].map do |msg|
+          msg = msg.dup
+          if msg[:content].is_a?(String) && msg[:content].length > 2000
+            msg[:content] = msg[:content][0..2000] + "... [truncated #{msg[:content].length} chars]"
+          elsif msg[:content].is_a?(Array)
+            msg[:content] = msg[:content].map do |block|
+              block = block.dup
+              if block[:text].is_a?(String) && block[:text].length > 2000
+                block[:text] = block[:text][0..2000] + "... [truncated #{block[:text].length} chars]"
+              end
+              block
+            end
+          end
+          msg
+        end
+      end
+      # System blocks: store in full — no truncation
+      # Store full tool definitions (name, description, input_schema) — no stripping
+      payload.except(:request_options)
+    rescue StandardError => e
+      { error: "Failed to capture payload: #{e.message}" }
     end
   end
 end

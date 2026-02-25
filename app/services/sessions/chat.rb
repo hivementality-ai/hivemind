@@ -82,8 +82,8 @@ module Sessions
     # ----- Memory Storage -----
 
     def store_memory(agent:, user_message:, assistant_response:)
-      # Only store meaningful exchanges (skip short greetings)
-      return if user_message.length < 20 && assistant_response.length < 50
+      # Only store meaningful exchanges (skip short greetings/small talk)
+      return if user_message.length < 50 && assistant_response.length < 50
 
       content = "User asked: #{user_message.truncate(200)}\nAgent responded: #{assistant_response.truncate(500)}"
 
@@ -106,32 +106,32 @@ module Sessions
 
     # ----- Message Building -----
 
+    RAW_MESSAGES_TO_KEEP = 4
+
     def build_messages(agent:, memory_context: nil)
       messages = []
 
-      # System prompt with memory context
-      system_content = build_system_prompt(agent:, memory_context:)
-      messages << { role: "system", content: system_content } if system_content.present?
+      # System prompt — structured as cacheable blocks
+      agent_obj = @session.agent
+      system_blocks = agent_obj.respond_to?(:system_prompt_blocks) ? agent_obj.system_prompt_blocks : [{ type: "text", text: agent_obj.full_system_prompt.presence || "You are #{agent_obj.name}" }]
 
-      # Conversation history from transcript (last 50 messages to stay within context)
+      system_blocks << { type: "text", text: memory_context } if memory_context.present?
+
+      if @session.conversation_summary.present?
+        system_blocks << { type: "text", text: "## Conversation So Far\n#{@session.conversation_summary}" }
+      end
+
+      if system_blocks.any?
+        messages << { role: "system", content: system_blocks }
+      end
+
+      # Only send last few raw messages — older context lives in the summary
       transcript = @session.transcript || []
-      transcript.last(50).each do |entry|
+      transcript.last(RAW_MESSAGES_TO_KEEP).each do |entry|
         messages << { role: entry["role"], content: entry["content"] }
       end
 
       messages
-    end
-
-    def build_system_prompt(agent:, memory_context: nil)
-      parts = []
-
-      # Core identity / soul
-      parts << agent.full_system_prompt if agent.full_system_prompt.present?
-
-      # Inject memory context (built by Memory::ContextBuilder)
-      parts << memory_context if memory_context.present?
-
-      parts.join("\n\n")
     end
 
     # ----- Usage Tracking -----

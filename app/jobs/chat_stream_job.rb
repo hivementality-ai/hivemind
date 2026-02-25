@@ -193,10 +193,14 @@ class ChatStreamJob < ApplicationJob
 
       # Track usage
       usage = result&.data&.dig(:usage) || {}
+      Rails.logger.info("[ChatStreamJob] Usage: in=#{usage[:input_tokens]} out=#{usage[:output_tokens]} cache_create=#{usage[:cache_creation_input_tokens]} cache_read=#{usage[:cache_read_input_tokens]}")
       track_usage(agent:, session:, usage:)
 
       # Store memory
       store_memory(agent:, session:, user_message:, assistant_response: full_content)
+
+      # Summarize older transcript to keep future requests lean
+      maybe_summarize(session)
 
       # Deliver to origin channel (e.g., WhatsApp) if this session came from one
       Channels::OriginDelivery.call(session: session, content: full_content, agent: agent)
@@ -252,38 +256,52 @@ class ChatStreamJob < ApplicationJob
 
   def resolve_tools(agent)
     assigned = agent.agent_tools.includes(:tool).map(&:tool).select(&:enabled?)
-    return assigned if assigned.any?
+    tools = assigned.any? ? assigned : Tool.enabled.builtin.to_a
 
-    Tool.enabled.builtin.to_a
+    # Inject system tools (always available, hidden from UI)
+    tools << SystemTool::LOAD_SKILL if agent.skills.enabled.any?
+
+    tools
   end
+
+  SUMMARIZE_EVERY = 6 # Summarize after every 6 new transcript entries (~3 turns)
+  RAW_MESSAGES_TO_KEEP = 4 # Keep last 4 messages raw (2 full turns)
 
   def build_messages(session:, agent:, current_images: [], prompt_addons: [])
     messages = []
 
-    # System prompt
-    system_prompt = agent.full_system_prompt.presence || "You are #{agent.name}, a helpful AI assistant."
+    # System prompt — structured as cacheable blocks
+    # Block 1: core identity + role (very stable)
+    # Block 2: skills (stable, often the biggest chunk)
+    # Block 3: memory + context (semi-stable, changes across sessions)
+    system_blocks = agent.respond_to?(:system_prompt_blocks) ? agent.system_prompt_blocks : [{ type: "text", text: agent.full_system_prompt.presence || "You are #{agent.name}, a helpful AI assistant." }]
 
+    # Dynamic context block (memory, mood, addons, summary)
+    dynamic_parts = []
     memory_context = recall_memories(agent:, session:)
-    if memory_context.present?
-      system_prompt += "\n\n#{memory_context}"
-    end
+    dynamic_parts << memory_context if memory_context.present?
 
-    # Inject mood from session metadata
     if (mood = session.metadata&.dig("mood"))
-      system_prompt += "\n\n## Style Override\nAdjust your communication style: #{mood}"
+      dynamic_parts << "## Style Override\nAdjust your communication style: #{mood}"
     end
 
-    # Inject hashtag action prompt addons
-    prompt_addons.each do |addon|
-      system_prompt += "\n\n#{addon}"
+    prompt_addons.each { |addon| dynamic_parts << addon }
+
+    if session.conversation_summary.present?
+      dynamic_parts << "## Conversation So Far\n#{session.conversation_summary}"
     end
 
-    messages << { role: "system", content: system_prompt }
+    if dynamic_parts.any?
+      system_blocks << { type: "text", text: dynamic_parts.join("\n\n") }
+    end
 
-    # Add transcript history (last 50 messages)
-    transcript = session.transcript.last(50)
-    transcript.each_with_index do |msg, idx|
-      if msg["role"] == "user" && msg["images"].present? && idx == transcript.size - 1
+    messages << { role: "system", content: system_blocks }
+
+    # Only send last few raw messages — older context lives in the summary
+    transcript = session.transcript
+    recent = transcript.last(RAW_MESSAGES_TO_KEEP)
+    recent.each_with_index do |msg, idx|
+      if msg["role"] == "user" && msg["images"].present? && idx == recent.size - 1
         # Current message with images — build multimodal content
         messages << build_vision_message(msg, current_images)
       elsif msg["role"] == "user" && msg["images"].present?
@@ -354,7 +372,8 @@ class ChatStreamJob < ApplicationJob
       llm_model: agent.llm_model,
       input_tokens:,
       output_tokens:,
-      cost_cents: cost
+      cost_cents: cost,
+      request_payload: usage[:request_payload]
     )
   end
 
@@ -390,8 +409,22 @@ class ChatStreamJob < ApplicationJob
     end
   end
 
+  # Trigger rolling summarization every N transcript entries.
+  # The summary job compresses older messages into ~200 tokens.
+  def maybe_summarize(session)
+    transcript_size = session.transcript&.size || 0
+    summarized_through = session.summary_through_index || 0
+    unsummarized = transcript_size - summarized_through
+
+    return if unsummarized < SUMMARIZE_EVERY + RAW_MESSAGES_TO_KEEP
+
+    ConversationSummaryJob.perform_later(session.id)
+  rescue StandardError => e
+    Rails.logger.warn("[ChatStreamJob] Summary trigger failed: #{e.message}")
+  end
+
   def store_memory(agent:, session:, user_message:, assistant_response:)
-    return if user_message.length < 20 && assistant_response.length < 50
+    return if user_message.length < 50 && assistant_response.length < 50
 
     content = "User asked: #{user_message.truncate(200)}\nAssistant: #{assistant_response.truncate(500)}"
 

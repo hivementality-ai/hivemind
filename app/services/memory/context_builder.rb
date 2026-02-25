@@ -2,9 +2,21 @@
 
 module Memory
   class ContextBuilder
-    MAX_MEMORY_TOKENS = 2000
+    MAX_MEMORY_TOKENS = 1000
     AVG_CHARS_PER_TOKEN = 4 # rough estimate
     MAX_CHARS = MAX_MEMORY_TOKENS * AVG_CHARS_PER_TOKEN
+
+    # Filter out low-value greeting/small-talk memories
+    GREETING_PATTERNS = [
+      /\b(hey|hello|hi|howdy|yo|sup)\b.{0,30}$/i,
+      /how('s| is| are) (it |things |you |your day|everything)/i,
+      /what'?s up/i,
+      /you there/i,
+      /good morning|good evening|good afternoon/i,
+      /just checking in/i,
+      /how'?s your day/i,
+      /going good|doing good|doing well/i
+    ].freeze
 
     def self.call(agent:, query:)
       new(agent:, query:).call
@@ -14,6 +26,7 @@ module Memory
       @agent = agent
       @query = query
       @budget_remaining = MAX_CHARS
+      @seen_ids = Set.new  # Deduplicate entries across sections
     end
 
     # Returns a structured string to inject into the system prompt,
@@ -31,7 +44,7 @@ module Memory
       end
 
       # Priority 2: Semantic matches (most relevant to current query)
-      relevant = relevant_memories
+      relevant = relevant_memories.reject { |e| greeting?(e) }
       if relevant.any?
         section, used = format_section("Relevant Context", relevant)
         sections << section
@@ -39,7 +52,7 @@ module Memory
       end
 
       # Priority 3: Recent episodic summaries (what happened recently)
-      recent = recent_episodic
+      recent = recent_episodic.reject { |e| greeting?(e) }
       if recent.any?
         section, used = format_section("Recent History", recent)
         sections << section
@@ -117,16 +130,24 @@ module Memory
                  .to_a
     end
 
+    def greeting?(entry)
+      GREETING_PATTERNS.any? { |pattern| entry.content.match?(pattern) }
+    end
+
     def format_section(title, entries)
       used = []
       lines = []
 
       entries.each do |entry|
+        # Deduplicate across sections
+        next if @seen_ids.include?(entry.id)
+
         line = "- #{entry.content.truncate(300)}"
         break if @budget_remaining - line.length < 0
 
         lines << line
         used << entry
+        @seen_ids.add(entry.id)
         @budget_remaining -= line.length
       end
 

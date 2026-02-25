@@ -8,6 +8,7 @@ class Skill < ApplicationRecord
 
   validates :name, presence: true, uniqueness: true
   validates :content, presence: true
+  validates :summary, presence: true, length: { maximum: 150 }
 
   scope :enabled, -> { where(enabled: true) }
   scope :builtin, -> { where(builtin: true) }

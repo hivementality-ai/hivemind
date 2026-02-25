@@ -193,6 +193,8 @@ module Agents
       return unless usage
       @total_usage[:input_tokens] += (usage[:input_tokens] || 0)
       @total_usage[:output_tokens] += (usage[:output_tokens] || 0)
+      # Keep the first request payload (most useful for debugging prompt structure)
+      @total_usage[:request_payload] ||= usage[:request_payload]
     end
 
     def sanitize_utf8(str)
