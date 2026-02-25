@@ -113,7 +113,7 @@ module Sessions
 
       # System prompt — structured as cacheable blocks
       agent_obj = @session.agent
-      system_blocks = agent_obj.respond_to?(:system_prompt_blocks) ? agent_obj.system_prompt_blocks : [{ type: "text", text: agent_obj.full_system_prompt.presence || "You are #{agent_obj.name}" }]
+      system_blocks = agent_obj.respond_to?(:system_prompt_blocks) ? agent_obj.system_prompt_blocks : [ { type: "text", text: agent_obj.full_system_prompt.presence || "You are #{agent_obj.name}" } ]
 
       system_blocks << { type: "text", text: memory_context } if memory_context.present?
 

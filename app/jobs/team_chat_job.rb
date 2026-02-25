@@ -294,7 +294,7 @@ class TeamChatJob < ApplicationJob
     # Block 2: skill catalog (stable)
     # Block 3: team context + team soul (stable per session)
     # Block 4: memory + addons (dynamic)
-    system_blocks = agent.respond_to?(:system_prompt_blocks) ? agent.system_prompt_blocks : [{ type: "text", text: agent.full_system_prompt.presence || "You are #{agent.name}" }]
+    system_blocks = agent.respond_to?(:system_prompt_blocks) ? agent.system_prompt_blocks : [ { type: "text", text: agent.full_system_prompt.presence || "You are #{agent.name}" } ]
 
     # Team context as separate cacheable block
     system_blocks << { type: "text", text: build_team_context(agent:) }

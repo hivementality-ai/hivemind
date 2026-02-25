@@ -42,7 +42,7 @@ class AnalyticsController < ApplicationController
     return render file: "public/404.html", status: :not_found unless @agent
 
     @usage = @agent.usage_records.find_by(id: params[:usage_id])
-    return render file: "public/404.html", status: :not_found unless @usage
+    render file: "public/404.html", status: :not_found unless @usage
   end
 
   private
