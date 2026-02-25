@@ -635,9 +635,38 @@ Agents work better when they have focused roles. Instead of one "do everything" 
 - Group them into a team with a shared soul (team context)
 - Use @mentions in team chat to orchestrate handoffs
 
-### Keep system prompts short
+### Invest in your agents upfront
 
-Long system prompts burn tokens on every request. Put stable context in the team soul (shared once) and keep individual agent prompts focused on their specific role and behavior.
+The more context, memory, and skills you give an agent early on, the better it performs over time — and the less it costs per interaction.
+
+**How Hivemind keeps costs low automatically:**
+
+- **Prompt caching** — System prompts are split into cacheable blocks. After the first message, Anthropic caches the static prefix and subsequent calls pay ~10% of the original cost for those blocks.
+- **Skill-on-demand** — Skills aren't injected into every API call. Agents see a one-line summary of each skill and load full instructions via tool call only when needed. A "hello" costs zero skill tokens.
+- **Conversation summarization** — Older messages are compressed into a rolling ~200-token summary instead of sending raw transcript. A 50-message conversation doesn't mean 50 messages in the API call.
+- **Memory filtering** — Greetings and small talk are filtered out of memory retrieval. Only meaningful context gets injected.
+
+**What this means in practice:**
+
+| Scenario | Input tokens |
+|----------|-------------|
+| Agent with 4 skills says hello | ~400 tokens |
+| Same agent after prompt cache hit | ~200 tokens |
+| Agent loads a skill for a coding task | +500 tokens (one-time) |
+| Long conversation (50+ messages) | Capped by summarization |
+
+**The investment that pays off:**
+
+- Write detailed skill instructions — they're loaded on-demand, so length doesn't hurt casual usage
+- Give agents rich system prompts — the static parts are cached after the first call
+- Let agents build memories — good memory context means fewer clarification rounds
+- Use team souls for shared context — written once, cached across all team members
+
+The pattern: **front-load quality context, and the system handles efficiency automatically.**
+
+### Keep system prompts focused
+
+System prompts are cached, so length isn't as costly as it used to be — but focused prompts still produce better agent behavior. Put stable shared context in the team soul and keep individual agent prompts about their specific role, personality, and expertise.
 
 ### Use the workspace for state
 
