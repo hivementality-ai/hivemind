@@ -199,20 +199,22 @@ module Providers
       ServiceResponse.success(data: { content:, thinking:, tool_calls:, usage: })
     end
 
-    # Capture the request payload for debugging, truncating large content
+    # Capture the request payload for debugging.
+    # System blocks stored in full (that's the point of this feature).
+    # Message content truncated at 2000 chars (tool outputs can be huge).
     def sanitize_payload_for_logging(params)
       payload = params.deep_dup
-      # Truncate message content to keep storage reasonable
+      # Truncate message content (tool results can be massive)
       if payload[:messages].is_a?(Array)
         payload[:messages] = payload[:messages].map do |msg|
           msg = msg.dup
-          if msg[:content].is_a?(String) && msg[:content].length > 500
-            msg[:content] = msg[:content][0..500] + "... [truncated #{msg[:content].length} chars]"
+          if msg[:content].is_a?(String) && msg[:content].length > 2000
+            msg[:content] = msg[:content][0..2000] + "... [truncated #{msg[:content].length} chars]"
           elsif msg[:content].is_a?(Array)
             msg[:content] = msg[:content].map do |block|
               block = block.dup
-              if block[:text].is_a?(String) && block[:text].length > 500
-                block[:text] = block[:text][0..500] + "... [truncated #{block[:text].length} chars]"
+              if block[:text].is_a?(String) && block[:text].length > 2000
+                block[:text] = block[:text][0..2000] + "... [truncated #{block[:text].length} chars]"
               end
               block
             end
@@ -220,18 +222,7 @@ module Providers
           msg
         end
       end
-      # Truncate system blocks too
-      if payload[:system].is_a?(Array)
-        payload[:system] = payload[:system].map do |block|
-          block = block.dup
-          if block[:text].is_a?(String) && block[:text].length > 500
-            block[:text] = block[:text][0..500] + "... [truncated #{block[:text].length} chars]"
-          end
-          block
-        end
-      elsif payload[:system].is_a?(String) && payload[:system].length > 500
-        payload[:system] = payload[:system][0..500] + "... [truncated #{payload[:system].length} chars]"
-      end
+      # System blocks: store in full — no truncation
       # Strip tools schema (verbose, not useful for prompt debugging)
       payload[:tools] = payload[:tools]&.map { |t| { name: t[:name] } } if payload[:tools]
       payload.except(:request_options)
