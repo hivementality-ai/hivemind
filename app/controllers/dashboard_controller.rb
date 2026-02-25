@@ -7,8 +7,10 @@ class DashboardController < ApplicationController
   skip_before_action :authenticate_user!, only: [ :index ]
   before_action :check_setup_complete
 
+  ALLOWED_TABS = %w[overview usage health].freeze
+
   def index
-    @tab = params[:tab] || "overview"
+    @tab = ALLOWED_TABS.include?(params[:tab]) ? params[:tab] : "overview"
 
     case @tab
     when "overview"
