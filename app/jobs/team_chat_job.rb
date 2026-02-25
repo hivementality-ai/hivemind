@@ -284,24 +284,34 @@ class TeamChatJob < ApplicationJob
     end
   end
 
+  TEAM_CHAT_MESSAGE_LIMIT = 10 # Keep last 10 messages for group context
+
   def build_team_messages(agent:, images: [], trigger_message_id: nil, prompt_addons: [])
     messages = []
 
-    # System prompt: agent soul + team soul + hashtag addons
-    system_parts = []
-    system_parts << agent.full_system_prompt if agent.full_system_prompt.present?
-    system_parts << build_team_context(agent:)
+    # System prompt — structured as cacheable blocks
+    # Block 1: agent identity + role (very stable)
+    # Block 2: skill catalog (stable)
+    # Block 3: team context + team soul (stable per session)
+    # Block 4: memory + addons (dynamic)
+    system_blocks = agent.respond_to?(:system_prompt_blocks) ? agent.system_prompt_blocks : [{ type: "text", text: agent.full_system_prompt.presence || "You are #{agent.name}" }]
 
-    # Inject hashtag action prompt addons
-    prompt_addons.each do |addon|
-      system_parts << addon
+    # Team context as separate cacheable block
+    system_blocks << { type: "text", text: build_team_context(agent:) }
+
+    # Memory context
+    memory_context = recall_memories(agent:)
+    system_blocks << { type: "text", text: memory_context } if memory_context.present?
+
+    # Hashtag addons
+    if prompt_addons.any?
+      system_blocks << { type: "text", text: prompt_addons.join("\n\n") }
     end
 
-    messages << { role: "system", content: system_parts.join("\n\n") }
+    messages << { role: "system", content: system_blocks }
 
-    # Chat history — include recent team chat messages for context
-    recent = @session.recent_messages(limit: 30)
-    # Always include at least the last 5 messages so the agent has context
+    # Chat history — last N messages for group context
+    recent = @session.recent_messages(limit: TEAM_CHAT_MESSAGE_LIMIT)
     recent = @session.team_chat_messages.chronological.last(5) if recent.size < 5
     recent.each_with_index do |msg, idx|
       is_trigger = (msg.id == trigger_message_id)
@@ -436,10 +446,22 @@ class TeamChatJob < ApplicationJob
     content
   end
 
+  def recall_memories(agent:)
+    result = Memory::ContextBuilder.call(agent:, query: "team chat context")
+    result[:context]
+  rescue StandardError => e
+    Rails.logger.warn("[TeamChatJob] Memory recall failed: #{e.message}")
+    nil
+  end
+
   def resolve_tools(agent)
     assigned = agent.agent_tools.includes(:tool).map(&:tool).select(&:enabled?)
-    return assigned if assigned.any?
-    Tool.enabled.builtin.to_a
+    tools = assigned.any? ? assigned : Tool.enabled.builtin.to_a
+
+    # Inject system tools
+    tools << SystemTool::LOAD_SKILL if agent.skills.enabled.any?
+
+    tools
   end
 
   def track_usage(agent:, session: nil, usage:)
@@ -453,7 +475,8 @@ class TeamChatJob < ApplicationJob
       llm_model: agent.llm_model,
       input_tokens:,
       output_tokens:,
-      cost_cents: CostEstimator.estimate(model: agent.llm_model, input_tokens:, output_tokens:)
+      cost_cents: CostEstimator.estimate(model: agent.llm_model, input_tokens:, output_tokens:),
+      request_payload: usage[:request_payload]
     )
   rescue StandardError => e
     Rails.logger.warn("TeamChat usage tracking failed: #{e.message}")
