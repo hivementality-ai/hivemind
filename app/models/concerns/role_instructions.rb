@@ -120,10 +120,18 @@ module RoleInstructions
       **Security:** This container is fully isolated — no database or Redis access. You have full control. Install what you need, run what you need.
     ENV
 
-    # Skills (injected instructions for assigned skills)
+    # Skills (injected instructions for assigned skills), budget-capped
     if respond_to?(:skills) && skills.enabled.any?
-      skill_blocks = skills.enabled.map { |s| "### #{s.name}\n#{s.content}" }
-      parts << "## Skills\n#{skill_blocks.join("\n\n")}"
+      skill_budget = 4000
+      skill_texts = []
+      used = 0
+      skills.enabled.each do |s|
+        text = "### #{s.name}\n#{s.content}"
+        break if used + text.length > skill_budget
+        skill_texts << text
+        used += text.length
+      end
+      parts << "## Skills\n#{skill_texts.join("\n\n")}" if skill_texts.any?
     end
 
     parts.join("\n\n")
@@ -168,10 +176,24 @@ module RoleInstructions
 
     blocks = [{ type: "text", text: core_parts.join("\n\n") }]
 
-    # Skills as separate cacheable block
+    # Skills as separate cacheable block, with a total budget cap.
+    # Even with per-skill limits, multiple skills can add up.
     if respond_to?(:skills) && skills.enabled.any?
-      skill_blocks = skills.enabled.map { |s| "### #{s.name}\n#{s.content}" }
-      blocks << { type: "text", text: "## Skills\n#{skill_blocks.join("\n\n")}" }
+      skill_budget = 4000 # ~1K tokens max for all skills combined
+      skill_texts = []
+      used = 0
+
+      skills.enabled.each do |s|
+        text = "### #{s.name}\n#{s.content}"
+        break if used + text.length > skill_budget
+
+        skill_texts << text
+        used += text.length
+      end
+
+      if skill_texts.any?
+        blocks << { type: "text", text: "## Skills\n#{skill_texts.join("\n\n")}" }
+      end
     end
 
     blocks

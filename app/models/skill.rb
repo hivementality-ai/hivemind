@@ -6,8 +6,15 @@ class Skill < ApplicationRecord
   has_many :skill_tools, dependent: :destroy
   has_many :tools, through: :skill_tools
 
+  # Individual skill content limit (~500 tokens). Skills are injected into every
+  # API call as part of the system prompt, so bloated skills burn tokens fast.
+  MAX_CONTENT_CHARS = 2000
+
   validates :name, presence: true, uniqueness: true
-  validates :content, presence: true
+  validates :content, presence: true, length: {
+    maximum: MAX_CONTENT_CHARS,
+    message: "is too long (max %{count} characters / ~500 tokens). Keep skills concise — agents already know how to use most tools. Just provide environment-specific details."
+  }
 
   scope :enabled, -> { where(enabled: true) }
   scope :builtin, -> { where(builtin: true) }

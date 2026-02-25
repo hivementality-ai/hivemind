@@ -36,12 +36,20 @@
       <div>
         <div class="flex items-center justify-between mb-1">
           <%= form.label :content, "Instructions", class: "block text-sm font-medium text-text-primary" %>
-          <span class="text-text-faint text-xs">Markdown supported. This gets injected into the agent's system prompt.</span>
+          <span class="text-text-faint text-xs">Max <%= Skill::MAX_CONTENT_CHARS %> chars (~<%= Skill::MAX_CONTENT_CHARS / 4 %> tokens). Injected into every API call.</span>
         </div>
         <%= form.text_area :content,
             rows: 20,
-            placeholder: "# Skill Name\n\nInstructions for the agent on how to use this skill...\n\n## When to use\n- Trigger conditions\n\n## How to use\n- Step-by-step instructions\n- Tool calls to make\n- Expected outputs",
-            class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm leading-relaxed resize-y" %>
+            maxlength: Skill::MAX_CONTENT_CHARS,
+            placeholder: "Keep it concise — agents already know how to use most tools.\nJust provide environment-specific details (auth, endpoints, conventions).\n\nExample:\nGitHub: Use `gh` CLI (pre-authenticated). Our repos are under hivementality-ai org.\nBranch format: feat/XT-#### or fix/XT-####. Always create PRs to main.",
+            class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm leading-relaxed resize-y",
+            data: { controller: "char-count", char_count_max_value: Skill::MAX_CONTENT_CHARS } %>
+        <div class="flex items-center justify-between mt-1">
+          <span class="text-text-faint text-xs">💡 Tip: Don't teach the agent things it already knows. Just tell it what's specific to your setup.</span>
+          <span class="text-text-faint text-xs" data-char-count-target="display">
+            <%= skill.content.to_s.length %> / <%= Skill::MAX_CONTENT_CHARS %> chars
+          </span>
+        </div>
       </div>
 
       <!-- Required Tools -->
