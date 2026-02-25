@@ -1,0 +1,138 @@
+<!-- Platform Stats -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+  <div class="bg-surface-card rounded-xl border border-border-default p-5">
+    <p class="text-text-muted text-xs uppercase tracking-wide mb-1">Agents</p>
+    <p class="text-2xl font-bold text-white"><%= @stats[:total_agents] %></p>
+  </div>
+  <div class="bg-surface-card rounded-xl border border-border-default p-5">
+    <p class="text-text-muted text-xs uppercase tracking-wide mb-1">Active Sessions</p>
+    <p class="text-2xl font-bold text-white"><%= @stats[:active_sessions] %></p>
+  </div>
+  <div class="bg-surface-card rounded-xl border border-border-default p-5">
+    <p class="text-text-muted text-xs uppercase tracking-wide mb-1">Last 24h Tokens</p>
+    <p class="text-2xl font-bold text-white"><%= number_with_delimiter(@stats[:today_tokens]) %></p>
+  </div>
+  <div class="bg-surface-card rounded-xl border border-border-default p-5">
+    <p class="text-text-muted text-xs uppercase tracking-wide mb-1">Last 24h Cost</p>
+    <p class="text-2xl font-bold text-green-400">$<%= sprintf("%.4f", @stats[:today_cost_cents] / 100.0) %></p>
+  </div>
+</div>
+
+<!-- Agent Cards + Cost -->
+<div class="mb-8">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-lg font-semibold text-white">Agents</h2>
+    <span class="text-text-faint text-sm"><%= @stats[:today_requests] %> requests last 24h</span>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <% @agents.each do |agent| %>
+      <% cost_data = @cost_summary.find { |c| c[:agent_id] == agent.id } %>
+      <%= link_to agent_path(agent), class: "block bg-surface-card rounded-xl border border-border-default hover:border-amber-500/50 transition p-5" do %>
+        <div class="flex items-start justify-between mb-3">
+          <div class="w-10 h-10 bg-amber-600/20 rounded-lg flex items-center justify-center text-amber-400 font-bold text-sm">
+            <%= agent.name[0..1].upcase %>
+          </div>
+          <% status = agent.status || "idle" %>
+          <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1 <%= status == 'active' ? 'bg-green-400' : status == 'thinking' ? 'bg-yellow-400 animate-pulse' : 'bg-surface-overlay' %>"></span>
+        </div>
+
+        <h3 class="text-white font-semibold"><%= agent.name %></h3>
+        <p class="text-text-faint text-xs mb-3"><%= agent.role %> · <%= agent.llm_model %></p>
+
+        <% if cost_data && cost_data[:today_tokens] > 0 %>
+          <% agent_is_local = agent.model_provider == "ollama" || CostEstimator.find_rate(agent.llm_model) == { input: 0, output: 0 } %>
+          <div class="border-t border-border-default pt-3 mt-auto">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-text-muted"><%= number_with_delimiter(cost_data[:today_tokens]) %> tokens</span>
+              <% if agent_is_local %>
+                <span class="text-green-400">Free</span>
+              <% else %>
+                <span class="text-green-400">$<%= sprintf("%.4f", cost_data[:today_cost_dollars]) %></span>
+              <% end %>
+            </div>
+            <% if !agent_is_local && cost_data[:usage_percent] > 0 %>
+              <div class="w-full bg-surface-raised rounded-full h-1.5 mt-2">
+                <div class="h-1.5 rounded-full <%= cost_data[:usage_percent] > 80 ? 'bg-red-500' : 'bg-amber-500' %>"
+                     style="width: <%= [cost_data[:usage_percent], 100].min %>%"></div>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+
+        <% if agent.team %>
+          <div class="mt-2 text-xs text-gray-600">
+            <%= agent.team.name %>
+          </div>
+        <% end %>
+      <% end %>
+    <% end %>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <!-- Recent Sessions -->
+  <div class="bg-surface-card rounded-xl border border-border-default">
+    <div class="px-5 py-4 border-b border-border-default flex items-center justify-between">
+      <h2 class="text-base font-semibold text-white">Recent Sessions</h2>
+      <span class="text-text-faint text-xs"><%= @stats[:total_sessions] %> total</span>
+    </div>
+    <div class="divide-y divide-border-default/50">
+      <% if @recent_sessions.any? %>
+        <% @recent_sessions.each do |session| %>
+          <%= link_to session_path(session), class: "block px-5 py-3 hover:bg-surface-raised transition" do %>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-7 h-7 bg-brand/20 rounded flex items-center justify-center text-brand-light text-xs font-bold flex-shrink-0">
+                  <%= session.agent&.name&.first&.upcase || "?" %>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-white text-sm font-medium truncate"><%= session.agent&.name || "Unknown" %></p>
+                  <p class="text-text-faint text-xs truncate"><%= session.key %></p>
+                </div>
+              </div>
+              <div class="text-right flex-shrink-0 ml-3">
+                <p class="text-text-faint text-xs"><%= time_ago_in_words(session.created_at) %> ago</p>
+                <p class="text-gray-600 text-xs"><%= (session.transcript || []).size %> msgs</p>
+              </div>
+            </div>
+          <% end %>
+        <% end %>
+      <% else %>
+        <div class="px-5 py-8 text-center text-text-faint text-sm">No sessions in the last 24 hours</div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Recent Tool Activity -->
+  <div class="bg-surface-card rounded-xl border border-border-default">
+    <div class="px-5 py-4 border-b border-border-default flex items-center justify-between">
+      <h2 class="text-base font-semibold text-white">Tool Activity</h2>
+      <span class="text-text-faint text-xs"><%= @stats[:today_tool_calls] %> today</span>
+    </div>
+    <div class="divide-y divide-border-default/50">
+      <% if @recent_tools.any? %>
+        <% @recent_tools.each do |exec| %>
+          <div class="px-5 py-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3 min-w-0">
+                <span class="w-2 h-2 rounded-full flex-shrink-0 <%= exec.status == 'completed' ? 'bg-green-400' : 'bg-red-400' %>"></span>
+                <div class="min-w-0">
+                  <p class="text-white text-sm font-medium">
+                    <%= exec.tool&.name || "unknown" %>
+                    <span class="text-text-faint font-normal">by <%= exec.agent&.name || "?" %></span>
+                  </p>
+                  <% if exec.input.present? %>
+                    <p class="text-text-faint text-xs truncate"><%= exec.input.to_s.truncate(80) %></p>
+                  <% end %>
+                </div>
+              </div>
+              <span class="text-gray-600 text-xs flex-shrink-0 ml-3"><%= time_ago_in_words(exec.created_at) %></span>
+            </div>
+          </div>
+        <% end %>
+      <% else %>
+        <div class="px-5 py-8 text-center text-text-faint text-sm">No tool calls in the last 24 hours</div>
+      <% end %>
+    </div>
+  </div>
+</div>

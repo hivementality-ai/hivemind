@@ -1,0 +1,122 @@
+<!-- Infrastructure -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+  <div class="bg-surface-card rounded-xl border border-border-default p-5">
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-text-muted text-sm">Database</span>
+      <span class="w-2.5 h-2.5 rounded-full <%= @db_connected ? 'bg-green-500' : 'bg-red-500' %>"></span>
+    </div>
+    <p class="text-white font-semibold"><%= @db_connected ? "Connected" : "Down" %></p>
+    <p class="text-text-faint text-xs mt-1">Primary store</p>
+  </div>
+
+  <div class="bg-surface-card rounded-xl border border-border-default p-5">
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-text-muted text-sm">Cache</span>
+      <span class="w-2.5 h-2.5 rounded-full <%= @redis_connected ? 'bg-green-500' : 'bg-red-500' %>"></span>
+    </div>
+    <p class="text-white font-semibold"><%= @redis_connected ? "Connected" : "Down" %></p>
+    <p class="text-text-faint text-xs mt-1">Jobs + real-time</p>
+  </div>
+
+  <div class="bg-surface-card rounded-xl border border-border-default p-5">
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-text-muted text-sm">Application</span>
+      <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+    </div>
+    <p class="text-white font-semibold">Running</p>
+    <p class="text-text-faint text-xs mt-1">Uptime: <%= distance_of_time_in_words(Time.current - File.ctime("/proc/1")) rescue "—" %></p>
+  </div>
+</div>
+
+<!-- Services -->
+<% if @services.present? %>
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-8">
+    <h2 class="text-lg font-semibold text-white mb-4">Services</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <% @services.each do |svc| %>
+        <div class="flex items-center justify-between bg-surface-base rounded-lg px-4 py-3">
+          <div class="flex items-center gap-3">
+            <span class="w-2.5 h-2.5 rounded-full <%= svc[:running] ? 'bg-green-500' : 'bg-red-500' %>"></span>
+            <div>
+              <span class="text-white font-medium"><%= svc[:name] %></span>
+              <p class="text-text-faint text-xs"><%= svc[:description] %></p>
+            </div>
+          </div>
+          <span class="px-2 py-0.5 rounded-full text-xs <%= svc[:running] ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300' %>">
+            <%= svc[:status] %>
+          </span>
+        </div>
+      <% end %>
+    </div>
+  </div>
+<% end %>
+
+<!-- Providers -->
+<div class="bg-surface-card rounded-xl border border-border-default p-6 mb-8">
+  <h2 class="text-lg font-semibold text-white mb-4">Providers</h2>
+  <div class="space-y-3">
+    <% @providers.each do |p| %>
+      <div class="flex items-center justify-between bg-surface-base rounded-lg px-4 py-3">
+        <div class="flex items-center gap-3">
+          <span class="w-2.5 h-2.5 rounded-full <%= p[:status][:ok] ? 'bg-green-500' : 'bg-red-500' %>"></span>
+          <span class="text-white font-medium"><%= p[:config].adapter_type.titleize %></span>
+        </div>
+        <div class="flex items-center gap-4 text-sm">
+          <% if p[:config].adapter_type == "ollama" && p[:status][:ok] %>
+            <span class="text-text-muted"><%= p[:status][:models] %> models installed</span>
+          <% elsif p[:status][:note] %>
+            <span class="text-text-muted"><%= p[:status][:note] %></span>
+          <% end %>
+          <span class="px-2 py-0.5 rounded-full text-xs <%= p[:config].enabled? ? 'bg-green-900 text-green-300' : 'bg-surface-raised text-text-muted' %>">
+            <%= p[:config].enabled? ? "Enabled" : "Disabled" %>
+          </span>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<!-- Cost Overview -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+  <div class="bg-surface-card rounded-xl border border-border-default p-5">
+    <p class="text-text-muted text-sm mb-1">Cost Today</p>
+    <p class="text-2xl font-bold text-green-400">$<%= sprintf("%.4f", @cost_today) %></p>
+  </div>
+  <div class="bg-surface-card rounded-xl border border-border-default p-5">
+    <p class="text-text-muted text-sm mb-1">Cost This Week</p>
+    <p class="text-2xl font-bold text-green-400">$<%= sprintf("%.4f", @cost_week) %></p>
+  </div>
+  <div class="bg-surface-card rounded-xl border border-border-default p-5">
+    <p class="text-text-muted text-sm mb-1">Cost This Month</p>
+    <p class="text-2xl font-bold text-green-400">$<%= sprintf("%.4f", @cost_month) %></p>
+  </div>
+  <div class="bg-surface-card rounded-xl border border-border-default p-5">
+    <p class="text-text-muted text-sm mb-1">Tokens Today</p>
+    <p class="text-2xl font-bold text-white"><%= number_with_delimiter(@tokens_today) %></p>
+  </div>
+</div>
+
+<!-- Platform Stats -->
+<div class="bg-surface-card rounded-xl border border-border-default p-6">
+  <h2 class="text-lg font-semibold text-white mb-4">Platform Stats</h2>
+  <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+    <% [
+      ["Agents", @health_stats[:agents_enabled], "of #{@health_stats[:agents]}"],
+      ["Teams", @health_stats[:teams], nil],
+      ["Chat Sessions", @health_stats[:sessions], nil],
+      ["Team Chats", @health_stats[:team_chats], "#{@health_stats[:team_messages]} msgs"],
+      ["Memories", @health_stats[:memories], nil],
+      ["Tools", @health_stats[:tools], nil],
+      ["Tool Runs", @health_stats[:tool_executions], nil],
+      ["API Calls", @health_stats[:usage_records], nil],
+    ].each do |label, value, sub| %>
+      <div class="bg-surface-base rounded-lg p-3">
+        <p class="text-text-faint text-xs"><%= label %></p>
+        <p class="text-white font-bold text-lg"><%= number_with_delimiter(value) %></p>
+        <% if sub %>
+          <p class="text-gray-600 text-xs"><%= sub %></p>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>
