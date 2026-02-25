@@ -357,6 +357,7 @@ SKILL_TOOL_MAP = {
 skills.each do |attrs|
   skill = Skill.find_or_initialize_by(name: attrs[:name])
   skill.assign_attributes(attrs.merge(builtin: true, enabled: true))
+  skill.summary = attrs[:description].to_s.truncate(200) if skill.summary.blank?
   skill.save!
 
   # Wire up required tools
