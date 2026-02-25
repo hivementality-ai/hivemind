@@ -120,10 +120,10 @@ module RoleInstructions
       **Security:** This container is fully isolated — no database or Redis access. You have full control. Install what you need, run what you need.
     ENV
 
-    # Skills (injected instructions for assigned skills)
+    # Skills — summary catalog only. Full instructions loaded on-demand via load_skill tool.
     if respond_to?(:skills) && skills.enabled.any?
-      skill_blocks = skills.enabled.map { |s| "### #{s.name}\n#{s.content}" }
-      parts << "## Skills\n#{skill_blocks.join("\n\n")}"
+      skill_lines = skills.enabled.map { |s| "- #{s.name}: #{s.summary || s.description || s.name}" }
+      parts << "## Skills\nYou have specialized skills available. Use the load_skill tool to get full instructions when you need them.\n#{skill_lines.join("\n")}"
     end
 
     parts.join("\n\n")
@@ -168,10 +168,11 @@ module RoleInstructions
 
     blocks = [{ type: "text", text: core_parts.join("\n\n") }]
 
-    # Skills as separate cacheable block
+    # Skills — summary catalog only (full content loaded on-demand via load_skill tool)
     if respond_to?(:skills) && skills.enabled.any?
-      skill_blocks = skills.enabled.map { |s| "### #{s.name}\n#{s.content}" }
-      blocks << { type: "text", text: "## Skills\n#{skill_blocks.join("\n\n")}" }
+      skill_lines = skills.enabled.map { |s| "- #{s.name}: #{s.summary || s.description || s.name}" }
+      catalog = "## Skills\nYou have specialized skills available. Use the load_skill tool to get full instructions when you need them.\n#{skill_lines.join("\n")}"
+      blocks << { type: "text", text: catalog }
     end
 
     blocks

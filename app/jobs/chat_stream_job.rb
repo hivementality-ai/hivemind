@@ -256,9 +256,12 @@ class ChatStreamJob < ApplicationJob
 
   def resolve_tools(agent)
     assigned = agent.agent_tools.includes(:tool).map(&:tool).select(&:enabled?)
-    return assigned if assigned.any?
+    tools = assigned.any? ? assigned : Tool.enabled.builtin.to_a
 
-    Tool.enabled.builtin.to_a
+    # Inject system tools (always available, hidden from UI)
+    tools << SystemTool::LOAD_SKILL if agent.skills.enabled.any?
+
+    tools
   end
 
   SUMMARIZE_EVERY = 6 # Summarize after every 6 new transcript entries (~3 turns)

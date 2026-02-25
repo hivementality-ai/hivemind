@@ -35,6 +35,18 @@
 
       <div>
         <div class="flex items-center justify-between mb-1">
+          <%= form.label :summary, class: "block text-sm font-medium text-text-primary" %>
+          <span class="text-text-faint text-xs">Max 150 chars · This is what the agent sees in every message</span>
+        </div>
+        <%= form.text_field :summary,
+            placeholder: "e.g. Git/GitHub workflow via gh CLI. Branch naming, PRs, CI checks.",
+            maxlength: 150,
+            class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
+        <p class="text-text-faint text-xs mt-1">One-liner shown in the agent's system prompt. Full instructions are loaded on-demand when needed.</p>
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between mb-1">
           <%= form.label :content, "Instructions", class: "block text-sm font-medium text-text-primary" %>
           <span class="text-text-faint text-xs">Markdown supported. This gets injected into the agent's system prompt.</span>
         </div>

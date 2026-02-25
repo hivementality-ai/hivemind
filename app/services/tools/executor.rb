@@ -42,7 +42,8 @@ module Tools
       "vault" => Tools::VaultExecutor,
       "ask_user" => Tools::AskUserExecutor,
       "plan_mode" => Tools::PlanModeExecutor,
-      "glob" => Tools::GlobExecutor
+      "glob" => Tools::GlobExecutor,
+      "load_skill" => Tools::LoadSkillExecutor
     }.freeze
 
     def self.call(tool:, input:, agent:, session:)
@@ -57,7 +58,15 @@ module Tools
     end
 
     def call
-      # Create execution record
+      executor_class = EXECUTORS[@tool.executor_type]
+      return ServiceResponse.failure(error: "Unknown executor: #{@tool.executor_type}") unless executor_class
+
+      # System tools (e.g. load_skill) skip execution tracking
+      if @tool.is_a?(SystemTool)
+        return execute_system_tool(executor_class)
+      end
+
+      # Create execution record for regular tools
       execution = ToolExecution.create!(
         tool: @tool,
         agent: @agent,
@@ -65,12 +74,6 @@ module Tools
         input: @input,
         status: "running"
       )
-
-      executor_class = EXECUTORS[@tool.executor_type]
-      unless executor_class
-        execution.update!(status: "failed", error: "Unknown executor: #{@tool.executor_type}")
-        return ServiceResponse.failure(error: "Unknown executor: #{@tool.executor_type}")
-      end
 
       start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
@@ -103,6 +106,19 @@ module Tools
         execution.update!(status: "failed", error: e.message, duration_ms: duration)
         ServiceResponse.failure(error: e.message)
       end
+    end
+
+    private
+
+    def execute_system_tool(executor_class)
+      result = executor_class.new(input: @input, config: {}, agent: @agent).call
+      if result.success?
+        ServiceResponse.success(data: { output: result.data[:output].to_s.truncate(50_000) })
+      else
+        ServiceResponse.failure(error: result.error)
+      end
+    rescue StandardError => e
+      ServiceResponse.failure(error: e.message)
     end
   end
 end
