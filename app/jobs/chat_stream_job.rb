@@ -274,7 +274,7 @@ class ChatStreamJob < ApplicationJob
     # Block 1: core identity + role (very stable)
     # Block 2: skills (stable, often the biggest chunk)
     # Block 3: memory + context (semi-stable, changes across sessions)
-    system_blocks = agent.respond_to?(:system_prompt_blocks) ? agent.system_prompt_blocks : [{ type: "text", text: agent.full_system_prompt.presence || "You are #{agent.name}, a helpful AI assistant." }]
+    system_blocks = agent.respond_to?(:system_prompt_blocks) ? agent.system_prompt_blocks : [ { type: "text", text: agent.full_system_prompt.presence || "You are #{agent.name}, a helpful AI assistant." } ]
 
     # Dynamic context block (memory, mood, addons, summary)
     dynamic_parts = []

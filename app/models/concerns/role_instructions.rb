@@ -166,7 +166,7 @@ module RoleInstructions
                   "Persistent: /workspace (main), /home/agent (packages/config), /app/agents-shared/ (collaboration). " \
                   "Fully isolated — no database or Redis access."
 
-    blocks = [{ type: "text", text: core_parts.join("\n\n") }]
+    blocks = [ { type: "text", text: core_parts.join("\n\n") } ]
 
     # Skills — summary catalog only (full content loaded on-demand via load_skill tool)
     if respond_to?(:skills) && skills.enabled.any?

@@ -91,6 +91,7 @@ RSpec.describe SkillsController, type: :controller do
         skill: {
           name: "Test Skill",
           description: "A test skill",
+          summary: "A brief test summary",
           content: "This is skill content",
           category: "Testing",
           enabled: true,

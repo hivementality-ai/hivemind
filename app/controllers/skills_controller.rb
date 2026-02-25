@@ -62,7 +62,7 @@ class SkillsController < ApplicationController
 
     existing = Skill.find_by(name: skill.name)
     if existing
-      existing.update(description: skill.description, content: skill.content, category: skill.category)
+      existing.update(description: skill.description, summary: skill.summary, content: skill.content, category: skill.category)
       redirect_to skill_path(existing), notice: "#{existing.name} updated from import"
     else
       if skill.save

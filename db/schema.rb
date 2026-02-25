@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_23_173239) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_24_235900) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -380,6 +380,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_23_173239) do
 
   create_table "sessions", force: :cascade do |t|
     t.bigint "agent_id", null: false
+    t.text "conversation_summary"
     t.datetime "created_at", null: false
     t.bigint "input_tokens"
     t.datetime "last_activity_at"
@@ -390,6 +391,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_23_173239) do
     t.bigint "output_tokens"
     t.string "session_key"
     t.integer "status"
+    t.integer "summary_through_index", default: 0
     t.bigint "team_chat_session_id"
     t.string "title"
     t.bigint "total_tokens"
@@ -430,6 +432,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_23_173239) do
     t.text "description"
     t.boolean "enabled", default: true, null: false
     t.string "name", null: false
+    t.string "summary"
     t.datetime "updated_at", null: false
     t.index ["enabled"], name: "index_skills_on_enabled"
     t.index ["name"], name: "index_skills_on_name", unique: true
@@ -566,6 +569,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_23_173239) do
     t.jsonb "metadata", default: {}
     t.integer "output_tokens", default: 0
     t.string "provider", null: false
+    t.jsonb "request_payload"
     t.bigint "session_id"
     t.datetime "updated_at", null: false
     t.index ["agent_id", "created_at"], name: "index_usage_records_on_agent_id_and_created_at"

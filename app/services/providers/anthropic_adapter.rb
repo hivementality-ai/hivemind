@@ -115,9 +115,9 @@ module Providers
                    b = block.to_h.with_indifferent_access
                    { type: "text", text: b[:text].to_s, cache_control: { type: "ephemeral" } }
                  end
-               else
-                 [{ type: "text", text: content.to_s, cache_control: { type: "ephemeral" } }]
-               end
+      else
+                 [ { type: "text", text: content.to_s, cache_control: { type: "ephemeral" } } ]
+      end
       blocks.reject { |b| b[:text].blank? }
     end
 
