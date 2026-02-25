@@ -241,32 +241,8 @@
       </div>
     </div>
 
-    <!-- Agent Bot Assignments (Discord & Slack) -->
-    <div id="agent-assignments-wrapper" style="display: none;">
-      <hr class="border-border-default">
-      <%= render "agent_assignments", channel: channel %>
-    </div>
-
-    <script>
-      // Show/hide agent assignments based on channel type
-      document.addEventListener('DOMContentLoaded', function() {
-        const channelTypeSelect = document.querySelector("select[name='channel[channel_type]']");
-        const wrapper = document.getElementById('agent-assignments-wrapper');
-        
-        function toggleAssignments() {
-          const type = channelTypeSelect.value;
-          wrapper.style.display = ['discord', 'slack'].includes(type) ? 'block' : 'none';
-        }
-        
-        // Initial state
-        toggleAssignments();
-        
-        // Listen for changes
-        if (channelTypeSelect) {
-          channelTypeSelect.addEventListener('change', toggleAssignments);
-        }
-      });
-    </script>
+    <!-- Agent assignments removed — Discord and Slack both require one app/bot per agent.
+         Each Hivemind channel = one bot = one agent. Use Message Routing above to assign the agent. -->
 
     <div class="flex justify-end gap-3 pt-4">
       <%= link_to "Cancel", channels_path, class: "px-6 py-3 bg-surface-raised hover:bg-surface-overlay text-white rounded-lg transition" %>
