@@ -62,7 +62,7 @@ Most AI platforms give you one agent in a chat box. Hivemind gives you a **team*
 - **Team chat** with @mentions — agents collaborate and chain-react
 - **34 built-in tools** — shell, files, browser, Jira, email, cloud storage, Gmail, vision, TTS, and more
 - **Skills system** — teach agents new capabilities, import OpenClaw SKILL.md files
-- **5 messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal
+- **5 messaging channels** — Discord, Slack, Telegram (coming soon), WhatsApp, Signal (coming soon)
 - **Slack multi-bot** — each agent gets its own Slack bot identity with thread routing
 - **Coding agent** — delegate complex tasks to Claude Code, Codex, or Aider with live progress streaming
 - **File sharing** — agents create files and images, deliver them directly to chat
@@ -115,7 +115,7 @@ Hivemind is an **agent sandbox** — a platform where AI agents live, work, and 
 | **Integrations** | Credentials and connections to **external services**. Configured via UI, stored encrypted in vault. | Jira (URL + email + token), SMTP (host + port + auth), Cloud Storage (OAuth) |
 | **API Integrations** | Connect to **any API** by importing an OpenAPI/Swagger spec. Agents call endpoints via `http_request`. | Import Stripe's API spec → agent can create charges, list customers |
 | **Custom Tools** | User-created script tools with `{{param}}` templates. No code deploy needed. | A `deploy_staging` tool that runs `kubectl rollout restart deploy/{{service}}` |
-| **Channels** | Messaging surfaces where humans **talk to agents**. Inbound/outbound message routing. | WhatsApp, Discord, Slack, Telegram, Signal |
+| **Channels** | Messaging surfaces where humans **talk to agents**. Inbound/outbound message routing. | WhatsApp, Discord, Slack, Telegram (coming soon), Signal (coming soon) |
 | **Agents** | AI personalities with a role, model, tools, skills, and instructions. The workers. | "Devon" — Software Engineer on Claude Sonnet with GitHub + Docker skills |
 | **Teams** | Groups of agents with shared context. Enables collaboration. | Backend Team: Devon (engineer) + Doc (reviewer) + Liam (tester) |
 
@@ -346,9 +346,9 @@ Connect Google Drive, Amazon S3, Dropbox, OneDrive, Backblaze B2, or SFTP throug
 |---------|--------|------|
 | **Discord** | Bot API + webhooks | Bot token |
 | **Slack** | Web API + signing secret | Bot token |
-| **Telegram** | Bot API + webhooks | Bot token from @BotFather |
+| **Telegram** (coming soon) | Bot API + webhooks | Bot token from @BotFather |
 | **WhatsApp** | Connector sidecar (Baileys) | QR code scan |
-| **Signal** | signal-cli REST API | Registration |
+| **Signal** (coming soon) | signal-cli REST API | Registration |
 
 Credentials stored in the encrypted vault. Configure via the Channels page.
 
@@ -692,7 +692,7 @@ Hivemind is designed as a natural upgrade path from OpenClaw. Here's what carrie
 ### What migrates directly
 
 - **Skills** — Import your SKILL.md files directly (Integrations > Skills > Import). Same YAML frontmatter + markdown format
-- **Messaging channels** — WhatsApp (Baileys QR pairing), Discord, Slack, Telegram, Signal
+- **Messaging channels** — WhatsApp (Baileys QR pairing), Discord, Slack, Telegram (coming soon), Signal (coming soon)
 - **Tool concepts** — Same tool patterns: shell exec, file read/write/edit, web search/fetch, browser, memory, cron, messaging, sub-agents
 - **Workspace files** — Agent instructions, memory, and context translate to Hivemind's DB-backed agent config
 
