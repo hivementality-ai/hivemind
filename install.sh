@@ -364,7 +364,12 @@ setup_memory_embeddings() {
   echo ""
 
   local enable_embeddings
-  read -rp "$(echo -e "${CYAN}▸${NC}") Enable semantic memory? [Y/n] " enable_embeddings
+  if [ -t 0 ] || [ -e /dev/tty ]; then
+    read -rp "$(echo -e "${CYAN}▸${NC}") Enable semantic memory? [Y/n] " enable_embeddings < /dev/tty 2>/dev/null || enable_embeddings="Y"
+  else
+    enable_embeddings="Y"
+    info "Non-interactive install — enabling semantic memory by default"
+  fi
   enable_embeddings="${enable_embeddings:-Y}"
 
   if [[ ! "$enable_embeddings" =~ ^[Yy] ]]; then
