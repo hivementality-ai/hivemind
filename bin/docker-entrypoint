@@ -6,6 +6,16 @@ chmod 777 /workspace/uploads 2>/dev/null || true
 
 # If running the rails server then create or migrate existing database
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
+  # If the credentials file can't be decrypted with the current master key,
+  # remove it so Rails regenerates it. This happens on first boot when the
+  # install script generates a new master key that doesn't match the
+  # credentials.yml.enc shipped in the Docker image.
+  if ! ./bin/rails credentials:show > /dev/null 2>&1; then
+    echo "Master key does not match credentials.yml.enc — regenerating credentials"
+    rm -f config/credentials.yml.enc
+    EDITOR="true" ./bin/rails credentials:edit
+  fi
+
   ./bin/rails db:prepare
 
   # Seed on first boot (idempotent — safe to re-run)
