@@ -49,3 +49,8 @@
 # Ignore Docker-related files
 /.dockerignore
 /Dockerfile*
+
+# Do not bake credentials into images — use env vars
+config/master.key
+config/credentials.yml.enc
+config/credentials/
