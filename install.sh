@@ -362,6 +362,9 @@ setup_memory_embeddings() {
   echo ""
   echo -e "  ${YELLOW}Without this, agents still remember — but search is keyword-only.${NC}"
   echo ""
+  echo -e "  Press ${BOLD}Y${NC} to install Ollama and enable semantic memory"
+  echo -e "  Press ${BOLD}n${NC} to skip (you can enable it later)"
+  echo ""
 
   local enable_embeddings
   if [ -t 0 ] || [ -e /dev/tty ]; then

@@ -171,6 +171,16 @@ That's it. The installer handles Docker, cloning, secrets, and startup. Open **h
 
 > **What it does:** checks for Docker (installs if missing), clones the repo, generates encryption keys and `.env`, builds containers, and starts everything.
 
+### Server requirements
+
+| Minimum | Recommended |
+|---------|-------------|
+| 2 CPU cores | 4 CPU cores |
+| 4 GB RAM | 8 GB RAM |
+| 20 GB disk | 40 GB disk |
+
+**Important:** Hivemind requires a **full VM or bare metal** with a real kernel. LXC/OpenVZ containers cannot run Docker properly (kernel sysctl restrictions). If you're using Proxmox, create a **VM** (not an LXC container). Cloud providers like DigitalOcean, Hetzner, Vultr, and Linode all work out of the box.
+
 ### Or install manually
 
 <details>
