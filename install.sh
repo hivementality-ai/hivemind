@@ -98,6 +98,7 @@ install_prerequisites() {
   else  # Linux
     install_linux_package git
     install_linux_package curl
+    install_linux_package zstd
   fi
 }
 
