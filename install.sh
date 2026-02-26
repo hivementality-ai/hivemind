@@ -489,7 +489,14 @@ print_success() {
   echo -e "${BOLD}${GREEN}🐝 Hivemind is ready!${NC}"
   echo -e "${BOLD}${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   echo ""
+  # Detect IP for network access
+  local ip
+  ip=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "")
+
   echo -e "  ${BOLD}Open:${NC}      http://localhost:8080"
+  if [ -n "$ip" ]; then
+    echo -e "  ${BOLD}Network:${NC}   http://${ip}:8080"
+  fi
   echo -e "  ${BOLD}Location:${NC}  $HIVEMIND_DIR"
   echo -e "  ${BOLD}Logs:${NC}      cd $HIVEMIND_DIR && docker compose logs -f"
   echo -e "  ${BOLD}Stop:${NC}      hivemind stop"
