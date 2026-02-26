@@ -522,7 +522,7 @@ print_success() {
   echo -e "  It is ${BOLD}not fully battle-tested${NC} — expect rough edges."
   echo ""
   echo -e "  ${BOLD}Found a bug?${NC}    https://github.com/hivementality-ai/hivemind/issues"
-  echo -e "  ${BOLD}Need help?${NC}      https://discord.gg/Cww4rFz7"
+  echo -e "  ${BOLD}Need help?${NC}      https://discord.gg/ckyVareyvk"
   echo -e "  ${BOLD}Want to help?${NC}   PRs welcome — see CONTRIBUTING.md"
   echo ""
 }

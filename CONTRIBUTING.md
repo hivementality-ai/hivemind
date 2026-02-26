@@ -97,4 +97,4 @@ feat: markdown rendering in chat messages
 ## Questions?
 
 - Open a [Discussion](https://github.com/hivementality-ai/hivemind/discussions)
-- Join our [Discord](https://discord.gg/Cww4rFz7)
+- Join our [Discord](https://discord.gg/ckyVareyvk)
