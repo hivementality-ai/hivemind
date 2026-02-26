@@ -431,8 +431,13 @@ build_and_start() {
   # Detect version from current tag
   local version
   version="$(git describe --tags --exact-match 2>/dev/null | sed 's/^v//' || git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo 'dev')"
-  info "Building containers (version: $version)..."
-  HIVEMIND_VERSION="$version" docker compose build --build-arg HIVEMIND_VERSION="$version"
+  info "Pulling prebuilt images (version: $version)..."
+  if HIVEMIND_VERSION="$version" docker compose pull app worker workspace connector 2>/dev/null; then
+    ok "Prebuilt images pulled successfully"
+  else
+    warn "Prebuilt images not available, building from source..."
+    HIVEMIND_VERSION="$version" docker compose build --build-arg HIVEMIND_VERSION="$version"
+  fi
 
   info "Starting Hivemind..."
   docker compose up -d
