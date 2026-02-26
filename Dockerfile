@@ -71,7 +71,8 @@ FROM base
 # Add to docker group for workspace container access via docker exec
 RUN groupadd --system --gid 1000 rails && \
     useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash && \
-    groupadd -f docker && usermod -aG docker rails
+    groupadd -f docker && usermod -aG docker rails && \
+    mkdir -p /workspace && chmod 777 /workspace
 USER 1000:1000
 
 # Copy built artifacts: gems, application
