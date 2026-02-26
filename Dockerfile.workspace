@@ -43,6 +43,7 @@ ENV NPM_CONFIG_PREFIX="/home/agent/.npm-global"
 # Install Claude Code CLI
 RUN npm install -g @anthropic-ai/claude-code
 
+RUN mkdir -p /workspace && chmod 777 /workspace
 USER agent
 WORKDIR /workspace
 
