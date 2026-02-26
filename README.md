@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://github.com/hivementality-ai/hivemind/actions/workflows/ci.yml"><img src="https://github.com/hivementality-ai/hivemind/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
   <a href="https://codecov.io/gh/hivementality-ai/hivemind"><img src="https://codecov.io/gh/hivementality-ai/hivemind/branch/main/graph/badge.svg" alt="Coverage"></a>
-  <a href="https://discord.gg/Cww4rFz7"><img src="https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat&logo=discord&logoColor=white" alt="Discord"></a>
+  <a href="https://discord.gg/ckyVareyvk"><img src="https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat&logo=discord&logoColor=white" alt="Discord"></a>
   <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=flat&logo=docker" alt="Docker">
   <img src="https://img.shields.io/badge/License-AGPLv3-blue?style=flat" alt="License">
 </p>
