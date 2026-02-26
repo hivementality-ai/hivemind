@@ -9,6 +9,7 @@ services:
     restart: unless-stopped
 
   app:
+    image: ghcr.io/hivementality-ai/hivemind/app:${HIVEMIND_VERSION:-latest}
     build:
       context: .
       dockerfile: Dockerfile
@@ -42,6 +43,7 @@ services:
       - web
 
   worker:
+    image: ghcr.io/hivementality-ai/hivemind/app:${HIVEMIND_VERSION:-latest}
     build:
       context: .
       dockerfile: Dockerfile
@@ -113,6 +115,7 @@ services:
       - web
 
   workspace:
+    image: ghcr.io/hivementality-ai/hivemind/workspace:${HIVEMIND_VERSION:-latest}
     build:
       context: .
       dockerfile: Dockerfile.workspace
@@ -129,6 +132,7 @@ services:
       - web
 
   connector:
+    image: ghcr.io/hivementality-ai/hivemind/connector:${HIVEMIND_VERSION:-latest}
     build:
       context: ./connector
       dockerfile: Dockerfile
