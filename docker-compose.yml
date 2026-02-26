@@ -31,6 +31,7 @@ services:
       - REDIS_URL=redis://cache:6379/0
       - RAILS_ENV=production
       - RAILS_MASTER_KEY=${RAILS_MASTER_KEY}
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE:-${RAILS_MASTER_KEY}}
       - RAILS_SERVE_STATIC_FILES=true
       - DOCKER_HOST=tcp://docker-proxy:2375
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
@@ -64,6 +65,7 @@ services:
       - REDIS_URL=redis://cache:6379/0
       - RAILS_ENV=production
       - RAILS_MASTER_KEY=${RAILS_MASTER_KEY}
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE:-${RAILS_MASTER_KEY}}
       - DOCKER_HOST=tcp://docker-proxy:2375
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - MEMORY_EMBEDDINGS_ENABLED=${MEMORY_EMBEDDINGS_ENABLED:-true}

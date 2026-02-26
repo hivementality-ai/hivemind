@@ -299,6 +299,7 @@ ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT=$ar_salt
 
 # Rails
 RAILS_MASTER_KEY=$master_key
+SECRET_KEY_BASE=$master_key
 
 # Docker
 DOCKER_GID=$docker_gid

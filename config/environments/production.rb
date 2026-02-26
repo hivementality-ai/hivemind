@@ -1,6 +1,12 @@
 require "active_support/core_ext/integer/time"
 
 Rails.application.configure do
+  # Use SECRET_KEY_BASE env var instead of Rails credentials.
+  # Skip if SECRET_KEY_BASE_DUMMY is set (Docker build) to let Rails generate a throwaway key.
+  if ENV["SECRET_KEY_BASE"].present? || ENV["RAILS_MASTER_KEY"].present?
+    config.secret_key_base = ENV["SECRET_KEY_BASE"] || ENV["RAILS_MASTER_KEY"]
+  end
+
   # Settings specified here will take precedence over those in config/application.rb.
 
   # Code is not reloaded between requests.
