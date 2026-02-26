@@ -100,6 +100,10 @@ You need [Docker and Docker Compose](https://docs.docker.com/get-docker/) to run
 - 2GB+ RAM  
 - 5GB+ disk space
 
+**Verified on:**
+- Ubuntu 24.04 LTS
+- macOS 26.2 (Apple Silicon)
+
 That's it. Everything else runs in containers.
 
 ---
