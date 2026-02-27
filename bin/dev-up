@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -e
+
+# Start Hivemind in development mode
+# Source code is volume-mounted — edit files and changes take effect immediately.
+# Rails auto-reloads on each request. Sidekiq needs a restart for worker changes.
+#
+# Usage:
+#   bin/dev-up          # start all services
+#   bin/dev-up --build  # rebuild dev image (after Gemfile changes)
+#   bin/dev-up app      # start only specific services
+
+COMPOSE_FILES="-f docker-compose.yml -f docker-compose.dev.yml"
+
+echo "🐝 Starting Hivemind (dev mode)..."
+
+# First run: build dev image if it doesn't exist
+if ! docker image inspect hivemind-dev &>/dev/null; then
+  echo "📦 Building dev image (first time only)..."
+  docker compose $COMPOSE_FILES build app
+fi
+
+# Setup dev database if needed
+if ! docker compose $COMPOSE_FILES run --rm app bin/rails db:version &>/dev/null 2>&1; then
+  echo "🗄️  Setting up development database..."
+  docker compose $COMPOSE_FILES run --rm app bin/rails db:create db:migrate
+fi
+
+docker compose $COMPOSE_FILES up "$@"
