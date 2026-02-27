@@ -72,9 +72,11 @@ module Memory
       agent = Agent.create!(
         name: name,
         slug: slug,
-        llm_model: "claude-sonnet-4-20250514",
+        llm_model: "claude-sonnet-4-5",
         model_provider: "anthropic",
-        enabled: true
+        enabled: true,
+        role: "General Assistant",
+        team_id: Team.first&.id || Team.create!(name: "Default").id
       )
 
       Rails.logger.info("[OpenclawImporter] Created agent: #{agent.name} (#{agent.slug})")
