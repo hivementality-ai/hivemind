@@ -207,15 +207,20 @@ cmd_import() {
     rm -rf /tmp/openclaw-import && mkdir -p /tmp/openclaw-import
   " 2>/dev/null
 
-  # Copy workspace into the app container
-  docker compose cp "$source/." app:/tmp/openclaw-import/ 2>/dev/null
+  # Copy only OpenClaw workspace files (not project subdirs)
+  for f in SOUL.md MEMORY.md USER.md TOOLS.md AGENTS.md IDENTITY.md HEARTBEAT.md; do
+    [ -f "$source/$f" ] && docker compose cp "$source/$f" app:/tmp/openclaw-import/ 2>/dev/null
+  done
+  for d in memory skills; do
+    [ -d "$source/$d" ] && docker compose cp "$source/$d" app:/tmp/openclaw-import/ 2>/dev/null
+  done
 
   # Run the import task
   docker compose exec -e OPENCLAW_WORKSPACE="/tmp/openclaw-import" ${slug_arg:+-e $slug_arg} app \
-    rails "memory:import_openclaw[/tmp/openclaw-import${agent_slug:+,$agent_slug}]"
+    bin/rails "memory:import_openclaw[/tmp/openclaw-import${agent_slug:+,$agent_slug}]"
 
-  # Clean up
-  docker compose exec app rm -rf /tmp/openclaw-import 2>/dev/null
+  # Clean up (use root to avoid permission issues)
+  docker compose exec -u root app rm -rf /tmp/openclaw-import 2>/dev/null
 
   echo ""
   ok "Import complete!"
