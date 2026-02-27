@@ -1,0 +1,30 @@
+# Lightweight dev container — no multi-stage build, no asset precompile
+# Source code is volume-mounted, so changes are instant.
+
+ARG RUBY_VERSION=3.4.8
+FROM docker.io/library/ruby:$RUBY_VERSION-slim
+
+WORKDIR /rails
+
+# Install dev dependencies (includes build tools for native gems)
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y \
+      build-essential curl git libpq-dev libyaml-dev pkg-config \
+      libjemalloc2 libvips postgresql-client unzip \
+      python3 python3-pip nodejs npm && \
+    ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
+    pip3 install --no-cache-dir --break-system-packages pymupdf && \
+    curl -fsSL https://get.docker.com | sh && \
+    rm -rf /var/lib/apt/lists /var/cache/apt/archives
+
+ENV RAILS_ENV="development" \
+    BUNDLE_PATH="/usr/local/bundle" \
+    LD_PRELOAD="/usr/local/lib/libjemalloc.so"
+
+# Pre-install gems (will be cached in volume)
+COPY Gemfile Gemfile.lock ./
+COPY vendor/* ./vendor/
+RUN bundle install
+
+EXPOSE 3000
+CMD ["bin/rails", "server", "-b", "0.0.0.0", "-p", "3000"]
