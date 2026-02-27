@@ -90,10 +90,10 @@ module Memory
       soul_content = File.read(soul_path).strip
       return if soul_content.blank?
 
-      # Only update if agent doesn't already have a system prompt
-      if agent.system_prompt.blank?
-        agent.update!(system_prompt: soul_content)
-        Rails.logger.info("[OpenclawImporter] Applied SOUL.md as system prompt")
+      # SOUL.md goes into custom_instructions — the user-facing context field
+      if agent.custom_instructions.blank?
+        agent.update!(custom_instructions: soul_content)
+        Rails.logger.info("[OpenclawImporter] Applied SOUL.md as custom instructions")
       end
     end
 
