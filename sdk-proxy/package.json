@@ -1,0 +1,17 @@
+{
+  "name": "hivemind-sdk-proxy",
+  "version": "1.0.0",
+  "description": "Anthropic Agent SDK proxy for OAuth token authentication",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.0",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}

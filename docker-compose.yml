@@ -133,6 +133,22 @@ services:
     networks:
       - web
 
+  sdk-proxy:
+    image: ghcr.io/hivementality-ai/hivemind/sdk-proxy:${HIVEMIND_VERSION:-latest}
+    build:
+      context: ./sdk-proxy
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3003
+    networks:
+      - internal
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+
   connector:
     image: ghcr.io/hivementality-ai/hivemind/connector:${HIVEMIND_VERSION:-latest}
     build:
