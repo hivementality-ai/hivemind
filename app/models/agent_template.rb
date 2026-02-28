@@ -2,7 +2,7 @@
 
 # AgentTemplate - Pre-built agent configurations
 class AgentTemplate < ApplicationRecord
-  CATEGORIES = %w[coding research devops writing data security project creative general].freeze
+  CATEGORIES = %w[coding research devops writing data security project creative general productivity lifestyle].freeze
 
   validates :name, presence: true
   validates :role, presence: true

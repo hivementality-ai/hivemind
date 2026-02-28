@@ -23,6 +23,9 @@ connector/node_modules/
 # macOS
 .DS_Store
 
+# JetBrains IDEs
+.idea/
+
 # Spec artifacts
 spec/examples.txt
 
