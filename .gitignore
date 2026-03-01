@@ -14,8 +14,9 @@
 # Never commit secrets
 config/master.key
 
-# Node modules (connector sidecar)
+# Node modules (sidecars)
 connector/node_modules/
+sdk-proxy/node_modules/
 
 # Coverage reports
 /coverage/

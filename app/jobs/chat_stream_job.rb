@@ -132,10 +132,20 @@ class ChatStreamJob < ApplicationJob
         llm_options[:thinking_budget_tokens] = agent.thinking_budget_tokens || 10_000
       end
 
+      # Inject MCP tool context for OAuth path so SDK proxy can build MCP server
+      # When OAuth+MCP, tools are handled by the MCP server inside the SDK proxy,
+      # so we skip the ToolLoop and use the streaming path for real-time UI feedback.
+      oauth_mcp = adapter.is_a?(Providers::AnthropicAdapter) && adapter.send(:oauth_token?) && tools.any?
+      if oauth_mcp
+        llm_options[:agent_id] = agent.id
+        llm_options[:session_id] = session.id
+        llm_options[:tool_definitions] = tools.map(&:to_llm_tool)
+      end
+
       thinking_content = nil
       show_thinking = agent.thinking_enabled? && agent.thinking_visibility == "debug"
 
-      if tools.any?
+      if tools.any? && !oauth_mcp
         result = Agents::ToolLoop.call(
           adapter:,
           agent:,
@@ -167,6 +177,10 @@ class ChatStreamJob < ApplicationJob
               full_content << chunk[:content]
               ActionCable.server.broadcast(channel, { type: "token", content: chunk[:content] })
             end
+          when "tool_start"
+            ActionCable.server.broadcast(channel, { type: "tool_start", tool: chunk[:tool], input: chunk[:input] })
+          when "tool_result"
+            ActionCable.server.broadcast(channel, { type: "tool_result", tool: chunk[:tool], output: chunk[:output], success: chunk[:success] })
           end
         end
 

@@ -32,6 +32,7 @@ if [ ! -f .env ]; then
   AR_DETERMINISTIC="$(generate_secret)"
   AR_SALT="$(generate_secret)"
   MASTER_KEY="$(generate_short_secret)"
+  INTERNAL_SECRET="$(generate_secret)"
 
   # Detect Docker socket GID
   case "$(uname -s)" in
@@ -56,6 +57,9 @@ SECRET_KEY_BASE=$MASTER_KEY
 
 # Docker
 DOCKER_GID=$DOCKER_GID
+
+# Internal API (shared secret between Rails and SDK proxy)
+INTERNAL_API_SECRET=$INTERNAL_SECRET
 EOF
 
   # Write master key file for Rails
@@ -64,6 +68,17 @@ EOF
   chmod 600 config/master.key
 
   echo "✅ Generated .env and config/master.key"
+fi
+
+# Ensure INTERNAL_API_SECRET exists (added in v1.x — backfill for older .env files)
+if ! grep -q '^INTERNAL_API_SECRET=' .env 2>/dev/null; then
+  generate_secret_fn() {
+    openssl rand -hex 32 2>/dev/null || LC_ALL=C tr -dc 'a-f0-9' < /dev/urandom | head -c 64
+  }
+  echo "" >> .env
+  echo "# Internal API (shared secret between Rails and SDK proxy)" >> .env
+  echo "INTERNAL_API_SECRET=$(generate_secret_fn)" >> .env
+  echo "🔑 Added INTERNAL_API_SECRET to .env"
 fi
 
 # ----------------------------------------------------------
