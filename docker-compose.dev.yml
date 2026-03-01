@@ -32,7 +32,7 @@ services:
       - MEMORY_EMBEDDINGS_PROVIDER=${MEMORY_EMBEDDINGS_PROVIDER:-ollama}
       - SDK_PROXY_URL=http://sdk-proxy:3003
     env_file: .env
-    command: bin/rails server -b 0.0.0.0 -p 3000
+    command: bash -c "bin/rails db:prepare && bin/rails db:seed && bin/rails tailwindcss:build && bin/rails server -b 0.0.0.0 -p 3000"
     stdin_open: true
     tty: true
 

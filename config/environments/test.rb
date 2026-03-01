@@ -4,6 +4,9 @@
 # and recreated between test runs. Don't rely on the data there!
 
 Rails.application.configure do
+  # Use a static secret so tests don't depend on credentials.yml.enc
+  config.secret_key_base = "test-secret-key-base-not-for-production"
+
   # Settings specified here will take precedence over those in config/application.rb.
 
   # While tests run files are not watched, reloading is not necessary.

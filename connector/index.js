@@ -143,6 +143,24 @@ app.post("/react", async (req, res) => {
   }
 });
 
+// Start WhatsApp connection (for initial pairing via UI)
+app.post("/connect", async (req, res) => {
+  if (connectionStatus === "connected") {
+    return res.json({ status: "already_connected", user: sock?.user?.id });
+  }
+  if (connectionStatus === "qr_ready" || connectionStatus === "connecting") {
+    return res.json({ status: connectionStatus, hasQR: !!currentQR });
+  }
+
+  try {
+    startWhatsApp();
+    res.json({ status: "connecting", message: "WhatsApp connecting — scan QR at /qr" });
+  } catch (err) {
+    logger.error({ err }, "Failed to start WhatsApp");
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Logout and force new QR code
 app.post("/logout", async (req, res) => {
   try {
@@ -223,17 +241,24 @@ async function startWhatsApp() {
         lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
+      // Only auto-reconnect if we have auth state (previously paired).
+      // Without auth state, reconnecting just generates QR codes endlessly.
+      const hasAuthState = fs.existsSync(AUTH_PATH) &&
+        fs.readdirSync(AUTH_PATH).some(f => f.startsWith("creds"));
+
       logger.info(
-        { statusCode, shouldReconnect },
+        { statusCode, shouldReconnect, hasAuthState },
         "Connection closed"
       );
 
       connectionStatus = "disconnected";
-      if (shouldReconnect) {
+      if (shouldReconnect && hasAuthState) {
         connectionStatus = "connecting";
         setTimeout(startWhatsApp, 3000);
+      } else if (!hasAuthState) {
+        logger.info("No auth state — waiting for pairing via POST /connect");
       } else {
-        logger.info("Logged out — delete auth/ folder and restart to re-pair");
+        logger.info("Logged out — use POST /connect to re-pair");
       }
     }
 
@@ -421,10 +446,15 @@ app.post("/slack/configure", async (req, res) => {
 
 // ─── Start ────────────────────────────────────────────────────────────
 
-startWhatsApp().catch((err) => {
-  logger.error({ err }, "Failed to start WhatsApp connection");
-  process.exit(1);
-});
+// Only auto-start WhatsApp if auth state exists (previously paired).
+// Otherwise, wait for user to initiate pairing via POST /connect.
+if (fs.existsSync(AUTH_PATH) && fs.readdirSync(AUTH_PATH).length > 0) {
+  startWhatsApp().catch((err) => {
+    logger.error({ err }, "Failed to start WhatsApp connection");
+  });
+} else {
+  logger.info("No WhatsApp auth state found — waiting for pairing via POST /connect");
+}
 
 // Auto-start Slack if env vars are set
 if (process.env.SLACK_APP_TOKEN && process.env.SLACK_BOT_TOKEN) {
