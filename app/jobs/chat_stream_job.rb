@@ -20,8 +20,6 @@ class ChatStreamJob < ApplicationJob
     )
 
     if hashtag_result.bypass_llm
-      # Actions handled everything — broadcast response and return
-      # Note: User message already broadcast by controller for instant feedback
       session.append_transcript({ "role" => "user", "content" => user_message, "timestamp" => Time.current.iso8601 })
 
       response = hashtag_result.response
@@ -36,22 +34,15 @@ class ChatStreamJob < ApplicationJob
     # Use cleaned message (hashtags stripped) for LLM
     effective_message = hashtag_result.clean_message.presence || user_message
 
-    # Load attachments (images + documents)
-    attachments = attachment_ids.present? ? ChatAttachment.where(id: attachment_ids) : []
-    image_attachments = attachments.select(&:image?)
-    doc_attachments = attachments.select(&:document?)
-
-    # Save documents to workspace and tell agent the paths
-    if doc_attachments.any?
-      saved_paths = save_docs_to_workspace(doc_attachments)
-      if saved_paths.any?
-        file_list = saved_paths.map do |f|
-          line = "  - #{f[:path]} (#{f[:filename]}, #{f[:size]})"
-          line += " — #{f[:note]}" if f[:note]
-          line
-        end.join("\n")
-        effective_message = "#{effective_message}\n\n[Attached Files — saved to workspace]\n#{file_list}\n\nUse the file_read tool to read these files."
-      end
+    # ── Attachments ──────────────────────────────────────────────
+    attachment_result = Sessions::AttachmentProcessor.call(attachment_ids: attachment_ids, user_message: effective_message)
+    if attachment_result.success?
+      image_attachments = attachment_result.data[:images]
+      doc_attachments = attachment_result.data[:documents]
+      effective_message = attachment_result.data[:effective_message]
+    else
+      image_attachments = []
+      doc_attachments = []
     end
 
     # Detect sub-agent callbacks and broadcast them to UI
@@ -61,15 +52,12 @@ class ChatStreamJob < ApplicationJob
     end
 
     # Build transcript entry (with image/file refs)
-    # Use effective_message so the LLM sees file paths on subsequent turns
-    # Sub-agent callbacks use "user" role for LLM compatibility but are marked as callbacks
     transcript_entry = { "role" => "user", "content" => effective_message, "timestamp" => Time.current.iso8601 }
     transcript_entry["source"] = "sub_agent" if is_callback
     if image_attachments.any?
       transcript_entry["images"] = image_attachments.map do |a|
         { "attachment_id" => a.id, "content_type" => a.content_type, "filename" => a.filename }
       end
-      # Update attachment message_index
       message_index = (session.transcript || []).size
       image_attachments.each { |a| a.update(message_index: message_index) }
     end
@@ -82,9 +70,7 @@ class ChatStreamJob < ApplicationJob
     session.transcript << transcript_entry
     session.save!
 
-    # Note: User message is already broadcast by SessionsController#message
-    # for instant feedback. We only broadcast here if there are attachments
-    # that need URLs resolved (which the controller can't do yet).
+    # Broadcast attachment metadata for UI
     if image_attachments.any? || doc_attachments.any?
       broadcast_data = { type: "user_message", content: user_message }
       if doc_attachments.any?
@@ -109,8 +95,9 @@ class ChatStreamJob < ApplicationJob
 
     adapter = resolver.data[:adapter]
 
-    # Build messages for LLM (with vision content + hashtag addons)
-    messages = build_messages(session:, agent:, current_images: image_attachments, prompt_addons: hashtag_result.prompt_addons)
+    # ── Build LLM messages ───────────────────────────────────────
+    message_result = Sessions::MessageBuilder.call(session:, agent:, current_images: image_attachments, prompt_addons: hashtag_result.prompt_addons)
+    messages = message_result.data[:messages]
 
     # Prune messages to fit within context budget
     context_manager = Agents::ContextManager.new(agent.llm_model)
@@ -132,9 +119,7 @@ class ChatStreamJob < ApplicationJob
         llm_options[:thinking_budget_tokens] = agent.thinking_budget_tokens || 10_000
       end
 
-      # Inject MCP tool context for OAuth path so SDK proxy can build MCP server
-      # When OAuth+MCP, tools are handled by the MCP server inside the SDK proxy,
-      # so we skip the ToolLoop and use the streaming path for real-time UI feedback.
+      # Inject MCP tool context for OAuth path
       oauth_mcp = adapter.is_a?(Providers::AnthropicAdapter) && adapter.send(:oauth_token?) && tools.any?
       if oauth_mcp
         llm_options[:agent_id] = agent.id
@@ -147,23 +132,14 @@ class ChatStreamJob < ApplicationJob
 
       if tools.any? && !oauth_mcp
         result = Agents::ToolLoop.call(
-          adapter:,
-          agent:,
-          session:,
-          messages:,
-          tools:,
-          channel:,
-          options: llm_options
+          adapter:, agent:, session:, messages:, tools:, channel:, options: llm_options
         )
         full_content = result&.data&.dig(:content).to_s
         thinking_content = result&.data&.dig(:thinking)
       else
         full_content = +""
         full_thinking = +""
-        result = adapter.chat(
-          messages:,
-          options: llm_options
-        ) do |chunk|
+        result = adapter.chat(messages:, options: llm_options) do |chunk|
           case chunk[:type]
           when "thinking_start"
             ActionCable.server.broadcast(channel, { type: "thinking_start" }) if show_thinking
@@ -205,24 +181,14 @@ class ChatStreamJob < ApplicationJob
       session.transcript << transcript_entry
       session.save!
 
-      # Track usage
+      # ── Post-processing (usage, memory, summarization, origin delivery) ──
       usage = result&.data&.dig(:usage) || {}
       Rails.logger.info("[ChatStreamJob] Usage: in=#{usage[:input_tokens]} out=#{usage[:output_tokens]} cache_create=#{usage[:cache_creation_input_tokens]} cache_read=#{usage[:cache_read_input_tokens]}")
-      track_usage(agent:, session:, usage:)
-
-      # Store memory
-      store_memory(agent:, session:, user_message:, assistant_response: full_content)
-
-      # Summarize older transcript to keep future requests lean
-      maybe_summarize(session)
-
-      # Deliver to origin channel (e.g., WhatsApp) if this session came from one
-      Channels::OriginDelivery.call(session: session, content: full_content, agent: agent)
+      Sessions::PostProcessor.call(agent:, session:, user_message:, assistant_response: full_content, usage:)
 
       ActionCable.server.broadcast(channel, { type: "done", content: full_content })
 
     rescue AgentInterrupted
-      # User cancelled — save partial output and notify
       if full_content.present?
         session.append_transcript({ "role" => "assistant", "content" => full_content + "\n\n_[Cancelled by user]_", "timestamp" => Time.current.iso8601 })
       end
@@ -230,14 +196,11 @@ class ChatStreamJob < ApplicationJob
       Rails.logger.info("ChatStreamJob: cancelled by user for session #{session.id}")
 
     rescue AgentRedirected => e
-      # User redirected — save partial output, then start new task
       if full_content.present?
         session.append_transcript({ "role" => "assistant", "content" => full_content + "\n\n_[Redirected by user]_", "timestamp" => Time.current.iso8601 })
       end
       ActionCable.server.broadcast(channel, { type: "redirected", content: e.redirect_message })
       Rails.logger.info("ChatStreamJob: redirected for session #{session.id}")
-
-      # Fire new ChatStreamJob with the redirect message
       ChatStreamJob.perform_later(session.id, e.redirect_message, [])
 
     rescue StandardError => e
@@ -254,7 +217,7 @@ class ChatStreamJob < ApplicationJob
   def set_processing(session_id, active)
     key = "session_processing:#{session_id}"
     if active
-      Redis.current.setex(key, 600, "1") # 10 min TTL as safety net
+      Redis.current.setex(key, 600, "1")
     else
       Redis.current.del(key)
     end
@@ -272,189 +235,8 @@ class ChatStreamJob < ApplicationJob
     assigned = agent.agent_tools.includes(:tool).map(&:tool).select(&:enabled?)
     tools = assigned.any? ? assigned : Tool.enabled.builtin.to_a
 
-    # Inject system tools (always available, hidden from UI)
     tools << SystemTool::LOAD_SKILL if agent.skills.enabled.any?
 
     tools
-  end
-
-  SUMMARIZE_EVERY = 6 # Summarize after every 6 new transcript entries (~3 turns)
-  RAW_MESSAGES_TO_KEEP = 4 # Keep last 4 messages raw (2 full turns)
-
-  def build_messages(session:, agent:, current_images: [], prompt_addons: [])
-    messages = []
-
-    # System prompt — structured as cacheable blocks
-    # Block 1: core identity + role (very stable)
-    # Block 2: skills (stable, often the biggest chunk)
-    # Block 3: memory + context (semi-stable, changes across sessions)
-    system_blocks = agent.respond_to?(:system_prompt_blocks) ? agent.system_prompt_blocks : [ { type: "text", text: agent.full_system_prompt.presence || "You are #{agent.name}, a helpful AI assistant." } ]
-
-    # Dynamic context block (memory, mood, addons, summary)
-    dynamic_parts = []
-    memory_context = recall_memories(agent:, session:)
-    dynamic_parts << memory_context if memory_context.present?
-
-    if (mood = session.metadata&.dig("mood"))
-      dynamic_parts << "## Style Override\nAdjust your communication style: #{mood}"
-    end
-
-    prompt_addons.each { |addon| dynamic_parts << addon }
-
-    if session.conversation_summary.present?
-      dynamic_parts << "## Conversation So Far\n#{session.conversation_summary}"
-    end
-
-    if dynamic_parts.any?
-      system_blocks << { type: "text", text: dynamic_parts.join("\n\n") }
-    end
-
-    messages << { role: "system", content: system_blocks }
-
-    # Only send last few raw messages — older context lives in the summary
-    transcript = session.transcript
-    recent = transcript.last(RAW_MESSAGES_TO_KEEP)
-    recent.each_with_index do |msg, idx|
-      if msg["role"] == "user" && msg["images"].present? && idx == recent.size - 1
-        # Current message with images — build multimodal content
-        messages << build_vision_message(msg, current_images)
-      elsif msg["role"] == "user" && msg["images"].present?
-        # Past message with images — just use text (images aren't re-sent)
-        text = msg["content"].to_s
-        text += "\n[User attached #{msg["images"].size} image(s)]" if msg["images"].any?
-        messages << { role: "user", content: text }
-      else
-        messages << { role: msg["role"], content: msg["content"] }
-      end
-    end
-
-    messages
-  end
-
-  def build_vision_message(msg, image_attachments)
-    content_blocks = []
-
-    # Add images first
-    image_attachments.each do |attachment|
-      next unless attachment.image? && attachment.file.attached?
-
-      base64 = attachment.to_base64
-      next unless base64
-
-      content_blocks << {
-        type: "image",
-        source: {
-          type: "base64",
-          media_type: attachment.media_type,
-          data: base64
-        }
-      }
-    end
-
-    # Add text
-    text = msg["content"].to_s
-    content_blocks << { type: "text", text: text } if text.present?
-
-    { role: "user", content: content_blocks }
-  end
-
-  def recall_memories(agent:, session:)
-    last_user_msg = session.transcript.select { |m| m["role"] == "user" }.last
-    return nil unless last_user_msg
-
-    query = last_user_msg["content"].to_s
-    return nil if query.length < 5
-
-    result = Memory::ContextBuilder.call(agent: agent, query: query)
-    result[:context]
-  rescue StandardError => e
-    Rails.logger.warn("Memory recall failed: #{e.message}")
-    nil
-  end
-
-  def track_usage(agent:, session:, usage:)
-    return if usage.blank?
-
-    input_tokens = usage[:input_tokens] || 0
-    output_tokens = usage[:output_tokens] || 0
-    cost = CostEstimator.estimate(model: agent.llm_model, input_tokens:, output_tokens:)
-
-    UsageRecord.create(
-      agent:,
-      session:,
-      provider: agent.model_provider,
-      llm_model: agent.llm_model,
-      input_tokens:,
-      output_tokens:,
-      cost_cents: cost,
-      request_payload: usage[:request_payload]
-    )
-  end
-
-  # Cost estimation moved to CostEstimator service
-
-  def save_docs_to_workspace(doc_attachments)
-    upload_dir = "/workspace/uploads/#{Date.current.iso8601}"
-    FileUtils.mkdir_p(upload_dir)
-
-    doc_attachments.filter_map do |doc|
-      next unless doc.file.attached?
-
-      safe_name = doc.filename.to_s.gsub(/[^a-zA-Z0-9._-]/, "_")
-      timestamped = "#{Time.current.strftime('%H%M%S')}_#{safe_name}"
-      path = File.join(upload_dir, timestamped)
-      data = doc.file.download
-
-      File.binwrite(path, data)
-
-      size = doc.byte_size < 1024 ? "#{doc.byte_size}B" : doc.byte_size < 1_048_576 ? "#{(doc.byte_size / 1024.0).round(1)}KB" : "#{(doc.byte_size / 1_048_576.0).round(1)}MB"
-      result = { path: path, filename: doc.filename.to_s, size: size }
-
-      if doc.content_type == "application/pdf"
-        result[:note] = "PDF — use the pdf_read tool (not file_read) to extract text, metadata, or tables"
-      elsif !doc.content_type.to_s.start_with?("text/") && !%w[application/json application/xml].include?(doc.content_type)
-        result[:note] = "Binary file — may not be directly readable with file_read"
-      end
-
-      result
-    rescue StandardError => e
-      Rails.logger.warn("Failed to save doc to workspace: #{e.message}")
-      nil
-    end
-  end
-
-  # Trigger rolling summarization every N transcript entries.
-  # The summary job compresses older messages into ~200 tokens.
-  def maybe_summarize(session)
-    transcript_size = session.transcript&.size || 0
-    summarized_through = session.summary_through_index || 0
-    unsummarized = transcript_size - summarized_through
-
-    return if unsummarized < SUMMARIZE_EVERY + RAW_MESSAGES_TO_KEEP
-
-    ConversationSummaryJob.perform_later(session.id)
-  rescue StandardError => e
-    Rails.logger.warn("[ChatStreamJob] Summary trigger failed: #{e.message}")
-  end
-
-  def store_memory(agent:, session:, user_message:, assistant_response:)
-    return if user_message.length < 50 && assistant_response.length < 50
-
-    content = "User asked: #{user_message.truncate(200)}\nAssistant: #{assistant_response.truncate(500)}"
-
-    entry = MemoryEntry.create(
-      agent:,
-      content:,
-      source: session,
-      memory_type: "episodic",
-      metadata: { session_id: session.id, stored_at: Time.current.iso8601 }
-    )
-
-    if entry.persisted?
-      MemoryEmbeddingJob.perform_later(entry.id)
-      MemoryExtractionJob.perform_later(agent.id, user_message, assistant_response)
-    end
-  rescue StandardError => e
-    Rails.logger.warn("Memory store failed: #{e.message}")
   end
 end
