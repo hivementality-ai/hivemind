@@ -31,6 +31,7 @@ services:
       - MEMORY_EMBEDDINGS_ENABLED=${MEMORY_EMBEDDINGS_ENABLED:-true}
       - MEMORY_EMBEDDINGS_PROVIDER=${MEMORY_EMBEDDINGS_PROVIDER:-ollama}
       - SDK_PROXY_URL=http://sdk-proxy:3003
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET:-hivemind-internal-dev-secret}
     env_file: .env
     command: bash -c "bin/rails db:prepare && bin/rails db:seed && bin/rails tailwindcss:build && bin/rails server -b 0.0.0.0 -p 3000"
     stdin_open: true
@@ -53,6 +54,7 @@ services:
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - MEMORY_EMBEDDINGS_ENABLED=${MEMORY_EMBEDDINGS_ENABLED:-true}
       - MEMORY_EMBEDDINGS_PROVIDER=${MEMORY_EMBEDDINGS_PROVIDER:-ollama}
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET:-hivemind-internal-dev-secret}
     env_file: .env
     command: bundle exec sidekiq -C config/sidekiq.yml
 
@@ -67,6 +69,11 @@ services:
     volumes:
       - ./sdk-proxy:/app:cached
       - sdk_proxy_modules:/app/node_modules
+      - workspace_data:/workspace
+      - ${HOME}/hivemind-agents-shared:/app/agents-shared
+    environment:
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET:-hivemind-internal-dev-secret}
+      - RAILS_INTERNAL_URL=http://app:3000
     command: npx nodemon server.js
 
   connector:

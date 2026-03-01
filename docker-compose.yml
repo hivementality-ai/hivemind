@@ -37,6 +37,7 @@ services:
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - MEMORY_EMBEDDINGS_ENABLED=${MEMORY_EMBEDDINGS_ENABLED:-true}
       - MEMORY_EMBEDDINGS_PROVIDER=${MEMORY_EMBEDDINGS_PROVIDER:-ollama}
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -70,6 +71,7 @@ services:
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - MEMORY_EMBEDDINGS_ENABLED=${MEMORY_EMBEDDINGS_ENABLED:-true}
       - MEMORY_EMBEDDINGS_PROVIDER=${MEMORY_EMBEDDINGS_PROVIDER:-ollama}
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -138,8 +140,13 @@ services:
     build:
       context: ./sdk-proxy
       dockerfile: Dockerfile
+    volumes:
+      - workspace_data:/workspace
+      - ${HOME}/hivemind-agents-shared:/app/agents-shared
     environment:
       - PORT=3003
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      - RAILS_INTERNAL_URL=http://app:3000
     networks:
       - internal
     restart: unless-stopped

@@ -160,6 +160,27 @@ backup_database() {
 }
 
 # ----------------------------------------------------------
+# Migrate .env (backfill new keys added in later versions)
+# ----------------------------------------------------------
+migrate_env() {
+  cd "$HIVEMIND_DIR"
+
+  if [ ! -f ".env" ]; then
+    return
+  fi
+
+  # INTERNAL_API_SECRET — added for MCP tool bridge (Rails ↔ SDK proxy)
+  if ! grep -q '^INTERNAL_API_SECRET=' .env 2>/dev/null; then
+    local secret
+    secret="$(openssl rand -hex 32 2>/dev/null || LC_ALL=C tr -dc 'a-f0-9' < /dev/urandom | head -c 64)"
+    echo "" >> .env
+    echo "# Internal API (shared secret between Rails and SDK proxy)" >> .env
+    echo "INTERNAL_API_SECRET=$secret" >> .env
+    ok "Added INTERNAL_API_SECRET to .env"
+  fi
+}
+
+# ----------------------------------------------------------
 # Pull and build
 # ----------------------------------------------------------
 pull_and_build() {
@@ -244,6 +265,7 @@ main() {
   check_version
   check_breaking
   backup_database
+  migrate_env
   pull_and_build
   restart_services
   verify

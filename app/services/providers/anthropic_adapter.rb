@@ -127,7 +127,7 @@ module Providers
 
     def sdk_proxy_chat(messages:, tools: [], options: {}, &block)
       params = build_chat_params(messages:, tools:, options:)
-      payload = build_proxy_payload(params)
+      payload = build_proxy_payload(params, options)
 
       if block_given?
         sdk_proxy_stream(payload, &block)
@@ -136,7 +136,7 @@ module Providers
       end
     end
 
-    def build_proxy_payload(params)
+    def build_proxy_payload(params, options = {})
       payload = {
         messages: params[:messages],
         model: params[:model],
@@ -146,6 +146,12 @@ module Providers
       payload[:tools] = params[:tools] if params[:tools].present?
       payload[:temperature] = params[:temperature] if params[:temperature]
       payload[:thinking] = params[:thinking] if params[:thinking]
+
+      # MCP tool bridge context — passed through to SDK proxy for OAuth path
+      payload[:agent_id] = options[:agent_id] if options[:agent_id]
+      payload[:session_id] = options[:session_id] if options[:session_id]
+      payload[:tool_definitions] = options[:tool_definitions] if options[:tool_definitions]
+
       payload
     end
 
@@ -228,6 +234,10 @@ module Providers
                 full_thinking << text
                 block.call({ type: "thinking", content: text })
               end
+            when "tool_start"
+              block.call({ type: "tool_start", tool: event_data["tool"], input: event_data["input"] })
+            when "tool_result"
+              block.call({ type: "tool_result", tool: event_data["tool"], output: event_data["output"], success: event_data["success"] })
             when "tool_use"
               # Tool use events in streaming — not typical for our flow but handle gracefully
             when "result"

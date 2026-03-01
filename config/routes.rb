@@ -126,6 +126,11 @@ Rails.application.routes.draw do
     resources :agent_channels, only: [ :create, :update, :destroy ]
   end
 
+  # Internal API (SDK proxy callback — no Devise, CSRF)
+  namespace :internal do
+    post "tools/execute", to: "tools#execute"
+  end
+
   # API v1
   namespace :api do
     namespace :v1 do
