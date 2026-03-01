@@ -1,0 +1,14 @@
+#!/bin/bash -e
+
+# Dev entrypoint — prepare database before starting the server
+
+# Ensure shared workspace directories exist
+mkdir -p /workspace/uploads
+chmod 777 /workspace/uploads 2>/dev/null || true
+
+# Always prepare the database in dev (idempotent — fast no-op if already up to date)
+echo "🗄️  Preparing database..."
+bin/rails db:prepare
+bin/rails db:seed
+
+exec "${@}"
