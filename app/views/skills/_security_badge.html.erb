@@ -1,0 +1,10 @@
+<%# locals: (skill:) %>
+<% status = skill.security_status %>
+<% badge_classes = case status
+   when "clean"     then "bg-green-900/50 text-green-300"
+   when "warning"   then "bg-yellow-900/50 text-yellow-300"
+   when "flagged"   then "bg-red-900/50 text-red-300"
+   when "blocked"   then "bg-red-950/60 text-red-400"
+   else                  "bg-surface-raised text-text-faint"
+   end %>
+<span class="px-2 py-0.5 text-xs rounded-full <%= badge_classes %>"><%= status %></span>

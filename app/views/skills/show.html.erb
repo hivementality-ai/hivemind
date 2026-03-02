@@ -11,6 +11,7 @@
         <% if @skill.builtin? %>
           <span class="px-2 py-0.5 text-xs rounded-full bg-brand-glow/50 text-brand-light">bundled</span>
         <% end %>
+        <%= render "skills/security_badge", skill: @skill %>
         <span class="text-sm <%= @skill.enabled? ? 'text-green-400' : 'text-text-faint' %>">
           <%= @skill.enabled? ? "Enabled" : "Disabled" %>
         </span>

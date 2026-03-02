@@ -38,6 +38,60 @@ RSpec.describe Skill, type: :model do
     end
   end
 
+  describe "#security_status" do
+    it "returns 'unscanned' when no scan result" do
+      skill = build(:skill, security_scan_result: {})
+      expect(skill.security_status).to eq("unscanned")
+    end
+
+    it "returns the status from scan result" do
+      skill = build(:skill, :scanned_clean)
+      expect(skill.security_status).to eq("clean")
+    end
+
+    it "returns 'flagged' for flagged skills" do
+      skill = build(:skill, :scanned_flagged)
+      expect(skill.security_status).to eq("flagged")
+    end
+  end
+
+  describe "#security_clean?" do
+    it "returns true for clean skills" do
+      skill = build(:skill, :scanned_clean)
+      expect(skill.security_clean?).to be true
+    end
+
+    it "returns false for flagged skills" do
+      skill = build(:skill, :scanned_flagged)
+      expect(skill.security_clean?).to be false
+    end
+  end
+
+  describe "#security_blocked?" do
+    it "returns false for clean skills" do
+      skill = build(:skill, :scanned_clean)
+      expect(skill.security_blocked?).to be false
+    end
+
+    it "returns true for blocked skills" do
+      skill = build(:skill, security_scan_result: { "status" => "blocked" })
+      expect(skill.security_blocked?).to be true
+    end
+  end
+
+  describe "#compute_checksum" do
+    it "sets checksum on save when content changes" do
+      skill = create(:skill, content: "original content")
+      expect(skill.checksum).to eq(Digest::SHA256.hexdigest("original content"))
+    end
+
+    it "updates checksum when content changes" do
+      skill = create(:skill, content: "original")
+      skill.update!(content: "updated")
+      expect(skill.checksum).to eq(Digest::SHA256.hexdigest("updated"))
+    end
+  end
+
   describe ".from_skill_md" do
     context "with frontmatter" do
       let(:text) do
