@@ -1,17 +1,17 @@
 # frozen_string_literal: true
 
-require "net/http"
-require "json"
-
 module Providers
   class AnthropicAdapter < Base
     SDK_PROXY_URL = ENV.fetch("SDK_PROXY_URL", "http://sdk-proxy:3003")
 
     def chat(messages:, tools: [], options: {}, &block)
+      params = build_chat_params(messages:, tools:, options:)
+
       if oauth_token?
-        sdk_proxy_chat(messages:, tools:, options:, &block)
+        proxy_client.chat(params:, options:, &block)
       else
-        gem_chat(messages:, tools:, options:, &block)
+        result = gem_client.chat(client: ::Anthropic::Client.new(api_key:), params:, &block)
+        inject_request_payload(result, params)
       end
     rescue StandardError => e
       ServiceResponse.failure(error: "Anthropic API error: #{e.message}")
@@ -28,249 +28,23 @@ module Providers
 
     private
 
-    # ─── Key type detection ───
-
     def oauth_token?
       api_key&.start_with?("sk-ant-oat")
     end
 
-    # ─── Path 1: Anthropic Ruby Gem (API keys) ───
-
-    def gem_chat(messages:, tools: [], options: {}, &block)
-      client = Anthropic::Client.new(api_key:)
-      params = build_chat_params(messages:, tools:, options:)
-
-      if block_given?
-        gem_stream_chat(client:, params:, &block)
-      else
-        gem_sync_chat(client:, params:)
-      end
+    def gem_client
+      @gem_client ||= Anthropic::GemClient.new
     end
 
-    def gem_stream_chat(client:, params:, &block)
-      full_content = +""
-      full_thinking = +""
-      current_block_type = nil
-      usage = {}
-      usage[:request_payload] = sanitize_payload_for_logging(params)
-
-      stream = client.messages.stream(**params)
-
-      stream.each do |event|
-        case event.type.to_s
-        when "content_block_start"
-          if event.respond_to?(:content_block)
-            current_block_type = event.content_block.type.to_s
-            block.call({ type: "thinking_start" }) if current_block_type == "thinking"
-          end
-        when "content_block_delta"
-          if current_block_type == "thinking" && event.delta.respond_to?(:thinking) && event.delta.thinking
-            full_thinking << event.delta.thinking
-            block.call({ type: "thinking", content: event.delta.thinking })
-          elsif event.delta.respond_to?(:text) && event.delta.text
-            full_content << event.delta.text
-            block.call({ type: "content", content: event.delta.text })
-          end
-        when "content_block_stop"
-          block.call({ type: "thinking_stop" }) if current_block_type == "thinking"
-          current_block_type = nil
-        when "message_start"
-          if event.message.respond_to?(:usage) && event.message.usage
-            u = event.message.usage
-            usage[:input_tokens] = u.input_tokens
-            usage[:cache_creation_input_tokens] = u.respond_to?(:cache_creation_input_tokens) ? u.cache_creation_input_tokens : nil
-            usage[:cache_read_input_tokens] = u.respond_to?(:cache_read_input_tokens) ? u.cache_read_input_tokens : nil
-          end
-        when "message_delta"
-          if event.respond_to?(:usage) && event.usage
-            usage[:output_tokens] = event.usage.output_tokens
-          end
-        end
-      end
-
-      thinking = full_thinking.present? ? full_thinking : nil
-      ServiceResponse.success(data: { content: full_content, thinking:, usage: })
+    def proxy_client
+      @proxy_client ||= Anthropic::SdkProxyClient.new(api_key:, base_url: SDK_PROXY_URL)
     end
 
-    def gem_sync_chat(client:, params:)
-      response = client.messages.create(**params)
-
-      content = nil
-      thinking = nil
-      tool_calls = []
-
-      response.content.each do |block|
-        case block.type.to_s
-        when "thinking"
-          thinking = block.thinking if block.respond_to?(:thinking)
-        when "text"
-          content = block.text
-        when "tool_use"
-          tool_calls << { "id" => block.id, "name" => block.name, "input" => block.input.to_h.stringify_keys }
-        end
+    def inject_request_payload(result, params)
+      if result.success? && result.data[:usage]
+        result.data[:usage][:request_payload] = sanitize_payload_for_logging(params)
       end
-
-      usage = {
-        input_tokens: response.usage&.input_tokens,
-        output_tokens: response.usage&.output_tokens,
-        cache_creation_input_tokens: response.usage&.respond_to?(:cache_creation_input_tokens) ? response.usage.cache_creation_input_tokens : nil,
-        cache_read_input_tokens: response.usage&.respond_to?(:cache_read_input_tokens) ? response.usage.cache_read_input_tokens : nil,
-        request_payload: sanitize_payload_for_logging(params)
-      }
-
-      tool_calls = nil if tool_calls.empty?
-
-      ServiceResponse.success(data: { content:, thinking:, tool_calls:, usage: })
-    end
-
-    # ─── Path 2: SDK Proxy (OAuth tokens) ───
-
-    def sdk_proxy_chat(messages:, tools: [], options: {}, &block)
-      params = build_chat_params(messages:, tools:, options:)
-      payload = build_proxy_payload(params, options)
-
-      if block_given?
-        sdk_proxy_stream(payload, &block)
-      else
-        sdk_proxy_sync(payload)
-      end
-    end
-
-    def build_proxy_payload(params, options = {})
-      payload = {
-        messages: params[:messages],
-        model: params[:model],
-        max_tokens: params[:max_tokens],
-        system: params[:system]
-      }
-      payload[:tools] = params[:tools] if params[:tools].present?
-      payload[:temperature] = params[:temperature] if params[:temperature]
-      payload[:thinking] = params[:thinking] if params[:thinking]
-
-      # MCP tool bridge context — passed through to SDK proxy for OAuth path
-      payload[:agent_id] = options[:agent_id] if options[:agent_id]
-      payload[:session_id] = options[:session_id] if options[:session_id]
-      payload[:tool_definitions] = options[:tool_definitions] if options[:tool_definitions]
-
-      payload
-    end
-
-    def sdk_proxy_sync(payload)
-      payload[:stream] = false
-      uri = URI("#{SDK_PROXY_URL}/v1/chat")
-
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.read_timeout = 120
-      http.open_timeout = 10
-
-      request = Net::HTTP::Post.new(uri.path, {
-        "Content-Type" => "application/json",
-        "Authorization" => "Bearer #{api_key}"
-      })
-      request.body = payload.to_json
-
-      response = http.request(request)
-
-      unless response.is_a?(Net::HTTPSuccess)
-        return ServiceResponse.failure(error: "SDK proxy error (#{response.code}): #{response.body}")
-      end
-
-      data = JSON.parse(response.body, symbolize_names: true)
-
-      tool_calls = data[:tool_calls]&.map do |tc|
-        { "id" => tc[:id], "name" => tc[:name], "input" => (tc[:input] || {}).stringify_keys }
-      end
-
-      ServiceResponse.success(data: {
-        content: data[:content],
-        thinking: data[:thinking],
-        tool_calls: tool_calls,
-        usage: data[:usage] || {}
-      })
-    end
-
-    def sdk_proxy_stream(payload, &block)
-      payload[:stream] = true
-      uri = URI("#{SDK_PROXY_URL}/v1/chat")
-
-      full_content = +""
-      full_thinking = +""
-      usage = {}
-
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.read_timeout = 120
-      http.open_timeout = 10
-
-      request = Net::HTTP::Post.new(uri.path, {
-        "Content-Type" => "application/json",
-        "Authorization" => "Bearer #{api_key}"
-      })
-      request.body = payload.to_json
-
-      http.request(request) do |response|
-        unless response.is_a?(Net::HTTPSuccess)
-          body = response.read_body
-          return ServiceResponse.failure(error: "SDK proxy error (#{response.code}): #{body}")
-        end
-
-        buffer = +""
-        response.read_body do |chunk|
-          buffer << chunk
-          while (line_end = buffer.index("\n\n"))
-            frame = buffer.slice!(0, line_end + 2)
-            event_type, event_data = parse_sse_frame(frame)
-            next unless event_type && event_data
-
-            case event_type
-            when "content"
-              text = event_data["content"]
-              if text
-                full_content << text
-                block.call({ type: "content", content: text })
-              end
-            when "thinking"
-              text = event_data["thinking"]
-              if text
-                full_thinking << text
-                block.call({ type: "thinking", content: text })
-              end
-            when "tool_start"
-              block.call({ type: "tool_start", tool: event_data["tool"], input: event_data["input"] })
-            when "tool_result"
-              block.call({ type: "tool_result", tool: event_data["tool"], output: event_data["output"], success: event_data["success"] })
-            when "tool_use"
-              # Tool use events in streaming — not typical for our flow but handle gracefully
-            when "result"
-              usage = event_data["usage"] || {}
-            when "done"
-              # Stream complete
-            end
-          end
-        end
-      end
-
-      thinking = full_thinking.present? ? full_thinking : nil
-      ServiceResponse.success(data: { content: full_content, thinking:, usage: })
-    end
-
-    def parse_sse_frame(frame)
-      event_type = nil
-      data_line = nil
-
-      frame.each_line do |line|
-        line = line.strip
-        if line.start_with?("event: ")
-          event_type = line.sub("event: ", "")
-        elsif line.start_with?("data: ")
-          data_line = line.sub("data: ", "")
-        end
-      end
-
-      return nil unless event_type && data_line
-
-      [ event_type, JSON.parse(data_line) ]
-    rescue JSON::ParserError
-      nil
+      result
     end
 
     # ─── Shared helpers ───
