@@ -20,15 +20,29 @@ class Rack::Attack
     end
   end
 
-  # Throttle API token auth (10 attempts per minute)
+  # Throttle unauthenticated API requests by IP (10 attempts per minute)
   throttle("api/ip", limit: 10, period: 60.seconds) do |req|
     if req.path.start_with?("/api/") && req.env["HTTP_AUTHORIZATION"].blank?
       req.ip
     end
   end
 
-  # Throttle webhook endpoints (60 per minute per IP)
-  throttle("webhooks/ip", limit: 60, period: 60.seconds) do |req|
+  # Throttle authenticated API requests by token (60 req/min)
+  throttle("api/token", limit: 60, period: 60.seconds) do |req|
+    if req.path.start_with?("/api/") && req.env["HTTP_AUTHORIZATION"].present?
+      req.env["HTTP_AUTHORIZATION"].to_s.gsub(/^Bearer /, "")
+    end
+  end
+
+  # Throttle chat messages (30 req/min per IP+session)
+  throttle("messages/session", limit: 30, period: 60.seconds) do |req|
+    if req.post? && req.path.match?(%r{^/(sessions|team_chats)/\d+/message$})
+      "#{req.ip}:#{req.path}"
+    end
+  end
+
+  # Throttle webhook endpoints (120 per minute per IP)
+  throttle("webhooks/ip", limit: 120, period: 60.seconds) do |req|
     if req.path.start_with?("/webhooks/")
       req.ip
     end
@@ -41,8 +55,23 @@ class Rack::Attack
     end
   end
 
-  # Custom response for throttled requests
-  self.throttled_responder = lambda do |_request|
-    [ 429, { "Content-Type" => "application/json" }, [ { error: "Rate limit exceeded" }.to_json ] ]
+  # Include Retry-After header on throttled responses
+  Rack::Attack.throttled_response_retry_after_header = true
+
+  # Custom response for throttled requests with rate limit headers
+  self.throttled_responder = lambda do |request|
+    match_data = request.env["rack.attack.match_data"]
+    now = match_data[:epoch_time]
+    retry_after = match_data[:period] - (now % match_data[:period])
+
+    headers = {
+      "Content-Type" => "application/json",
+      "Retry-After" => retry_after.to_s,
+      "X-RateLimit-Limit" => match_data[:limit].to_s,
+      "X-RateLimit-Remaining" => "0",
+      "X-RateLimit-Reset" => (now + retry_after).to_i.to_s
+    }
+
+    [ 429, headers, [ { error: "Rate limit exceeded. Retry after #{retry_after} seconds." }.to_json ] ]
   end
 end
