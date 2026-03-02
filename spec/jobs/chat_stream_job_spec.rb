@@ -25,6 +25,9 @@ RSpec.describe ChatStreamJob, type: :job do
     # Stub memory system (avoids Ollama HTTP calls)
     allow(Memory::ContextBuilder).to receive(:call).and_return({ context: nil, entries: [] })
     allow(Memory::Embedding).to receive(:generate).and_return(nil)
+
+    # Stub origin delivery (called via PostProcessor)
+    allow(Channels::OriginDelivery).to receive(:call)
   end
 
   describe "#perform" do
