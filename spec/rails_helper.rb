@@ -91,6 +91,12 @@ RSpec.configure do |config|
     DatabaseCleaner.clean
   end
 
+  # Reset Rack::Attack state between tests
+  config.before do
+    Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
+    Rack::Attack.reset!
+  end
+
   # Sidekiq test mode
   config.before do
     require 'sidekiq/testing'
