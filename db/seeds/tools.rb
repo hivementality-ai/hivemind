@@ -575,6 +575,35 @@ BUILTIN_TOOLS = [
       },
       "required" => [ "pattern" ]
     }
+  },
+  {
+    name: "deep_research",
+    description: "Perform multi-step, iterative deep research on a topic using web search, page fetching, and LLM analysis. Runs in the background with real-time progress updates. Returns a comprehensive research report.",
+    executor_type: "deep_research",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "query" => { "type" => "string", "description" => "The research question or topic to investigate" },
+        "depth" => { "type" => "string", "description" => "Research depth: quick (fast overview), standard (balanced), or deep (thorough)", "enum" => %w[quick standard deep] },
+        "focus" => { "type" => "string", "description" => "Research focus area: general, technical, scientific, news, or financial", "enum" => %w[general technical scientific news financial] },
+        "documents" => { "type" => "string", "description" => "Paths to local documents to include in analysis (comma-separated)" },
+        "output_format" => { "type" => "string", "description" => "Output format: report, bullet_points, detailed_analysis, or executive_summary", "enum" => %w[report bullet_points detailed_analysis executive_summary] }
+      },
+      "required" => [ "query" ]
+    }
+  },
+  {
+    name: "deep_research_status",
+    description: "Check the status of a deep research session, list recent sessions, or cancel an active session. Use the task_key returned by the deep_research tool.",
+    executor_type: "deep_research_status",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "action" => { "type" => "string", "description" => "Action: status (check one session), list (show recent), or cancel (stop active session)", "enum" => %w[status list cancel] },
+        "task_key" => { "type" => "string", "description" => "Task ID from deep_research tool (required for status and cancel actions)" }
+      },
+      "required" => [ "action" ]
+    }
   }
 ].freeze
 
