@@ -7,7 +7,7 @@ RSpec.describe Providers::Anthropic::GemClient, type: :service do
 
   let(:client) { instance_double("Anthropic::Client") }
   let(:messages_api) { instance_double("messages_api") }
-  let(:params) { { model: "claude-sonnet-4-5", messages: [{ role: "user", content: "Hello" }], max_tokens: 8192 } }
+  let(:params) { { model: "claude-sonnet-4-5", messages: [ { role: "user", content: "Hello" } ], max_tokens: 8192 } }
 
   before do
     allow(client).to receive(:messages).and_return(messages_api)
@@ -103,7 +103,7 @@ RSpec.describe Providers::Anthropic::GemClient, type: :service do
     context "sync (no block)" do
       it "returns text content" do
         response = build_sync_response(
-          content: [build_text_block("Hello!")],
+          content: [ build_text_block("Hello!") ],
           usage: build_response_usage(input: 10, output: 5)
         )
         allow(messages_api).to receive(:create).and_return(response)
@@ -118,7 +118,7 @@ RSpec.describe Providers::Anthropic::GemClient, type: :service do
       it "returns tool calls" do
         tool_block = build_tool_use_block(id: "tool_1", name: "shell", input: { "command" => "ls" })
         response = build_sync_response(
-          content: [tool_block],
+          content: [ tool_block ],
           usage: build_response_usage(input: 15, output: 8)
         )
         allow(messages_api).to receive(:create).and_return(response)
@@ -133,7 +133,7 @@ RSpec.describe Providers::Anthropic::GemClient, type: :service do
 
       it "returns thinking content" do
         response = build_sync_response(
-          content: [build_thinking_block("Deep thought"), build_text_block("42")],
+          content: [ build_thinking_block("Deep thought"), build_text_block("42") ],
           usage: build_response_usage(input: 20, output: 10)
         )
         allow(messages_api).to receive(:create).and_return(response)
@@ -147,7 +147,7 @@ RSpec.describe Providers::Anthropic::GemClient, type: :service do
 
       it "extracts usage with cache tokens" do
         response = build_sync_response(
-          content: [build_text_block("Hi")],
+          content: [ build_text_block("Hi") ],
           usage: build_response_usage(input: 100, output: 50, cache_creation: 10, cache_read: 20)
         )
         allow(messages_api).to receive(:create).and_return(response)

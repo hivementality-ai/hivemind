@@ -33,7 +33,7 @@ module Sessions
       system_blocks = if @agent.respond_to?(:system_prompt_blocks)
                         @agent.system_prompt_blocks
       else
-                        [{ type: "text", text: @agent.full_system_prompt.presence || "You are #{@agent.name}, a helpful AI assistant." }]
+                        [ { type: "text", text: @agent.full_system_prompt.presence || "You are #{@agent.name}, a helpful AI assistant." } ]
       end
 
       dynamic_parts = []

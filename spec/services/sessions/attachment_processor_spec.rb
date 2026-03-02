@@ -36,13 +36,13 @@ RSpec.describe Sessions::AttachmentProcessor do
         att
       end
 
-      before { allow(ChatAttachment).to receive(:where).and_return([image]) }
+      before { allow(ChatAttachment).to receive(:where).and_return([ image ]) }
 
-      subject(:result) { described_class.call(attachment_ids: [image.id], user_message: "What is this?") }
+      subject(:result) { described_class.call(attachment_ids: [ image.id ], user_message: "What is this?") }
 
       it "classifies images correctly" do
         expect(result.success?).to be true
-        expect(result.data[:images]).to eq([image])
+        expect(result.data[:images]).to eq([ image ])
         expect(result.data[:documents]).to be_empty
         expect(result.data[:effective_message]).to eq("What is this?")
         expect(result.data[:saved_paths]).to be_empty
@@ -59,16 +59,16 @@ RSpec.describe Sessions::AttachmentProcessor do
       end
 
       before do
-        allow(ChatAttachment).to receive(:where).and_return([doc])
+        allow(ChatAttachment).to receive(:where).and_return([ doc ])
         allow(FileUtils).to receive(:mkdir_p)
         allow(File).to receive(:binwrite)
       end
 
-      subject(:result) { described_class.call(attachment_ids: [doc.id], user_message: "Read this") }
+      subject(:result) { described_class.call(attachment_ids: [ doc.id ], user_message: "Read this") }
 
       it "saves documents and appends file info to message" do
         expect(result.success?).to be true
-        expect(result.data[:documents]).to eq([doc])
+        expect(result.data[:documents]).to eq([ doc ])
         expect(result.data[:effective_message]).to include("[Attached Files")
         expect(result.data[:effective_message]).to include("doc.pdf")
         expect(result.data[:effective_message]).to include("Use the file_read tool")
@@ -102,16 +102,16 @@ RSpec.describe Sessions::AttachmentProcessor do
       end
 
       before do
-        allow(ChatAttachment).to receive(:where).and_return([image, doc])
+        allow(ChatAttachment).to receive(:where).and_return([ image, doc ])
         allow(FileUtils).to receive(:mkdir_p)
         allow(File).to receive(:binwrite)
       end
 
-      subject(:result) { described_class.call(attachment_ids: [image.id, doc.id], user_message: "Check these") }
+      subject(:result) { described_class.call(attachment_ids: [ image.id, doc.id ], user_message: "Check these") }
 
       it "classifies both types correctly" do
-        expect(result.data[:images]).to eq([image])
-        expect(result.data[:documents]).to eq([doc])
+        expect(result.data[:images]).to eq([ image ])
+        expect(result.data[:documents]).to eq([ doc ])
       end
     end
 
@@ -125,12 +125,12 @@ RSpec.describe Sessions::AttachmentProcessor do
       end
 
       before do
-        allow(ChatAttachment).to receive(:where).and_return([doc])
+        allow(ChatAttachment).to receive(:where).and_return([ doc ])
         allow(FileUtils).to receive(:mkdir_p)
         allow(File).to receive(:binwrite).and_raise(Errno::ENOSPC, "No space left")
       end
 
-      subject(:result) { described_class.call(attachment_ids: [doc.id], user_message: "Save this") }
+      subject(:result) { described_class.call(attachment_ids: [ doc.id ], user_message: "Save this") }
 
       it "handles file save failure gracefully" do
         expect(result.success?).to be true
@@ -170,20 +170,20 @@ RSpec.describe Sessions::AttachmentProcessor do
       end
 
       it "formats bytes for small files" do
-        allow(ChatAttachment).to receive(:where).and_return([small_doc])
-        result = described_class.call(attachment_ids: [small_doc.id], user_message: "test")
+        allow(ChatAttachment).to receive(:where).and_return([ small_doc ])
+        result = described_class.call(attachment_ids: [ small_doc.id ], user_message: "test")
         expect(result.data[:effective_message]).to include("500B")
       end
 
       it "formats KB for medium files" do
-        allow(ChatAttachment).to receive(:where).and_return([medium_doc])
-        result = described_class.call(attachment_ids: [medium_doc.id], user_message: "test")
+        allow(ChatAttachment).to receive(:where).and_return([ medium_doc ])
+        result = described_class.call(attachment_ids: [ medium_doc.id ], user_message: "test")
         expect(result.data[:effective_message]).to include("5.0KB")
       end
 
       it "formats MB for large files" do
-        allow(ChatAttachment).to receive(:where).and_return([large_doc])
-        result = described_class.call(attachment_ids: [large_doc.id], user_message: "test")
+        allow(ChatAttachment).to receive(:where).and_return([ large_doc ])
+        result = described_class.call(attachment_ids: [ large_doc.id ], user_message: "test")
         expect(result.data[:effective_message]).to include("2.0MB")
       end
     end

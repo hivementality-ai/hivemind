@@ -14,7 +14,7 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
         allow(Providers::Anthropic::SdkProxyClient).to receive(:new).and_return(proxy_client)
         allow(proxy_client).to receive(:chat).and_return(ServiceResponse.success(data: { content: "proxy response", usage: {} }))
 
-        result = adapter.chat(messages: [{ role: "user", content: "Hi" }])
+        result = adapter.chat(messages: [ { role: "user", content: "Hi" } ])
 
         expect(result).to be_success
         expect(result.data[:content]).to eq("proxy response")
@@ -33,7 +33,7 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
         anthropic_client = instance_double("Anthropic::Client")
         allow(::Anthropic::Client).to receive(:new).and_return(anthropic_client)
 
-        result = adapter.chat(messages: [{ role: "user", content: "Hi" }])
+        result = adapter.chat(messages: [ { role: "user", content: "Hi" } ])
 
         expect(result).to be_success
         expect(result.data[:content]).to eq("gem response")
@@ -48,7 +48,7 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
         )
         allow(::Anthropic::Client).to receive(:new).and_return(double("client"))
 
-        result = adapter.chat(messages: [{ role: "user", content: "Hi" }])
+        result = adapter.chat(messages: [ { role: "user", content: "Hi" } ])
 
         expect(result.data[:usage][:request_payload]).to be_a(Hash)
         expect(result.data[:usage][:request_payload][:model]).to eq("claude-sonnet-4-5")
@@ -61,7 +61,7 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
       it "wraps exceptions in failure response" do
         allow(::Anthropic::Client).to receive(:new).and_raise(StandardError, "connection refused")
 
-        result = adapter.chat(messages: [{ role: "user", content: "Hi" }])
+        result = adapter.chat(messages: [ { role: "user", content: "Hi" } ])
 
         expect(result).not_to be_success
         expect(result.error).to include("Anthropic API error: connection refused")
@@ -96,7 +96,7 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
 
       tool_msg = params[:messages].last
       expect(tool_msg[:role]).to eq("user")
-      expect(tool_msg[:content]).to eq([{ type: "tool_result", tool_use_id: "call_1", content: "file.txt" }])
+      expect(tool_msg[:content]).to eq([ { type: "tool_result", tool_use_id: "call_1", content: "file.txt" } ])
     end
 
     it "formats assistant messages with tool_calls" do
@@ -104,7 +104,7 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
         {
           role: "assistant",
           content: "Let me check",
-          tool_calls: [{ "id" => "tc_1", "name" => "shell", "input" => { "command" => "ls" } }]
+          tool_calls: [ { "id" => "tc_1", "name" => "shell", "input" => { "command" => "ls" } } ]
         }
       ]
 
@@ -119,9 +119,9 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
     end
 
     it "formats tools with input_schema" do
-      tools = [{ name: "shell", description: "Run command", input_schema: { type: "object" } }]
+      tools = [ { name: "shell", description: "Run command", input_schema: { type: "object" } } ]
 
-      params = adapter.send(:build_chat_params, messages: [{ role: "user", content: "Hi" }], tools: tools, options: {})
+      params = adapter.send(:build_chat_params, messages: [ { role: "user", content: "Hi" } ], tools: tools, options: {})
 
       expect(params[:tools]).to eq([
         { name: "shell", description: "Run command", input_schema: { type: "object" } }
@@ -131,7 +131,7 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
     it "sets thinking params and adjusts max_tokens" do
       options = { thinking_enabled: true, thinking_budget_tokens: 5000 }
 
-      params = adapter.send(:build_chat_params, messages: [{ role: "user", content: "Hi" }], tools: [], options: options)
+      params = adapter.send(:build_chat_params, messages: [ { role: "user", content: "Hi" } ], tools: [], options: options)
 
       expect(params[:thinking]).to eq({ type: "enabled", budget_tokens: 5000 })
       expect(params[:max_tokens]).to eq(9096) # 5000 + 4096
@@ -139,7 +139,7 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
     end
 
     it "uses default model and max_tokens" do
-      params = adapter.send(:build_chat_params, messages: [{ role: "user", content: "Hi" }], tools: [], options: {})
+      params = adapter.send(:build_chat_params, messages: [ { role: "user", content: "Hi" } ], tools: [], options: {})
 
       expect(params[:model]).to eq("claude-sonnet-4-5")
       expect(params[:max_tokens]).to eq(8192)
@@ -148,7 +148,7 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
     it "respects custom model and temperature" do
       options = { model: "claude-opus-4-6", temperature: 0.5 }
 
-      params = adapter.send(:build_chat_params, messages: [{ role: "user", content: "Hi" }], tools: [], options: options)
+      params = adapter.send(:build_chat_params, messages: [ { role: "user", content: "Hi" } ], tools: [], options: options)
 
       expect(params[:model]).to eq("claude-opus-4-6")
       expect(params[:temperature]).to eq(0.5)
@@ -167,7 +167,7 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
     end
 
     it "wraps array content blocks" do
-      content = [{ text: "Block 1" }, { text: "Block 2" }]
+      content = [ { text: "Block 1" }, { text: "Block 2" } ]
 
       result = adapter.send(:build_cached_system, content)
 
@@ -178,7 +178,7 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
     end
 
     it "rejects blank text blocks" do
-      content = [{ text: "Keep" }, { text: "" }, { text: nil }]
+      content = [ { text: "Keep" }, { text: "" }, { text: nil } ]
 
       result = adapter.send(:build_cached_system, content)
 
@@ -215,7 +215,7 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
 
     it "truncates long string content" do
       long_content = "x" * 3000
-      params = { messages: [{ role: "user", content: long_content }] }
+      params = { messages: [ { role: "user", content: long_content } ] }
 
       result = adapter.send(:sanitize_payload_for_logging, params)
 
@@ -225,7 +225,7 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
 
     it "truncates long text in array content blocks" do
       long_text = "y" * 3000
-      params = { messages: [{ role: "user", content: [{ type: "text", text: long_text }] }] }
+      params = { messages: [ { role: "user", content: [ { type: "text", text: long_text } ] } ] }
 
       result = adapter.send(:sanitize_payload_for_logging, params)
 

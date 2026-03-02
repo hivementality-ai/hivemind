@@ -69,7 +69,7 @@ RSpec.describe Sessions::MessageBuilder do
       end
 
       let(:transcript) do
-        [{ "role" => "user", "content" => "Tell me about Ruby", "timestamp" => Time.current.iso8601 }]
+        [ { "role" => "user", "content" => "Tell me about Ruby", "timestamp" => Time.current.iso8601 } ]
       end
 
       it "includes memory context in system prompt" do
@@ -92,10 +92,10 @@ RSpec.describe Sessions::MessageBuilder do
     end
 
     context "with prompt addons" do
-      let(:transcript) { [{ "role" => "user", "content" => "Hello", "timestamp" => Time.current.iso8601 }] }
+      let(:transcript) { [ { "role" => "user", "content" => "Hello", "timestamp" => Time.current.iso8601 } ] }
 
       subject(:result) do
-        described_class.call(session: session, agent: agent, prompt_addons: ["Extra context here"])
+        described_class.call(session: session, agent: agent, prompt_addons: [ "Extra context here" ])
       end
 
       it "includes addons in system prompt" do
@@ -131,12 +131,12 @@ RSpec.describe Sessions::MessageBuilder do
 
       let(:transcript) do
         [
-          { "role" => "user", "content" => "What is this?", "images" => [{ "attachment_id" => 1 }], "timestamp" => Time.current.iso8601 }
+          { "role" => "user", "content" => "What is this?", "images" => [ { "attachment_id" => 1 } ], "timestamp" => Time.current.iso8601 }
         ]
       end
 
       subject(:result) do
-        described_class.call(session: session, agent: agent, current_images: [attachment])
+        described_class.call(session: session, agent: agent, current_images: [ attachment ])
       end
 
       it "builds a vision message with image blocks" do
@@ -153,7 +153,7 @@ RSpec.describe Sessions::MessageBuilder do
     context "with past image references (not current)" do
       let(:transcript) do
         [
-          { "role" => "user", "content" => "Look at this", "images" => [{ "attachment_id" => 1 }], "timestamp" => 5.minutes.ago.iso8601 },
+          { "role" => "user", "content" => "Look at this", "images" => [ { "attachment_id" => 1 } ], "timestamp" => 5.minutes.ago.iso8601 },
           { "role" => "assistant", "content" => "Nice image!", "timestamp" => 4.minutes.ago.iso8601 },
           { "role" => "user", "content" => "What else?", "timestamp" => Time.current.iso8601 },
           { "role" => "assistant", "content" => "Nothing else", "timestamp" => Time.current.iso8601 }
@@ -174,7 +174,7 @@ RSpec.describe Sessions::MessageBuilder do
       end
 
       let(:transcript) do
-        [{ "role" => "user", "content" => "Tell me something", "timestamp" => Time.current.iso8601 }]
+        [ { "role" => "user", "content" => "Tell me something", "timestamp" => Time.current.iso8601 } ]
       end
 
       it "still returns success without memory context" do

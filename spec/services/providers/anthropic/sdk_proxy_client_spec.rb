@@ -8,9 +8,9 @@ RSpec.describe Providers::Anthropic::SdkProxyClient, type: :service do
   let(:base_params) do
     {
       model: "claude-sonnet-4-5",
-      messages: [{ role: "user", content: "Hello" }],
+      messages: [ { role: "user", content: "Hello" } ],
       max_tokens: 8192,
-      system: [{ type: "text", text: "You are helpful", cache_control: { type: "ephemeral" } }]
+      system: [ { type: "text", text: "You are helpful", cache_control: { type: "ephemeral" } } ]
     }
   end
 
@@ -40,7 +40,7 @@ RSpec.describe Providers::Anthropic::SdkProxyClient, type: :service do
             status: 200,
             body: {
               content: nil,
-              tool_calls: [{ id: "tc_1", name: "shell", input: { command: "ls" } }],
+              tool_calls: [ { id: "tc_1", name: "shell", input: { command: "ls" } } ],
               usage: {}
             }.to_json
           )
@@ -172,7 +172,7 @@ RSpec.describe Providers::Anthropic::SdkProxyClient, type: :service do
       chunks = []
       proxy_client.chat(params: base_params) { |chunk| chunks << chunk }
 
-      expect(chunks).to eq([{ type: "content", content: "ok" }])
+      expect(chunks).to eq([ { type: "content", content: "ok" } ])
     end
   end
 end
