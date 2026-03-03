@@ -171,19 +171,35 @@ cmd_import() {
 
   local source="${1:-$HOME/.openclaw/workspace}"
   local agent_slug="${2:-}"
+  local dry_run="${DRY_RUN:-false}"
+
+  # Check for --dry-run flag
+  for arg in "$@"; do
+    if [ "$arg" = "--dry-run" ]; then
+      dry_run="true"
+      # Remove --dry-run from positional args
+      if [ "$source" = "--dry-run" ]; then
+        source="$HOME/.openclaw/workspace"
+      fi
+    fi
+  done
 
   if [ ! -d "$source" ]; then
-    echo -e "${BOLD}Usage:${NC} hivemind import [openclaw-workspace-path] [agent-slug]"
+    echo -e "${BOLD}Usage:${NC} hivemind import [openclaw-workspace-path] [agent-slug] [--dry-run]"
     echo ""
     echo "  Imports an OpenClaw workspace into Hivemind — creates the agent,"
-    echo "  copies workspace files, and imports memories into the database."
+    echo "  imports memories, skills, channels, conversations, and tools."
     echo ""
     echo "  Default path: ~/.openclaw/workspace"
     echo ""
+    echo "  Options:"
+    echo "    --dry-run    Preview the migration without persisting changes"
+    echo ""
     echo "  Examples:"
-    echo "    hivemind import                          # uses default path"
+    echo "    hivemind import                                    # uses default path"
     echo "    hivemind import ~/my-openclaw-workspace"
-    echo "    hivemind import ~/.openclaw/workspace aria  # import as existing agent"
+    echo "    hivemind import ~/.openclaw/workspace aria         # import as existing agent"
+    echo "    hivemind import ~/.openclaw/workspace --dry-run    # preview only"
     exit 1
   fi
 
@@ -194,37 +210,45 @@ cmd_import() {
     info "Found OpenClaw agent: ${BOLD}$agent_name${NC}"
   fi
 
+  if [ "$dry_run" = "true" ]; then
+    warn "Dry run mode — no changes will be persisted"
+  fi
+
   info "Importing from $source..."
   echo ""
 
-  # Run the Rails importer (handles agent creation, file copy, memory import)
-  local slug_arg=""
-  if [ -n "$agent_slug" ]; then
-    slug_arg="AGENT_SLUG=$agent_slug"
-  fi
-
-  docker compose exec -e OPENCLAW_WORKSPACE="/tmp/openclaw-import" $slug_arg app bash -c "
+  # Prepare container staging directory
+  docker compose exec app bash -c "
     rm -rf /tmp/openclaw-import && mkdir -p /tmp/openclaw-import
   " 2>/dev/null
 
-  # Copy only OpenClaw workspace files (not project subdirs)
-  for f in SOUL.md MEMORY.md USER.md TOOLS.md AGENTS.md IDENTITY.md HEARTBEAT.md; do
+  # Copy full workspace into container
+  for f in SOUL.md MEMORY.md USER.md TOOLS.md AGENTS.md IDENTITY.md HEARTBEAT.md config.json; do
     [ -f "$source/$f" ] && docker compose cp "$source/$f" app:/tmp/openclaw-import/ 2>/dev/null
   done
-  for d in memory skills; do
+  for d in memory skills conversations; do
     [ -d "$source/$d" ] && docker compose cp "$source/$d" app:/tmp/openclaw-import/ 2>/dev/null
   done
 
-  # Run the import task
-  docker compose exec -e OPENCLAW_WORKSPACE="/tmp/openclaw-import" ${slug_arg:+-e $slug_arg} app \
-    bin/rails "memory:import_openclaw[/tmp/openclaw-import${agent_slug:+,$agent_slug}]"
+  # Build env args
+  local env_args="-e DRY_RUN=$dry_run"
+  if [ -n "$agent_slug" ]; then
+    env_args="$env_args -e AGENT_SLUG=$agent_slug"
+  fi
+
+  # Run the migration task
+  docker compose exec $env_args app \
+    bin/rails "openclaw:migrate[/tmp/openclaw-import${agent_slug:+,$agent_slug}]"
 
   # Clean up (use root to avoid permission issues)
   docker compose exec -u root app rm -rf /tmp/openclaw-import 2>/dev/null
 
   echo ""
-  ok "Import complete!"
-  echo -e "  Workspace files available at ${BOLD}/app/agents-shared/${NC}"
+  if [ "$dry_run" = "true" ]; then
+    ok "Dry run complete — no changes persisted."
+  else
+    ok "Migration complete!"
+  fi
   echo -e "  Memory embeddings will generate in the background."
 }
 
