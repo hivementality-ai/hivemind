@@ -48,7 +48,7 @@ RSpec.describe SkillSecurityScanner do
 
       before do
         checksum = Digest::SHA256.hexdigest(content)
-        stub_const("OpenClaw::MaliciousSkillDetector::BLOCKLIST", Set.new([checksum]))
+        stub_const("OpenClaw::MaliciousSkillDetector::BLOCKLIST", Set.new([ checksum ]))
       end
 
       it "returns blocked status" do

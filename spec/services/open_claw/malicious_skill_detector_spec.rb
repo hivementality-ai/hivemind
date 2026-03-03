@@ -29,7 +29,7 @@ RSpec.describe OpenClaw::MaliciousSkillDetector do
       let(:malicious_checksum) { Digest::SHA256.hexdigest(content) }
 
       before do
-        stub_const("OpenClaw::MaliciousSkillDetector::BLOCKLIST", Set.new([malicious_checksum]))
+        stub_const("OpenClaw::MaliciousSkillDetector::BLOCKLIST", Set.new([ malicious_checksum ]))
       end
 
       it "returns blocked" do
@@ -42,7 +42,7 @@ RSpec.describe OpenClaw::MaliciousSkillDetector do
       let(:name) { "evil-backdoor" }
 
       before do
-        stub_const("OpenClaw::MaliciousSkillDetector::NAME_BLOCKLIST", Set.new(["evil-backdoor"]))
+        stub_const("OpenClaw::MaliciousSkillDetector::NAME_BLOCKLIST", Set.new([ "evil-backdoor" ]))
       end
 
       it "returns blocked" do

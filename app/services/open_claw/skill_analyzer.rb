@@ -11,7 +11,7 @@ module OpenClaw
       },
       {
         name: "wget_pipe_shell",
-        pattern: /wget\s+[^\n]*-O\s*-\s*\|\s*(sh|bash)\b/i,
+        pattern: /wget\s+[^\n]*\|\s*(sh|bash)\b/i,
         severity: "critical",
         description: "Downloads and executes remote code via wget pipe to shell"
       },
@@ -87,7 +87,8 @@ module OpenClaw
 
       SUSPICIOUS_PATTERNS.each do |pattern_def|
         if pattern_def[:name] == "shell_http_combo"
-          findings.concat(detect_shell_http_combo(pattern_def))
+          # Only flag shell+http combo if no other patterns already matched
+          findings.concat(detect_shell_http_combo(pattern_def)) if findings.empty?
         else
           findings.concat(detect_pattern(pattern_def))
         end
@@ -121,13 +122,13 @@ module OpenClaw
 
       return [] unless has_shell && has_http
 
-      [{
+      [ {
         name: pattern_def[:name],
         severity: pattern_def[:severity],
         description: pattern_def[:description],
         matched_text: "Shell commands combined with HTTP requests",
         line: 1
-      }]
+      } ]
     end
 
     def determine_risk_level(findings)
