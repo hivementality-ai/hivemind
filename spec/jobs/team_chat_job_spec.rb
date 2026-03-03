@@ -95,4 +95,167 @@ RSpec.describe TeamChatJob, type: :job do
       expect(agent_messages.count).to be >= 1
     end
   end
+
+  describe "OAuth MCP path" do
+    let!(:agent) { create(:agent, team: team, model_provider: "anthropic", llm_model: "claude-3-5-sonnet") }
+    let!(:tool) { create(:tool, enabled: true, builtin: true) }
+    let(:message) do
+      session.team_chat_messages.create!(
+        sender_type: "user",
+        sender_id: user.id,
+        content: "Hello agent"
+      )
+    end
+    let(:hashtag_result) do
+      HashtagActions::Processor::ProcessResult.new(
+        bypass_llm: false, response: nil, clean_message: "Hello agent", prompt_addons: [], side_effects: []
+      )
+    end
+    let(:channel) { "team_chat_#{session.id}" }
+
+    before do
+      allow(HashtagActions::Processor).to receive(:call).and_return(hashtag_result)
+      allow(Memory::ContextBuilder).to receive(:call).and_return({ context: nil, entries: [] })
+      allow(CostEstimator).to receive(:estimate).and_return(0)
+      allow(Tool).to receive_message_chain(:enabled, :builtin, :to_a).and_return([ tool ])
+    end
+
+    context "when adapter uses an OAuth token" do
+      let(:adapter) { double("AnthropicAdapter", is_a?: false) }
+
+      before do
+        allow(adapter).to receive(:is_a?).with(Providers::AnthropicAdapter).and_return(true)
+        allow(adapter).to receive(:oauth_token?).and_return(true)
+        allow(Providers::Resolver).to receive(:call).and_return(
+          double(success?: true, data: { adapter: adapter })
+        )
+      end
+
+      it "skips ToolLoop and streams via adapter.chat with MCP options" do
+        allow(adapter).to receive(:chat) do |**opts, &block|
+          expect(opts[:options]).to include(:agent_id, :session_id, :tool_definitions)
+          block.call(type: "content", content: "OAuth response")
+          double(success?: true, data: { content: "OAuth response", usage: {} })
+        end
+
+        expect(Agents::ToolLoop).not_to receive(:call)
+
+        TeamChatJob.perform_now(session.id, message.id)
+
+        expect(ActionCable.server).to have_received(:broadcast).with(
+          channel, hash_including(type: "token", content: "OAuth response", agent_id: agent.id, agent_name: agent.name)
+        )
+      end
+
+      it "includes tool_definitions from resolved tools" do
+        allow(adapter).to receive(:chat) do |**opts, &block|
+          tool_defs = opts[:options][:tool_definitions]
+          expect(tool_defs).to be_an(Array)
+          expect(tool_defs.first).to include(:name, :description, :input_schema)
+          block.call(type: "content", content: "ok")
+          double(success?: true, data: { content: "ok", usage: {} })
+        end
+
+        TeamChatJob.perform_now(session.id, message.id)
+      end
+
+      it "broadcasts tool_start and tool_result events from MCP proxy" do
+        allow(adapter).to receive(:chat) do |**_opts, &block|
+          block.call(type: "tool_start", tool: "web_search", input: { query: "test" })
+          block.call(type: "tool_result", tool: "web_search", output: "results", success: true)
+          block.call(type: "content", content: "Here are the results")
+          double(success?: true, data: { content: "Here are the results", usage: {} })
+        end
+
+        TeamChatJob.perform_now(session.id, message.id)
+
+        expect(ActionCable.server).to have_received(:broadcast).with(
+          channel, hash_including(type: "tool_start", tool: "web_search", agent_id: agent.id)
+        )
+        expect(ActionCable.server).to have_received(:broadcast).with(
+          channel, hash_including(type: "tool_result", tool: "web_search", success: true, agent_id: agent.id)
+        )
+      end
+
+      it "includes load_skill in tool_definitions when agent has skills" do
+        skill = create(:skill, name: "deep_research")
+        agent.skills << skill
+
+        allow(adapter).to receive(:chat) do |**opts, &block|
+          tool_defs = opts[:options][:tool_definitions]
+          tool_names = tool_defs.map { |t| t[:name] }
+          expect(tool_names).to include("load_skill")
+          block.call(type: "content", content: "ok")
+          double(success?: true, data: { content: "ok", usage: {} })
+        end
+
+        TeamChatJob.perform_now(session.id, message.id)
+      end
+
+      it "saves the response to team chat messages" do
+        allow(adapter).to receive(:chat) do |**_opts, &block|
+          block.call(type: "content", content: "OAuth response")
+          double(success?: true, data: { content: "OAuth response", usage: {} })
+        end
+
+        expect {
+          TeamChatJob.perform_now(session.id, message.id)
+        }.to change { session.team_chat_messages.where(sender_type: "agent").count }.by(1)
+
+        agent_msg = session.team_chat_messages.where(sender_type: "agent").last
+        expect(agent_msg.content).to eq("OAuth response")
+      end
+    end
+
+    context "when adapter uses a regular API key" do
+      let(:adapter) { double("AnthropicAdapter", is_a?: false) }
+
+      before do
+        allow(adapter).to receive(:is_a?).with(Providers::AnthropicAdapter).and_return(true)
+        allow(adapter).to receive(:oauth_token?).and_return(false)
+        allow(Providers::Resolver).to receive(:call).and_return(
+          double(success?: true, data: { adapter: adapter })
+        )
+      end
+
+      it "uses ToolLoop as before" do
+        allow(Agents::ToolLoop).to receive(:call).and_return(
+          double(success?: true, data: { content: "ToolLoop response", thinking: nil, usage: {} })
+        )
+
+        TeamChatJob.perform_now(session.id, message.id)
+
+        expect(Agents::ToolLoop).to have_received(:call)
+      end
+
+      it "does not inject MCP options" do
+        allow(Agents::ToolLoop).to receive(:call) do |**opts|
+          expect(opts[:options]).not_to include(:agent_id, :session_id, :tool_definitions)
+          double(success?: true, data: { content: "response", thinking: nil, usage: {} })
+        end
+
+        TeamChatJob.perform_now(session.id, message.id)
+      end
+    end
+
+    context "when adapter is not AnthropicAdapter" do
+      let(:adapter) { double("OtherAdapter", is_a?: false) }
+
+      before do
+        allow(Providers::Resolver).to receive(:call).and_return(
+          double(success?: true, data: { adapter: adapter })
+        )
+      end
+
+      it "uses ToolLoop as before" do
+        allow(Agents::ToolLoop).to receive(:call).and_return(
+          double(success?: true, data: { content: "ToolLoop response", thinking: nil, usage: {} })
+        )
+
+        TeamChatJob.perform_now(session.id, message.id)
+
+        expect(Agents::ToolLoop).to have_received(:call)
+      end
+    end
+  end
 end

@@ -95,6 +95,10 @@ async function handleOAuth(_req, res, token, params) {
       options.mcpServers = mcpServers;
       options.permissionMode = "bypassPermissions";
       options.allowDangerouslySkipPermissions = true;
+      // Disable Claude Code's built-in Skill tool to avoid collision with
+      // Hivemind's load_skill MCP tool (both load skill instructions, but
+      // the built-in one doesn't know about Hivemind skills)
+      options.disallowedTools = ["Skill"];
       console.log("[oauth] MCP server built successfully");
     } catch (err) {
       console.error("[oauth] MCP server build failed:", err);

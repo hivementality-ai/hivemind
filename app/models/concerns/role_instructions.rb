@@ -123,7 +123,7 @@ module RoleInstructions
     # Skills — summary catalog only. Full instructions loaded on-demand via load_skill tool.
     if respond_to?(:skills) && skills.enabled.any?
       skill_lines = skills.enabled.map { |s| "- #{s.name}: #{s.summary || s.description || s.name}" }
-      parts << "## Skills\nYou have specialized skills available. Use the load_skill tool to get full instructions when you need them.\n#{skill_lines.join("\n")}"
+      parts << "## Skills\nYou have specialized skills available. Call the `load_skill` tool to get full instructions when you need them.\n#{skill_lines.join("\n")}"
     end
 
     parts.join("\n\n")
@@ -171,7 +171,7 @@ module RoleInstructions
     # Skills — summary catalog only (full content loaded on-demand via load_skill tool)
     if respond_to?(:skills) && skills.enabled.any?
       skill_lines = skills.enabled.map { |s| "- #{s.name}: #{s.summary || s.description || s.name}" }
-      catalog = "## Skills\nYou have specialized skills available. Use the load_skill tool to get full instructions when you need them.\n#{skill_lines.join("\n")}"
+      catalog = "## Skills\nYou have specialized skills available. Call the `load_skill` tool to get full instructions when you need them.\n#{skill_lines.join("\n")}"
       blocks << { type: "text", text: catalog }
     end
 
