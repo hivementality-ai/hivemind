@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_24_235900) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_01_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -358,6 +358,33 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_24_235900) do
     t.index ["name"], name: "index_provider_configs_on_name", unique: true
   end
 
+  create_table "research_sessions", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.string "current_phase"
+    t.string "depth", default: "standard", null: false
+    t.text "error_message"
+    t.jsonb "findings", default: []
+    t.string "focus", default: "general", null: false
+    t.string "output_format", default: "report", null: false
+    t.jsonb "progress_log", default: []
+    t.string "query", null: false
+    t.text "report"
+    t.bigint "session_id", null: false
+    t.jsonb "sources", default: []
+    t.integer "sources_count", default: 0, null: false
+    t.datetime "started_at"
+    t.string "status", default: "queued", null: false
+    t.string "task_key", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id", "created_at"], name: "index_research_sessions_on_agent_id_and_created_at"
+    t.index ["agent_id"], name: "index_research_sessions_on_agent_id"
+    t.index ["session_id"], name: "index_research_sessions_on_session_id"
+    t.index ["status"], name: "index_research_sessions_on_status"
+    t.index ["task_key"], name: "index_research_sessions_on_task_key", unique: true
+  end
+
   create_table "scheduled_tasks", force: :cascade do |t|
     t.bigint "agent_id", null: false
     t.string "confirmation_status", default: "active"
@@ -628,6 +655,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_24_235900) do
   add_foreign_key "inbound_messages", "channels"
   add_foreign_key "memory_entries", "agents"
   add_foreign_key "outbound_messages", "channels"
+  add_foreign_key "research_sessions", "agents"
+  add_foreign_key "research_sessions", "sessions"
   add_foreign_key "scheduled_tasks", "agents"
   add_foreign_key "sessions", "agents"
   add_foreign_key "sessions", "team_chat_sessions"

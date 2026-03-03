@@ -338,6 +338,41 @@ skills = [
       - **Include context** — Future-you (or someone else) needs to understand why, not just what
       - **Don't over-specify implementation** — Describe the outcome, not every line of code
     CONTENT
+  },
+  {
+    name: "deep_research",
+    description: "Perform thorough, multi-step research on any topic with web search, source analysis, and synthesized reports.",
+    category: "utilities",
+    content: <<~CONTENT
+      # Deep Research
+
+      Use the `deep_research` tool for comprehensive, multi-step research tasks.
+
+      ## When to Use
+      - Complex questions requiring multiple sources
+      - Market research, competitive analysis
+      - Technical deep-dives and comparisons
+      - Literature reviews and topic exploration
+      - Current events and trend analysis
+
+      ## Parameters
+      - **query** (required): The research question or topic
+      - **depth**: quick (5 searches), standard (12 searches), deep (25 searches)
+      - **focus**: general, technical, scientific, news, financial
+      - **output_format**: report, bullet_points, detailed_analysis, executive_summary
+
+      ## Workflow
+      1. Call `deep_research` with your query — returns immediately with a task_key
+      2. The research runs in the background (plan → search → analyze → iterate → synthesize)
+      3. Use `deep_research_status` with the task_key to check progress
+      4. Results are automatically injected into the conversation when complete
+
+      ## Tips
+      - Use "deep" depth for thorough investigations
+      - Use "quick" depth for simple fact-checking
+      - Use "executive_summary" format for decision-makers
+      - You can cancel active research with `deep_research_status` action: cancel
+    CONTENT
   }
 ]
 
@@ -351,7 +386,8 @@ SKILL_TOOL_MAP = {
   "google-calendar" => [ "http_request" ],
   "docker" => [ "shell" ],
   "git" => [ "shell", "file_read", "file_write", "file_edit" ],
-  "ticket-planning" => [ "ask_user", "file_read", "web_fetch" ]
+  "ticket-planning" => [ "ask_user", "file_read", "web_fetch" ],
+  "deep_research" => [ "deep_research", "deep_research_status", "web_search", "web_fetch" ]
 }.freeze
 
 skills.each do |attrs|

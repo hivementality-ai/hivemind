@@ -7,6 +7,10 @@ module Internal
     # POST /internal/tools/execute
     def execute
       tool = Tool.enabled.find_by(name: params[:tool_name])
+
+      # Fall back to system tools (e.g. load_skill) which aren't persisted in DB
+      tool ||= resolve_system_tool(params[:tool_name])
+
       unless tool
         return render json: { success: false, error: "Unknown tool: #{params[:tool_name]}" }, status: :unprocessable_entity
       end
@@ -42,6 +46,14 @@ module Internal
     end
 
     private
+
+    SYSTEM_TOOLS = {
+      "load_skill" => SystemTool::LOAD_SKILL
+    }.freeze
+
+    def resolve_system_tool(name)
+      SYSTEM_TOOLS[name]
+    end
 
     def authenticate_internal!
       secret = ENV["INTERNAL_API_SECRET"]

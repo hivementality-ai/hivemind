@@ -39,6 +39,8 @@ module Tools
       "custom_script" => Tools::CustomScriptExecutor,
       "coding_agent" => Tools::CodingAgentExecutor,
       "coding_agent_status" => Tools::CodingAgentStatusExecutor,
+      "deep_research" => Tools::DeepResearchExecutor,
+      "deep_research_status" => Tools::DeepResearchStatusExecutor,
       "vault" => Tools::VaultExecutor,
       "ask_user" => Tools::AskUserExecutor,
       "plan_mode" => Tools::PlanModeExecutor,

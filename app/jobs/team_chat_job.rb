@@ -165,6 +165,15 @@ class TeamChatJob < ApplicationJob
 
       show_thinking = agent.thinking_enabled? && agent.thinking_visibility == "debug"
 
+      # Detect OAuth MCP path — when using OAuth tokens, the Agent SDK manages
+      # tool execution via MCP callbacks instead of the local ToolLoop
+      oauth_mcp = adapter.is_a?(Providers::AnthropicAdapter) && adapter.send(:oauth_token?) && tools.any?
+      if oauth_mcp
+        llm_options[:agent_id] = agent.id
+        llm_options[:session_id] = @agent_session.id
+        llm_options[:tool_definitions] = tools.map(&:to_llm_tool)
+      end
+
       # If there's a hashtag response to prepend (non-bypass actions), broadcast it
       if hashtag_result.response.present?
         ActionCable.server.broadcast(@channel, {
@@ -175,7 +184,9 @@ class TeamChatJob < ApplicationJob
         })
       end
 
-      if tools.any?
+      broadcast_extras = { agent_id: agent.id, agent_name: agent.name }
+
+      if tools.any? && !oauth_mcp
         result = Agents::ToolLoop.call(
           adapter:,
           agent:,
@@ -184,7 +195,7 @@ class TeamChatJob < ApplicationJob
           tools:,
           channel: @channel,
           options: llm_options,
-          broadcast_extras: { agent_id: agent.id, agent_name: agent.name }
+          broadcast_extras: broadcast_extras
         )
         full_content = result&.data&.dig(:content).to_s
         thinking_content = result&.data&.dig(:thinking)
@@ -196,22 +207,25 @@ class TeamChatJob < ApplicationJob
         ) do |chunk|
           case chunk[:type]
           when "thinking_start"
-            ActionCable.server.broadcast(@channel, { type: "thinking_start", agent_id: agent.id, agent_name: agent.name }) if show_thinking
+            ActionCable.server.broadcast(@channel, { type: "thinking_start", **broadcast_extras }) if show_thinking
           when "thinking"
             full_thinking << chunk[:content] if chunk[:content]
-            ActionCable.server.broadcast(@channel, { type: "thinking_stream", agent_id: agent.id, agent_name: agent.name, content: chunk[:content] }) if show_thinking
+            ActionCable.server.broadcast(@channel, { type: "thinking_stream", content: chunk[:content], **broadcast_extras }) if show_thinking
           when "thinking_stop"
-            ActionCable.server.broadcast(@channel, { type: "thinking_stop", agent_id: agent.id, agent_name: agent.name }) if show_thinking
+            ActionCable.server.broadcast(@channel, { type: "thinking_stop", **broadcast_extras }) if show_thinking
           when "content"
             if chunk[:content]
               full_content << chunk[:content]
               ActionCable.server.broadcast(@channel, {
                 type: "token",
-                agent_id: agent.id,
-                agent_name: agent.name,
-                content: chunk[:content]
+                content: chunk[:content],
+                **broadcast_extras
               })
             end
+          when "tool_start"
+            ActionCable.server.broadcast(@channel, { type: "tool_start", tool: chunk[:tool], input: chunk[:input], **broadcast_extras })
+          when "tool_result"
+            ActionCable.server.broadcast(@channel, { type: "tool_result", tool: chunk[:tool], output: chunk[:output], success: chunk[:success], **broadcast_extras })
           end
         end
 
@@ -222,9 +236,8 @@ class TeamChatJob < ApplicationJob
           thinking_content ||= result.data[:thinking]
           ActionCable.server.broadcast(@channel, {
             type: "token",
-            agent_id: agent.id,
-            agent_name: agent.name,
-            content: full_content
+            content: full_content,
+            **broadcast_extras
           })
         end
       end
