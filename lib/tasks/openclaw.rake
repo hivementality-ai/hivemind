@@ -2,7 +2,7 @@
 
 namespace :openclaw do
   desc "Migrate an OpenClaw workspace into Hivemind"
-  task :migrate, [:path, :agent_slug] => :environment do |_t, args|
+  task :migrate, [ :path, :agent_slug ] => :environment do |_t, args|
     path = args[:path] || ENV.fetch("OPENCLAW_WORKSPACE", File.expand_path("~/.openclaw"))
     agent_slug = args[:agent_slug] || ENV["AGENT_SLUG"]
     dry_run = ENV["DRY_RUN"] == "true"
