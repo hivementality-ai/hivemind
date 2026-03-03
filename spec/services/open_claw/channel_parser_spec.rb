@@ -27,7 +27,7 @@ RSpec.describe OpenClaw::ChannelParser do
         expect(result).to be_success
         expect(result.data[:created].size).to eq(2)
 
-        channels = Channel.where(name: ["Work Slack", "Gaming Discord"])
+        channels = Channel.where(name: [ "Work Slack", "Gaming Discord" ])
         expect(channels.pluck(:enabled)).to all(be false)
       end
 

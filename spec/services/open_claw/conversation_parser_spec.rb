@@ -60,8 +60,8 @@ RSpec.describe OpenClaw::ConversationParser do
       before do
         @workspace_path = create_openclaw_workspace(
           conversations: {
-            "chat1.json" => [{ "role" => "user", "content" => "First chat" }],
-            "chat2.json" => [{ "role" => "user", "content" => "Second chat" }]
+            "chat1.json" => [ { "role" => "user", "content" => "First chat" } ],
+            "chat2.json" => [ { "role" => "user", "content" => "Second chat" } ]
           }
         )
       end
@@ -79,7 +79,7 @@ RSpec.describe OpenClaw::ConversationParser do
       before do
         @workspace_path = create_openclaw_workspace(
           conversations: {
-            "chat1.json" => [{ "role" => "user", "content" => "Hello" }]
+            "chat1.json" => [ { "role" => "user", "content" => "Hello" } ]
           }
         )
       end

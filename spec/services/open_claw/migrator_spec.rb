@@ -16,7 +16,7 @@ RSpec.describe OpenClaw::Migrator do
             "greet.SKILL.md" => default_skill_md(name: "greet", description: "Greets users", content: "Say hello warmly.")
           },
           conversations: {
-            "chat1.json" => [{ "role" => "user", "content" => "Hello" }]
+            "chat1.json" => [ { "role" => "user", "content" => "Hello" } ]
           },
           config: {
             "channels" => [

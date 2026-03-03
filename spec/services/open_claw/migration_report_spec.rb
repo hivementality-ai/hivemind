@@ -26,7 +26,7 @@ RSpec.describe OpenClaw::MigrationReport do
     it "appends to warnings" do
       report.add_warning("something went wrong")
       report.add_warning("another issue")
-      expect(report.warnings).to eq(["something went wrong", "another issue"])
+      expect(report.warnings).to eq([ "something went wrong", "another issue" ])
     end
   end
 
@@ -68,7 +68,7 @@ RSpec.describe OpenClaw::MigrationReport do
 
     it "includes skipped skills" do
       report.identity_imported = true
-      report.skills_skipped = [{ name: "evil", reason: "blocked" }]
+      report.skills_skipped = [ { name: "evil", reason: "blocked" } ]
       output = report.to_console
 
       expect(output).to include("evil")
@@ -100,13 +100,13 @@ RSpec.describe OpenClaw::MigrationReport do
     it "returns a hash representation" do
       report.identity_imported = true
       report.memories_created = 2
-      report.skills_imported = [{ name: "greet" }]
+      report.skills_imported = [ { name: "greet" } ]
       hash = report.to_h
 
       expect(hash[:workspace_path]).to eq("/tmp/test")
       expect(hash[:identity_imported]).to be true
       expect(hash[:memories_created]).to eq(2)
-      expect(hash[:skills_imported]).to eq(["greet"])
+      expect(hash[:skills_imported]).to eq([ "greet" ])
       expect(hash[:success]).to be true
     end
   end
