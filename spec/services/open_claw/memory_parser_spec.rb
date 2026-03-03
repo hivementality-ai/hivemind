@@ -38,15 +38,22 @@ RSpec.describe OpenClaw::MemoryParser do
     end
 
     it "enqueues MemoryEmbeddingJob for each entry" do
+      # Clear any jobs from other specs/callbacks
+      ActiveJob::Base.queue_adapter.enqueued_jobs.clear
+
       described_class.call(workspace_path: workspace_path, agent: agent)
 
-      expect(MemoryEmbeddingJob).to have_been_enqueued.exactly(3).times
+      embedding_jobs = ActiveJob::Base.queue_adapter.enqueued_jobs.select { |j| j["job_class"] == "MemoryEmbeddingJob" }
+      expect(embedding_jobs.size).to eq(3)
     end
 
     it "skips embedding jobs in dry_run mode" do
+      ActiveJob::Base.queue_adapter.enqueued_jobs.clear
+
       described_class.call(workspace_path: workspace_path, agent: agent, dry_run: true)
 
-      expect(MemoryEmbeddingJob).not_to have_been_enqueued
+      embedding_jobs = ActiveJob::Base.queue_adapter.enqueued_jobs.select { |j| j["job_class"] == "MemoryEmbeddingJob" }
+      expect(embedding_jobs).to be_empty
     end
 
     it "skips chunks shorter than 20 characters" do

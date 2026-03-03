@@ -29,7 +29,7 @@ module OpenClaw
 
         # Avoid duplicates using metadata fingerprint
         source_key = "openclaw:#{filename}"
-        if Session.exists?(agent: @agent, metadata: { "openclaw_source" => source_key })
+        if Session.where(agent: @agent).where("metadata @> ?", { "openclaw_source" => source_key }.to_json).exists?
           next
         end
 
