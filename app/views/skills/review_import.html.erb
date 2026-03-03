@@ -1,0 +1,74 @@
+<div class="max-w-4xl mx-auto px-6 py-8">
+  <%= link_to "← Skills", skills_path, class: "text-brand-light hover:text-brand-light text-sm" %>
+
+  <div class="mt-4 mb-6">
+    <h1 class="text-2xl font-bold text-white">Review Import</h1>
+    <p class="text-text-muted text-sm mt-1">Security scan found issues that require your review before importing.</p>
+  </div>
+
+  <% scan = @scan_result.is_a?(Hash) ? @scan_result.deep_symbolize_keys : @scan_result %>
+  <% status = scan[:status] || "unknown" %>
+  <% findings = scan[:findings] || [] %>
+
+  <!-- Skill Info -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-semibold text-white"><%= @pending["name"] || @pending[:name] %></h2>
+        <span class="text-xs text-text-faint">Source: import</span>
+      </div>
+      <% badge_classes = case status.to_s
+         when "clean"     then "bg-green-900/50 text-green-300"
+         when "warning"   then "bg-yellow-900/50 text-yellow-300"
+         when "flagged"   then "bg-red-900/50 text-red-300"
+         when "blocked"   then "bg-red-950/60 text-red-400"
+         else                  "bg-surface-raised text-text-faint"
+         end %>
+      <span class="px-3 py-1 text-sm font-medium rounded-full <%= badge_classes %>"><%= status %></span>
+    </div>
+  </div>
+
+  <!-- Findings -->
+  <% if findings.any? %>
+    <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+      <h2 class="text-base font-semibold text-white mb-4">Findings (<%= findings.size %>)</h2>
+      <div class="space-y-3">
+        <% findings.each do |finding| %>
+          <% finding = finding.deep_symbolize_keys if finding.is_a?(Hash) %>
+          <div class="bg-surface-base rounded-lg p-4 border-l-4 <%= finding[:severity] == 'critical' ? 'border-red-500' : finding[:severity] == 'high' ? 'border-yellow-500' : 'border-blue-500' %>">
+            <div class="flex items-center gap-2 mb-1">
+              <% icon = case finding[:severity]
+                 when "critical" then "🔴"
+                 when "high"     then "🟠"
+                 when "medium"   then "🟡"
+                 else                 "⚪"
+                 end %>
+              <span><%= icon %></span>
+              <span class="text-white font-medium text-sm"><%= finding[:name] %></span>
+              <span class="text-xs text-text-faint uppercase"><%= finding[:severity] %></span>
+            </div>
+            <p class="text-text-muted text-sm"><%= finding[:description] %></p>
+            <% if finding[:matched_text].present? %>
+              <pre class="mt-2 text-xs font-mono text-red-300 bg-surface-raised rounded px-3 py-2 overflow-x-auto"><%= finding[:matched_text] %></pre>
+            <% end %>
+            <% if finding[:line] %>
+              <span class="text-xs text-text-faint mt-1 inline-block">Line <%= finding[:line] %></span>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Actions -->
+  <div class="flex items-center gap-3">
+    <% if status.to_s != "blocked" %>
+      <%= form_tag confirm_import_skills_path, method: :post do %>
+        <%= submit_tag "Accept Risk & Import",
+            class: "px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition cursor-pointer",
+            data: { turbo_confirm: "Are you sure? This skill has security findings." } %>
+      <% end %>
+    <% end %>
+    <%= link_to "Cancel", skills_path, class: "px-4 py-2 bg-surface-raised hover:bg-surface-overlay text-text-primary text-sm font-medium rounded-lg transition" %>
+  </div>
+</div>

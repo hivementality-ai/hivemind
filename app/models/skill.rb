@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "digest"
+
 class Skill < ApplicationRecord
   has_many :agent_skills, dependent: :destroy
   has_many :agents, through: :agent_skills
@@ -9,6 +11,8 @@ class Skill < ApplicationRecord
   validates :name, presence: true, uniqueness: true
   validates :content, presence: true
   validates :summary, presence: true, length: { maximum: 150 }
+
+  before_save :compute_checksum, if: :content_changed?
 
   scope :enabled, -> { where(enabled: true) }
   scope :builtin, -> { where(builtin: true) }
@@ -39,6 +43,30 @@ class Skill < ApplicationRecord
     lines << ""
     lines << content
     lines.join("\n")
+  end
+
+  def security_status
+    security_scan_result.dig("status") || "unscanned"
+  end
+
+  def security_clean?
+    security_status == "clean"
+  end
+
+  def security_blocked?
+    security_status == "blocked"
+  end
+
+  def scan_security!
+    result = SkillSecurityScanner.call(content: content, name: name)
+    update!(security_scan_result: result.data) if result.success?
+    result
+  end
+
+  private
+
+  def compute_checksum
+    self.checksum = Digest::SHA256.hexdigest(content)
   end
 
   private_class_method def self.parse_frontmatter(text)

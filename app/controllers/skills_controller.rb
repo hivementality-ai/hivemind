@@ -60,17 +60,63 @@ class SkillsController < ApplicationController
       skill.name = File.basename(file.original_filename, ".*").parameterize
     end
 
-    existing = Skill.find_by(name: skill.name)
-    if existing
-      existing.update(description: skill.description, summary: skill.summary, content: skill.content, category: skill.category)
-      redirect_to skill_path(existing), notice: "#{existing.name} updated from import"
+    scan_result = SkillSecurityScanner.call(content: skill.content, name: skill.name, source: "import")
+
+    if scan_result.success? && scan_result.data[:status] == "clean"
+      save_imported_skill(skill, scan_result.data)
     else
-      if skill.save
-        redirect_to skill_path(skill), notice: "#{skill.name} imported"
-      else
-        redirect_to skills_path, alert: "Import failed: #{skill.errors.full_messages.join(', ')}"
-      end
+      session[:pending_skill_import] = {
+        name: skill.name,
+        description: skill.description,
+        summary: skill.summary,
+        content: skill.content,
+        category: skill.category,
+        scan_result: scan_result.success? ? scan_result.data : { status: "error", error: scan_result.error }
+      }
+      redirect_to review_import_skills_path
     end
+  end
+
+  def review_import
+    @pending = session[:pending_skill_import]
+    unless @pending
+      redirect_to skills_path, alert: "No pending import to review"
+      return
+    end
+
+    @scan_result = @pending["scan_result"] || @pending[:scan_result]
+  end
+
+  def confirm_import
+    pending = session[:pending_skill_import]
+    unless pending
+      redirect_to skills_path, alert: "No pending import to confirm"
+      return
+    end
+
+    # Symbolize keys from session (stored as strings)
+    pending = pending.deep_symbolize_keys
+    scan_result = pending[:scan_result]
+
+    if scan_result[:status] == "blocked"
+      redirect_to skills_path, alert: "Blocked skills cannot be imported"
+      return
+    end
+
+    skill = Skill.from_skill_md("")
+    skill.assign_attributes(
+      name: pending[:name],
+      description: pending[:description],
+      summary: pending[:summary],
+      content: pending[:content],
+      category: pending[:category]
+    )
+
+    scan_result[:approved_by] = current_user.id
+    scan_result[:approved_at] = Time.current.iso8601
+
+    save_imported_skill(skill, scan_result, approved: true)
+    session.delete(:pending_skill_import)
   end
 
   def export
@@ -88,5 +134,35 @@ class SkillsController < ApplicationController
 
   def skill_params
     params.require(:skill).permit(:name, :description, :summary, :content, :category, :enabled, tool_ids: [])
+  end
+
+  def save_imported_skill(skill, scan_data, approved: false)
+    existing = Skill.find_by(name: skill.name)
+
+    attrs = {
+      description: skill.description,
+      summary: skill.summary,
+      content: skill.content,
+      category: skill.category,
+      source: "import",
+      security_scan_result: scan_data
+    }
+
+    if approved
+      attrs[:approved_by] = current_user.id
+      attrs[:approved_at] = Time.current
+    end
+
+    if existing
+      existing.update(attrs)
+      redirect_to skill_path(existing), notice: "#{existing.name} updated from import"
+    else
+      skill.assign_attributes(attrs)
+      if skill.save
+        redirect_to skill_path(skill), notice: "#{skill.name} imported"
+      else
+        redirect_to skills_path, alert: "Import failed: #{skill.errors.full_messages.join(', ')}"
+      end
+    end
   end
 end

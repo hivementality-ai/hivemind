@@ -58,6 +58,8 @@ Rails.application.routes.draw do
     end
     collection do
       post :import
+      get :review_import
+      post :confirm_import
     end
   end
 
