@@ -49,6 +49,22 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
+      - name: Determine image tags
+        id: tags
+        env:
+          PREFIX: ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAGS="${PREFIX}:${VERSION}"
+          if [[ "$VERSION" != *-rc* ]]; then
+            TAGS="${TAGS}"$'\n'"${PREFIX}:latest"
+          fi
+          {
+            echo "tags<<EOF"
+            echo "$TAGS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and push ${{ matrix.image }}
         uses: docker/build-push-action@v6
         with:
@@ -56,9 +72,7 @@ jobs:
           file: ${{ matrix.context }}/${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${{ steps.version.outputs.version }}
-            ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
+          tags: ${{ steps.tags.outputs.tags }}
           build-args: |
             HIVEMIND_VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha,scope=${{ matrix.image }}
