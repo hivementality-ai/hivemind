@@ -51,7 +51,8 @@ module Api
         params.require(:agent).permit(
           :name, :role, :team_id, :model_provider, :llm_model,
           :daily_budget_limit, :monthly_budget_limit, :workspace_path,
-          :system_prompt, :enabled
+          :system_prompt, :enabled,
+          egress_policy: [:mode, :log_blocked, rules: [:pattern, :port]]
         )
       end
     end

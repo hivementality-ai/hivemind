@@ -235,6 +235,50 @@
     </div>
   </div>
 
+  <!-- Network Egress Policy -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6" data-controller="egress-policy">
+    <h2 class="text-lg font-semibold text-white mb-2">Network Egress Policy</h2>
+    <p class="text-text-muted text-sm mb-4">Control which external domains this agent can reach via HTTP tools.</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <%= form.label :egress_policy_mode, "Mode", class: "block text-sm font-medium text-text-primary mb-1" %>
+        <% current_mode = agent.egress_policy.dig("mode") || "" %>
+        <%= form.select :egress_policy_mode,
+            options_for_select([
+              ["No restriction (default)", ""],
+              ["Allowlist — only listed domains", "allowlist"],
+              ["Blocklist — block listed domains", "blocklist"],
+              ["Disabled — allow all (explicit)", "disabled"]
+            ], current_mode),
+            {},
+            { class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand",
+              data: { egress_policy_target: "mode", action: "change->egress-policy#modeChanged" } } %>
+      </div>
+      <div>
+        <%= form.label :egress_policy_log_blocked, class: "block text-sm font-medium text-text-primary mb-1" %>
+        <div class="flex items-center gap-3 mt-2">
+          <%= form.check_box :egress_policy_log_blocked,
+              { checked: agent.egress_policy.dig("log_blocked") == true,
+                class: "w-5 h-5 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay" },
+              "true", "false" %>
+          <span class="text-text-primary">Log blocked requests to audit log</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-4" data-egress-policy-target="rulesSection">
+      <%= form.label :egress_policy_rules, "Domain patterns (one per line)", class: "block text-sm font-medium text-text-primary mb-1" %>
+      <% current_rules = Array(agent.egress_policy.dig("rules")).map { |r| r["pattern"] }.compact.join("\n") %>
+      <%= form.text_area :egress_policy_rules,
+          value: current_rules,
+          rows: 4,
+          placeholder: "*.github.com\napi.example.com\n10.0.0.0/8",
+          class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm leading-relaxed resize-y" %>
+      <p class="text-text-faint text-xs mt-1">Supports glob patterns (*.example.com) and CIDR notation (10.0.0.0/8).</p>
+    </div>
+  </div>
+
   <!-- Actions -->
   <div class="flex items-center gap-4">
     <%= form.submit agent.persisted? ? "Save Changes" : "Create Agent",

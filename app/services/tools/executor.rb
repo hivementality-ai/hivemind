@@ -2,6 +2,8 @@
 
 module Tools
   class Executor
+    NETWORK_EXECUTOR_TYPES = %w[http_request web_fetch browser].freeze
+
     EXECUTORS = {
       "shell" => Tools::ShellExecutor,
       "file_read" => Tools::FileReadExecutor,
@@ -77,6 +79,18 @@ module Tools
         status: "running"
       )
 
+      # Egress policy check for network tools
+      if NETWORK_EXECUTOR_TYPES.include?(@tool.executor_type)
+        target_url = extract_target_url
+        if target_url.present?
+          egress_result = NetworkEgress::PolicyCheck.call(agent: @agent, url: target_url)
+          unless egress_result.allowed?
+            execution.update!(status: "blocked", error: "Egress blocked: #{egress_result.reason}")
+            return ServiceResponse.failure(error: "Egress blocked: #{egress_result.reason}")
+          end
+        end
+      end
+
       start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
       begin
@@ -111,6 +125,17 @@ module Tools
     end
 
     private
+
+    def extract_target_url
+      case @tool.executor_type
+      when "http_request"
+        @input["url"].presence || @input["path"].presence
+      when "web_fetch"
+        @input["url"].presence
+      when "browser"
+        @input["url"].presence
+      end
+    end
 
     def execute_system_tool(executor_class)
       result = executor_class.new(input: @input, config: {}, agent: @agent).call

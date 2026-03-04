@@ -71,6 +71,7 @@ class AgentsController < ApplicationController
       :daily_budget_limit, :monthly_budget_limit, :workspace_path,
       :system_prompt, :custom_instructions, :enabled, :avatar,
       :thinking_enabled, :thinking_budget_tokens, :thinking_visibility,
+      :egress_policy_mode, :egress_policy_rules, :egress_policy_log_blocked,
       tool_ids: [],
       skill_ids: []
     )
