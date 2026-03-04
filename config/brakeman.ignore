@@ -21,10 +21,6 @@
       "note": "Mail gem from() method, not SQL \u2014 false positive"
     },
     {
-      "fingerprint": "8ccc6ddfa1f978f6353af477362d5634fa5fb5a3fc0492e216eb693560c06768",
-      "note": "API agent params explicitly permitted"
-    },
-    {
       "fingerprint": "3ffe28640defd3facc9b5d70e774579199b4ca9a1373c934fb2943bfa73217e3",
       "note": "Net::HTTP to admin-configured API base URL \u2014 not user input"
     },
@@ -55,10 +51,6 @@
     {
       "fingerprint": "f84e3f1263939fe7ba90c784a0078690db0d8434af90f1be49b0ad469b35cfdc",
       "note": "WorkspaceIo: path is shell_escaped, runs in isolated workspace container"
-    },
-    {
-      "fingerprint": "0c60d325558edf4ad04ba98f32b3dc4c29162b1f561737c9dd1f7ed081d90324",
-      "note": "Agent role is intentionally settable by admins"
     },
     {
       "fingerprint": "e8a4755b9673b6dde053be9a12ce611d0cbe0bf63d96cf4757131d0eb74002a6",

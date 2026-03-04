@@ -19,6 +19,7 @@ module Api
 
       def create
         @agent = Agent.new(agent_params)
+        assign_restricted_attrs(@agent)
 
         if @agent.save
           render json: @agent, status: :created
@@ -28,7 +29,9 @@ module Api
       end
 
       def update
-        if @agent.update(agent_params)
+        @agent.assign_attributes(agent_params)
+        assign_restricted_attrs(@agent)
+        if @agent.save
           render json: @agent
         else
           render json: { errors: @agent.errors.full_messages }, status: :unprocessable_entity
@@ -49,11 +52,30 @@ module Api
 
       def agent_params
         params.require(:agent).permit(
-          :name, :role, :team_id, :model_provider, :llm_model,
+          :name, :team_id, :model_provider, :llm_model,
           :daily_budget_limit, :monthly_budget_limit, :workspace_path,
-          :system_prompt, :enabled,
-          egress_policy: [ :mode, :log_blocked, rules: [ :pattern, :port ] ]
+          :system_prompt, :enabled
         )
+      end
+
+      def assign_restricted_attrs(agent)
+        ap = params[:agent]
+        return unless ap
+
+        agent.role = ap[:role] if ap.key?(:role)
+        agent.egress_policy = build_egress_policy(ap[:egress_policy]) if ap.key?(:egress_policy)
+      end
+
+      def build_egress_policy(policy)
+        return {} unless policy.is_a?(ActionController::Parameters)
+
+        {
+          "mode" => policy[:mode]&.to_s,
+          "log_blocked" => ActiveModel::Type::Boolean.new.cast(policy[:log_blocked]),
+          "rules" => Array(policy[:rules]).map { |r|
+            { "pattern" => r[:pattern]&.to_s, "port" => r[:port]&.to_i }.compact_blank
+          }
+        }.compact
       end
     end
   end
