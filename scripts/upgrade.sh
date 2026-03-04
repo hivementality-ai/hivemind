@@ -3,14 +3,23 @@
 # Hivemind 🐝 — Upgrade Script
 # ============================================================
 # Usage:
-#   ./scripts/upgrade.sh              # upgrade to latest
+#   ./scripts/upgrade.sh              # upgrade to latest stable
+#   ./scripts/upgrade.sh --rc         # upgrade to latest (including RC)
 #   ./scripts/upgrade.sh v2026.02.3   # upgrade to specific version
 # ============================================================
 
 set -euo pipefail
 
 HIVEMIND_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-TARGET_VERSION="${1:-}"
+USE_RC=false
+TARGET_VERSION=""
+
+for arg in "$@"; do
+  case "$arg" in
+    --rc) USE_RC=true ;;
+    *)    TARGET_VERSION="$arg" ;;
+  esac
+done
 
 # Colors
 RED='\033[0;31m'
@@ -71,7 +80,11 @@ fetch_latest() {
   info "Checking for updates..."
   git fetch --tags --quiet 2>/dev/null
 
-  LATEST_VERSION="$(git tag -l 'v*' --sort=-version:refname | head -1 | sed 's/^v//' || echo '')"
+  if [ "$USE_RC" = true ]; then
+    LATEST_VERSION="$(git tag -l 'v*' --sort=-version:refname | head -1 | sed 's/^v//' || echo '')"
+  else
+    LATEST_VERSION="$(git tag -l 'v*' --sort=-version:refname | grep -v '\-rc' | head -1 | sed 's/^v//' || echo '')"
+  fi
 
   if [ -z "$LATEST_VERSION" ]; then
     # Fall back to GitHub API

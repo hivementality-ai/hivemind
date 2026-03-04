@@ -273,7 +273,7 @@ ${BOLD}Commands:${NC}
   start           Start all containers
   stop            Stop all containers
   restart [svc]   Restart containers (optionally specific service)
-  update          Pull latest release, rebuild, migrate, restart
+  update [--rc]   Pull latest release, rebuild, migrate, restart
   logs [svc]      Tail logs (optionally specific service)
   migrate         Run database migrations
   console         Open Rails console
@@ -283,6 +283,7 @@ ${BOLD}Commands:${NC}
 ${BOLD}Examples:${NC}
   hivemind status
   hivemind update
+  hivemind update --rc
   hivemind restart rails sidekiq
   hivemind logs rails
   hivemind import ~/.openclaw/workspace
@@ -301,7 +302,7 @@ case "${1:-}" in
   start)    cmd_start ;;
   stop)     cmd_stop ;;
   restart)  shift; cmd_restart "$@" ;;
-  update)   cmd_update ;;
+  update)   shift; cmd_update "$@" ;;
   logs)     shift; cmd_logs "$@" ;;
   migrate)  cmd_migrate ;;
   console)  cmd_console ;;

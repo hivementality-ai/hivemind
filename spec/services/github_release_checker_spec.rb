@@ -20,6 +20,19 @@ RSpec.describe GithubReleaseChecker do
       expect(described_class.send(:newer?, nil, "2026.02.1")).to be false
       expect(described_class.send(:newer?, "2026.02.1", nil)).to be false
     end
+
+    it "treats stable as newer than same-version RC" do
+      expect(described_class.send(:newer?, "2026.03.00", "2026.03.00-rc")).to be true
+    end
+
+    it "does not treat RC as newer than same-version stable" do
+      expect(described_class.send(:newer?, "2026.03.00-rc", "2026.03.00")).to be false
+    end
+
+    it "handles RC suffix without breaking version parsing" do
+      expect(described_class.send(:newer?, "2026.04.01", "2026.03.00-rc")).to be true
+      expect(described_class.send(:newer?, "2026.02.01", "2026.03.00-rc")).to be false
+    end
   end
 
   describe ".breaking_changes?" do

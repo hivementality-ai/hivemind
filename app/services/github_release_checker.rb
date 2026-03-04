@@ -83,8 +83,17 @@ class GithubReleaseChecker
     def newer?(latest, current)
       return false if latest.blank? || current.blank?
 
-      latest_parts = latest.split(".").map(&:to_i)
-      current_parts = current.split(".").map(&:to_i)
+      # Strip -rc suffix so "2026.03.00-rc".split(".").map(&:to_i) doesn't silently break
+      latest_clean = latest.sub(/-rc.*$/, "")
+      current_clean = current.sub(/-rc.*$/, "")
+
+      latest_parts = latest_clean.split(".").map(&:to_i)
+      current_parts = current_clean.split(".").map(&:to_i)
+
+      # If base versions are equal, stable (no -rc) is newer than RC
+      if (latest_parts <=> current_parts) == 0
+        return current.include?("-rc") && !latest.include?("-rc")
+      end
 
       (latest_parts <=> current_parts) == 1
     rescue StandardError
