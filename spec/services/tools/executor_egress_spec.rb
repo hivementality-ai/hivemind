@@ -26,7 +26,7 @@ RSpec.describe Tools::Executor, "egress controls" do
     before do
       agent.update!(egress_policy: {
         "mode" => "allowlist",
-        "rules" => [{ "pattern" => "api.allowed.com" }],
+        "rules" => [ { "pattern" => "api.allowed.com" } ],
         "log_blocked" => false
       })
     end
@@ -116,7 +116,7 @@ RSpec.describe Tools::Executor, "egress controls" do
     before do
       agent.update!(egress_policy: {
         "mode" => "allowlist",
-        "rules" => [{ "pattern" => "api.allowed.com" }],
+        "rules" => [ { "pattern" => "api.allowed.com" } ],
         "log_blocked" => false
       })
     end

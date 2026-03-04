@@ -84,7 +84,7 @@ RSpec.describe Agent, type: :model do
       it "accepts valid allowlist policy" do
         agent = build(:agent, egress_policy: {
           "mode" => "allowlist",
-          "rules" => [{ "pattern" => "*.github.com" }],
+          "rules" => [ { "pattern" => "*.github.com" } ],
           "log_blocked" => true
         })
         expect(agent).to be_valid
@@ -93,7 +93,7 @@ RSpec.describe Agent, type: :model do
       it "accepts valid blocklist policy" do
         agent = build(:agent, egress_policy: {
           "mode" => "blocklist",
-          "rules" => [{ "pattern" => "evil.com" }],
+          "rules" => [ { "pattern" => "evil.com" } ],
           "log_blocked" => false
         })
         expect(agent).to be_valid
@@ -113,7 +113,7 @@ RSpec.describe Agent, type: :model do
       it "rejects rules without pattern" do
         agent = build(:agent, egress_policy: {
           "mode" => "allowlist",
-          "rules" => [{ "port" => 443 }]
+          "rules" => [ { "port" => 443 } ]
         })
         expect(agent).not_to be_valid
         expect(agent.errors[:egress_policy].first).to include("must have a pattern")

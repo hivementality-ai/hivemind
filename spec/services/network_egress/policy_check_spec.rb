@@ -109,7 +109,7 @@ RSpec.describe NetworkEgress::PolicyCheck do
       before do
         agent.update!(egress_policy: {
           "mode" => "blocklist",
-          "rules" => [{ "pattern" => "10.0.0.0/8" }],
+          "rules" => [ { "pattern" => "10.0.0.0/8" } ],
           "log_blocked" => false
         })
       end
