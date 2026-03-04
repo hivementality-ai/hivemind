@@ -246,10 +246,9 @@
         <% current_mode = agent.egress_policy.dig("mode") || "" %>
         <%= form.select :egress_policy_mode,
             options_for_select([
-              ["No restriction (default)", ""],
+              ["Allow all (default)", ""],
               ["Allowlist — only listed domains", "allowlist"],
-              ["Blocklist — block listed domains", "blocklist"],
-              ["Disabled — allow all (explicit)", "disabled"]
+              ["Blocklist — block listed domains", "blocklist"]
             ], current_mode),
             {},
             { class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand",
