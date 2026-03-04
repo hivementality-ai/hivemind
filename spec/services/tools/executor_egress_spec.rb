@@ -82,7 +82,7 @@ RSpec.describe Tools::Executor, "egress controls" do
       expect(result.error).to include("Egress blocked")
     end
 
-    it "sets execution status to blocked" do
+    it "sets execution status to denied" do
       described_class.call(
         tool: web_fetch_tool,
         input: { "url" => "https://evil.com/steal" },
@@ -91,7 +91,7 @@ RSpec.describe Tools::Executor, "egress controls" do
       )
 
       execution = ToolExecution.last
-      expect(execution.status).to eq("blocked")
+      expect(execution.status).to eq("denied")
       expect(execution.error).to include("Egress blocked")
     end
   end

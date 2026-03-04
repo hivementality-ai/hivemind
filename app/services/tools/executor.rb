@@ -85,7 +85,7 @@ module Tools
         if target_url.present?
           egress_result = NetworkEgress::PolicyCheck.call(agent: @agent, url: target_url)
           unless egress_result.allowed?
-            execution.update!(status: "blocked", error: "Egress blocked: #{egress_result.reason}")
+            execution.update!(status: "denied", error: "Egress blocked: #{egress_result.reason}")
             return ServiceResponse.failure(error: "Egress blocked: #{egress_result.reason}")
           end
         end
