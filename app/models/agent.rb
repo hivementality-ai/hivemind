@@ -16,6 +16,8 @@ class Agent < ApplicationRecord
     }
   }.freeze
 
+  VALID_EGRESS_MODES = %w[allowlist blocklist disabled].freeze
+
   has_one_attached :avatar
 
   belongs_to :team, optional: true
@@ -44,8 +46,12 @@ class Agent < ApplicationRecord
   validates :role, presence: true
   validates :thinking_visibility, inclusion: { in: %w[hidden debug] }, allow_nil: true
   validates :thinking_budget_tokens, numericality: { greater_than: 0, less_than_or_equal_to: 128_000 }, if: :thinking_enabled?
+  validate :validate_egress_policy
+
+  attr_accessor :egress_policy_mode, :egress_policy_rules, :egress_policy_log_blocked
 
   before_validation :generate_slug
+  before_validation :compose_egress_policy_from_virtual_attrs
 
   scope :active, -> { where.not(status: :error) }
   scope :by_team, ->(team) { where(team:) }
@@ -94,10 +100,64 @@ class Agent < ApplicationRecord
     Teams::BuildSoul.call(team: team) if team
   end
 
+  def compose_egress_policy_from_virtual_attrs
+    return unless egress_policy_mode.present?
+
+    mode = egress_policy_mode.to_s.strip
+    return if mode.blank?
+
+    rules = (egress_policy_rules.to_s.strip.lines.map(&:strip).reject(&:blank?)).map do |pattern|
+      { "pattern" => pattern }
+    end
+
+    self.egress_policy = {
+      "mode" => mode,
+      "rules" => rules,
+      "log_blocked" => ActiveModel::Type::Boolean.new.cast(egress_policy_log_blocked)
+    }
+  end
+
+  def validate_egress_policy
+    return if egress_policy.blank?
+
+    policy = egress_policy.with_indifferent_access
+    mode = policy[:mode]
+
+    return if mode.blank?
+
+    unless VALID_EGRESS_MODES.include?(mode)
+      errors.add(:egress_policy, "has invalid mode '#{mode}'. Must be one of: #{VALID_EGRESS_MODES.join(', ')}")
+      return
+    end
+
+    rules = policy[:rules]
+    if rules.present?
+      unless rules.is_a?(Array)
+        errors.add(:egress_policy, "rules must be an array")
+        return
+      end
+
+      rules.each_with_index do |rule, i|
+        unless rule.is_a?(Hash) && rule["pattern"].present?
+          errors.add(:egress_policy, "rule #{i + 1} must have a pattern")
+        end
+      end
+    end
+  end
+
   public
 
   def effective_tool_loop_config
     DEFAULT_LOOP_CONFIG.deep_merge(tool_loop_config || {}).with_indifferent_access
+  end
+
+  def effective_egress_policy
+    (egress_policy.presence || {}).with_indifferent_access
+  end
+
+  def egress_enforced?
+    mode = effective_egress_policy[:mode]
+    mode.present? && %w[allowlist blocklist].include?(mode)
   end
 
   def usage_summary

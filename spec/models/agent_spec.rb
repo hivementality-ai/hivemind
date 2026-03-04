@@ -74,6 +74,125 @@ RSpec.describe Agent, type: :model do
     end
   end
 
+  describe "egress policy" do
+    describe "validation" do
+      it "accepts empty egress_policy" do
+        agent = build(:agent, egress_policy: {})
+        expect(agent).to be_valid
+      end
+
+      it "accepts valid allowlist policy" do
+        agent = build(:agent, egress_policy: {
+          "mode" => "allowlist",
+          "rules" => [ { "pattern" => "*.github.com" } ],
+          "log_blocked" => true
+        })
+        expect(agent).to be_valid
+      end
+
+      it "accepts valid blocklist policy" do
+        agent = build(:agent, egress_policy: {
+          "mode" => "blocklist",
+          "rules" => [ { "pattern" => "evil.com" } ],
+          "log_blocked" => false
+        })
+        expect(agent).to be_valid
+      end
+
+      it "accepts disabled mode" do
+        agent = build(:agent, egress_policy: { "mode" => "disabled" })
+        expect(agent).to be_valid
+      end
+
+      it "rejects invalid mode" do
+        agent = build(:agent, egress_policy: { "mode" => "yolo" })
+        expect(agent).not_to be_valid
+        expect(agent.errors[:egress_policy].first).to include("invalid mode")
+      end
+
+      it "rejects rules without pattern" do
+        agent = build(:agent, egress_policy: {
+          "mode" => "allowlist",
+          "rules" => [ { "port" => 443 } ]
+        })
+        expect(agent).not_to be_valid
+        expect(agent.errors[:egress_policy].first).to include("must have a pattern")
+      end
+
+      it "rejects non-array rules" do
+        agent = build(:agent, egress_policy: {
+          "mode" => "allowlist",
+          "rules" => "not-an-array"
+        })
+        expect(agent).not_to be_valid
+        expect(agent.errors[:egress_policy].first).to include("must be an array")
+      end
+    end
+
+    describe "#effective_egress_policy" do
+      it "returns empty hash with indifferent access for no policy" do
+        agent = build(:agent, egress_policy: {})
+        result = agent.effective_egress_policy
+        expect(result).to be_a(ActiveSupport::HashWithIndifferentAccess)
+      end
+
+      it "returns policy with indifferent access" do
+        agent = build(:agent, egress_policy: { "mode" => "allowlist" })
+        expect(agent.effective_egress_policy[:mode]).to eq("allowlist")
+        expect(agent.effective_egress_policy["mode"]).to eq("allowlist")
+      end
+    end
+
+    describe "#egress_enforced?" do
+      it "returns false for empty policy" do
+        agent = build(:agent, egress_policy: {})
+        expect(agent.egress_enforced?).to be false
+      end
+
+      it "returns false for disabled mode" do
+        agent = build(:agent, egress_policy: { "mode" => "disabled" })
+        expect(agent.egress_enforced?).to be false
+      end
+
+      it "returns true for allowlist mode" do
+        agent = build(:agent, egress_policy: { "mode" => "allowlist", "rules" => [] })
+        expect(agent.egress_enforced?).to be true
+      end
+
+      it "returns true for blocklist mode" do
+        agent = build(:agent, egress_policy: { "mode" => "blocklist", "rules" => [] })
+        expect(agent.egress_enforced?).to be true
+      end
+    end
+
+    describe "virtual attributes" do
+      it "composes egress_policy from virtual attrs" do
+        agent = build(:agent,
+          egress_policy_mode: "allowlist",
+          egress_policy_rules: "*.github.com\napi.example.com",
+          egress_policy_log_blocked: "true"
+        )
+        agent.valid?
+
+        expect(agent.egress_policy["mode"]).to eq("allowlist")
+        expect(agent.egress_policy["rules"]).to eq([
+          { "pattern" => "*.github.com" },
+          { "pattern" => "api.example.com" }
+        ])
+        expect(agent.egress_policy["log_blocked"]).to be true
+      end
+
+      it "skips composition when mode is blank" do
+        agent = build(:agent, egress_policy: { "mode" => "blocklist", "rules" => [] })
+        agent.egress_policy_mode = ""
+        agent.valid?
+
+        # Original policy preserved since virtual attr mode is blank
+        expect(agent.egress_policy["mode"]).to eq("blocklist")
+      end
+    end
+  end
+
   describe ".by_slug scope" do
     it "filters agents by slug case-insensitively" do
       agent1 = Agent.create!(name: "Test Agent", role: "Helper")

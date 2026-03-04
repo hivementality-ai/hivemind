@@ -28,6 +28,7 @@ class AgentsController < ApplicationController
 
   def create
     @agent = Agent.new(agent_params)
+    assign_restricted_attrs(@agent)
 
     if @agent.save
       Agents::SyncSkillTools.call(agent: @agent)
@@ -44,7 +45,9 @@ class AgentsController < ApplicationController
 
   def update
     old_skill_ids = @agent.skill_ids.dup
-    if @agent.update(agent_params)
+    @agent.assign_attributes(agent_params)
+    assign_restricted_attrs(@agent)
+    if @agent.save
       Agents::SyncSkillTools.call(agent: @agent, removed_skill_ids: old_skill_ids - @agent.skill_ids)
       redirect_to @agent, notice: "Agent updated successfully"
     else
@@ -67,12 +70,22 @@ class AgentsController < ApplicationController
 
   def agent_params
     params.require(:agent).permit(
-      :name, :role, :team_id, :model_provider, :llm_model,
+      :name, :team_id, :model_provider, :llm_model,
       :daily_budget_limit, :monthly_budget_limit, :workspace_path,
       :system_prompt, :custom_instructions, :enabled, :avatar,
       :thinking_enabled, :thinking_budget_tokens, :thinking_visibility,
       tool_ids: [],
       skill_ids: []
     )
+  end
+
+  def assign_restricted_attrs(agent)
+    ap = params[:agent]
+    return unless ap
+
+    agent.role = ap[:role] if ap.key?(:role)
+    agent.egress_policy_mode = ap[:egress_policy_mode] if ap.key?(:egress_policy_mode)
+    agent.egress_policy_rules = ap[:egress_policy_rules] if ap.key?(:egress_policy_rules)
+    agent.egress_policy_log_blocked = ap[:egress_policy_log_blocked] if ap.key?(:egress_policy_log_blocked)
   end
 end
