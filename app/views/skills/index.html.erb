@@ -5,6 +5,7 @@
       <p class="text-text-muted text-sm mt-1">Teach your agents new capabilities. Skills inject instructions into agent prompts.</p>
     </div>
     <div class="flex gap-3">
+      <%= link_to "Browse ClawHub", clawhub_index_path, class: "px-4 py-2 bg-surface-raised hover:bg-surface-overlay text-white text-sm font-medium rounded-lg transition" %>
       <%= form_tag import_skills_path, method: :post, multipart: true, class: "flex items-center gap-2" do %>
         <%= file_field_tag :file, accept: ".md,.txt",
             class: "text-sm text-text-muted file:mr-2 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-surface-raised file:text-text-primary hover:file:bg-surface-overlay file:cursor-pointer" %>

@@ -1,0 +1,47 @@
+<div class="max-w-7xl mx-auto px-6 py-8">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-white">ClawHub Skills</h1>
+      <p class="text-text-muted text-sm mt-1">Discover and install community skills from ClawHub</p>
+    </div>
+    <%= link_to "Back to Skills", skills_path, class: "px-4 py-2 bg-surface-raised hover:bg-surface-overlay text-white text-sm font-medium rounded-lg transition" %>
+  </div>
+
+  <!-- Search -->
+  <div class="mb-6" data-controller="clawhub">
+    <div class="relative">
+      <input type="text"
+             data-clawhub-target="input"
+             data-action="input->clawhub#search"
+             placeholder="Search skills..."
+             value="<%= @query %>"
+             class="w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:border-amber-500/50 transition">
+      <div data-clawhub-target="spinner" class="hidden absolute right-3 top-3.5">
+        <svg class="animate-spin h-5 w-5 text-text-muted" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+      </div>
+    </div>
+    <input type="hidden" data-clawhub-target="sort" value="<%= @sort %>">
+  </div>
+
+  <!-- Sort Tabs -->
+  <% unless @query %>
+    <div class="mb-6 flex flex-wrap gap-2">
+      <% %w[trending popular recent].each do |sort_option| %>
+        <%= link_to sort_option.titleize, clawhub_index_path(sort: sort_option),
+            class: "px-4 py-2 rounded-lg #{@sort == sort_option ? 'bg-amber-600' : 'bg-surface-card hover:bg-surface-raised'} text-sm font-medium text-white transition" %>
+      <% end %>
+    </div>
+  <% end %>
+
+  <% if @error %>
+    <div class="bg-red-900/20 border border-red-500/30 rounded-lg p-4 mb-6">
+      <p class="text-red-300 text-sm">Failed to load skills from ClawHub: <%= @error %></p>
+    </div>
+  <% end %>
+
+  <!-- Results -->
+  <%= render "clawhub/results", skills: @skills, installed_urls: @installed_urls, next_cursor: @next_cursor, sort: @sort %>
+</div>

@@ -132,6 +132,17 @@ Rails.application.routes.draw do
     end
   end
 
+  # ClawHub Skills Browser
+  resources :clawhub, only: [ :index, :show ], param: :slug do
+    collection do
+      get :review
+    end
+    member do
+      post :install
+      post :confirm
+    end
+  end
+
   # Agent Templates
   resources :agent_templates, only: [ :index, :show ] do
     member do

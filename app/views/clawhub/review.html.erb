@@ -1,0 +1,52 @@
+<div class="max-w-3xl mx-auto px-6 py-8">
+  <%= link_to "&larr; Back to ClawHub".html_safe, clawhub_index_path, class: "text-text-muted hover:text-white text-sm transition mb-6 inline-block" %>
+
+  <h1 class="text-2xl font-bold text-white mb-2">Review ClawHub Skill</h1>
+  <p class="text-text-muted mb-6">This skill was flagged during the security scan. Review the findings before installing.</p>
+
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+    <h2 class="text-lg font-semibold text-white mb-2"><%= @pending_attributes["name"] || @pending_attributes[:name] %></h2>
+    <p class="text-text-muted text-sm mb-4"><%= @pending_attributes["summary"] || @pending_attributes[:summary] %></p>
+
+    <h3 class="text-sm font-semibold text-white mb-2">Security Scan Results</h3>
+
+    <% status = @scan_result["status"] || @scan_result[:status] %>
+    <% badge_classes = case status
+       when "clean"   then "bg-green-900/50 text-green-300"
+       when "warning"  then "bg-yellow-900/50 text-yellow-300"
+       when "flagged"  then "bg-red-900/50 text-red-300"
+       when "blocked"  then "bg-red-950/60 text-red-400"
+       else                 "bg-surface-raised text-text-faint"
+       end %>
+    <p class="mb-3">
+      <span class="text-xs text-text-faint uppercase mr-2">Status:</span>
+      <span class="px-2 py-0.5 text-xs rounded-full <%= badge_classes %>"><%= status %></span>
+    </p>
+
+    <% findings = @scan_result["findings"] || @scan_result[:findings] || [] %>
+    <% if findings.any? %>
+      <div class="mt-3 space-y-2">
+        <% findings.each do |finding| %>
+          <div class="bg-surface-base rounded-lg p-3 text-sm">
+            <span class="font-medium text-yellow-300"><%= finding["severity"] || finding[:severity] %>:</span>
+            <span class="text-text-muted"><%= finding["description"] || finding[:description] || finding["message"] || finding[:message] %></span>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+
+  <% if status != "blocked" %>
+    <div class="flex gap-3">
+      <%= button_to "Approve & Install", confirm_clawhub_path(slug: @pending["slug"] || @pending[:slug]),
+          method: :post,
+          class: "px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+      <%= link_to "Cancel", clawhub_index_path,
+          class: "px-4 py-2 bg-surface-raised hover:bg-surface-overlay text-white text-sm font-medium rounded-lg transition" %>
+    </div>
+  <% else %>
+    <div class="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
+      <p class="text-red-300 text-sm">This skill is blocked and cannot be installed.</p>
+    </div>
+  <% end %>
+</div>

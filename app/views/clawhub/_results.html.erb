@@ -1,0 +1,22 @@
+<%# locals: (skills:, installed_urls:, next_cursor: nil, sort: "trending") %>
+<%= turbo_frame_tag "clawhub_results" do %>
+  <% if skills.any? %>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <% skills.each do |skill| %>
+        <%= render "clawhub/card", skill: skill, installed_urls: installed_urls %>
+      <% end %>
+    </div>
+
+    <% if next_cursor.present? %>
+      <div class="mt-6 text-center">
+        <%= link_to "Load More", clawhub_index_path(sort: sort, cursor: next_cursor),
+            data: { turbo_frame: "clawhub_results" },
+            class: "px-6 py-2 bg-surface-raised hover:bg-surface-overlay text-white text-sm font-medium rounded-lg transition" %>
+      </div>
+    <% end %>
+  <% else %>
+    <div class="text-center py-12">
+      <p class="text-text-muted">No skills found.</p>
+    </div>
+  <% end %>
+<% end %>
