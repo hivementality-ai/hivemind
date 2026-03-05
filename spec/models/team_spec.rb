@@ -17,6 +17,26 @@ RSpec.describe Team, type: :model do
     end
   end
 
+  describe 'callbacks' do
+    it 'triggers rebuild_soul when custom_soul changes' do
+      team = create(:team)
+      expect(Teams::BuildSoul).to receive(:call).with(team: team)
+      team.update!(custom_soul: "Be creative and bold")
+    end
+
+    it 'triggers rebuild_soul when name changes' do
+      team = create(:team)
+      expect(Teams::BuildSoul).to receive(:call).with(team: team)
+      team.update!(name: "New Name #{SecureRandom.hex(4)}")
+    end
+
+    it 'does not trigger rebuild_soul when no tracked fields change' do
+      team = create(:team)
+      expect(Teams::BuildSoul).not_to receive(:call)
+      team.save!
+    end
+  end
+
   describe 'factory' do
     it 'creates a valid team' do
       team = build(:team)
