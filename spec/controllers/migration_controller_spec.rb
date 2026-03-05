@@ -13,15 +13,15 @@ RSpec.describe MigrationController, type: :controller do
     report.identity_imported = true
     report.memories_created = 3
     report.memory_files_processed = 2
-    report.skills_imported = [{ name: "greeting" }]
+    report.skills_imported = [ { name: "greeting" } ]
     report.skills_skipped = []
-    report.skill_scan_results = [{ name: "greeting", status: "clean" }]
-    report.channels_created = [{ name: "slack-main" }]
+    report.skill_scan_results = [ { name: "greeting", status: "clean" } ]
+    report.channels_created = [ { name: "slack-main" } ]
     report.channels_skipped = []
     report.sessions_created = 5
-    report.tools_created = [{ name: "web_search" }]
+    report.tools_created = [ { name: "web_search" } ]
     report.tools_skipped = []
-    report.markers_found = ["SOUL.md", "config.json"]
+    report.markers_found = [ "SOUL.md", "config.json" ]
     report
   end
 
