@@ -298,7 +298,7 @@ RSpec.describe Providers::OllamaAdapter, type: :service do
       end
 
       it "uses a small num_ctx for short messages" do
-        short_messages = [{ role: "user", content: "Hi" }]
+        short_messages = [ { role: "user", content: "Hi" } ]
 
         stub_request(:post, "http://localhost:11434/api/chat")
           .to_return(
@@ -314,7 +314,7 @@ RSpec.describe Providers::OllamaAdapter, type: :service do
       end
 
       it "scales num_ctx up for large conversations" do
-        large_messages = [{ role: "user", content: "x" * 80_000 }]
+        large_messages = [ { role: "user", content: "x" * 80_000 } ]
 
         stub_request(:post, "http://localhost:11434/api/chat")
           .to_return(
@@ -344,7 +344,7 @@ RSpec.describe Providers::OllamaAdapter, type: :service do
             body: { message: { content: "ok" } }.to_json
           )
 
-        result = adapter.chat(messages: [{ role: "user", content: "hi" }], tools: large_tools, options: {})
+        result = adapter.chat(messages: [ { role: "user", content: "hi" } ], tools: large_tools, options: {})
         expect(result).to be_success
 
         expect(WebMock).to have_requested(:post, "http://localhost:11434/api/chat")

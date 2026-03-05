@@ -4,7 +4,7 @@ require "securerandom"
 
 module Providers
   class OllamaAdapter < Base
-    CONTEXT_BUCKETS = [2_048, 4_096, 8_192, 16_384, 32_768, 65_536, 131_072].freeze
+    CONTEXT_BUCKETS = [ 2_048, 4_096, 8_192, 16_384, 32_768, 65_536, 131_072 ].freeze
     TOKENS_PER_CHAR = 0.25
     CONTEXT_HEADROOM = 1.25 # 25% buffer
     def chat(messages:, tools: [], options: {}, &block)
