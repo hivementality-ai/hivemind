@@ -86,10 +86,11 @@ install_prerequisites() {
     fi
     ok "Xcode Command Line Tools installed"
 
-    # Homebrew
+    # Homebrew (requires sudo — redirect /dev/tty so the password prompt works
+    # even when the script is piped via curl | bash)
     if ! command -v brew &>/dev/null; then
-      info "Installing Homebrew..."
-      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+      info "Installing Homebrew (you may be prompted for your password)..."
+      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" < /dev/tty
       # Add to PATH for this session (Apple Silicon vs Intel)
       eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv 2>/dev/null)"
     fi
