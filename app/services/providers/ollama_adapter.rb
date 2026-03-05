@@ -4,6 +4,9 @@ require "securerandom"
 
 module Providers
   class OllamaAdapter < Base
+    CONTEXT_BUCKETS = [2_048, 4_096, 8_192, 16_384, 32_768, 65_536, 131_072].freeze
+    TOKENS_PER_CHAR = 0.25
+    CONTEXT_HEADROOM = 1.25 # 25% buffer
     def chat(messages:, tools: [], options: {}, &block)
       params = build_chat_params(messages:, tools:, options:)
 
@@ -79,7 +82,8 @@ module Providers
         stream: false,
         options: {
           temperature: options[:temperature],
-          num_predict: options[:max_tokens]
+          num_predict: options[:max_tokens],
+          num_ctx: calculate_num_ctx(formatted_messages, tools, options)
         }.compact
       }
 
@@ -98,6 +102,14 @@ module Providers
       end
 
       params
+    end
+
+    def calculate_num_ctx(messages, tools, options)
+      char_count = messages.sum { |m| m[:content].to_s.length }
+      char_count += tools.to_json.length if tools.any?
+      estimated_tokens = (char_count * TOKENS_PER_CHAR * CONTEXT_HEADROOM).ceil
+      estimated_tokens += (options[:max_tokens] || 4_096)
+      CONTEXT_BUCKETS.find { |s| s >= estimated_tokens } || CONTEXT_BUCKETS.last
     end
 
     def stream_chat(params:, &block)

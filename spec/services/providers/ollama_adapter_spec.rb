@@ -262,10 +262,6 @@ RSpec.describe Providers::OllamaAdapter, type: :service do
 
       it "uses custom model and options" do
         stub_request(:post, "http://localhost:11434/api/chat")
-          .with(body: hash_including(
-            model: "llama3.1",
-            options: { temperature: 0.8, num_predict: 100 }
-          ))
           .to_return(
             status: 200,
             body: { message: { content: "Custom response" } }.to_json
@@ -275,6 +271,84 @@ RSpec.describe Providers::OllamaAdapter, type: :service do
 
         expect(result).to be_success
         expect(result.data[:content]).to eq("Custom response")
+
+        expect(WebMock).to have_requested(:post, "http://localhost:11434/api/chat")
+          .with { |req|
+            body = JSON.parse(req.body)
+            body["model"] == "llama3.1" &&
+              body["options"]["temperature"] == 0.8 &&
+              body["options"]["num_predict"] == 100
+          }
+      end
+    end
+
+    context "num_ctx calculation" do
+      it "includes num_ctx in API requests" do
+        stub_request(:post, "http://localhost:11434/api/chat")
+          .to_return(
+            status: 200,
+            body: { message: { content: "ok" }, prompt_eval_count: 5, eval_count: 3 }.to_json
+          )
+
+        result = adapter.chat(messages: messages, tools: tools, options: options)
+        expect(result).to be_success
+
+        expect(WebMock).to have_requested(:post, "http://localhost:11434/api/chat")
+          .with { |req| JSON.parse(req.body)["options"].key?("num_ctx") }
+      end
+
+      it "uses a small num_ctx for short messages" do
+        short_messages = [{ role: "user", content: "Hi" }]
+
+        stub_request(:post, "http://localhost:11434/api/chat")
+          .to_return(
+            status: 200,
+            body: { message: { content: "Hey" } }.to_json
+          )
+
+        result = adapter.chat(messages: short_messages, tools: [], options: {})
+        expect(result).to be_success
+
+        expect(WebMock).to have_requested(:post, "http://localhost:11434/api/chat")
+          .with { |req| JSON.parse(req.body)["options"]["num_ctx"] <= 8_192 }
+      end
+
+      it "scales num_ctx up for large conversations" do
+        large_messages = [{ role: "user", content: "x" * 80_000 }]
+
+        stub_request(:post, "http://localhost:11434/api/chat")
+          .to_return(
+            status: 200,
+            body: { message: { content: "ok" } }.to_json
+          )
+
+        result = adapter.chat(messages: large_messages, tools: [], options: {})
+        expect(result).to be_success
+
+        expect(WebMock).to have_requested(:post, "http://localhost:11434/api/chat")
+          .with { |req| JSON.parse(req.body)["options"]["num_ctx"] > 8_192 }
+      end
+
+      it "factors tool schemas into num_ctx calculation" do
+        large_tools = [
+          {
+            name: "tool1",
+            description: "A" * 20_000,
+            input_schema: { type: "object", properties: { x: { type: "string", description: "B" * 10_000 } } }
+          }
+        ]
+
+        stub_request(:post, "http://localhost:11434/api/chat")
+          .to_return(
+            status: 200,
+            body: { message: { content: "ok" } }.to_json
+          )
+
+        result = adapter.chat(messages: [{ role: "user", content: "hi" }], tools: large_tools, options: {})
+        expect(result).to be_success
+
+        expect(WebMock).to have_requested(:post, "http://localhost:11434/api/chat")
+          .with { |req| JSON.parse(req.body)["options"]["num_ctx"] > 8_192 }
       end
     end
 

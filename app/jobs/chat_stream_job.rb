@@ -100,7 +100,7 @@ class ChatStreamJob < ApplicationJob
     messages = message_result.data[:messages]
 
     # Prune messages to fit within context budget
-    context_manager = Agents::ContextManager.new(agent.llm_model)
+    context_manager = Agents::ContextManager.new(agent.llm_model, 8192, provider: agent.model_provider)
     messages = context_manager.prune_messages(messages)
 
     # If there's a hashtag response to prepend (non-bypass actions), broadcast it

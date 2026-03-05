@@ -10,17 +10,25 @@ module Agents
       "gpt-5.2-mini" => 200_000,
       "gpt-5.2-nano" => 128_000,
       "o3" => 200_000,
-      "o4-mini" => 200_000
+      "o4-mini" => 200_000,
+      # Ollama / local models (conservative — RAM constrained)
+      "qwen3-coder:30b" => 32_768,
+      "qwen3-coder" => 32_768,
+      "llama3.2" => 8_192,
+      "llama3.1" => 8_192,
+      "codellama" => 16_384,
+      "deepseek-coder-v2" => 16_384
     }.freeze
 
     MAX_SYSTEM_TOKENS = 2000
     RESERVE_TOKENS = 1000      # Reserve for response
     TOKENS_PER_CHAR = 0.25     # Rough estimate: 4 chars per token
 
-    def initialize(llm_model, max_output_tokens = 8192)
+    def initialize(llm_model, max_output_tokens = 8192, provider: nil)
       @model = llm_model
       @max_output = max_output_tokens
-      limit = MODEL_LIMITS[@model] || 200_000
+      @provider = provider
+      limit = MODEL_LIMITS[@model] || (@provider == "ollama" ? 8_192 : 200_000)
       @budget = limit - @max_output - RESERVE_TOKENS
     end
 
