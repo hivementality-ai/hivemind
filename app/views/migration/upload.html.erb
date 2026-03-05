@@ -1,0 +1,55 @@
+<% content_for(:title) { "Migration - Hivemind" } %>
+
+<div class="p-6 lg:p-10 max-w-3xl mx-auto">
+  <%= render "migration/progress", step: 1 %>
+
+  <div class="bg-surface-card border border-border-default rounded-xl p-8">
+    <h1 class="text-2xl font-bold text-white mb-2">OpenClaw Migration</h1>
+    <p class="text-text-muted mb-6">Import your OpenClaw configuration into Hivemind.</p>
+
+    <div class="bg-blue-900/30 border border-blue-700 rounded-lg p-4 mb-6">
+      <p class="text-blue-200 text-sm">
+        Copy your OpenClaw config directory to <code class="bg-surface-raised px-1.5 py-0.5 rounded text-blue-100">~/hivemind-agents-shared/</code> on the host machine.
+        It will be available at <code class="bg-surface-raised px-1.5 py-0.5 rounded text-blue-100">/app/agents-shared/</code> inside the container.
+      </p>
+    </div>
+
+    <%= form_with url: migration_scan_path, method: :post, data: { controller: "migration", action: "submit->migration#submit" } do |f| %>
+      <div class="space-y-4">
+        <div>
+          <label for="workspace_path" class="block text-sm font-medium text-text-primary mb-2">Workspace Path</label>
+          <input type="text"
+                 name="workspace_path"
+                 id="workspace_path"
+                 placeholder="/app/agents-shared/my-openclaw-config"
+                 required
+                 class="w-full bg-surface-base border border-border-default rounded-lg px-4 py-3 text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+                 data-migration-target="input"
+                 data-action="input->migration#validate">
+        </div>
+
+        <div>
+          <label for="agent_slug" class="block text-sm font-medium text-text-primary mb-2">Agent Slug <span class="text-text-faint">(optional)</span></label>
+          <input type="text"
+                 name="agent_slug"
+                 id="agent_slug"
+                 placeholder="my-agent"
+                 class="w-full bg-surface-base border border-border-default rounded-lg px-4 py-3 text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+          <p class="text-text-faint text-xs mt-1">Leave blank to auto-generate from config.</p>
+        </div>
+
+        <div class="pt-2">
+          <button type="submit"
+                  class="w-full bg-brand hover:bg-brand-hover text-white font-semibold py-3 px-6 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  data-migration-target="submit">
+            <span data-migration-target="buttonText">Scan Configuration</span>
+            <svg data-migration-target="spinner" class="hidden animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>
