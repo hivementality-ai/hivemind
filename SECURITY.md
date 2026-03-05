@@ -6,7 +6,7 @@ If you discover a security vulnerability in Hivemind, **please report it respons
 
 ### How to report
 
-Email **security@hivementality.ai** with:
+Email **thehive@hivementality.ai** with:
 
 - A description of the vulnerability
 - Steps to reproduce (or a proof-of-concept)
