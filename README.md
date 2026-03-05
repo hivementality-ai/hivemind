@@ -562,13 +562,49 @@ Standard API keys (`sk-ant-api03-...`) also work if you prefer usage-based billi
 
 ### Security
 
-- **Vault** — API keys and secrets encrypted at rest
-- **Audit log** — Append-only trail of every action
-- **Webhook verification** — Platform-specific signature verification on all inbound webhooks
-- **Rate limiting** — On all endpoints
-- **Workspace isolation** — Agent code runs in a separate container with no database access
-- **Prompt injection defense** — Role-based defaults, guardrail blocks, input sanitization
-- **API tokens** — SHA-256 hashed, revocable, with expiration support
+Hivemind takes a defense-in-depth approach — multiple independent layers so no single failure compromises the system.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Reverse Proxy                        │
+│              (Rack::Attack rate limiting)                │
+├─────────────────────────────────────────────────────────┤
+│  Web UI / API                                           │
+│  ┌──────────┐  ┌──────────┐  ┌────────────────────┐    │
+│  │ Devise   │  │ API Token│  │ Webhook Signature  │    │
+│  │ Auth     │  │ (SHA-256)│  │ Verification       │    │
+│  └──────────┘  └──────────┘  └────────────────────┘    │
+├─────────────────────────────────────────────────────────┤
+│  Agent Runtime                                          │
+│  ┌──────────────┐  ┌───────────┐  ┌────────────────┐   │
+│  │ Skill Scanner │  │ Egress    │  │ Prompt Guard   │   │
+│  │ (import gate) │  │ Policies  │  │ (injection     │   │
+│  │              │  │ (per-agent)│  │  detection)    │   │
+│  └──────────────┘  └───────────┘  └────────────────┘   │
+├─────────────────────────────────────────────────────────┤
+│  Data Layer                                             │
+│  ┌──────────┐  ┌──────────┐  ┌────────────────────┐    │
+│  │ Vault    │  │ Audit Log│  │ Workspace          │    │
+│  │ (AES     │  │ (append- │  │ Isolation          │    │
+│  │  at rest)│  │  only)   │  │ (separate container│    │
+│  └──────────┘  └──────────┘  │  no DB access)     │    │
+│                               └────────────────────┘    │
+└─────────────────────────────────────────────────────────┘
+```
+
+| Layer | What it does |
+|-------|-------------|
+| **Vault** | API keys and secrets encrypted at rest with Active Record Encryption (AES-256-GCM) |
+| **Audit log** | Append-only, immutable trail of every action — async via Sidekiq |
+| **Webhook verification** | Platform-specific HMAC-SHA256 (Slack) and Ed25519 (Discord) signature verification with timestamp validation |
+| **Rate limiting** | Rack::Attack — per-IP, per-token, per-session throttling with auto-ban after repeated failures |
+| **Network egress controls** | Per-agent allowlist/blocklist policies for outbound network requests |
+| **Skill security scanner** | Multi-stage analysis on skill import — detects pipe-to-shell, credential exfiltration, reverse shells, prompt injection, and obfuscation patterns |
+| **Workspace isolation** | Agent code runs in a separate container (non-root user, resource limits) with no database access |
+| **Prompt injection defense** | Pattern-based detection at skill import boundary, role-based defaults |
+| **API tokens** | SHA-256 hashed at rest, revocable, with expiration support |
+
+See [SECURITY.md](SECURITY.md) for our responsible disclosure policy.
 
 ### Analytics & Budgets
 
@@ -724,6 +760,16 @@ Start with 2-3 agents. Watch their behavior in team chat. Check analytics for to
 
 Hivemind is designed as a natural upgrade path from OpenClaw. Here's what carries over:
 
+### One-command migration
+
+```bash
+hivemind import ~/.openclaw/workspace
+```
+
+This imports your agent's identity, memories, skills, conversations, and tools into Hivemind. Use `--dry-run` to preview without making changes. See `hivemind import --help` for options.
+
+> **Need help migrating?** Ask in [GitHub Discussions](https://github.com/hivementality-ai/hivemind/discussions) — we're happy to help.
+
 ### What migrates directly
 
 - **Skills** — Import your SKILL.md files directly (Integrations > Skills > Import). Same YAML frontmatter + markdown format
@@ -740,7 +786,7 @@ Hivemind is designed as a natural upgrade path from OpenClaw. Here's what carrie
 - **Per-agent tool/skill assignment** — Control exactly what each agent can do
 - **16 agent templates** — Pre-built roles from Software Engineer to Sports Fan
 - **Hashtag actions** — Platform-agnostic commands (#remember, #summarize, #mood, etc.)
-- **Docker-native** — 8-container Compose stack, production-ready out of the box
+- **Docker-native** — 9-container Compose stack, production-ready out of the box
 
 ---
 
@@ -750,6 +796,8 @@ Hivemind is designed as a natural upgrade path from OpenClaw. Here's what carrie
 2. Create a feature branch (`git checkout -b feat/my-feature`)
 3. Write tests for your changes
 4. Open a PR with a clear description
+
+**Join the community:** [Discord](https://discord.gg/ckyVareyvk) | [GitHub Discussions](https://github.com/hivementality-ai/hivemind/discussions)
 
 ---
 
