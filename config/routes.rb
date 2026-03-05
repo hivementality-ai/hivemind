@@ -121,6 +121,13 @@ Rails.application.routes.draw do
     end
   end
 
+  # Migration Wizard
+  get  "migration",            to: "migration#upload",     as: :migration
+  post "migration/scan",       to: "migration#scan",       as: :migration_scan
+  get  "migration/review",     to: "migration#review",     as: :migration_review
+  post "migration/import",     to: "migration#run_import", as: :migration_import
+  get  "migration/reconnect",  to: "migration#reconnect",  as: :migration_reconnect
+
   resources :channels, except: [ :show ] do
     member do
       get :connect

@@ -1,0 +1,27 @@
+<%# Migration progress bar — pass `step:` (1-4) %>
+<% step ||= 1 %>
+<% steps = ["Upload", "Scan", "Review", "Reconnect"] %>
+
+<div class="flex items-center justify-center mb-10">
+  <% steps.each_with_index do |label, i| %>
+    <% current = i + 1 %>
+    <div class="flex items-center">
+      <div class="flex flex-col items-center">
+        <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold
+          <%= current < step ? 'bg-green-500 text-white' : current == step ? 'bg-blue-500 text-white ring-4 ring-brand/30' : 'bg-surface-raised text-text-muted' %>">
+          <% if current < step %>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+            </svg>
+          <% else %>
+            <%= current %>
+          <% end %>
+        </div>
+        <span class="text-xs mt-2 <%= current == step ? 'text-brand-light font-medium' : 'text-text-faint' %>"><%= label %></span>
+      </div>
+      <% unless current == steps.length %>
+        <div class="w-16 h-0.5 mx-2 mb-6 <%= current < step ? 'bg-green-500' : 'bg-surface-raised' %>"></div>
+      <% end %>
+    </div>
+  <% end %>
+</div>

@@ -153,6 +153,13 @@
                 <span>Channels</span>
               <% end %>
 
+              <%= link_to migration_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{request.path.start_with?('/migration') ? 'bg-surface-raised text-white' : ''}" do %>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <span>Migration</span>
+              <% end %>
+
               <!-- Platform moved to Dashboard tabs -->
             </nav>
             

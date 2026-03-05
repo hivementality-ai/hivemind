@@ -1,0 +1,101 @@
+<% content_for(:title) { "Migration Scan - Hivemind" } %>
+
+<div class="p-6 lg:p-10 max-w-3xl mx-auto">
+  <%= render "migration/progress", step: 2 %>
+
+  <div class="bg-surface-card border border-border-default rounded-xl p-8">
+    <h1 class="text-2xl font-bold text-white mb-2">Scan Results</h1>
+    <p class="text-text-muted mb-6">Dry-run complete. Here's what was found in your OpenClaw config.</p>
+
+    <%# Agent Identity %>
+    <div class="mb-6">
+      <h2 class="text-lg font-semibold text-white mb-3">Agent Identity</h2>
+      <div class="bg-surface-base rounded-lg p-4">
+        <p class="text-text-primary"><strong class="text-white"><%= @report[:agent_name] || "N/A" %></strong> <span class="text-text-faint">(<%= @report[:agent_slug] || "N/A" %>)</span></p>
+      </div>
+    </div>
+
+    <%# Summary Counts %>
+    <div class="mb-6">
+      <h2 class="text-lg font-semibold text-white mb-3">Summary</h2>
+      <div class="bg-surface-base rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-border-default">
+              <th class="text-left px-4 py-2 text-text-faint font-medium">Artifact</th>
+              <th class="text-right px-4 py-2 text-text-faint font-medium">Found</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b border-border-default">
+              <td class="px-4 py-2 text-text-primary">Memories</td>
+              <td class="px-4 py-2 text-right text-white"><%= @report[:memories_created] %></td>
+            </tr>
+            <tr class="border-b border-border-default">
+              <td class="px-4 py-2 text-text-primary">Skills</td>
+              <td class="px-4 py-2 text-right text-white"><%= Array(@report[:skills_imported]).size + Array(@report[:skills_skipped]).size %></td>
+            </tr>
+            <tr class="border-b border-border-default">
+              <td class="px-4 py-2 text-text-primary">Channels</td>
+              <td class="px-4 py-2 text-right text-white"><%= Array(@report[:channels_created]).size + Array(@report[:channels_skipped]).size %></td>
+            </tr>
+            <tr class="border-b border-border-default">
+              <td class="px-4 py-2 text-text-primary">Sessions</td>
+              <td class="px-4 py-2 text-right text-white"><%= @report[:sessions_created] %></td>
+            </tr>
+            <tr>
+              <td class="px-4 py-2 text-text-primary">Tools</td>
+              <td class="px-4 py-2 text-right text-white"><%= Array(@report[:tools_created]).size + Array(@report[:tools_skipped]).size %></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <%# Markers %>
+    <% if Array(@report[:markers_found]).any? %>
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-white mb-3">Markers Found</h2>
+        <div class="flex flex-wrap gap-2">
+          <% @report[:markers_found].each do |marker| %>
+            <span class="px-3 py-1 bg-surface-raised text-text-primary text-sm rounded-full"><%= marker %></span>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <%# Warnings %>
+    <% fatal_warnings = Array(@report[:warnings]).select { |w| w.to_s.start_with?("FATAL:") } %>
+    <% other_warnings = Array(@report[:warnings]).reject { |w| w.to_s.start_with?("FATAL:") } %>
+
+    <% if fatal_warnings.any? %>
+      <div class="mb-6">
+        <div class="bg-red-900/30 border border-red-700 rounded-lg p-4">
+          <h3 class="text-red-300 font-semibold mb-2">Fatal Errors</h3>
+          <% fatal_warnings.each do |w| %>
+            <p class="text-red-200 text-sm"><%= w %></p>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <% if other_warnings.any? %>
+      <div class="mb-6">
+        <div class="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4">
+          <h3 class="text-yellow-300 font-semibold mb-2">Warnings</h3>
+          <% other_warnings.each do |w| %>
+            <p class="text-yellow-200 text-sm"><%= w %></p>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <%# Actions %>
+    <div class="flex items-center gap-4 pt-4">
+      <% if @report[:success] %>
+        <%= link_to "Continue to Review", migration_review_path, class: "bg-brand hover:bg-brand-hover text-white font-semibold py-3 px-6 rounded-lg transition" %>
+      <% end %>
+      <%= link_to "Back", migration_path, class: "text-text-muted hover:text-white transition" %>
+    </div>
+  </div>
+</div>

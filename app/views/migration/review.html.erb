@@ -1,0 +1,167 @@
+<% content_for(:title) { "Migration Review - Hivemind" } %>
+
+<div class="p-6 lg:p-10 max-w-4xl mx-auto">
+  <%= render "migration/progress", step: 3 %>
+
+  <div class="bg-surface-card border border-border-default rounded-xl p-8">
+    <h1 class="text-2xl font-bold text-white mb-2">Review Migration</h1>
+    <p class="text-text-muted mb-6">Review the full import report before proceeding.</p>
+
+    <%# Agent Identity %>
+    <div class="mb-8">
+      <h2 class="text-lg font-semibold text-white mb-3">Agent Identity</h2>
+      <div class="bg-surface-base rounded-lg p-4">
+        <p class="text-text-primary"><strong class="text-white"><%= @report[:agent_name] || "N/A" %></strong> <span class="text-text-faint">(<%= @report[:agent_slug] || "N/A" %>)</span></p>
+        <p class="text-text-faint text-sm mt-1">Identity imported: <%= @report[:identity_imported] ? "Yes" : "No" %></p>
+      </div>
+    </div>
+
+    <%# Skills %>
+    <div class="mb-8">
+      <h2 class="text-lg font-semibold text-white mb-3">Skills</h2>
+      <% imported_skills = Array(@report[:skills_imported]) %>
+      <% skipped_skills = Array(@report[:skills_skipped]) %>
+      <% scan_results = Array(@report[:skill_scan_results]) %>
+
+      <% if imported_skills.any? || skipped_skills.any? %>
+        <div class="bg-surface-base rounded-lg overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-border-default">
+                <th class="text-left px-4 py-2 text-text-faint font-medium">Name</th>
+                <th class="text-left px-4 py-2 text-text-faint font-medium">Status</th>
+                <th class="text-left px-4 py-2 text-text-faint font-medium">Security</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% imported_skills.each do |name| %>
+                <% scan = scan_results.find { |s| s.is_a?(Hash) && (s[:name] || s["name"]) == name } %>
+                <% security_status = scan && (scan[:status] || scan["status"]) || "clean" %>
+                <tr class="border-b border-border-default">
+                  <td class="px-4 py-2 text-white"><%= name %></td>
+                  <td class="px-4 py-2"><span class="px-2 py-0.5 text-xs rounded-full bg-green-900/50 text-green-300">imported</span></td>
+                  <td class="px-4 py-2">
+                    <% badge_classes = case security_status.to_s
+                       when "clean"   then "bg-green-900/50 text-green-300"
+                       when "warning" then "bg-yellow-900/50 text-yellow-300"
+                       when "flagged" then "bg-red-900/50 text-red-300"
+                       when "blocked" then "bg-red-950/60 text-red-400"
+                       else                "bg-surface-raised text-text-faint"
+                       end %>
+                    <span class="px-2 py-0.5 text-xs rounded-full <%= badge_classes %>"><%= security_status %></span>
+                  </td>
+                </tr>
+              <% end %>
+              <% skipped_skills.each do |skill| %>
+                <% skill = skill.is_a?(Hash) ? skill.symbolize_keys : { name: skill.to_s, reason: "unknown" } %>
+                <tr class="border-b border-border-default">
+                  <td class="px-4 py-2 text-text-muted"><%= skill[:name] %></td>
+                  <td class="px-4 py-2"><span class="px-2 py-0.5 text-xs rounded-full bg-red-900/50 text-red-300">skipped</span></td>
+                  <td class="px-4 py-2 text-text-faint text-xs"><%= skill[:reason] %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <p class="text-text-faint text-sm">No skills found.</p>
+      <% end %>
+    </div>
+
+    <%# Channels %>
+    <div class="mb-8">
+      <h2 class="text-lg font-semibold text-white mb-3">Channels</h2>
+      <% created_channels = Array(@report[:channels_created]) %>
+      <% skipped_channels = Array(@report[:channels_skipped]) %>
+
+      <% if created_channels.any? || skipped_channels.any? %>
+        <div class="bg-surface-base rounded-lg overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-border-default">
+                <th class="text-left px-4 py-2 text-text-faint font-medium">Name</th>
+                <th class="text-left px-4 py-2 text-text-faint font-medium">Status</th>
+                <th class="text-left px-4 py-2 text-text-faint font-medium">Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% created_channels.each do |name| %>
+                <tr class="border-b border-border-default">
+                  <td class="px-4 py-2 text-white"><%= name %></td>
+                  <td class="px-4 py-2"><span class="px-2 py-0.5 text-xs rounded-full bg-green-900/50 text-green-300">will import</span></td>
+                  <td class="px-4 py-2 text-text-faint text-xs">Will be created disabled</td>
+                </tr>
+              <% end %>
+              <% skipped_channels.each do |ch| %>
+                <% ch = ch.is_a?(Hash) ? ch.symbolize_keys : { name: ch.to_s, reason: "unknown" } %>
+                <tr class="border-b border-border-default">
+                  <td class="px-4 py-2 text-text-muted"><%= ch[:name] %></td>
+                  <td class="px-4 py-2"><span class="px-2 py-0.5 text-xs rounded-full bg-red-900/50 text-red-300">skipped</span></td>
+                  <td class="px-4 py-2 text-text-faint text-xs"><%= ch[:reason] %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <p class="text-text-faint text-sm">No channels found.</p>
+      <% end %>
+    </div>
+
+    <%# Tools %>
+    <div class="mb-8">
+      <h2 class="text-lg font-semibold text-white mb-3">Tools</h2>
+      <% created_tools = Array(@report[:tools_created]) %>
+      <% skipped_tools = Array(@report[:tools_skipped]) %>
+
+      <% if created_tools.any? || skipped_tools.any? %>
+        <div class="bg-surface-base rounded-lg overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-border-default">
+                <th class="text-left px-4 py-2 text-text-faint font-medium">Name</th>
+                <th class="text-left px-4 py-2 text-text-faint font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% created_tools.each do |name| %>
+                <tr class="border-b border-border-default">
+                  <td class="px-4 py-2 text-white"><%= name %></td>
+                  <td class="px-4 py-2"><span class="px-2 py-0.5 text-xs rounded-full bg-green-900/50 text-green-300">will import</span></td>
+                </tr>
+              <% end %>
+              <% skipped_tools.each do |tool| %>
+                <% tool = tool.is_a?(Hash) ? tool.symbolize_keys : { name: tool.to_s, reason: "unknown" } %>
+                <tr class="border-b border-border-default">
+                  <td class="px-4 py-2 text-text-muted"><%= tool[:name] %></td>
+                  <td class="px-4 py-2"><span class="px-2 py-0.5 text-xs rounded-full bg-red-900/50 text-red-300">skipped: <%= tool[:reason] %></span></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <p class="text-text-faint text-sm">No tools found.</p>
+      <% end %>
+    </div>
+
+    <%# Warnings %>
+    <% warnings = Array(@report[:warnings]) %>
+    <% if warnings.any? %>
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold text-white mb-3">Warnings</h2>
+        <div class="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4">
+          <% warnings.each do |w| %>
+            <p class="text-yellow-200 text-sm"><%= w %></p>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <%# Actions %>
+    <div class="flex items-center gap-4 pt-4 border-t border-border-default">
+      <%= button_to "Approve & Import", migration_import_path, method: :post, class: "bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition", data: { turbo_confirm: "This will run the real migration. Continue?" } %>
+      <%= link_to "Cancel", migration_path, class: "text-text-muted hover:text-white transition" %>
+    </div>
+  </div>
+</div>
