@@ -16,6 +16,24 @@ RSpec.describe Agents::ContextManager, type: :service do
       manager = described_class.new("unknown-model")
       expect(manager.budget_info[:available_for_context]).to be > 0
     end
+
+    it "uses correct limits for Ollama models in MODEL_LIMITS" do
+      manager = described_class.new("qwen3-coder:30b", 4096)
+      # 32_768 - 4096 - 1000 = 27_672
+      expect(manager.budget_info[:available_for_context]).to eq(27_672)
+    end
+
+    it "defaults unknown Ollama models to 8K context" do
+      manager = described_class.new("some-local-model", 2048, provider: "ollama")
+      # 8_192 - 2048 - 1000 = 5_144
+      expect(manager.budget_info[:available_for_context]).to eq(5_144)
+    end
+
+    it "defaults unknown models without provider to 200K context" do
+      manager = described_class.new("unknown-cloud-model", 8192)
+      # 200_000 - 8192 - 1000 = 190_808
+      expect(manager.budget_info[:available_for_context]).to eq(190_808)
+    end
   end
 
   describe "#estimate_tokens" do
