@@ -15,6 +15,62 @@ class ProvidersController < ApplicationController
   def show
   end
 
+  # GET /providers/new
+  # Show form to add a new provider
+  def new
+    @provider = ProviderConfig.new
+    @existing_types = ProviderConfig.pluck(:adapter_type)
+    @available_types = %w[openai anthropic ollama llama_cpp] - @existing_types
+
+    if @available_types.empty?
+      redirect_to providers_path, notice: "All provider types are already configured."
+      nil
+    end
+  end
+
+  # POST /providers
+  # Create a new provider
+  def create
+    adapter_type = provider_params[:adapter_type]
+    selected_models = provider_params[:models] || []
+    default_model = provider_params[:default_model]
+
+    name = adapter_type == "llama_cpp" ? "llama.cpp" : adapter_type.titleize
+    vault_key = "providers/#{adapter_type}_api_key"
+
+    model_definitions = selected_models.map do |model_id|
+      { "id" => model_id, "default" => (model_id == default_model) }
+    end
+
+    @provider = ProviderConfig.new(
+      name: name,
+      adapter_type: adapter_type,
+      vault_key: vault_key,
+      enabled: true,
+      model_definitions: model_definitions
+    )
+
+    if @provider.save
+      if provider_params[:api_key].present?
+        VaultEntry.find_or_initialize_by(
+          namespace: "providers",
+          key: "#{adapter_type}_api_key"
+        ).tap do |ve|
+          ve.encrypted_value = provider_params[:api_key]
+          ve.save!
+        end
+      end
+
+      Setting.set("default_model_#{adapter_type}", default_model) if default_model.present?
+
+      redirect_to provider_path(@provider), notice: "Provider added successfully."
+    else
+      @existing_types = ProviderConfig.pluck(:adapter_type)
+      @available_types = %w[openai anthropic ollama llama_cpp] - @existing_types
+      render :new, status: :unprocessable_entity
+    end
+  end
+
   # GET /providers/:id/edit
   # Show provider details with option to edit credentials
   def edit
@@ -77,7 +133,9 @@ class ProvidersController < ApplicationController
   end
 
   def provider_params
-    params.require(:provider_config).permit(:api_key, :default_model, models: [])
+    permitted = [ :api_key, :default_model, models: [] ]
+    permitted.unshift(:adapter_type) if action_name == "create"
+    params.require(:provider_config).permit(*permitted)
   end
 
   def available_models_for(provider_type)

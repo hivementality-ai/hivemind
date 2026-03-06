@@ -1,0 +1,413 @@
+<div class="max-w-3xl mx-auto px-6 py-8">
+  <!-- Header -->
+  <div class="flex items-center gap-3 mb-8">
+    <%= link_to providers_path, class: "text-text-muted hover:text-white transition" do %>
+      ← Back to Providers
+    <% end %>
+    <span class="text-text-muted">/</span>
+    <h1 class="text-3xl font-bold text-white">Add Provider</h1>
+  </div>
+
+  <!-- Form -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-8">
+    <%= form_with model: @provider, url: providers_path, method: :post, class: "space-y-6" do |f| %>
+      <% if @provider.errors.any? %>
+        <div class="bg-red-900/50 border border-red-600 text-red-200 px-4 py-3 rounded-lg text-sm">
+          <h3 class="font-semibold mb-2"><%= pluralize(@provider.errors.count, "error") %> prevented this provider from being saved:</h3>
+          <ul class="list-disc list-inside space-y-1">
+            <% @provider.errors.full_messages.each do |message| %>
+              <li><%= message %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <!-- Provider Type Selector -->
+      <div class="space-y-3">
+        <label class="block text-text-primary font-semibold">Choose Provider Type</label>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="provider-type-grid">
+          <% provider_type_options = {
+            "anthropic" => { desc: "Claude models — advanced reasoning & code", color: "orange" },
+            "openai"    => { desc: "GPT & o-series models — versatile AI", color: "green" },
+            "ollama"    => { desc: "Run open-source models locally", color: "purple" },
+            "llama_cpp" => { desc: "Run GGUF models via llama-server", color: "blue" }
+          } %>
+          <% @available_types.each do |type| %>
+            <% info = provider_type_options[type] %>
+            <label class="provider-type-card relative flex items-center gap-3 p-4 bg-surface-raised rounded-lg cursor-pointer hover:bg-surface-overlay transition border-2 border-transparent"
+                   data-type="<%= type %>"
+                   data-needs-key="<%= %w[openai anthropic].include?(type) %>">
+              <input type="radio" name="provider_config[adapter_type]" value="<%= type %>"
+                     class="sr-only provider-type-radio"
+                     <%= "checked" if @available_types.length == 1 %>>
+              <div class="w-10 h-10 <%= provider_badge_bg(type) %> rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                <%= provider_badge_icon(type) %>
+              </div>
+              <div class="flex-1 min-w-0">
+                <span class="text-white text-sm font-medium block"><%= type == "llama_cpp" ? "llama.cpp" : type.titleize %></span>
+                <p class="text-text-muted text-xs"><%= info[:desc] %></p>
+              </div>
+              <div class="provider-type-check hidden absolute top-2 right-2 w-5 h-5 bg-brand rounded-full flex items-center justify-center">
+                <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+              </div>
+            </label>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Configuration Section (hidden until type selected) -->
+      <div id="config-section" class="space-y-6 hidden">
+        <!-- Security Notice -->
+        <div class="bg-blue-900/30 border border-blue-700/50 rounded-lg p-4">
+          <p class="text-blue-300 text-sm flex items-start gap-2">
+            <span class="text-lg">🔒</span>
+            <span><strong>Security:</strong> All API keys are encrypted at rest.</span>
+          </p>
+        </div>
+
+        <!-- API Key Section (cloud providers only) -->
+        <div id="api-key-section" class="space-y-4 hidden">
+          <div>
+            <label class="block text-text-primary font-semibold mb-2">API Key</label>
+            <%= f.text_field :api_key,
+                class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-mono text-sm",
+                placeholder: "Enter API key...",
+                id: "api-key-input",
+                autocomplete: "off" %>
+            <p class="text-text-faint text-xs mt-2" id="api-key-hint"></p>
+          </div>
+        </div>
+
+        <!-- Ollama Advanced Settings -->
+        <div id="ollama-settings" class="hidden">
+          <details class="mt-4">
+            <summary class="text-text-muted text-sm cursor-pointer hover:text-white transition select-none flex items-center gap-2">
+              <span class="text-lg">▶</span> Advanced Settings
+            </summary>
+            <div class="mt-3 p-4 bg-surface-overlay rounded-lg border border-border-default space-y-3">
+              <div>
+                <label class="block text-text-primary font-medium text-sm mb-1">Ollama URL</label>
+                <input type="text"
+                       id="ollama-custom-url"
+                       class="w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+                       placeholder="http://host.docker.internal:11434"
+                       value="http://host.docker.internal:11434">
+                <p class="text-text-faint text-xs mt-1">
+                  Change this if Ollama is running on another machine (e.g. <code class="text-text-muted">http://192.168.1.100:11434</code>)
+                </p>
+                <button type="button" onclick="detectOllamaModels()"
+                        class="mt-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded-lg transition cursor-pointer">
+                  Check Connection
+                </button>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <!-- llama.cpp Advanced Settings -->
+        <div id="llamacpp-settings" class="hidden">
+          <details class="mt-4">
+            <summary class="text-text-muted text-sm cursor-pointer hover:text-white transition select-none flex items-center gap-2">
+              <span class="text-lg">▶</span> Advanced Settings
+            </summary>
+            <div class="mt-3 p-4 bg-surface-overlay rounded-lg border border-border-default space-y-3">
+              <div>
+                <label class="block text-text-primary font-medium text-sm mb-1">llama-server URL</label>
+                <input type="text"
+                       id="llamacpp-custom-url"
+                       class="w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                       placeholder="http://host.docker.internal:8080"
+                       value="http://host.docker.internal:8080">
+                <p class="text-text-faint text-xs mt-1">
+                  Change this if llama-server is running on another machine or port (e.g. <code class="text-text-muted">http://192.168.1.100:8080</code>)
+                </p>
+                <button type="button" onclick="detectLlamaCppModels()"
+                        class="mt-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition cursor-pointer">
+                  Check Connection
+                </button>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <!-- Model Selection -->
+        <div class="space-y-4">
+          <label class="block text-text-primary font-semibold">Select Available Models</label>
+
+          <!-- Static model lists (anthropic/openai) -->
+          <div id="anthropic-models" class="space-y-2 hidden">
+            <% [
+              { id: "claude-opus-4-6", name: "Claude Opus 4.6", desc: "Most capable — complex reasoning & code" },
+              { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5", desc: "Best balance of speed & intelligence" },
+              { id: "claude-haiku-4-5", name: "Claude Haiku 4.5", desc: "Fast & affordable for simple tasks" }
+            ].each do |model| %>
+              <label class="flex items-start gap-3 p-4 bg-surface-raised rounded-lg cursor-pointer hover:bg-surface-overlay transition group border border-border-default/50">
+                <input type="checkbox" name="provider_config[models][]" value="<%= model[:id] %>"
+                       class="mt-1 w-4 h-4 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay flex-shrink-0">
+                <div class="flex-1">
+                  <span class="text-white text-sm font-medium block"><%= model[:name] %></span>
+                  <p class="text-text-muted text-xs"><%= model[:desc] %></p>
+                </div>
+              </label>
+            <% end %>
+          </div>
+
+          <div id="openai-models" class="space-y-2 hidden">
+            <% [
+              { id: "gpt-5.2", name: "GPT-5.2", desc: "Latest flagship — great for coding & analysis" },
+              { id: "gpt-5.2-mini", name: "GPT-5.2 Mini", desc: "Fast & cheap for everyday tasks" },
+              { id: "gpt-5.2-nano", name: "GPT-5.2 Nano", desc: "Fastest & cheapest for simple tasks" },
+              { id: "o3", name: "o3", desc: "Advanced reasoning — math, science, code" },
+              { id: "o4-mini", name: "o4-mini", desc: "Fast reasoning for complex problems" }
+            ].each do |model| %>
+              <label class="flex items-start gap-3 p-4 bg-surface-raised rounded-lg cursor-pointer hover:bg-surface-overlay transition group border border-border-default/50">
+                <input type="checkbox" name="provider_config[models][]" value="<%= model[:id] %>"
+                       class="mt-1 w-4 h-4 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay flex-shrink-0">
+                <div class="flex-1">
+                  <span class="text-white text-sm font-medium block"><%= model[:name] %></span>
+                  <p class="text-text-muted text-xs"><%= model[:desc] %></p>
+                </div>
+              </label>
+            <% end %>
+          </div>
+
+          <!-- Dynamic model lists (ollama/llama_cpp) -->
+          <div id="ollama-models-container" class="space-y-2 hidden">
+            <p class="text-text-muted text-sm">Click "Check Connection" above to detect installed Ollama models.</p>
+          </div>
+          <div id="llamacpp-models-container" class="space-y-2 hidden">
+            <p class="text-text-muted text-sm">Click "Check Connection" above to detect loaded models.</p>
+          </div>
+        </div>
+
+        <!-- Default Model Selection -->
+        <div id="default-model-section" class="space-y-2">
+          <label class="block text-text-primary font-semibold text-sm">Default Model</label>
+          <select name="provider_config[default_model]" id="default-model-select"
+                  class="w-full px-4 py-2 bg-surface-raised border border-border-default rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+            <option value="">Select a default...</option>
+          </select>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="flex gap-3 pt-4 border-t border-border-default">
+          <%= f.submit "Add Provider", class: "px-6 py-2 bg-brand hover:bg-brand-dark text-white font-semibold rounded-lg transition cursor-pointer" %>
+          <%= link_to "Cancel", providers_path, class: "px-6 py-2 bg-surface-raised hover:bg-surface-overlay text-white font-semibold rounded-lg transition" %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <script>
+    // Provider type switching
+    const typeCards = document.querySelectorAll('.provider-type-card');
+    const configSection = document.getElementById('config-section');
+    const apiKeySection = document.getElementById('api-key-section');
+    const apiKeyInput = document.getElementById('api-key-input');
+    const apiKeyHint = document.getElementById('api-key-hint');
+    const defaultModelSelect = document.getElementById('default-model-select');
+
+    const modelSections = {
+      anthropic: document.getElementById('anthropic-models'),
+      openai: document.getElementById('openai-models'),
+      ollama: document.getElementById('ollama-models-container'),
+      llama_cpp: document.getElementById('llamacpp-models-container')
+    };
+
+    const settingSections = {
+      ollama: document.getElementById('ollama-settings'),
+      llama_cpp: document.getElementById('llamacpp-settings')
+    };
+
+    const defaultModels = {
+      anthropic: [
+        { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5' },
+        { id: 'claude-opus-4-6', name: 'Claude Opus 4.6' },
+        { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5' }
+      ],
+      openai: [
+        { id: 'gpt-5.2', name: 'GPT-5.2' },
+        { id: 'gpt-5.2-mini', name: 'GPT-5.2 Mini' },
+        { id: 'gpt-5.2-nano', name: 'GPT-5.2 Nano' },
+        { id: 'o3', name: 'o3' },
+        { id: 'o4-mini', name: 'o4-mini' }
+      ]
+    };
+
+    const apiKeyHints = {
+      anthropic: 'Get a key at <a href="https://console.anthropic.com/" target="_blank" class="text-brand-light hover:underline">console.anthropic.com</a>',
+      openai: 'Get a key at <a href="https://platform.openai.com/" target="_blank" class="text-brand-light hover:underline">platform.openai.com</a>',
+      ollama: 'Leave blank for local Ollama (no API key needed).',
+      llama_cpp: 'Leave blank for local llama-server (no API key needed).'
+    };
+
+    const apiKeyPlaceholders = {
+      anthropic: 'sk-ant-...',
+      openai: 'sk-...',
+      ollama: 'Leave blank for local Ollama',
+      llama_cpp: 'Leave blank for local llama-server'
+    };
+
+    function selectProviderType(type) {
+      // Update card styling
+      typeCards.forEach(card => {
+        const radio = card.querySelector('.provider-type-radio');
+        const check = card.querySelector('.provider-type-check');
+        if (card.dataset.type === type) {
+          card.classList.add('border-brand');
+          card.classList.remove('border-transparent');
+          check.classList.remove('hidden');
+          radio.checked = true;
+        } else {
+          card.classList.remove('border-brand');
+          card.classList.add('border-transparent');
+          check.classList.add('hidden');
+          radio.checked = false;
+        }
+      });
+
+      // Show config section
+      configSection.classList.remove('hidden');
+
+      // Toggle API key section
+      const needsKey = ['openai', 'anthropic'].includes(type);
+      if (needsKey) {
+        apiKeySection.classList.remove('hidden');
+      } else {
+        apiKeySection.classList.add('hidden');
+      }
+      apiKeyInput.placeholder = apiKeyPlaceholders[type] || 'Enter API key...';
+      apiKeyHint.innerHTML = apiKeyHints[type] || '';
+
+      // Toggle advanced settings
+      Object.keys(settingSections).forEach(k => {
+        if (settingSections[k]) settingSections[k].classList.add('hidden');
+      });
+      if (settingSections[type]) settingSections[type].classList.remove('hidden');
+
+      // Toggle model sections
+      Object.keys(modelSections).forEach(k => {
+        if (modelSections[k]) modelSections[k].classList.add('hidden');
+      });
+      if (modelSections[type]) modelSections[type].classList.remove('hidden');
+
+      // Update default model dropdown
+      updateDefaultModelDropdown(type);
+    }
+
+    function updateDefaultModelDropdown(type) {
+      defaultModelSelect.innerHTML = '<option value="">Select a default...</option>';
+      const models = defaultModels[type];
+      if (models) {
+        models.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.name;
+          defaultModelSelect.appendChild(opt);
+        });
+      }
+    }
+
+    typeCards.forEach(card => {
+      card.addEventListener('click', () => selectProviderType(card.dataset.type));
+    });
+
+    // Auto-select if only one type available
+    if (typeCards.length === 1) {
+      selectProviderType(typeCards[0].dataset.type);
+    }
+
+    // Ollama model detection
+    function detectOllamaModels() {
+      const urlInput = document.getElementById('ollama-custom-url');
+      const url = urlInput ? urlInput.value : 'http://host.docker.internal:11434';
+      const container = document.getElementById('ollama-models-container');
+
+      container.innerHTML = '<p class="text-text-muted text-sm">Detecting models...</p>';
+
+      fetch(`/setup/ollama_models?url=${encodeURIComponent(url)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === 'connected' && data.models.length > 0) {
+            let html = '<p class="text-green-300 text-sm font-medium mb-2">\u2713 Connected \u2014 ' + data.models.length + ' model(s) found</p>';
+            html += '<div class="space-y-2">';
+            data.models.forEach((m, i) => {
+              html += `
+                <label class="flex items-start gap-3 p-4 bg-surface-raised rounded-lg cursor-pointer hover:bg-surface-overlay transition group border border-border-default/50">
+                  <input type="checkbox" name="provider_config[models][]" value="${m.id}" ${i === 0 ? 'checked' : ''}
+                         class="mt-1 w-4 h-4 rounded border-gray-500 text-purple-600 focus:ring-purple-500 bg-surface-overlay flex-shrink-0">
+                  <div class="flex-1">
+                    <span class="text-white text-sm font-medium block">${m.name}</span>
+                    <p class="text-text-muted text-xs">${m.parameter_size || m.size + 'GB'}${m.family ? ' \u00b7 ' + m.family : ''}</p>
+                  </div>
+                </label>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+
+            // Update default model dropdown with detected models
+            defaultModelSelect.innerHTML = '<option value="">Select a default...</option>';
+            data.models.forEach(m => {
+              const opt = document.createElement('option');
+              opt.value = m.id;
+              opt.textContent = m.name;
+              defaultModelSelect.appendChild(opt);
+            });
+          } else if (data.status === 'connected') {
+            container.innerHTML = '<p class="text-yellow-300 text-sm">Ollama is running but no models installed. Run: <code class="text-text-primary font-mono text-xs">ollama pull llama3.2:3b</code></p>';
+          } else {
+            container.innerHTML = `<p class="text-red-300 text-sm mb-2">\u26a0 Error: ${data.message || 'Could not connect'}</p><p class="text-text-faint text-xs">Install Ollama from <a href="https://ollama.com/" target="_blank" class="text-brand-light hover:underline">ollama.com</a></p>`;
+          }
+        })
+        .catch(() => {
+          container.innerHTML = '<p class="text-red-300 text-sm mb-2">\u26a0 Could not reach Ollama. Make sure it is installed and running.</p><p class="text-text-faint text-xs">Install Ollama from <a href="https://ollama.com/" target="_blank" class="text-brand-light hover:underline">ollama.com</a></p>';
+        });
+    }
+
+    // llama.cpp model detection
+    function detectLlamaCppModels() {
+      const urlInput = document.getElementById('llamacpp-custom-url');
+      const url = urlInput ? urlInput.value : 'http://host.docker.internal:8080';
+      const container = document.getElementById('llamacpp-models-container');
+
+      container.innerHTML = '<p class="text-text-muted text-sm">Detecting models...</p>';
+
+      fetch(`/setup/llama_cpp_models?url=${encodeURIComponent(url)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === 'connected' && data.models.length > 0) {
+            let html = '<p class="text-green-300 text-sm font-medium mb-2">\u2713 Connected \u2014 ' + data.models.length + ' model(s) loaded</p>';
+            html += '<div class="space-y-2">';
+            data.models.forEach((m, i) => {
+              html += `
+                <label class="flex items-start gap-3 p-4 bg-surface-raised rounded-lg cursor-pointer hover:bg-surface-overlay transition group border border-border-default/50">
+                  <input type="checkbox" name="provider_config[models][]" value="${m.id}" ${i === 0 ? 'checked' : ''}
+                         class="mt-1 w-4 h-4 rounded border-gray-500 text-blue-600 focus:ring-blue-500 bg-surface-overlay flex-shrink-0">
+                  <div class="flex-1">
+                    <span class="text-white text-sm font-medium block">${m.name}</span>
+                  </div>
+                </label>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+
+            // Update default model dropdown with detected models
+            defaultModelSelect.innerHTML = '<option value="">Select a default...</option>';
+            data.models.forEach(m => {
+              const opt = document.createElement('option');
+              opt.value = m.id;
+              opt.textContent = m.name;
+              defaultModelSelect.appendChild(opt);
+            });
+          } else if (data.status === 'connected') {
+            container.innerHTML = '<p class="text-yellow-300 text-sm">llama-server is running but no model is loaded. Start it with: <code class="text-text-primary font-mono text-xs">llama-server -m model.gguf</code></p>';
+          } else {
+            container.innerHTML = `<p class="text-red-300 text-sm mb-2">\u26a0 Error: ${data.message || 'Could not connect'}</p><p class="text-text-faint text-xs">Start llama-server with: <code class="text-text-primary font-mono text-xs">llama-server -m model.gguf --port 8080</code></p>`;
+          }
+        })
+        .catch(() => {
+          container.innerHTML = '<p class="text-red-300 text-sm mb-2">\u26a0 Could not reach llama-server. Make sure it is running.</p><p class="text-text-faint text-xs">Start llama-server with: <code class="text-text-primary font-mono text-xs">llama-server -m model.gguf --port 8080</code></p>';
+        });
+    }
+  </script>
+</div>
