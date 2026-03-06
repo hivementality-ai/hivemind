@@ -77,18 +77,21 @@ cmd_update() {
 
   # Fetch tags
   info "Fetching latest release..."
-  git fetch origin --tags --quiet
+  git fetch origin --tags --force --quiet 2>/dev/null || warn "git fetch failed — continuing with local tags"
 
-  local all_tags
-  all_tags="$(git tag --sort=-version:refname 2>/dev/null || true)"
   local latest_tag=""
-  if [ -n "$all_tags" ]; then
+  while IFS= read -r tag; do
+    [ -z "$tag" ] && continue
     if [ "$use_rc" = true ]; then
-      latest_tag="$(echo "$all_tags" | head -n 1)"
+      latest_tag="$tag"
+      break
     else
-      latest_tag="$(echo "$all_tags" | grep -v '\-rc' | head -n 1)" || true
+      if [[ "$tag" != *-rc* ]]; then
+        latest_tag="$tag"
+        break
+      fi
     fi
-  fi
+  done < <(git tag --sort=-version:refname 2>/dev/null)
 
   if [ -z "$latest_tag" ]; then
     warn "No release tags found — pulling main"

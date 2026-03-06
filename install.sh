@@ -218,16 +218,17 @@ pull_latest_tag() {
   cd "$HIVEMIND_DIR"
 
   info "Fetching latest release..."
-  git fetch origin --tags --quiet
+  git fetch origin --tags --force --quiet 2>/dev/null || true
 
   # Find the latest stable tag (CalVer: vYYYY.MM.PATCH, excludes -rc tags)
-  local latest_tag
-  local all_tags
-  all_tags="$(git tag --sort=-version:refname 2>/dev/null || true)"
   local latest_tag=""
-  if [ -n "$all_tags" ]; then
-    latest_tag="$(echo "$all_tags" | grep -v '\-rc' | head -n 1)" || true
-  fi
+  while IFS= read -r tag; do
+    [ -z "$tag" ] && continue
+    if [[ "$tag" != *-rc* ]]; then
+      latest_tag="$tag"
+      break
+    fi
+  done < <(git tag --sort=-version:refname 2>/dev/null)
 
   if [ -z "$latest_tag" ]; then
     warn "No release tags found — using main branch"
