@@ -222,7 +222,12 @@ pull_latest_tag() {
 
   # Find the latest stable tag (CalVer: vYYYY.MM.PATCH, excludes -rc tags)
   local latest_tag
-  latest_tag="$(set +o pipefail; git tag --sort=-version:refname | grep -v '\-rc' | head -n 1)"
+  local all_tags
+  all_tags="$(git tag --sort=-version:refname 2>/dev/null || true)"
+  local latest_tag=""
+  if [ -n "$all_tags" ]; then
+    latest_tag="$(echo "$all_tags" | grep -v '\-rc' | head -n 1)" || true
+  fi
 
   if [ -z "$latest_tag" ]; then
     warn "No release tags found — using main branch"

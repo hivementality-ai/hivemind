@@ -79,13 +79,15 @@ cmd_update() {
   info "Fetching latest release..."
   git fetch origin --tags --quiet
 
-  local latest_tag
-  if [ "$use_rc" = true ]; then
-    # Include release candidates
-    latest_tag="$(set +o pipefail; git tag --sort=-version:refname | head -n 1)"
-  else
-    # Stable releases only (exclude -rc tags)
-    latest_tag="$(set +o pipefail; git tag --sort=-version:refname | grep -v '\-rc' | head -n 1)"
+  local all_tags
+  all_tags="$(git tag --sort=-version:refname 2>/dev/null || true)"
+  local latest_tag=""
+  if [ -n "$all_tags" ]; then
+    if [ "$use_rc" = true ]; then
+      latest_tag="$(echo "$all_tags" | head -n 1)"
+    else
+      latest_tag="$(echo "$all_tags" | grep -v '\-rc' | head -n 1)" || true
+    fi
   fi
 
   if [ -z "$latest_tag" ]; then
