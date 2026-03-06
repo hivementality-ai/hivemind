@@ -57,9 +57,10 @@ module Providers
       formatted_messages = messages.map do |m|
         m = m.to_h.with_indifferent_access
         role = m[:role].to_s
+        content = flatten_content(m[:content])
 
         if role == "tool"
-          msg = { role: "tool", content: m[:content].to_s }
+          msg = { role: "tool", content: content.to_s }
           msg[:tool_call_id] = m[:tool_call_id] || m[:tool_use_id] if m[:tool_call_id].present? || m[:tool_use_id].present?
           msg
         elsif role == "assistant" && m[:tool_calls].present?
@@ -72,11 +73,11 @@ module Providers
               function: { name: tc["name"], arguments: args }
             }
           end
-          msg = { role: "assistant", content: m[:content] || "" }
+          msg = { role: "assistant", content: content || "" }
           msg[:tool_calls] = openai_tool_calls
           msg
         else
-          m.slice(:role, :content)
+          { role: role, content: content }
         end
       end
 
@@ -103,6 +104,18 @@ module Providers
       end
 
       params
+    end
+
+    # llama.cpp requires content to be a plain string.
+    # Flatten Anthropic-style content blocks (arrays of {type: "text", text: "..."})
+    # into a single string.
+    def flatten_content(content)
+      return content unless content.is_a?(Array)
+
+      content.map { |b|
+        b = b.to_h.with_indifferent_access
+        b[:text].presence || b[:content].presence
+      }.compact.reject(&:blank?).join("\n\n")
     end
 
     def stream_chat(params:, &block)

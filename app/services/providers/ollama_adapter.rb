@@ -58,9 +58,10 @@ module Providers
       formatted_messages = messages.map do |m|
         m = m.to_h.with_indifferent_access
         role = m[:role].to_s
+        content = flatten_content(m[:content])
 
         if role == "tool"
-          msg = { role: "tool", content: m[:content].to_s }
+          msg = { role: "tool", content: content.to_s }
           # Ollama requires tool_name to match results back to calls
           msg[:tool_name] = m[:tool_name] if m[:tool_name].present?
           msg
@@ -68,11 +69,11 @@ module Providers
           ollama_tool_calls = m[:tool_calls].map do |tc|
             { function: { name: tc["name"], arguments: tc["input"] || {} } }
           end
-          msg = { role: "assistant", content: m[:content] || "" }
+          msg = { role: "assistant", content: content || "" }
           msg[:tool_calls] = ollama_tool_calls
           msg
         else
-          m.slice(:role, :content)
+          { role: role, content: content }
         end
       end
 
@@ -102,6 +103,18 @@ module Providers
       end
 
       params
+    end
+
+    # Ollama requires content to be a plain string.
+    # Flatten Anthropic-style content blocks (arrays of {type: "text", text: "..."})
+    # and image blocks into a single string.
+    def flatten_content(content)
+      return content unless content.is_a?(Array)
+
+      content.map { |b|
+        b = b.to_h.with_indifferent_access
+        b[:text].presence || b[:content].presence
+      }.compact.reject(&:blank?).join("\n\n")
     end
 
     def calculate_num_ctx(messages, tools, options)
