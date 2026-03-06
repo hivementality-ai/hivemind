@@ -17,6 +17,8 @@ module Api
                    fetch_anthropic_models
         when "openai"
                    fetch_openai_models
+        when "llama_cpp"
+                   fetch_llama_cpp_models
         else
                    []
         end
@@ -55,6 +57,20 @@ module Api
           { id: "gpt-5-mini", name: "GPT-5 Mini" },
           { id: "gpt-5-nano", name: "GPT-5 Nano" }
         ]
+      end
+
+      def fetch_llama_cpp_models
+        config = ProviderConfig.find_by(adapter_type: "llama_cpp") || ProviderConfig.new(adapter_type: "llama_cpp")
+        adapter = Providers::LlamaCppAdapter.new(config: config)
+        result = adapter.models
+        if result.success?
+          result.data[:models].map { |name| { id: name, name: format_model_name(name) } }
+        else
+          [ { id: "", name: "llama-server not reachable — is it running?" } ]
+        end
+      rescue StandardError => e
+        Rails.logger.warn("llama.cpp model fetch failed: #{e.message}")
+        [ { id: "", name: "llama-server not reachable — is it running?" } ]
       end
 
       def format_model_name(name)

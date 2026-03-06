@@ -2,9 +2,9 @@
 
 class SetupController < ApplicationController
   layout "setup"
-  skip_before_action :authenticate_user!, only: [ :index, :account, :create_account, :ollama_models ]
-  skip_before_action :verify_authenticity_token, only: [ :ollama_models ]
-  before_action :redirect_if_setup_complete, except: [ :complete, :ollama_models ]
+  skip_before_action :authenticate_user!, only: [ :index, :account, :create_account, :ollama_models, :llama_cpp_models ]
+  skip_before_action :verify_authenticity_token, only: [ :ollama_models, :llama_cpp_models ]
+  before_action :redirect_if_setup_complete, except: [ :complete, :ollama_models, :llama_cpp_models ]
   before_action :authenticate_user!, only: [ :provider, :save_provider, :team, :save_team, :agent, :save_agent, :complete ]
 
   # Step 0: Landing — shows the welcome screen
@@ -161,6 +161,36 @@ class SetupController < ApplicationController
     render json: { status: "error", message: e.message }, status: :unprocessable_entity
   end
 
+  # Check llama.cpp connectivity and fetch available models
+  def llama_cpp_models
+    url = params[:url].presence || "http://host.docker.internal:8080"
+
+    # Validate URL to prevent SSRF
+    uri = URI.parse("#{url}/v1/models")
+    unless uri.is_a?(URI::HTTP) && uri.host.present? && !uri.host.match?(/\A\[?::1?\]?\z/)
+      return render json: { status: "error", message: "Invalid llama.cpp URL" }, status: :unprocessable_entity
+    end
+
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = uri.scheme == "https"
+    http.open_timeout = 3
+    http.read_timeout = 5
+
+    response = http.request(Net::HTTP::Get.new(uri))
+    data = JSON.parse(response.body)
+
+    models = (data["data"] || []).map do |m|
+      {
+        id: m["id"],
+        name: m["id"]
+      }
+    end.sort_by { |m| m[:name] }
+
+    render json: { status: "connected", models: models }
+  rescue StandardError => e
+    render json: { status: "error", message: e.message }, status: :unprocessable_entity
+  end
+
   # Done!
   def complete
     @agent = Agent.last
@@ -181,7 +211,8 @@ class SetupController < ApplicationController
     params.require(:providers).permit(
       anthropic: [ :api_key, :default_model, models: [] ],
       openai: [ :api_key, :default_model, models: [] ],
-      ollama: [ :api_key, :default_model, models: [] ]
+      ollama: [ :api_key, :default_model, models: [] ],
+      llama_cpp: [ :api_key, :default_model, models: [] ]
     )
   end
 

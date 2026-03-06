@@ -85,6 +85,14 @@ RSpec.describe Providers::Resolver do
         expect(result.success?).to be true
         expect(result.data[:adapter]).to be_a(Providers::OllamaAdapter)
       end
+
+      it 'returns LlamaCppAdapter for llama_cpp type' do
+        provider = create(:provider_config, :llama_cpp, name: "llama.cpp")
+        result = described_class.call(provider_name: "llama.cpp")
+
+        expect(result.success?).to be true
+        expect(result.data[:adapter]).to be_a(Providers::LlamaCppAdapter)
+      end
     end
 
     context 'when adapter type is unknown' do

@@ -1,10 +1,15 @@
 import { Controller } from "@hotwired/stimulus"
 
 const OLLAMA_DEFAULT_URL = "http://host.docker.internal:11434"
+const LLAMA_CPP_DEFAULT_URL = "http://host.docker.internal:8080"
 
 // Connects to data-controller="provider-models"
 export default class extends Controller {
-  static targets = ["keyInput", "modelList", "section", "ollamaToggle", "ollamaUrl", "ollamaEnabled", "ollamaCustomUrl"]
+  static targets = [
+    "keyInput", "modelList", "section",
+    "ollamaToggle", "ollamaUrl", "ollamaEnabled", "ollamaCustomUrl",
+    "llamaCppToggle", "llamaCppUrl", "llamaCppEnabled", "llamaCppCustomUrl"
+  ]
 
   connect() {
     // Show model lists for any pre-filled keys
@@ -15,6 +20,14 @@ export default class extends Controller {
       if (this.hasOllamaToggleTarget) {
         this.ollamaToggleTarget.checked = true
         this.showOllamaSettings()
+      }
+    }
+
+    // Restore llama.cpp toggle state if URL was previously set
+    if (this.hasLlamaCppUrlTarget && this.llamaCppUrlTarget.value) {
+      if (this.hasLlamaCppToggleTarget) {
+        this.llamaCppToggleTarget.checked = true
+        this.showLlamaCppSettings()
       }
     }
   }
@@ -71,6 +84,53 @@ export default class extends Controller {
     const customUrl = event.currentTarget.value.trim()
     if (this.hasOllamaUrlTarget) {
       this.ollamaUrlTarget.value = customUrl || OLLAMA_DEFAULT_URL
+    }
+  }
+
+  toggleLlamaCpp(event) {
+    if (event.currentTarget.checked) {
+      this.enableLlamaCpp()
+    } else {
+      this.disableLlamaCpp()
+    }
+  }
+
+  enableLlamaCpp() {
+    if (this.hasLlamaCppUrlTarget) {
+      this.llamaCppUrlTarget.value = LLAMA_CPP_DEFAULT_URL
+    }
+    if (this.hasLlamaCppCustomUrlTarget) {
+      this.llamaCppCustomUrlTarget.value = LLAMA_CPP_DEFAULT_URL
+    }
+    this.showLlamaCppSettings()
+  }
+
+  disableLlamaCpp() {
+    if (this.hasLlamaCppUrlTarget) {
+      this.llamaCppUrlTarget.value = ""
+    }
+    this.hideLlamaCppSettings()
+  }
+
+  showLlamaCppSettings() {
+    if (this.hasLlamaCppEnabledTarget) {
+      this.llamaCppEnabledTarget.classList.remove("hidden")
+      if (typeof detectLlamaCppModels === "function") {
+        detectLlamaCppModels()
+      }
+    }
+  }
+
+  hideLlamaCppSettings() {
+    if (this.hasLlamaCppEnabledTarget) {
+      this.llamaCppEnabledTarget.classList.add("hidden")
+    }
+  }
+
+  updateLlamaCppUrl(event) {
+    const customUrl = event.currentTarget.value.trim()
+    if (this.hasLlamaCppUrlTarget) {
+      this.llamaCppUrlTarget.value = customUrl || LLAMA_CPP_DEFAULT_URL
     }
   }
 

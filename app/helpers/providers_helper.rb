@@ -9,6 +9,8 @@ module ProvidersHelper
       "bg-green-600"
     when "ollama"
       "bg-purple-600"
+    when "llama_cpp"
+      "bg-blue-600"
     else
       "bg-gray-600"
     end
@@ -22,6 +24,8 @@ module ProvidersHelper
       "O"
     when "ollama"
       "OL"
+    when "llama_cpp"
+      "LC"
     else
       "?"
     end
@@ -35,6 +39,8 @@ module ProvidersHelper
       "sk-..."
     when "ollama"
       "Leave blank for local Ollama"
+    when "llama_cpp"
+      "Leave blank for local llama-server"
     else
       "Enter API key..."
     end

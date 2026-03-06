@@ -100,6 +100,9 @@ class ProvidersController < ApplicationController
       # Ollama models should be dynamically fetched, but for now return empty
       # The edit view will handle dynamic loading via JavaScript
       []
+    when "llama_cpp"
+      # llama.cpp models are dynamically fetched via JavaScript
+      []
     else
       []
     end
