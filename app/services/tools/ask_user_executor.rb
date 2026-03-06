@@ -30,12 +30,24 @@ module Tools
       Rails.cache.write(redis_key, pending_data, expires_in: DEFAULT_TIMEOUT + 60)
 
       # Broadcast the question to the chat
+      session = config[:session]
       channel = "session_#{session_id}"
       ActionCable.server.broadcast(channel, {
         type: "agent_question",
         question: question,
         timestamp: Time.current.iso8601
       })
+
+      # Also broadcast to team chat channel if this is a team chat session
+      if session.respond_to?(:team_chat_session) && session.team_chat_session.present?
+        ActionCable.server.broadcast("team_chat_#{session.team_chat_session.id}", {
+          type: "agent_question",
+          agent_id: agent&.id,
+          agent_name: agent&.name,
+          question: question,
+          timestamp: Time.current.iso8601
+        })
+      end
 
       # Wait for user response with timeout
       timeout_at = Time.current + DEFAULT_TIMEOUT

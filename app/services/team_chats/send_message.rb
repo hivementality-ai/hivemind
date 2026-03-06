@@ -15,6 +15,11 @@ module TeamChats
     end
 
     def call
+      # Check if any agent has a pending ask_user question
+      if handle_pending_question
+        return ServiceResponse.success(data: { message: nil, question_answered: true })
+      end
+
       team = @session.team
       mentions = TeamChatMessage.extract_mentions(@message.to_s, team)
       target_agent = mentions[:agents].first if mentions[:agents].size == 1 && !mentions[:broadcast]
@@ -34,6 +39,50 @@ module TeamChats
     end
 
     private
+
+    def handle_pending_question
+      # Check each agent's session for a pending ask_user question
+      @session.agent_sessions.each do |agent_session|
+        redis_key = "ask_user_pending:#{agent_session.id}"
+        cached_data = Rails.cache.read(redis_key)
+        next unless cached_data
+
+        begin
+          parsed_data = JSON.parse(cached_data)
+
+          timeout_at = Time.parse(parsed_data["timeout_at"])
+          if Time.current > timeout_at
+            Rails.cache.delete(redis_key)
+            next
+          end
+
+          # Store the user's answer so the polling executor picks it up
+          parsed_data["answer"] = @message
+          parsed_data["answered_at"] = Time.current.iso8601
+          Rails.cache.write(redis_key, parsed_data.to_json, expires_in: 60)
+
+          # Save user message to team chat for visibility
+          @session.team_chat_messages.create!(
+            sender_type: "user",
+            sender_id: @user.id,
+            content: @message.to_s.presence || "[response]"
+          )
+
+          # Broadcast so the UI shows the response
+          ActionCable.server.broadcast("team_chat_#{@session.id}", {
+            type: "user_message",
+            content: @message.to_s
+          })
+
+          return true
+        rescue JSON::ParserError
+          Rails.cache.delete(redis_key)
+          next
+        end
+      end
+
+      false
+    end
 
     def create_message(target_agent)
       @session.team_chat_messages.create(
