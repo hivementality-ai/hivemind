@@ -23,10 +23,20 @@ class MigrationController < ApplicationController
         agent_slug: agent_slug,
         report: report.to_h
       }
-      @report = report.to_h.deep_symbolize_keys
+      redirect_to migration_results_path
     else
       redirect_to migration_path, alert: "Scan failed: #{result.error}"
     end
+  end
+
+  def results
+    pending = session[:pending_migration]
+    unless pending
+      redirect_to migration_path, alert: "No scan results. Please start a new scan."
+      return
+    end
+
+    @report = pending.deep_symbolize_keys[:report]
   end
 
   def review

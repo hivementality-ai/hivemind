@@ -125,6 +125,7 @@ Rails.application.routes.draw do
   # Migration Wizard
   get  "migration",            to: "migration#upload",     as: :migration
   post "migration/scan",       to: "migration#scan",       as: :migration_scan
+  get  "migration/results",    to: "migration#results",    as: :migration_results
   get  "migration/review",     to: "migration#review",     as: :migration_review
   post "migration/import",     to: "migration#run_import", as: :migration_import
   get  "migration/reconnect",  to: "migration#reconnect",  as: :migration_reconnect

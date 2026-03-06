@@ -65,13 +65,13 @@ RSpec.describe OpenClaw::Migrator do
     context "with missing config.json" do
       before do
         @workspace_path = Dir.mktmpdir("openclaw_test_")
+        File.write(File.join(@workspace_path, "IDENTITY.md"), "**Name:** TestAgent\n")
       end
 
-      it "returns failure" do
+      it "succeeds without config.json" do
         result = described_class.call(workspace_path: @workspace_path)
 
-        expect(result).not_to be_success
-        expect(result.error).to match(/Missing config\.json/)
+        expect(result).to be_success
       end
     end
 

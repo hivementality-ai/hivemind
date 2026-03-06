@@ -99,7 +99,7 @@ module OpenClaw
       raise ValidationError, "Directory does not exist: #{@workspace_path}" unless File.directory?(@workspace_path)
 
       config_path = File.join(@workspace_path, "config.json")
-      raise ValidationError, "Missing config.json in #{@workspace_path}" unless File.exist?(config_path)
+      report.markers_found << "config.json" if File.exist?(config_path)
 
       OPTIONAL_MARKERS.each do |marker|
         path = File.join(@workspace_path, marker)
