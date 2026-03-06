@@ -17,6 +17,7 @@ Rails.application.routes.draw do
   post "setup/agent",    to: "setup#save_agent"
   get  "setup/complete", to: "setup#complete",        as: :setup_complete
   get  "setup/ollama_models", to: "setup#ollama_models", as: :setup_ollama_models
+  get  "setup/llama_cpp_models", to: "setup#llama_cpp_models", as: :setup_llama_cpp_models
 
   # Root - Mission Control Dashboard
   root "dashboard#index"

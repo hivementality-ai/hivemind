@@ -41,6 +41,17 @@ FactoryBot.define do
       vault_key { nil }
     end
 
+    trait :llama_cpp do
+      name { "llama.cpp" }
+      adapter_type { "llama_cpp" }
+      model_definitions do
+        [
+          { name: "default", max_tokens: 4096 }
+        ]
+      end
+      vault_key { nil }
+    end
+
     trait :disabled do
       enabled { false }
     end

@@ -55,6 +55,10 @@
     {
       "fingerprint": "e8a4755b9673b6dde053be9a12ce611d0cbe0bf63d96cf4757131d0eb74002a6",
       "note": "False positive: Net::HTTP.new with URI, not file access"
+    },
+    {
+      "fingerprint": "809f00a2999bbd873a33f3bc8557e12775d60483880d0c954ac6fae574155de1",
+      "note": "llama.cpp URL is user-provided during setup — validated as HTTP URI, used only for local model detection"
     }
   ],
   "updated": "2026-02-15",

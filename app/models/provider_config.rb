@@ -2,7 +2,7 @@
 
 class ProviderConfig < ApplicationRecord
   validates :name, presence: true, uniqueness: true
-  validates :adapter_type, presence: true, inclusion: { in: %w[openai anthropic ollama] }
+  validates :adapter_type, presence: true, inclusion: { in: %w[openai anthropic ollama llama_cpp] }
 
   scope :enabled_providers, -> { where(enabled: true) }
 

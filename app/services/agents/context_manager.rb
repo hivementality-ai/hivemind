@@ -28,7 +28,7 @@ module Agents
       @model = llm_model
       @max_output = max_output_tokens
       @provider = provider
-      limit = MODEL_LIMITS[@model] || (@provider == "ollama" ? 8_192 : 200_000)
+      limit = MODEL_LIMITS[@model] || (%w[ollama llama_cpp].include?(@provider) ? 8_192 : 200_000)
       @budget = limit - @max_output - RESERVE_TOKENS
     end
 
