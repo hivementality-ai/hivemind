@@ -82,10 +82,10 @@ cmd_update() {
   local latest_tag
   if [ "$use_rc" = true ]; then
     # Include release candidates
-    latest_tag="$(git tag --sort=-version:refname | head -n 1)"
+    latest_tag="$(git tag --sort=-version:refname | head -n 1 || true)"
   else
     # Stable releases only (exclude -rc tags)
-    latest_tag="$(git tag --sort=-version:refname | grep -v '\-rc' | head -n 1)"
+    latest_tag="$(git tag --sort=-version:refname | grep -v '\-rc' | head -n 1 || true)"
   fi
 
   if [ -z "$latest_tag" ]; then
