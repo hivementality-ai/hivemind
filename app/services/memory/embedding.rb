@@ -76,7 +76,7 @@ module Memory
     def generate_ollama(text)
       response = Faraday.post(
         "#{ollama_base_url}/api/embeddings",
-        { model: OLLAMA_MODEL, prompt: text }.to_json,
+        { model: OLLAMA_MODEL, prompt: text, options: { num_ctx: 2048 } }.to_json,
         { "Content-Type" => "application/json" }
       )
 
