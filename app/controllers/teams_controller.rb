@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class TeamsController < ApplicationController
-  before_action :set_team, only: [:edit, :update]
+  before_action :set_team, only: [ :edit, :update ]
 
   def edit
   end
