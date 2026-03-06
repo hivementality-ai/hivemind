@@ -7,7 +7,7 @@ class Team < ApplicationRecord
 
   validates :name, presence: true, uniqueness: true
 
-  after_save :rebuild_soul, if: -> { saved_change_to_name? || saved_change_to_description? }
+  after_save :rebuild_soul, if: -> { saved_change_to_name? || saved_change_to_description? || saved_change_to_custom_soul? }
 
   private
 
