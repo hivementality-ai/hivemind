@@ -1,7 +1,7 @@
 FactoryBot.define do
   factory :provider_config do
     sequence(:name) { |n| "Provider #{n}" }
-    adapter_type { "openai" }
+    sequence(:adapter_type) { |n| %w[openai anthropic ollama llama_cpp][n % 4] }
     model_definitions { [] }
     vault_key { "providers/api_key" }
     enabled { true }

@@ -48,7 +48,7 @@ Rails.application.routes.draw do
   resources :agents, param: :slug
 
   # Providers (admin interface)
-  resources :providers, only: [ :index, :show, :edit, :update ]
+  resources :providers, only: [ :index, :show, :new, :create, :edit, :update ]
 
   # Tools
   resources :tools

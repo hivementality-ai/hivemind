@@ -17,7 +17,7 @@ RSpec.describe ProvidersController, type: :controller do
   end
 
   describe 'Authorization' do
-    before do
+    let!(:auth_provider) do
       create(:provider_config, name: 'Test Provider', adapter_type: 'anthropic')
     end
 
@@ -38,7 +38,7 @@ RSpec.describe ProvidersController, type: :controller do
       end
 
       it 'redirects to root for show' do
-        get :show, params: { id: anthropic_provider.id }
+        get :show, params: { id: auth_provider.id }
         expect(response).to redirect_to(root_path)
         expect(flash[:alert]).to eq('Access denied.')
       end
@@ -48,7 +48,7 @@ RSpec.describe ProvidersController, type: :controller do
       before { sign_in operator }
 
       it 'redirects to root for edit' do
-        get :edit, params: { id: anthropic_provider.id }
+        get :edit, params: { id: auth_provider.id }
         expect(response).to redirect_to(root_path)
         expect(flash[:alert]).to eq('Access denied.')
       end
@@ -63,12 +63,12 @@ RSpec.describe ProvidersController, type: :controller do
       end
 
       it 'allows access to show' do
-        get :show, params: { id: anthropic_provider.id }
+        get :show, params: { id: auth_provider.id }
         expect(response).to be_successful
       end
 
       it 'allows access to edit' do
-        get :edit, params: { id: anthropic_provider.id }
+        get :edit, params: { id: auth_provider.id }
         expect(response).to be_successful
       end
     end
@@ -82,12 +82,12 @@ RSpec.describe ProvidersController, type: :controller do
       end
 
       it 'allows access to show' do
-        get :show, params: { id: anthropic_provider.id }
+        get :show, params: { id: auth_provider.id }
         expect(response).to be_successful
       end
 
       it 'allows access to edit' do
-        get :edit, params: { id: anthropic_provider.id }
+        get :edit, params: { id: auth_provider.id }
         expect(response).to be_successful
       end
     end
@@ -108,7 +108,7 @@ RSpec.describe ProvidersController, type: :controller do
     end
 
     it 'orders providers by name' do
-      create(:provider_config, name: 'Zebra', adapter_type: 'anthropic')
+      create(:provider_config, name: 'Zebra', adapter_type: 'ollama')
       create(:provider_config, name: 'Apple', adapter_type: 'openai')
       get :index
       expect(assigns(:providers).map(&:name)).to eq([ 'Apple', 'Zebra' ])
@@ -265,6 +265,121 @@ RSpec.describe ProvidersController, type: :controller do
 
         expect(response).to have_http_status(:unprocessable_entity)
         expect(response).to render_template(:edit_form)
+      end
+    end
+  end
+
+  describe 'GET #new' do
+    before { sign_in owner }
+
+    it 'returns a successful response' do
+      get :new
+      expect(response).to be_successful
+    end
+
+    it 'assigns available types excluding existing ones' do
+      create(:provider_config, name: 'Anthropic', adapter_type: 'anthropic')
+      get :new
+      expect(assigns(:available_types)).not_to include('anthropic')
+      expect(assigns(:available_types)).to include('openai', 'ollama', 'llama_cpp')
+    end
+
+    it 'redirects to index when all types are configured' do
+      create(:provider_config, name: 'OpenAI', adapter_type: 'openai')
+      create(:provider_config, name: 'Anthropic', adapter_type: 'anthropic')
+      create(:provider_config, name: 'Ollama', adapter_type: 'ollama')
+      create(:provider_config, name: 'llama.cpp', adapter_type: 'llama_cpp')
+      get :new
+      expect(response).to redirect_to(providers_path)
+      expect(flash[:notice]).to include('All provider types are already configured')
+    end
+  end
+
+  describe 'POST #create' do
+    before { sign_in owner }
+
+    context 'with valid params' do
+      it 'creates a new provider and redirects to show' do
+        expect {
+          post :create, params: {
+            provider_config: {
+              adapter_type: 'anthropic',
+              api_key: 'sk-ant-test-key',
+              models: [ 'claude-sonnet-4-5', 'claude-haiku-4-5' ],
+              default_model: 'claude-sonnet-4-5'
+            }
+          }
+        }.to change(ProviderConfig, :count).by(1)
+
+        provider = ProviderConfig.last
+        expect(provider.name).to eq('Anthropic')
+        expect(provider.adapter_type).to eq('anthropic')
+        expect(provider.vault_key).to eq('providers/anthropic_api_key')
+        expect(provider.model_definitions.count).to eq(2)
+        expect(response).to redirect_to(provider_path(provider))
+        expect(flash[:notice]).to include('Provider added successfully')
+      end
+
+      it 'stores the API key in the vault' do
+        post :create, params: {
+          provider_config: {
+            adapter_type: 'openai',
+            api_key: 'sk-test-key-123',
+            models: [ 'gpt-5.2' ],
+            default_model: 'gpt-5.2'
+          }
+        }
+
+        vault_entry = VaultEntry.find_by(namespace: 'providers', key: 'openai_api_key')
+        expect(vault_entry.encrypted_value).to eq('sk-test-key-123')
+      end
+
+      it 'saves default model to settings' do
+        post :create, params: {
+          provider_config: {
+            adapter_type: 'anthropic',
+            api_key: 'sk-ant-test',
+            models: [ 'claude-sonnet-4-5' ],
+            default_model: 'claude-sonnet-4-5'
+          }
+        }
+
+        expect(Setting.get('default_model_anthropic')).to eq('claude-sonnet-4-5')
+      end
+
+      it 'creates provider without API key for local providers' do
+        post :create, params: {
+          provider_config: {
+            adapter_type: 'ollama',
+            api_key: '',
+            models: [ 'llama3.2:3b' ],
+            default_model: 'llama3.2:3b'
+          }
+        }
+
+        provider = ProviderConfig.last
+        expect(provider.adapter_type).to eq('ollama')
+        expect(response).to redirect_to(provider_path(provider))
+      end
+    end
+
+    context 'with duplicate adapter_type' do
+      it 'rejects the duplicate and re-renders the form' do
+        create(:provider_config, name: 'Anthropic', adapter_type: 'anthropic')
+
+        expect {
+          post :create, params: {
+            provider_config: {
+              adapter_type: 'anthropic',
+              api_key: 'sk-ant-duplicate',
+              models: [ 'claude-sonnet-4-5' ],
+              default_model: 'claude-sonnet-4-5'
+            }
+          }
+        }.not_to change(ProviderConfig, :count)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response).to render_template(:new)
       end
     end
   end
