@@ -32,6 +32,11 @@ require_dir() {
   cd "$HIVEMIND_DIR"
 }
 
+# Resolve the current version from git tag (used for HIVEMIND_VERSION)
+current_version() {
+  git describe --tags --exact-match 2>/dev/null | sed 's/^v//' || git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo 'dev'
+}
+
 # ----------------------------------------------------------
 # Commands
 # ----------------------------------------------------------
@@ -43,7 +48,7 @@ cmd_status() {
 
   # Version
   local version
-  version="$(git describe --tags --exact-match 2>/dev/null || git describe --tags --abbrev=0 2>/dev/null || echo 'dev')"
+  version="$(current_version)"
   echo -e "  ${BOLD}Version:${NC}  $version"
   echo -e "  ${BOLD}Location:${NC} $HIVEMIND_DIR"
   echo ""
@@ -114,19 +119,26 @@ cmd_update() {
     chmod +x "$HIVEMIND_DIR/install.sh"
   fi
 
-  # Build
+  # Resolve version from current tag
   local version
-  version="$(git describe --tags --exact-match 2>/dev/null | sed 's/^v//' || echo 'dev')"
-  info "Building containers..."
-  HIVEMIND_VERSION="$version" docker compose build --build-arg HIVEMIND_VERSION="$version"
+  version="$(current_version)"
+
+  # Pull prebuilt images first, fall back to building from source
+  info "Pulling prebuilt images (version: $version)..."
+  if HIVEMIND_VERSION="$version" docker compose pull app worker workspace connector 2>/dev/null; then
+    ok "Prebuilt images pulled successfully"
+  else
+    warn "Prebuilt images not available, building from source..."
+    HIVEMIND_VERSION="$version" docker compose build --build-arg HIVEMIND_VERSION="$version"
+  fi
 
   # Migrate
   info "Running migrations..."
-  docker compose run --rm -e RAILS_ENV=production app bin/rails db:migrate 2>/dev/null || warn "Migration skipped (app not running?)"
+  HIVEMIND_VERSION="$version" docker compose run --rm -e RAILS_ENV=production app bin/rails db:migrate 2>/dev/null || warn "Migration skipped (app not running?)"
 
   # Restart
   info "Restarting..."
-  docker compose up -d
+  HIVEMIND_VERSION="$version" docker compose up -d
 
   echo ""
   ok "Hivemind updated to $version!"
@@ -134,28 +146,34 @@ cmd_update() {
 
 cmd_restart() {
   require_dir
+  local version
+  version="$(current_version)"
   local services=("$@")
   if [ ${#services[@]} -eq 0 ]; then
     info "Restarting all containers..."
-    docker compose restart
+    HIVEMIND_VERSION="$version" docker compose restart
   else
     info "Restarting: ${services[*]}"
-    docker compose restart "${services[@]}"
+    HIVEMIND_VERSION="$version" docker compose restart "${services[@]}"
   fi
   ok "Done"
 }
 
 cmd_stop() {
   require_dir
+  local version
+  version="$(current_version)"
   info "Stopping Hivemind..."
-  docker compose down
+  HIVEMIND_VERSION="$version" docker compose down
   ok "Stopped"
 }
 
 cmd_start() {
   require_dir
-  info "Starting Hivemind..."
-  docker compose up -d
+  local version
+  version="$(current_version)"
+  info "Starting Hivemind ($version)..."
+  HIVEMIND_VERSION="$version" docker compose up -d
   ok "Started — http://localhost:8080"
 }
 
@@ -171,15 +189,19 @@ cmd_logs() {
 
 cmd_migrate() {
   require_dir
+  local version
+  version="$(current_version)"
   info "Running database migrations..."
-  docker compose run --rm -e RAILS_ENV=production app bin/rails db:migrate
+  HIVEMIND_VERSION="$version" docker compose run --rm -e RAILS_ENV=production app bin/rails db:migrate
   ok "Migrations complete"
 }
 
 cmd_console() {
   require_dir
+  local version
+  version="$(current_version)"
   info "Opening Rails console..."
-  docker compose exec app bin/rails console
+  HIVEMIND_VERSION="$version" docker compose exec app bin/rails console
 }
 
 cmd_import() {
@@ -271,7 +293,7 @@ cmd_import() {
 cmd_version() {
   require_dir
   local version
-  version="$(git describe --tags --exact-match 2>/dev/null || git describe --tags --abbrev=0 2>/dev/null || echo 'dev')"
+  version="$(current_version)"
   echo "hivemind $version"
 }
 
