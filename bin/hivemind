@@ -141,9 +141,9 @@ cmd_update() {
   info "Running migrations..."
   HIVEMIND_VERSION="$version" docker compose run --rm -e RAILS_ENV=production app bin/rails db:migrate 2>/dev/null || warn "Migration skipped (app not running?)"
 
-  # Restart
+  # Restart with new images
   info "Restarting..."
-  HIVEMIND_VERSION="$version" docker compose up -d
+  HIVEMIND_VERSION="$version" docker compose up -d --force-recreate
 
   echo ""
   ok "Hivemind updated to $version!"
