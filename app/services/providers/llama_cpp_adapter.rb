@@ -166,7 +166,8 @@ module Providers
         end
       end
 
-      ServiceResponse.success(data: { content: full_content, usage: {} })
+      result = ServiceResponse.success(data: { content: full_content, usage: {} })
+      inject_request_payload(result, params)
     end
 
     def sync_chat(params:)
@@ -198,7 +199,8 @@ module Providers
         output_tokens: usage_data["completion_tokens"]
       }
 
-      ServiceResponse.success(data: { content:, tool_calls:, usage: })
+      result = ServiceResponse.success(data: { content:, tool_calls:, usage: })
+      inject_request_payload(result, params)
     end
   end
 end

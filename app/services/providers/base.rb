@@ -38,5 +38,36 @@ module Providers
     def base_url
       @config.base_url
     end
+
+    def inject_request_payload(result, params)
+      if result.success? && result.data[:usage]
+        result.data[:usage][:request_payload] = sanitize_payload_for_logging(params)
+      end
+      result
+    end
+
+    def sanitize_payload_for_logging(params)
+      payload = params.deep_dup
+      if payload[:messages].is_a?(Array)
+        payload[:messages] = payload[:messages].map do |msg|
+          msg = msg.dup
+          if msg[:content].is_a?(String) && msg[:content].length > 2000
+            msg[:content] = msg[:content][0..2000] + "... [truncated #{msg[:content].length} chars]"
+          elsif msg[:content].is_a?(Array)
+            msg[:content] = msg[:content].map do |block|
+              block = block.dup
+              if block[:text].is_a?(String) && block[:text].length > 2000
+                block[:text] = block[:text][0..2000] + "... [truncated #{block[:text].length} chars]"
+              end
+              block
+            end
+          end
+          msg
+        end
+      end
+      payload.except(:request_options)
+    rescue StandardError => e
+      { error: "Failed to capture payload: #{e.message}" }
+    end
   end
 end

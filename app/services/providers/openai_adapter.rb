@@ -125,7 +125,8 @@ module Providers
         end
       }))
 
-      ServiceResponse.success(data: { content: full_content, usage: })
+      result = ServiceResponse.success(data: { content: full_content, usage: })
+      inject_request_payload(result, params)
     end
 
     def sync_chat(client:, params:)
@@ -148,7 +149,8 @@ module Providers
         }
       end
 
-      ServiceResponse.success(data: { content:, tool_calls:, usage: })
+      result = ServiceResponse.success(data: { content:, tool_calls:, usage: })
+      inject_request_payload(result, params)
     end
   end
 end
