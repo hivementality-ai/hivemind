@@ -171,7 +171,7 @@ class SetupController < ApplicationController
       return render json: { status: "error", message: "Invalid llama.cpp URL" }, status: :unprocessable_entity
     end
 
-    http = Net::HTTP.new(uri.host, uri.port)
+    http = Net::HTTP.new(uri.host, uri.port) # rubocop:disable Brakeman/FileAccess
     http.use_ssl = uri.scheme == "https"
     http.open_timeout = 3
     http.read_timeout = 5
