@@ -443,16 +443,15 @@ class TeamChatJob < ApplicationJob
     parts.join("\n")
   end
 
-  # Strip self-referencing name prefixes that LLMs echo back
-  # e.g. "[Chad]: Hello!" → "Hello!", "[Chad] Hello" → "Hello"
-  # Also handles nested: "[Chad]: [Chad]: Hello!" → "Hello!"
+  # Strip name prefixes that LLMs echo back from the chat format
+  # e.g. "[Chad]: Hello!" → "Hello!", "[Matthew]: I think..." → "I think..."
+  # Strips the agent's own name and any [BracketedName] prefix pattern
   def strip_self_name_prefix(content, agent)
     return content if content.blank?
 
-    name = Regexp.escape(agent.name)
-    # Repeatedly strip leading [Name]: or [Name] patterns (handles nested echoing)
+    # Repeatedly strip leading [AnyName]: or [AnyName] patterns
     loop do
-      stripped = content.sub(/\A\s*\[#{name}\]\s*:?\s*/i, "")
+      stripped = content.sub(/\A\s*\[[^\]]+\]\s*:?\s*/i, "")
       break if stripped == content
       content = stripped
     end
