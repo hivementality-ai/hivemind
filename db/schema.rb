@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_01_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_03_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -114,6 +114,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_01_000000) do
     t.text "current_task"
     t.text "custom_instructions"
     t.decimal "daily_budget_limit", precision: 10, scale: 4, default: "10.0"
+    t.jsonb "egress_policy", default: {}, null: false
     t.boolean "enabled", default: true, null: false
     t.boolean "heartbeat_enabled", default: false, null: false
     t.integer "heartbeat_interval_minutes", default: 30, null: false
@@ -452,17 +453,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_01_000000) do
   end
 
   create_table "skills", force: :cascade do |t|
+    t.datetime "approved_at"
+    t.bigint "approved_by"
     t.boolean "builtin", default: false, null: false
     t.string "category"
+    t.string "checksum"
     t.text "content", null: false
     t.datetime "created_at", null: false
+    t.jsonb "declared_capabilities", default: {}, null: false
     t.text "description"
     t.boolean "enabled", default: true, null: false
     t.string "name", null: false
+    t.jsonb "security_scan_result", default: {}, null: false
+    t.string "source", default: "manual", null: false
+    t.string "source_url"
     t.string "summary"
     t.datetime "updated_at", null: false
+    t.index ["checksum"], name: "index_skills_on_checksum"
     t.index ["enabled"], name: "index_skills_on_enabled"
     t.index ["name"], name: "index_skills_on_name", unique: true
+    t.index ["source"], name: "index_skills_on_source"
   end
 
   create_table "sub_agent_tasks", force: :cascade do |t|
