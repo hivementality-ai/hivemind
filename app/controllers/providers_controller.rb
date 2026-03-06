@@ -24,7 +24,7 @@ class ProvidersController < ApplicationController
 
     if @available_types.empty?
       redirect_to providers_path, notice: "All provider types are already configured."
-      return
+      nil
     end
   end
 
