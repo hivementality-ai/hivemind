@@ -28,8 +28,8 @@ module Agents
       @model = llm_model
       @max_output = max_output_tokens
       @provider = provider
-      limit = MODEL_LIMITS[@model] || (%w[ollama llama_cpp].include?(@provider) ? 8_192 : 200_000)
-      @budget = limit - @max_output - RESERVE_TOKENS
+      limit = MODEL_LIMITS[@model] || default_limit_for_provider
+      @budget = [ limit - @max_output - RESERVE_TOKENS, limit / 2 ].max
     end
 
     # Prune messages to stay within budget, keeping most recent messages
@@ -89,6 +89,16 @@ module Agents
       else
         content.to_s.length * TOKENS_PER_CHAR + 10
       end.to_i
+    end
+
+    def default_limit_for_provider
+      if %w[ollama llama_cpp].include?(@provider)
+        # Ollama dynamically sizes num_ctx, so use a generous default.
+        # The adapter will request the right context window from the server.
+        131_072
+      else
+        200_000
+      end
     end
 
     # Log budget info for debugging
