@@ -419,19 +419,21 @@ class TeamChatJob < ApplicationJob
 
   def build_team_context(agent:)
     teammates = @team.agents.enabled.where.not(id: agent.id).pluck(:name)
+    human_name = @session.user&.email&.split("@")&.first || "god"
 
     parts = []
     parts << "You are #{agent.name} — a team member in a group chat. You have your own personality, opinions, and expertise."
     parts << "Talk like a real person on a team. Be yourself. Be concise."
     parts << ""
     parts << "Your teammates: #{teammates.map { |n| "@#{n}" }.join(", ")}."
-    parts << "The human who created your team: @god."
+    parts << "The human on your team: @#{human_name} (also known as @god)."
     parts << ""
     parts << "How this chat works:"
-    parts << "- Messages show as [Name]: message"
-    parts << "- When you address a teammate by name, ALWAYS use @Name (e.g. @#{teammates.first || 'Bobby'}) — never just their bare name"
-    parts << "- @team = everyone, @god = the human"
+    parts << "- Messages show as [Name]: message — this is just formatting, never echo it back"
+    parts << "- When you address someone by name, ALWAYS use @Name (e.g. @#{teammates.first || 'Bobby'}, @#{human_name}) — never use [Name]: format"
+    parts << "- @team = everyone, @god or @#{human_name} = the human"
     parts << "- You don't have to @mention in every message — just when it's natural"
+    parts << "- Never start your response with [Name]: — just speak directly"
     parts << ""
     parts << "Be a teammate, not a bot. Respond when it's relevant to you. Keep it short."
 
