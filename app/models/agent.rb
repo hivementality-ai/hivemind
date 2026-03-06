@@ -151,6 +151,24 @@ class Agent < ApplicationRecord
     DEFAULT_LOOP_CONFIG.deep_merge(tool_loop_config || {}).with_indifferent_access
   end
 
+  def context_window
+    (model_config || {})["context_window"]&.to_i
+  end
+
+  def max_output_tokens
+    (model_config || {})["max_output_tokens"]&.to_i
+  end
+
+  def inference_options
+    mc = model_config || {}
+    opts = {}
+    opts[:temperature] = mc["temperature"].to_f if mc["temperature"].present?
+    opts[:top_p] = mc["top_p"].to_f if mc["top_p"].present?
+    opts[:top_k] = mc["top_k"].to_i if mc["top_k"].present?
+    opts[:repeat_penalty] = mc["repeat_penalty"].to_f if mc["repeat_penalty"].present?
+    opts
+  end
+
   def effective_egress_policy
     (egress_policy.presence || {}).with_indifferent_access
   end

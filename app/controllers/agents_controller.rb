@@ -79,6 +79,8 @@ class AgentsController < ApplicationController
     )
   end
 
+  MODEL_CONFIG_FIELDS = %w[context_window max_output_tokens temperature top_p top_k repeat_penalty].freeze
+
   def assign_restricted_attrs(agent)
     ap = params[:agent]
     return unless ap
@@ -87,5 +89,20 @@ class AgentsController < ApplicationController
     agent.egress_policy_mode = ap[:egress_policy_mode] if ap.key?(:egress_policy_mode)
     agent.egress_policy_rules = ap[:egress_policy_rules] if ap.key?(:egress_policy_rules)
     agent.egress_policy_log_blocked = ap[:egress_policy_log_blocked] if ap.key?(:egress_policy_log_blocked)
+    assign_model_config(agent)
+  end
+
+  def assign_model_config(agent)
+    mc = agent.model_config || {}
+    MODEL_CONFIG_FIELDS.each do |field|
+      val = params[:agent][field]
+      if val.present?
+        mc[field] = val.to_f
+        mc[field] = mc[field].to_i if %w[context_window max_output_tokens top_k].include?(field)
+      else
+        mc.delete(field)
+      end
+    end
+    agent.model_config = mc
   end
 end

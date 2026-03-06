@@ -100,7 +100,7 @@ class ChatStreamJob < ApplicationJob
     messages = message_result.data[:messages]
 
     # Prune messages to fit within context budget
-    context_manager = Agents::ContextManager.new(agent.llm_model, 8192, provider: agent.model_provider)
+    context_manager = Agents::ContextManager.new(agent.llm_model, 8192, provider: agent.model_provider, agent: agent)
     messages = context_manager.prune_messages(messages)
 
     # If there's a hashtag response to prepend (non-bypass actions), broadcast it
@@ -113,7 +113,8 @@ class ChatStreamJob < ApplicationJob
 
     begin
       # Build LLM options (with thinking if enabled)
-      llm_options = { model: agent.llm_model, max_tokens: 8192 }
+      llm_options = { model: agent.llm_model, max_tokens: agent.max_output_tokens || 8192 }
+      llm_options.merge!(agent.inference_options)
       if agent.thinking_enabled?
         llm_options[:thinking_enabled] = true
         llm_options[:thinking_budget_tokens] = agent.thinking_budget_tokens || 10_000

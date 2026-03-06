@@ -147,7 +147,7 @@ class TeamChatJob < ApplicationJob
     )
 
     # Prune messages to fit within context budget
-    context_manager = Agents::ContextManager.new(agent.llm_model)
+    context_manager = Agents::ContextManager.new(agent.llm_model, agent: agent)
     messages = context_manager.prune_messages(messages)
 
     tools = resolve_tools(agent)
@@ -157,7 +157,8 @@ class TeamChatJob < ApplicationJob
       thinking_content = nil
 
       # Build LLM options (with thinking if enabled)
-      llm_options = { model: agent.llm_model, max_tokens: 8192 }
+      llm_options = { model: agent.llm_model, max_tokens: agent.max_output_tokens || 8192 }
+      llm_options.merge!(agent.inference_options)
       if agent.thinking_enabled?
         llm_options[:thinking_enabled] = true
         llm_options[:thinking_budget_tokens] = agent.thinking_budget_tokens || 10_000
