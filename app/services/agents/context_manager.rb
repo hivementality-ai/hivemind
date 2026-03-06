@@ -24,11 +24,11 @@ module Agents
     RESERVE_TOKENS = 1000      # Reserve for response
     TOKENS_PER_CHAR = 0.25     # Rough estimate: 4 chars per token
 
-    def initialize(llm_model, max_output_tokens = 8192, provider: nil)
+    def initialize(llm_model, max_output_tokens = 8192, provider: nil, agent: nil)
       @model = llm_model
-      @max_output = max_output_tokens
+      @max_output = agent&.max_output_tokens || max_output_tokens
       @provider = provider
-      limit = MODEL_LIMITS[@model] || default_limit_for_provider
+      limit = agent&.context_window || MODEL_LIMITS[@model] || default_limit_for_provider
       @budget = [ limit - @max_output - RESERVE_TOKENS, limit / 2 ].max
     end
 

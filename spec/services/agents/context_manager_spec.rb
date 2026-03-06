@@ -23,10 +23,10 @@ RSpec.describe Agents::ContextManager, type: :service do
       expect(manager.budget_info[:available_for_context]).to eq(27_672)
     end
 
-    it "defaults unknown Ollama models to 8K context" do
+    it "defaults unknown Ollama models to 131K context" do
       manager = described_class.new("some-local-model", 2048, provider: "ollama")
-      # 8_192 - 2048 - 1000 = 5_144
-      expect(manager.budget_info[:available_for_context]).to eq(5_144)
+      # 131_072 - 2048 - 1000 = 128_024
+      expect(manager.budget_info[:available_for_context]).to eq(128_024)
     end
 
     it "defaults unknown models without provider to 200K context" do
@@ -110,16 +110,15 @@ RSpec.describe Agents::ContextManager, type: :service do
     end
 
     it "prunes oldest chat messages when budget exceeded" do
-      # Create a context manager with limited budget (15K tokens available)
-      # This allows small messages but not large ones
-      tight_budget_manager = described_class.new("claude-haiku-4-5", 185_000)
+      # llama3.2 has 8_192 limit. Budget = [8192 - 4096 - 1000, 8192/2].max = 4096
+      tight_budget_manager = described_class.new("llama3.2", 4_096)
 
       messages = [
         { role: "system", content: "You are helpful." },
-        { role: "user", content: "Old question" },  # ~20 tokens
-        { role: "assistant", content: "Old answer" },  # ~20 tokens
-        { role: "user", content: "x" * 30_000 },  # ~7.5K tokens
-        { role: "assistant", content: "y" * 30_000 }  # ~7.5K tokens
+        { role: "user", content: "Old question" },
+        { role: "assistant", content: "Old answer" },
+        { role: "user", content: "x" * 12_000 },  # ~3K tokens
+        { role: "assistant", content: "y" * 12_000 }  # ~3K tokens
       ]
 
       pruned = tight_budget_manager.prune_messages(messages)

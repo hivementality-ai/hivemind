@@ -109,6 +109,52 @@
     </div>
   </div>
 
+  <!-- Advanced Model Settings -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6">
+    <details <% if (agent.model_config || {}).slice("context_window", "max_output_tokens", "temperature", "top_p", "top_k", "repeat_penalty").values.any?(&:present?) %>open<% end %>>
+      <summary class="text-lg font-semibold text-white cursor-pointer select-none hover:text-brand transition">Advanced Model Settings</summary>
+      <p class="text-text-muted text-sm mt-2 mb-4">Override inference parameters for this agent. Leave blank to use defaults.</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <%= form.label :context_window, "Context Window", class: "block text-sm font-medium text-text-primary mb-1" %>
+          <%= form.number_field :context_window, value: (agent.model_config || {})["context_window"], placeholder: "auto",
+              class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
+          <p class="text-text-faint text-xs mt-1">Total context window size in tokens. Required for custom Ollama models not in the built-in list.</p>
+        </div>
+        <div>
+          <%= form.label :max_output_tokens, "Max Output Tokens", class: "block text-sm font-medium text-text-primary mb-1" %>
+          <%= form.number_field :max_output_tokens, value: (agent.model_config || {})["max_output_tokens"], placeholder: "8192",
+              class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
+          <p class="text-text-faint text-xs mt-1">Maximum tokens the model can generate per response.</p>
+        </div>
+        <div>
+          <%= form.label :temperature, "Temperature", class: "block text-sm font-medium text-text-primary mb-1" %>
+          <%= form.number_field :temperature, value: (agent.model_config || {})["temperature"], placeholder: "model default", step: 0.1, min: 0, max: 2,
+              class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
+          <p class="text-text-faint text-xs mt-1">Controls randomness (0.0 = deterministic, 2.0 = very creative).</p>
+        </div>
+        <div>
+          <%= form.label :top_p, "Top P", class: "block text-sm font-medium text-text-primary mb-1" %>
+          <%= form.number_field :top_p, value: (agent.model_config || {})["top_p"], placeholder: "model default", step: 0.1, min: 0, max: 1,
+              class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
+          <p class="text-text-faint text-xs mt-1">Nucleus sampling threshold (0.0–1.0). Ollama and llama.cpp only.</p>
+        </div>
+        <div>
+          <%= form.label :top_k, "Top K", class: "block text-sm font-medium text-text-primary mb-1" %>
+          <%= form.number_field :top_k, value: (agent.model_config || {})["top_k"], placeholder: "model default",
+              class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
+          <p class="text-text-faint text-xs mt-1">Limits token selection to top K candidates. Ollama only.</p>
+        </div>
+        <div>
+          <%= form.label :repeat_penalty, "Repeat Penalty", class: "block text-sm font-medium text-text-primary mb-1" %>
+          <%= form.number_field :repeat_penalty, value: (agent.model_config || {})["repeat_penalty"], placeholder: "model default", step: 0.05, min: 0,
+              class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
+          <p class="text-text-faint text-xs mt-1">Penalizes repeated tokens (1.0 = no penalty). Ollama only.</p>
+        </div>
+      </div>
+    </details>
+  </div>
+
   <!-- Thinking / Reasoning -->
   <div class="bg-surface-card rounded-xl border border-border-default p-6">
     <h2 class="text-lg font-semibold text-white mb-4">Thinking</h2>

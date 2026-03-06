@@ -84,7 +84,10 @@ module Providers
         options: {
           temperature: options[:temperature],
           num_predict: options[:max_tokens],
-          num_ctx: calculate_num_ctx(formatted_messages, tools, options)
+          num_ctx: calculate_num_ctx(formatted_messages, tools, options),
+          top_p: options[:top_p],
+          top_k: options[:top_k],
+          repeat_penalty: options[:repeat_penalty]
         }.compact
       }
 
