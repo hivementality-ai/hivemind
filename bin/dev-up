@@ -70,15 +70,21 @@ EOF
   echo "✅ Generated .env and config/master.key"
 fi
 
-# Ensure INTERNAL_API_SECRET exists (added in v1.x — backfill for older .env files)
-if ! grep -q '^INTERNAL_API_SECRET=' .env 2>/dev/null; then
+# Ensure INTERNAL_API_SECRET exists and is non-empty
+CURRENT_INTERNAL_SECRET="$(grep '^INTERNAL_API_SECRET=' .env 2>/dev/null | cut -d'=' -f2-)"
+if [ -z "$CURRENT_INTERNAL_SECRET" ]; then
   generate_secret_fn() {
     openssl rand -hex 32 2>/dev/null || LC_ALL=C tr -dc 'a-f0-9' < /dev/urandom | head -c 64
   }
-  echo "" >> .env
-  echo "# Internal API (shared secret between Rails and SDK proxy)" >> .env
-  echo "INTERNAL_API_SECRET=$(generate_secret_fn)" >> .env
-  echo "🔑 Added INTERNAL_API_SECRET to .env"
+  NEW_SECRET="$(generate_secret_fn)"
+  if grep -q '^INTERNAL_API_SECRET=' .env 2>/dev/null; then
+    sed -i.bak "s|^INTERNAL_API_SECRET=.*|INTERNAL_API_SECRET=$NEW_SECRET|" .env && rm -f .env.bak
+  else
+    echo "" >> .env
+    echo "# Internal API (shared secret between Rails and SDK proxy)" >> .env
+    echo "INTERNAL_API_SECRET=$NEW_SECRET" >> .env
+  fi
+  echo "🔑 Generated INTERNAL_API_SECRET"
 fi
 
 # ----------------------------------------------------------

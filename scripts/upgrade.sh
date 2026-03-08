@@ -183,13 +183,22 @@ migrate_env() {
   fi
 
   # INTERNAL_API_SECRET — added for MCP tool bridge (Rails ↔ SDK proxy)
-  if ! grep -q '^INTERNAL_API_SECRET=' .env 2>/dev/null; then
+  # Check both missing and empty (e.g. copied from .env.example as INTERNAL_API_SECRET=)
+  local current_secret
+  current_secret="$(grep '^INTERNAL_API_SECRET=' .env 2>/dev/null | cut -d'=' -f2-)"
+  if [ -z "$current_secret" ]; then
     local secret
     secret="$(openssl rand -hex 32 2>/dev/null || LC_ALL=C tr -dc 'a-f0-9' < /dev/urandom | head -c 64)"
-    echo "" >> .env
-    echo "# Internal API (shared secret between Rails and SDK proxy)" >> .env
-    echo "INTERNAL_API_SECRET=$secret" >> .env
-    ok "Added INTERNAL_API_SECRET to .env"
+    if grep -q '^INTERNAL_API_SECRET=' .env 2>/dev/null; then
+      # Key exists but empty — replace in place
+      sed -i.bak "s|^INTERNAL_API_SECRET=.*|INTERNAL_API_SECRET=$secret|" .env && rm -f .env.bak
+    else
+      # Key missing entirely — append
+      echo "" >> .env
+      echo "# Internal API (shared secret between Rails and SDK proxy)" >> .env
+      echo "INTERNAL_API_SECRET=$secret" >> .env
+    fi
+    ok "Generated INTERNAL_API_SECRET"
   fi
 }
 
