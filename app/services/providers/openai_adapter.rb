@@ -92,6 +92,15 @@ module Providers
         end
       end
       params[:temperature] = options[:temperature] if options[:temperature]
+
+      if options[:thinking_enabled]
+        model = options[:model] || params[:model]
+        if model&.match?(/\b(o[1-9]|o3|o4)/i)
+          params[:reasoning_effort] = "high"
+          params.delete(:temperature) # Not compatible with reasoning
+        end
+      end
+
       if options[:max_tokens]
         # GPT-5+ and o-series models require max_completion_tokens instead of max_tokens
         model = options[:model] || params[:model]
