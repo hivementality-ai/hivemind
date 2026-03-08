@@ -71,7 +71,7 @@ EOF
 fi
 
 # Ensure INTERNAL_API_SECRET exists and is non-empty
-CURRENT_INTERNAL_SECRET="$(grep '^INTERNAL_API_SECRET=' .env 2>/dev/null | cut -d'=' -f2-)"
+CURRENT_INTERNAL_SECRET="$(grep '^INTERNAL_API_SECRET=' .env 2>/dev/null | cut -d'=' -f2- || true)"
 if [ -z "$CURRENT_INTERNAL_SECRET" ]; then
   generate_secret_fn() {
     openssl rand -hex 32 2>/dev/null || LC_ALL=C tr -dc 'a-f0-9' < /dev/urandom | head -c 64

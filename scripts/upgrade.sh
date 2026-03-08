@@ -184,8 +184,8 @@ migrate_env() {
 
   # INTERNAL_API_SECRET — added for MCP tool bridge (Rails ↔ SDK proxy)
   # Check both missing and empty (e.g. copied from .env.example as INTERNAL_API_SECRET=)
-  local current_secret
-  current_secret="$(grep '^INTERNAL_API_SECRET=' .env 2>/dev/null | cut -d'=' -f2-)"
+  local current_secret=""
+  current_secret="$(grep '^INTERNAL_API_SECRET=' .env 2>/dev/null | cut -d'=' -f2- || true)"
   if [ -z "$current_secret" ]; then
     local secret
     secret="$(openssl rand -hex 32 2>/dev/null || LC_ALL=C tr -dc 'a-f0-9' < /dev/urandom | head -c 64)"

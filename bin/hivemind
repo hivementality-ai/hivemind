@@ -42,8 +42,8 @@ migrate_env() {
   [ -f "$HIVEMIND_DIR/.env" ] || return 0
 
   # INTERNAL_API_SECRET — shared secret between Rails and SDK proxy
-  local current_secret
-  current_secret="$(grep '^INTERNAL_API_SECRET=' "$HIVEMIND_DIR/.env" 2>/dev/null | cut -d'=' -f2-)"
+  local current_secret=""
+  current_secret="$(grep '^INTERNAL_API_SECRET=' "$HIVEMIND_DIR/.env" 2>/dev/null | cut -d'=' -f2- || true)"
   if [ -z "$current_secret" ]; then
     local secret
     secret="$(openssl rand -hex 32 2>/dev/null || LC_ALL=C tr -dc 'a-f0-9' < /dev/urandom | head -c 64)"
@@ -128,13 +128,6 @@ cmd_update() {
       git checkout "$latest_tag" --quiet
     fi
   fi
-
-  # Re-exec with the updated script so new functions/logic take effect
-  if [ "${HIVEMIND_REEXEC:-}" != "1" ] && [ -f "$HIVEMIND_DIR/bin/hivemind" ]; then
-    export HIVEMIND_REEXEC=1
-    exec "$HIVEMIND_DIR/bin/hivemind" update "$@"
-  fi
-  unset HIVEMIND_REEXEC
 
   # Re-install CLI so this script stays current
   local cli_dest="/usr/local/bin/hivemind"
