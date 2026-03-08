@@ -37,6 +37,27 @@ current_version() {
   git describe --tags --exact-match 2>/dev/null | sed 's/^v//' || git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo 'dev'
 }
 
+# Backfill .env with keys added in later versions
+migrate_env() {
+  [ -f "$HIVEMIND_DIR/.env" ] || return 0
+
+  # INTERNAL_API_SECRET — shared secret between Rails and SDK proxy
+  local current_secret
+  current_secret="$(grep '^INTERNAL_API_SECRET=' "$HIVEMIND_DIR/.env" 2>/dev/null | cut -d'=' -f2-)"
+  if [ -z "$current_secret" ]; then
+    local secret
+    secret="$(openssl rand -hex 32 2>/dev/null || LC_ALL=C tr -dc 'a-f0-9' < /dev/urandom | head -c 64)"
+    if grep -q '^INTERNAL_API_SECRET=' "$HIVEMIND_DIR/.env" 2>/dev/null; then
+      sed -i.bak "s|^INTERNAL_API_SECRET=.*|INTERNAL_API_SECRET=$secret|" "$HIVEMIND_DIR/.env" && rm -f "$HIVEMIND_DIR/.env.bak"
+    else
+      echo "" >> "$HIVEMIND_DIR/.env"
+      echo "# Internal API (shared secret between Rails and SDK proxy)" >> "$HIVEMIND_DIR/.env"
+      echo "INTERNAL_API_SECRET=$secret" >> "$HIVEMIND_DIR/.env"
+    fi
+    ok "Generated INTERNAL_API_SECRET"
+  fi
+}
+
 # ----------------------------------------------------------
 # Commands
 # ----------------------------------------------------------
@@ -127,6 +148,9 @@ cmd_update() {
   # Resolve version from current tag
   local version
   version="$(current_version)"
+
+  # Backfill .env with any new keys added in later versions
+  migrate_env
 
   # Pull prebuilt images first, fall back to building from source
   info "Pulling prebuilt images (version: $version)..."
