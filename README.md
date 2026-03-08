@@ -24,6 +24,7 @@
 
 - [Why Hivemind?](#why-hivemind)
 - [System Requirements](#system-requirements)
+- [Tested Models](#tested-models)
 - [Concepts](#concepts)
 - [Quick Start](#quick-start)
 - [Setup Wizard](#setup-wizard)
@@ -105,6 +106,41 @@ You need [Docker and Docker Compose](https://docs.docker.com/get-docker/) to run
 - macOS 26.2 (Apple Silicon)
 
 That's it. Everything else runs in containers.
+
+---
+
+## Tested Models
+
+Hivemind uses structured tool calling (function calls) to give agents capabilities. Not all models support this reliably. The models below have been tested and are known to work well.
+
+### Cloud Providers
+
+| Provider | Model | Tool Calling | Notes |
+|----------|-------|:---:|-------|
+| **Anthropic** | Claude Opus 4.6 | Yes | Best overall reasoning and tool use |
+| **Anthropic** | Claude Sonnet 4.5 | Yes | Great balance of speed and quality |
+| **Anthropic** | Claude Haiku 4.5 | Yes | Fast and cheap — good for triage, heartbeat, simple tasks |
+| **OpenAI** | GPT-5.2 | Yes | Strong tool calling and code generation |
+| **OpenAI** | GPT-5.2 Mini | Yes | Lightweight, fast |
+| **OpenAI** | o3 | Yes | Advanced reasoning |
+| **OpenAI** | o4-mini | Yes | Fast reasoning |
+
+### Local Models (Ollama)
+
+| Model | Tool Calling | Notes |
+|-------|:---:|-------|
+| `qwen3-coder:30b` | Yes | Best local coding model. Set context window in Advanced Model Settings. |
+| `llama3.2:3b` | Yes | Lightweight, good for simple tool tasks |
+
+> We'll update this list as more models are verified. If you've tested a model that works well, let us know in [Discord](https://discord.gg/ckyVareyvk).
+
+> **Important:** Quantized or community-repackaged models (e.g. unsloth GGUFs) may lose tool calling ability even if the base model supports it. Stick to official Ollama library pulls for reliable tool use.
+
+### Tips for Local Models
+
+- **Reduce tool count** — Local models work best with 4–5 tools. More tools degrades reliability.
+- **Set context window** — Custom models not in the built-in list need a context window set in **Advanced Model Settings** on the agent page, otherwise it defaults to 131K which may exceed your GPU memory.
+- **Use for the right tasks** — Local models excel at triage, summarization, simple file ops, and drafting. Use cloud models for complex multi-step reasoning.
 
 ---
 
