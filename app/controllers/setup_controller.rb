@@ -45,6 +45,7 @@ class SetupController < ApplicationController
       pc.adapter_type = provider
       pc.enabled = true
       pc.vault_key = "providers/#{provider}_api_key"
+      pc.base_url = config[:base_url].presence if config.key?(:base_url)
 
       # Save selected models and default
       selected_models = config[:models] || []
@@ -211,8 +212,8 @@ class SetupController < ApplicationController
     params.require(:providers).permit(
       anthropic: [ :api_key, :default_model, models: [] ],
       openai: [ :api_key, :default_model, models: [] ],
-      ollama: [ :api_key, :default_model, models: [] ],
-      llama_cpp: [ :api_key, :default_model, models: [] ]
+      ollama: [ :api_key, :default_model, :base_url, models: [] ],
+      llama_cpp: [ :api_key, :default_model, :base_url, models: [] ]
     )
   end
 

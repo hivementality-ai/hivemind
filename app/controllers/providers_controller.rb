@@ -42,12 +42,16 @@ class ProvidersController < ApplicationController
       { "id" => model_id, "default" => (model_id == default_model) }
     end
 
+    # Save custom base URL for local providers (Ollama, llama.cpp)
+    custom_base_url = provider_params[:base_url].presence
+
     @provider = ProviderConfig.new(
       name: name,
       adapter_type: adapter_type,
       vault_key: vault_key,
       enabled: true,
-      model_definitions: model_definitions
+      model_definitions: model_definitions,
+      base_url: custom_base_url
     )
 
     if @provider.save
@@ -93,6 +97,9 @@ class ProvidersController < ApplicationController
       { "id" => model_id, "default" => (model_id == default_model) }
     end
 
+    # Update base URL if provided (Ollama, llama.cpp)
+    @provider.base_url = provider_params[:base_url] if provider_params.key?(:base_url)
+
     # Save provider config
     if @provider.save
       # Update API key if provided
@@ -133,7 +140,7 @@ class ProvidersController < ApplicationController
   end
 
   def provider_params
-    permitted = [ :api_key, :default_model, models: [] ]
+    permitted = [ :api_key, :default_model, :base_url, models: [] ]
     permitted.unshift(:adapter_type) if action_name == "create"
     params.require(:provider_config).permit(*permitted)
   end
