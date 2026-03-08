@@ -129,6 +129,13 @@ cmd_update() {
     fi
   fi
 
+  # Re-exec with the updated script so new functions/logic take effect
+  if [ "${HIVEMIND_REEXEC:-}" != "1" ] && [ -f "$HIVEMIND_DIR/bin/hivemind" ]; then
+    export HIVEMIND_REEXEC=1
+    exec "$HIVEMIND_DIR/bin/hivemind" update "$@"
+  fi
+  unset HIVEMIND_REEXEC
+
   # Re-install CLI so this script stays current
   local cli_dest="/usr/local/bin/hivemind"
   if [ -L "$cli_dest" ] || [ -f "$cli_dest" ]; then
@@ -138,11 +145,6 @@ cmd_update() {
       sudo ln -sf "$HIVEMIND_DIR/bin/hivemind" "$cli_dest"
     fi
     ok "CLI updated"
-  fi
-
-  # Re-source ourselves if the script changed on disk
-  if [ -f "$HIVEMIND_DIR/install.sh" ]; then
-    chmod +x "$HIVEMIND_DIR/install.sh"
   fi
 
   # Resolve version from current tag
