@@ -3,8 +3,8 @@ import { createConsumer } from "@rails/actioncable"
 import { marked } from "marked"
 
 export default class extends Controller {
-  static targets = ["messages", "input", "sendBtn", "stopBtn", "thinking", "thinkingContent", "tokenCount", "emptyState", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown", "toolCallsToggle", "working"]
-  static values = { sessionId: Number, agentName: String, agentInitial: String, agentAvatar: String, messageUrl: String, interruptUrl: String, csrf: String, processing: Boolean }
+  static targets = ["messages", "input", "sendBtn", "stopBtn", "thinking", "thinkingContent", "tokenCount", "emptyState", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown", "toolCallsToggle", "working", "titleText", "titleInput"]
+  static values = { sessionId: Number, agentName: String, agentInitial: String, agentAvatar: String, messageUrl: String, updateUrl: String, interruptUrl: String, csrf: String, processing: Boolean }
 
   connect() {
     this.consumer = createConsumer()
@@ -302,6 +302,9 @@ export default class extends Controller {
           this.hideWorking()
           this.streaming = false
         }
+        break
+      case "title_update":
+        this.updateTitle(data.title)
         break
       case "error":
         this.hideThinking()
@@ -1459,6 +1462,66 @@ export default class extends Controller {
     
     this.messagesTarget.appendChild(summaryDiv)
     this.scrollToBottom()
+  }
+
+  // ─── Inline Title Edit ─────────────────────────────────
+
+  editTitle() {
+    if (!this.hasTitleTextTarget || !this.hasTitleInputTarget) return
+    const current = this.titleTextTarget.textContent.trim()
+    this.titleInputTarget.value = current === "Rename chat..." ? "" : current
+    this.titleTextTarget.classList.add("hidden")
+    this.titleInputTarget.classList.remove("hidden")
+    this.titleInputTarget.focus()
+    this.titleInputTarget.select()
+  }
+
+  handleTitleKeydown(event) {
+    if (event.key === "Enter") {
+      event.preventDefault()
+      this.saveTitle()
+    } else if (event.key === "Escape") {
+      event.preventDefault()
+      this.cancelTitleEdit()
+    }
+  }
+
+  async saveTitle() {
+    if (!this.hasTitleInputTarget || !this.hasTitleTextTarget) return
+    const newTitle = this.titleInputTarget.value.trim()
+
+    this.titleInputTarget.classList.add("hidden")
+    this.titleTextTarget.classList.remove("hidden")
+
+    if (!newTitle || newTitle.length > 100) return
+
+    try {
+      const response = await fetch(this.updateUrlValue, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": this.csrfValue },
+        body: JSON.stringify({ title: newTitle })
+      })
+      if (response.ok) {
+        this.titleTextTarget.textContent = newTitle
+        document.title = newTitle
+      }
+    } catch (e) {
+      console.error("Failed to save title:", e)
+    }
+  }
+
+  cancelTitleEdit() {
+    if (!this.hasTitleInputTarget || !this.hasTitleTextTarget) return
+    this.titleInputTarget.classList.add("hidden")
+    this.titleTextTarget.classList.remove("hidden")
+  }
+
+  updateTitle(title) {
+    if (!title) return
+    document.title = title
+    if (this.hasTitleTextTarget) {
+      this.titleTextTarget.textContent = title
+    }
   }
 
   escapeHtml(text) {
