@@ -3,7 +3,7 @@
 class TeamChatsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_team, only: [ :create ]
-  before_action :set_session, only: [ :show, :message ]
+  before_action :set_session, only: [ :show, :message, :update ]
 
   # GET /team_chats — list all team chat sessions
   def index; end
@@ -13,10 +13,24 @@ class TeamChatsController < ApplicationController
     @chat_session = TeamChatSession.create!(
       team: @team,
       user: current_user,
-      title: "#{@team.name} Chat"
+      title: "New Chat"
     )
 
     redirect_to team_chat_path(@chat_session)
+  end
+
+  # PATCH /team_chats/:id — rename a team chat session
+  def update
+    new_title = params[:title].to_s.strip
+
+    if new_title.blank? || new_title.length > 100
+      render json: { error: "Title must be between 1 and 100 characters" }, status: :unprocessable_entity
+      return
+    end
+
+    @session.update!(title: new_title)
+    ActionCable.server.broadcast("team_chat_#{@session.id}", { type: "title_update", title: new_title })
+    render json: { title: new_title }
   end
 
   # GET /team_chats/:id — show team chat interface
