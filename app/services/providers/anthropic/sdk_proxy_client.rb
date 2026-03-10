@@ -116,12 +116,16 @@ module Providers
                   full_content << text
                   block.call({ type: "content", content: text })
                 end
+              when "thinking_start"
+                block.call({ type: "thinking_start" })
               when "thinking"
                 text = event_data["thinking"]
                 if text
                   full_thinking << text
                   block.call({ type: "thinking", content: text })
                 end
+              when "thinking_stop"
+                block.call({ type: "thinking_stop" })
               when "tool_start"
                 block.call({ type: "tool_start", tool: event_data["tool"], input: event_data["input"] })
               when "tool_result"
