@@ -22,12 +22,8 @@ module Internal
         return render json: { success: false, error: "Agent or session not found" }, status: :unprocessable_entity
       end
 
-      channel = "session_#{session.id}"
-
-      # Broadcast tool start
-      ActionCable.server.broadcast(channel, { type: "tool_start", tool: tool.name, input: params[:input]&.to_unsafe_h || {} })
-
-      # Execute the tool
+      # Execute the tool (broadcast is handled by the SDK proxy SSE pipeline;
+      # broadcasting here would duplicate events on the frontend)
       result = Tools::Executor.call(
         tool: tool,
         input: params[:input]&.to_unsafe_h || {},
@@ -37,10 +33,8 @@ module Internal
 
       if result.success?
         output = result.data[:output].to_s
-        ActionCable.server.broadcast(channel, { type: "tool_result", tool: tool.name, output: output.truncate(500), success: true })
         render json: { success: true, output: output }
       else
-        ActionCable.server.broadcast(channel, { type: "tool_result", tool: tool.name, output: result.error.truncate(500), success: false })
         render json: { success: false, error: result.error }, status: :unprocessable_entity
       end
     end

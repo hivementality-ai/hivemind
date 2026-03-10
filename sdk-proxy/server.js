@@ -76,6 +76,7 @@ async function handleOAuth(_req, res, token, params) {
   options.stderr = (data) => console.error(`[claude-code stderr] ${data}`);
 
   // Build MCP server from Hivemind tool definitions (if provided)
+  const mcpToolNames = new Set();
   const sseForToolEvents = stream
     ? (type, data) => {
         console.log(`[oauth] Tool event: ${type}`, JSON.stringify(data).substring(0, 200));
@@ -84,6 +85,7 @@ async function handleOAuth(_req, res, token, params) {
     : null;
 
   if (tool_definitions?.length && agent_id && session_id) {
+    for (const def of tool_definitions) mcpToolNames.add(def.name);
     console.log(`[oauth] Building MCP server with ${tool_definitions.length} tools`);
     try {
       const mcpServers = buildMcpServer({
@@ -134,9 +136,12 @@ async function handleOAuth(_req, res, token, params) {
             } else if (block.type === "thinking" && block.thinking) {
               sendSSE(res, "thinking", { thinking: block.thinking });
             } else if (block.type === "tool_use") {
-              // Claude Code is calling a tool — emit tool_start
-              sendSSE(res, "tool_start", { tool: block.name, input: block.input || {} });
-              activeTools.add(block.name);
+              // MCP tools are handled by the bridge callbacks — only emit
+              // tool_start here for Claude Code's own built-in tools
+              if (!mcpToolNames.has(block.name)) {
+                sendSSE(res, "tool_start", { tool: block.name, input: block.input || {} });
+                activeTools.add(block.name);
+              }
             }
           }
         } else if (message.type === "tool_progress") {
