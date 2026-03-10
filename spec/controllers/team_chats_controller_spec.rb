@@ -311,4 +311,112 @@ RSpec.describe TeamChatsController, type: :controller do
       end
     end
   end
+
+  describe 'POST #interrupt' do
+    before do
+      allow(ActionCable.server).to receive(:broadcast)
+      allow(SessionSignal).to receive(:set)
+    end
+
+    context 'with cancel signal and no agent sessions' do
+      it 'returns ok status' do
+        post :interrupt, params: { id: team_chat_session.id, type: 'cancel' }
+        expect(response).to have_http_status(:ok)
+      end
+
+      it 'returns signal_sent json' do
+        post :interrupt, params: { id: team_chat_session.id, type: 'cancel' }
+        body = JSON.parse(response.body)
+        expect(body['status']).to eq('signal_sent')
+        expect(body['type']).to eq('cancel')
+      end
+
+      it 'broadcasts interrupt_sent to team chat channel' do
+        post :interrupt, params: { id: team_chat_session.id, type: 'cancel' }
+        expect(ActionCable.server).to have_received(:broadcast).with(
+          "team_chat_#{team_chat_session.id}",
+          hash_including(type: 'interrupt_sent', signal_type: 'cancel')
+        )
+      end
+
+      it 'does not call SessionSignal.set when no agent sessions exist' do
+        post :interrupt, params: { id: team_chat_session.id, type: 'cancel' }
+        expect(SessionSignal).not_to have_received(:set)
+      end
+    end
+
+    context 'with cancel signal and active agent sessions' do
+      let!(:agent1) { create(:agent, team: team) }
+      let!(:agent2) { create(:agent, team: team) }
+
+      before do
+        team_chat_session.session_for(agent1)
+        team_chat_session.session_for(agent2)
+      end
+
+      it 'fans out cancel signal to all agent sessions' do
+        agent_sessions = team_chat_session.agent_sessions.to_a
+        post :interrupt, params: { id: team_chat_session.id, type: 'cancel' }
+        agent_sessions.each do |agent_session|
+          expect(SessionSignal).to have_received(:set).with(
+            agent_session.id,
+            type: 'cancel',
+            message: nil
+          )
+        end
+      end
+    end
+
+    context 'with redirect signal' do
+      it 'requires message param' do
+        post :interrupt, params: { id: team_chat_session.id, type: 'redirect' }
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'returns error json when message is missing' do
+        post :interrupt, params: { id: team_chat_session.id, type: 'redirect' }
+        body = JSON.parse(response.body)
+        expect(body['error']).to match(/Message required/)
+      end
+
+      it 'succeeds when message is provided' do
+        post :interrupt, params: { id: team_chat_session.id, type: 'redirect', message: 'new direction' }
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
+    context 'with inject signal' do
+      it 'requires message param' do
+        post :interrupt, params: { id: team_chat_session.id, type: 'inject' }
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'succeeds when message is provided' do
+        post :interrupt, params: { id: team_chat_session.id, type: 'inject', message: 'also consider this' }
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
+    context 'with invalid signal type' do
+      it 'returns unprocessable entity' do
+        post :interrupt, params: { id: team_chat_session.id, type: 'explode' }
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'returns error json with valid types listed' do
+        post :interrupt, params: { id: team_chat_session.id, type: 'explode' }
+        body = JSON.parse(response.body)
+        expect(body['error']).to match(/cancel/)
+      end
+    end
+
+    context 'when not authenticated' do
+      before { sign_out user }
+
+      it 'redirects to sign in' do
+        post :interrupt, params: { id: team_chat_session.id, type: 'cancel' }
+        expect(response).to redirect_to(new_user_session_path)
+      end
+    end
+  end
 end

@@ -3,14 +3,15 @@ import { createConsumer } from "@rails/actioncable"
 import { marked } from "marked"
 
 export default class extends Controller {
-  static targets = ["messages", "input", "sendBtn", "thinkingArea", "emptyState", "mentionBar", "toolToggle", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown", "titleText", "titleInput"]
-  static values = { sessionId: Number, messageUrl: String, updateUrl: String, csrf: String, agents: Array }
+  static targets = ["messages", "input", "sendBtn", "stopBtn", "thinkingArea", "emptyState", "mentionBar", "toolToggle", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown", "titleText", "titleInput"]
+  static values = { sessionId: Number, messageUrl: String, updateUrl: String, interruptUrl: String, csrf: String, agents: Array }
 
   connect() {
     this.consumer = createConsumer()
     this.sending = false
     this.streamBubbles = {} // keyed by agent_id
     this.streamRawTexts = {} // raw text per agent for markdown rendering
+    this.activeAgents = new Set() // agent IDs currently streaming
 
     marked.setOptions({ breaks: true, gfm: true, silent: true })
     this.agentColors = {}
@@ -158,6 +159,8 @@ export default class extends Controller {
         this.appendUserMessage(data.content, data.target_agent_name, data.images, data.files)
         break
       case "thinking":
+        this.activeAgents.add(data.agent_id)
+        this.showStopBtn()
         this.showThinking(data.agent_id, data.agent_name)
         break
       case "thinking_start":
@@ -184,8 +187,34 @@ export default class extends Controller {
         this.appendAgentToken(data.agent_id, data.agent_name, data.content)
         break
       case "agent_done":
+        this.activeAgents.delete(data.agent_id)
+        if (this.activeAgents.size === 0) this.hideStopBtn()
         this.hideThinking(data.agent_id)
         this.finalizeAgentMessage(data.agent_id)
+        break
+      case "cancelled":
+        this.activeAgents.delete(data.agent_id)
+        if (this.activeAgents.size === 0) this.hideStopBtn()
+        this.hideThinking(data.agent_id)
+        this.finalizeAgentMessage(data.agent_id)
+        this.appendSystemNotice(`⏹ ${data.agent_name} was stopped`)
+        break
+      case "redirected":
+        this.activeAgents.delete(data.agent_id)
+        if (this.activeAgents.size === 0) this.hideStopBtn()
+        this.hideThinking(data.agent_id)
+        this.finalizeAgentMessage(data.agent_id)
+        this.appendSystemNotice("↪ Redirecting...")
+        break
+      case "inject":
+        this.appendUserMessage(data.message, null, [], [])
+        break
+      case "interrupt_sent":
+        // Visual feedback — briefly flash stop button
+        if (this.hasStopBtnTarget) {
+          this.stopBtnTarget.classList.add("opacity-50")
+          setTimeout(() => this.stopBtnTarget.classList.remove("opacity-50"), 300)
+        }
         break
       case "file_attachment":
         this.appendFileAttachment(data.agent_id, data.agent_name, data.attachment)
@@ -203,6 +232,8 @@ export default class extends Controller {
         this.updateTitle(data.title)
         break
       case "error":
+        this.activeAgents.delete(data.agent_id)
+        if (this.activeAgents.size === 0) this.hideStopBtn()
         this.hideThinking(data.agent_id)
         this.showError(data.content)
         break
@@ -213,6 +244,14 @@ export default class extends Controller {
     let message = this.inputTarget.value.trim()
     if (!message && this.pendingImages.length === 0 && this.pendingFiles.length === 0) return
     if (this.sending) return
+
+    // If agents are actively streaming, treat this as a redirect
+    if (this.activeAgents.size > 0 && message) {
+      this.inputTarget.value = ""
+      this.inputTarget.style.height = "auto"
+      await this.sendInterrupt("redirect", message)
+      return
+    }
 
     this.sending = true
     this.sendBtnTarget.disabled = true
@@ -858,6 +897,44 @@ export default class extends Controller {
     }
     const activeSidebarEntry = this.element.querySelector(".bg-surface-raised .text-sm.text-white.truncate")
     if (activeSidebarEntry) activeSidebarEntry.textContent = title
+  }
+
+  // ─── Interrupt / Stop ───────────────────────────────────
+
+  stopAll() {
+    this.sendInterrupt("cancel")
+  }
+
+  async sendInterrupt(type, message = null) {
+    if (!this.hasInterruptUrlValue) return
+    try {
+      const body = { type }
+      if (message) body.message = message
+      await fetch(this.interruptUrlValue, {
+        method: "POST",
+        headers: { "X-CSRF-Token": this.csrfValue, "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      })
+    } catch (e) {
+      console.error("Failed to send interrupt:", e)
+    }
+  }
+
+  showStopBtn() {
+    if (this.hasStopBtnTarget) this.stopBtnTarget.classList.remove("hidden")
+  }
+
+  hideStopBtn() {
+    if (this.hasStopBtnTarget) this.stopBtnTarget.classList.add("hidden")
+  }
+
+  appendSystemNotice(text) {
+    const html = `
+      <div class="flex justify-center my-1">
+        <span class="text-xs text-text-faint italic">${this.esc(text)}</span>
+      </div>`
+    this.messagesTarget.insertAdjacentHTML("beforeend", html)
+    this.scrollToBottom()
   }
 
   esc(text) {
