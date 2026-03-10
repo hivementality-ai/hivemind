@@ -59,6 +59,9 @@ class AgentsController < ApplicationController
   def destroy
     @agent.destroy
     redirect_to agents_url, notice: "Agent deleted successfully"
+  rescue ActiveRecord::InvalidForeignKey => e
+    Rails.logger.error("Failed to delete agent #{@agent.slug}: #{e.message}")
+    redirect_to @agent, alert: "Unable to delete agent — it has associated records that could not be removed."
   end
 
   private
