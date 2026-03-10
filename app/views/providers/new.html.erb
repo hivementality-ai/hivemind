@@ -57,6 +57,29 @@
 
       <!-- Configuration Section (hidden until type selected) -->
       <div id="config-section" class="space-y-6 hidden">
+        <!-- Provider Name -->
+        <div id="name-section" class="hidden">
+          <label class="block text-text-primary font-semibold mb-2">Provider Name</label>
+          <%= f.text_field :name,
+              class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent text-sm",
+              placeholder: "e.g. LocalAI, OpenRouter, Together AI...",
+              id: "provider-name-input",
+              autocomplete: "off" %>
+          <p class="text-text-faint text-xs mt-1">Give this provider a unique name. Agents will use this name to reference it.</p>
+        </div>
+
+        <!-- Base URL Section (openai-compatible providers) -->
+        <div id="openai-base-url-section" class="hidden">
+          <label class="block text-text-primary font-semibold mb-2">Base URL</label>
+          <input type="text"
+                 name="provider_config[base_url]"
+                 id="openai-base-url-input"
+                 class="w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-mono text-sm"
+                 placeholder="https://api.openai.com/v1"
+                 autocomplete="off">
+          <p class="text-text-faint text-xs mt-1">For OpenAI-compatible providers (LocalAI, OpenRouter, etc.), enter the API base URL.</p>
+        </div>
+
         <!-- Security Notice -->
         <div class="bg-blue-900/30 border border-blue-700/50 rounded-lg p-4">
           <p class="text-blue-300 text-sm flex items-start gap-2">
@@ -250,6 +273,11 @@
       llama_cpp: 'Leave blank for local llama-server'
     };
 
+    const existingTypes = <%= ProviderConfig.pluck(:adapter_type).to_json.html_safe %>;
+    const nameSection = document.getElementById('name-section');
+    const nameInput = document.getElementById('provider-name-input');
+    const openaiBaseUrlSection = document.getElementById('openai-base-url-section');
+
     function selectProviderType(type) {
       // Update card styling
       typeCards.forEach(card => {
@@ -270,6 +298,24 @@
 
       // Show config section
       configSection.classList.remove('hidden');
+
+      // Show name field when adding a second provider of the same type
+      const isDuplicate = existingTypes.includes(type);
+      if (isDuplicate) {
+        nameSection.classList.remove('hidden');
+        nameInput.required = true;
+      } else {
+        nameSection.classList.add('hidden');
+        nameInput.required = false;
+        nameInput.value = '';
+      }
+
+      // Show base URL for openai-compatible providers (when adding a second one)
+      if (type === 'openai' && isDuplicate) {
+        openaiBaseUrlSection.classList.remove('hidden');
+      } else {
+        openaiBaseUrlSection.classList.add('hidden');
+      }
 
       // Toggle API key section
       const needsKey = ['openai', 'anthropic'].includes(type);
