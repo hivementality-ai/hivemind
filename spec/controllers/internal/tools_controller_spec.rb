@@ -30,16 +30,14 @@ RSpec.describe Internal::ToolsController, type: :controller do
         expect(JSON.parse(response.body)["output"]).to eq("Tool output")
       end
 
-      it "broadcasts tool_start and tool_result" do
+      it "does not broadcast tool events (handled by SDK proxy SSE pipeline)" do
         allow(Tools::Executor).to receive(:call).and_return(
           ServiceResponse.success(data: { output: "done" })
         )
 
         post :execute, params: { tool_name: tool.name, agent_id: agent.id, session_id: session.id, input: {} }
 
-        channel = "session_#{session.id}"
-        expect(ActionCable.server).to have_received(:broadcast).with(channel, hash_including(type: "tool_start", tool: tool.name))
-        expect(ActionCable.server).to have_received(:broadcast).with(channel, hash_including(type: "tool_result", tool: tool.name, success: true))
+        expect(ActionCable.server).not_to have_received(:broadcast)
       end
 
       it "returns 422 on executor failure" do
@@ -78,16 +76,14 @@ RSpec.describe Internal::ToolsController, type: :controller do
         )
       end
 
-      it "broadcasts tool events with system tool name" do
+      it "does not broadcast tool events for system tools (handled by SDK proxy)" do
         allow(Tools::Executor).to receive(:call).and_return(
           ServiceResponse.success(data: { output: "skill content" })
         )
 
         post :execute, params: { tool_name: "load_skill", agent_id: agent.id, session_id: session.id, input: { name: "deep_research" } }
 
-        channel = "session_#{session.id}"
-        expect(ActionCable.server).to have_received(:broadcast).with(channel, hash_including(type: "tool_start", tool: "load_skill"))
-        expect(ActionCable.server).to have_received(:broadcast).with(channel, hash_including(type: "tool_result", tool: "load_skill", success: true))
+        expect(ActionCable.server).not_to have_received(:broadcast)
       end
     end
 
