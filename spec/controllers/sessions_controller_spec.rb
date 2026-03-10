@@ -159,6 +159,95 @@ RSpec.describe SessionsController, type: :controller do
     end
   end
 
+  describe 'PATCH #update' do
+    let(:session) { create(:session, agent: agent, title: nil) }
+
+    context 'with a valid title' do
+      before { allow(ActionCable.server).to receive(:broadcast) }
+
+      it 'updates the session title' do
+        patch :update, params: { id: session.id, title: 'My New Title' }
+        expect(session.reload.title).to eq('My New Title')
+      end
+
+      it 'returns JSON with the new title' do
+        patch :update, params: { id: session.id, title: 'My New Title' }
+        expect(response.content_type).to include('application/json')
+        expect(JSON.parse(response.body)['title']).to eq('My New Title')
+      end
+
+      it 'returns 200 OK' do
+        patch :update, params: { id: session.id, title: 'My New Title' }
+        expect(response).to have_http_status(:ok)
+      end
+
+      it 'broadcasts a title_update over the session channel' do
+        patch :update, params: { id: session.id, title: 'My New Title' }
+        expect(ActionCable.server).to have_received(:broadcast).with(
+          "session_#{session.id}",
+          { type: 'title_update', title: 'My New Title' }
+        )
+      end
+
+      it 'strips leading and trailing whitespace from the title' do
+        patch :update, params: { id: session.id, title: '  Trimmed Title  ' }
+        expect(session.reload.title).to eq('Trimmed Title')
+      end
+    end
+
+    context 'with a blank title' do
+      it 'returns 422 unprocessable_entity' do
+        patch :update, params: { id: session.id, title: '   ' }
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'returns an error message' do
+        patch :update, params: { id: session.id, title: '' }
+        body = JSON.parse(response.body)
+        expect(body['error']).to be_present
+      end
+
+      it 'does not change the title' do
+        session.update!(title: 'Existing Title')
+        patch :update, params: { id: session.id, title: '' }
+        expect(session.reload.title).to eq('Existing Title')
+      end
+    end
+
+    context 'with a title exceeding 100 characters' do
+      let(:long_title) { 'A' * 101 }
+
+      it 'returns 422 unprocessable_entity' do
+        patch :update, params: { id: session.id, title: long_title }
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'does not update the title' do
+        patch :update, params: { id: session.id, title: long_title }
+        expect(session.reload.title).to be_nil
+      end
+    end
+
+    context 'with a title of exactly 100 characters' do
+      before { allow(ActionCable.server).to receive(:broadcast) }
+
+      it 'accepts the title' do
+        patch :update, params: { id: session.id, title: 'A' * 100 }
+        expect(response).to have_http_status(:ok)
+        expect(session.reload.title.length).to eq(100)
+      end
+    end
+
+    context 'when not authenticated' do
+      before { sign_out user }
+
+      it 'redirects to sign in' do
+        patch :update, params: { id: session.id, title: 'Title' }
+        expect(response).to redirect_to(new_user_session_path)
+      end
+    end
+  end
+
   describe 'POST #message' do
     let(:message_content) { "Hello assistant!" }
 

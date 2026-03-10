@@ -3,8 +3,8 @@ import { createConsumer } from "@rails/actioncable"
 import { marked } from "marked"
 
 export default class extends Controller {
-  static targets = ["messages", "input", "sendBtn", "thinkingArea", "emptyState", "mentionBar", "toolToggle", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown"]
-  static values = { sessionId: Number, messageUrl: String, csrf: String, agents: Array }
+  static targets = ["messages", "input", "sendBtn", "thinkingArea", "emptyState", "mentionBar", "toolToggle", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown", "titleText", "titleInput"]
+  static values = { sessionId: Number, messageUrl: String, updateUrl: String, csrf: String, agents: Array }
 
   connect() {
     this.consumer = createConsumer()
@@ -198,6 +198,9 @@ export default class extends Controller {
         break
       case "coding_agent_complete":
         this.completeCodingAgent(data.message, data.output_summary, data.task_key, data.duration)
+        break
+      case "title_update":
+        this.updateTitle(data.title)
         break
       case "error":
         this.hideThinking(data.agent_id)
@@ -791,6 +794,70 @@ export default class extends Controller {
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
       .replace(/\son\w+\s*=/gi, " data-blocked=")
       .trim()
+  }
+
+  // ─── Inline Title Edit ─────────────────────────────────
+
+  editTitle() {
+    if (!this.hasTitleTextTarget || !this.hasTitleInputTarget) return
+    this.titleInputTarget.value = this.titleTextTarget.textContent.trim()
+    this.titleTextTarget.classList.add("hidden")
+    this.titleInputTarget.classList.remove("hidden")
+    this.titleInputTarget.focus()
+    this.titleInputTarget.select()
+  }
+
+  handleTitleKeydown(event) {
+    if (event.key === "Enter") {
+      event.preventDefault()
+      this.saveTitle()
+    } else if (event.key === "Escape") {
+      event.preventDefault()
+      this.cancelTitleEdit()
+    }
+  }
+
+  async saveTitle() {
+    if (!this.hasTitleInputTarget || !this.hasTitleTextTarget) return
+    const newTitle = this.titleInputTarget.value.trim()
+
+    this.titleInputTarget.classList.add("hidden")
+    this.titleTextTarget.classList.remove("hidden")
+
+    if (!newTitle || newTitle.length > 100) return
+
+    try {
+      const response = await fetch(this.updateUrlValue, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": this.csrfValue },
+        body: JSON.stringify({ title: newTitle })
+      })
+      if (response.ok) {
+        this.titleTextTarget.textContent = newTitle
+        document.title = newTitle
+        // Update active sidebar entry
+        const activeSidebarEntry = this.element.querySelector(".bg-surface-raised .text-sm.text-white.truncate")
+        if (activeSidebarEntry) activeSidebarEntry.textContent = newTitle
+      }
+    } catch (e) {
+      console.error("Failed to save title:", e)
+    }
+  }
+
+  cancelTitleEdit() {
+    if (!this.hasTitleInputTarget || !this.hasTitleTextTarget) return
+    this.titleInputTarget.classList.add("hidden")
+    this.titleTextTarget.classList.remove("hidden")
+  }
+
+  updateTitle(title) {
+    if (!title) return
+    document.title = title
+    if (this.hasTitleTextTarget) {
+      this.titleTextTarget.textContent = title
+    }
+    const activeSidebarEntry = this.element.querySelector(".bg-surface-raised .text-sm.text-white.truncate")
+    if (activeSidebarEntry) activeSidebarEntry.textContent = title
   }
 
   esc(text) {

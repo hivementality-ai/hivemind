@@ -3,7 +3,7 @@
 class SessionsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_agent, only: [ :create ]
-  before_action :set_session, only: [ :show, :message, :interrupt ]
+  before_action :set_session, only: [ :show, :message, :interrupt, :update ]
 
   # GET /sessions — list all sessions
   def index
@@ -75,6 +75,20 @@ class SessionsController < ApplicationController
     # Enqueue the actual processing job
     ChatStreamJob.perform_later(@session.id, user_message.to_s, attachment_ids)
     head :ok
+  end
+
+  # PATCH /sessions/:id — rename a chat session
+  def update
+    new_title = params[:title].to_s.strip
+
+    if new_title.blank? || new_title.length > 100
+      render json: { error: "Title must be between 1 and 100 characters" }, status: :unprocessable_entity
+      return
+    end
+
+    @session.update!(title: new_title)
+    ActionCable.server.broadcast("session_#{@session.id}", { type: "title_update", title: new_title })
+    render json: { title: new_title }
   end
 
   # POST /sessions/:id/interrupt — cancel, redirect, or inject into active agent

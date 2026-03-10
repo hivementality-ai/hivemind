@@ -21,6 +21,7 @@ module Sessions
       track_usage
       store_memory
       maybe_summarize
+      maybe_generate_title
       deliver_to_origin
 
       ServiceResponse.success
@@ -85,6 +86,18 @@ module Sessions
       ConversationSummaryJob.perform_later(@session.id)
     rescue StandardError => e
       Rails.logger.warn("[Sessions::PostProcessor] Summary trigger failed: #{e.message}")
+    end
+
+    def maybe_generate_title
+      existing_title = @session.title.to_s.strip
+      return if existing_title.present? && existing_title != "New Chat"
+
+      transcript_size = @session.transcript&.size || 0
+      return if transcript_size < 2
+
+      SessionTitleJob.perform_later(@session.id)
+    rescue StandardError => e
+      Rails.logger.warn("[Sessions::PostProcessor] Title generation trigger failed: #{e.message}")
     end
 
     def deliver_to_origin

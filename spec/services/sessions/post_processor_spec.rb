@@ -112,6 +112,59 @@ RSpec.describe Sessions::PostProcessor do
       end
     end
 
+    context "title generation" do
+      let(:two_message_transcript) do
+        [
+          { "role" => "user",      "content" => "How do I deploy a Rails app?" },
+          { "role" => "assistant", "content" => "Use Heroku or Fly.io." }
+        ]
+      end
+
+      it "enqueues SessionTitleJob when title is blank and transcript has 2+ messages" do
+        session.update!(title: nil, transcript: two_message_transcript)
+
+        expect { result }.to have_enqueued_job(SessionTitleJob).with(session.id)
+      end
+
+      it "enqueues SessionTitleJob when title is 'New Chat'" do
+        session.update!(title: "New Chat", transcript: two_message_transcript)
+
+        expect { result }.to have_enqueued_job(SessionTitleJob).with(session.id)
+      end
+
+      it "does not enqueue SessionTitleJob when title is already set to a real name" do
+        session.update!(title: "My Custom Title", transcript: two_message_transcript)
+
+        expect { result }.not_to have_enqueued_job(SessionTitleJob)
+      end
+
+      it "does not enqueue SessionTitleJob when transcript has fewer than 2 messages" do
+        session.update!(title: nil, transcript: [{ "role" => "user", "content" => "Hello" }])
+
+        expect { result }.not_to have_enqueued_job(SessionTitleJob)
+      end
+
+      it "does not enqueue SessionTitleJob when transcript is empty" do
+        session.update!(title: nil, transcript: [])
+
+        expect { result }.not_to have_enqueued_job(SessionTitleJob)
+      end
+
+      it "continues to origin delivery even if title job enqueue raises" do
+        session.update!(title: nil, transcript: two_message_transcript)
+        allow(SessionTitleJob).to receive(:perform_later).and_raise(StandardError, "Queue error")
+
+        result
+        expect(Channels::OriginDelivery).to have_received(:call)
+      end
+
+      it "does not enqueue SessionTitleJob when transcript is nil" do
+        session.update_columns(transcript: nil)
+
+        expect { result }.not_to have_enqueued_job(SessionTitleJob)
+      end
+    end
+
     context "origin delivery" do
       it "calls OriginDelivery" do
         result

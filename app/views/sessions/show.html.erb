@@ -1,4 +1,4 @@
-<div class="flex flex-col h-[calc(100vh-4rem)]" data-controller="chat" data-chat-session-id-value="<%= @session.id %>" data-chat-agent-name-value="<%= @agent.name %>" data-chat-agent-initial-value="<%= @agent.name[0].upcase %>" data-chat-agent-avatar-value="<%= @agent.avatar.attached? ? rails_blob_path(@agent.avatar, only_path: true) : '' %>" data-chat-message-url-value="<%= message_session_path(@session) %>" data-chat-interrupt-url-value="<%= interrupt_session_path(@session) %>" data-chat-csrf-value="<%= form_authenticity_token %>" data-chat-processing-value="<%= @processing %>">
+<div class="flex flex-col h-[calc(100vh-4rem)]" data-controller="chat" data-chat-session-id-value="<%= @session.id %>" data-chat-agent-name-value="<%= @agent.name %>" data-chat-agent-initial-value="<%= @agent.name[0].upcase %>" data-chat-agent-avatar-value="<%= @agent.avatar.attached? ? rails_blob_path(@agent.avatar, only_path: true) : '' %>" data-chat-message-url-value="<%= message_session_path(@session) %>" data-chat-update-url-value="<%= session_path(@session) %>" data-chat-interrupt-url-value="<%= interrupt_session_path(@session) %>" data-chat-csrf-value="<%= form_authenticity_token %>" data-chat-processing-value="<%= @processing %>">
   <!-- Header -->
   <div class="flex items-center gap-4 px-6 py-4 border-b border-border-default bg-surface-card/50 flex-shrink-0">
     <%= link_to sessions_path, class: "text-text-muted hover:text-white transition" do %>
@@ -9,6 +9,23 @@
     <%= agent_avatar(@agent, size: :md) %>
     <div>
       <h1 class="text-white font-semibold"><%= @agent.name %></h1>
+      <div class="flex items-center gap-1 group mt-0.5">
+        <span data-chat-target="titleText"
+              data-action="click->chat#editTitle"
+              title="Click to rename"
+              class="text-text-muted text-xs cursor-pointer hover:text-white transition"><%= @session.title.present? && @session.title != "New Chat" ? @session.title : "Rename chat..." %></span>
+        <svg class="w-3 h-3 text-text-faint opacity-0 group-hover:opacity-100 transition cursor-pointer flex-shrink-0"
+             fill="none" stroke="currentColor" viewBox="0 0 24 24"
+             data-action="click->chat#editTitle">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 012.828 0l.172.172a2 2 0 010 2.828L12 15H9v-3z" />
+        </svg>
+        <input type="text"
+               data-chat-target="titleInput"
+               data-action="keydown->chat#handleTitleKeydown blur->chat#saveTitle"
+               class="hidden text-text-muted text-xs bg-transparent border-b border-brand outline-none min-w-0 w-48"
+               maxlength="100">
+      </div>
       <p class="text-text-muted text-xs"><%= @agent.role %> · <%= @agent.llm_model %> · <%= @agent.model_provider %></p>
     </div>
     <div class="ml-auto flex items-center gap-4">
