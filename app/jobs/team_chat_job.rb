@@ -294,6 +294,52 @@ class TeamChatJob < ApplicationJob
         Rails.logger.info("TeamChatJob: chain depth #{@chain_depth} reached max #{MAX_CHAIN_DEPTH}, skipping @mention chains for #{agent.name}")
       end
 
+    rescue AgentInterrupted
+      if full_content.present?
+        @agent_session.append_transcript({ "role" => "assistant", "content" => full_content + "\n\n_[Cancelled by user]_" })
+        @session.team_chat_messages.create!(
+          sender_type: "agent",
+          sender_id: agent.id,
+          content: full_content + "\n\n_[Cancelled by user]_"
+        )
+      end
+      ActionCable.server.broadcast(@channel, {
+        type: "cancelled",
+        agent_id: agent.id,
+        agent_name: agent.name
+      })
+      Rails.logger.info("TeamChatJob: cancelled by user for agent #{agent.name} in session #{@session.id}")
+
+    rescue AgentRedirected => e
+      if full_content.present?
+        @agent_session.append_transcript({ "role" => "assistant", "content" => full_content + "\n\n_[Redirected by user]_" })
+        @session.team_chat_messages.create!(
+          sender_type: "agent",
+          sender_id: agent.id,
+          content: full_content + "\n\n_[Redirected by user]_"
+        )
+      end
+      ActionCable.server.broadcast(@channel, {
+        type: "redirected",
+        agent_id: agent.id,
+        agent_name: agent.name,
+        message: e.redirect_message
+      })
+      Rails.logger.info("TeamChatJob: redirected by user for agent #{agent.name} in session #{@session.id}")
+
+      # Only the first agent to be redirected re-enqueues — use a session-scoped flag
+      redirect_key = "team_chat_redirect:#{@session.id}"
+      unless Redis.current.get(redirect_key)
+        Redis.current.setex(redirect_key, 30, "1")
+        redirect_msg = @session.team_chat_messages.create!(
+          sender_type: "user",
+          sender_id: @session.user_id,
+          content: e.redirect_message
+          # No target_agent_id — all agents respond
+        )
+        TeamChatJob.perform_later(@session.id, redirect_msg.id)
+      end
+
     rescue StandardError => e
       broadcast_error(agent:, error: e.message)
       Rails.logger.error("TeamChatJob error (#{agent.name}): #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")

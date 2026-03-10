@@ -41,6 +41,7 @@ Rails.application.routes.draw do
   resources :team_chats, only: [ :show, :update ] do
     member do
       post :message
+      post :interrupt
     end
   end
 
