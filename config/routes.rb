@@ -26,7 +26,7 @@ Rails.application.routes.draw do
   get "dashboard", to: "dashboard#index"
 
   # Chat Sessions
-  resources :sessions, only: [ :index, :show, :create ] do
+  resources :sessions, only: [ :index, :show, :create, :update ] do
     member do
       post :message
       post :interrupt
@@ -38,7 +38,7 @@ Rails.application.routes.draw do
   resources :teams, only: [ :edit, :update ] do
     resources :team_chats, only: [ :create ], path: "chats"
   end
-  resources :team_chats, only: [ :show ] do
+  resources :team_chats, only: [ :show, :update ] do
     member do
       post :message
     end
