@@ -19,13 +19,7 @@ class ProvidersController < ApplicationController
   # Show form to add a new provider
   def new
     @provider = ProviderConfig.new
-    @existing_types = ProviderConfig.pluck(:adapter_type)
-    @available_types = %w[openai anthropic ollama llama_cpp] - @existing_types
-
-    if @available_types.empty?
-      redirect_to providers_path, notice: "All provider types are already configured."
-      nil
-    end
+    @available_types = %w[openai anthropic ollama llama_cpp]
   end
 
   # POST /providers
@@ -35,14 +29,15 @@ class ProvidersController < ApplicationController
     selected_models = provider_params[:models] || []
     default_model = provider_params[:default_model]
 
-    name = adapter_type == "llama_cpp" ? "llama.cpp" : adapter_type.titleize
-    vault_key = "providers/#{adapter_type}_api_key"
+    custom_name = provider_params[:name].presence
+    name = custom_name || (adapter_type == "llama_cpp" ? "llama.cpp" : adapter_type.titleize)
+    vault_slug = name.parameterize(separator: "_")
+    vault_key = "providers/#{vault_slug}_api_key"
 
     model_definitions = selected_models.map do |model_id|
       { "id" => model_id, "default" => (model_id == default_model) }
     end
 
-    # Save custom base URL for local providers (Ollama, llama.cpp)
     custom_base_url = provider_params[:base_url].presence
 
     @provider = ProviderConfig.new(
@@ -56,10 +51,8 @@ class ProvidersController < ApplicationController
 
     if @provider.save
       if provider_params[:api_key].present?
-        VaultEntry.find_or_initialize_by(
-          namespace: "providers",
-          key: "#{adapter_type}_api_key"
-        ).tap do |ve|
+        namespace, key = vault_key.split("/", 2)
+        VaultEntry.find_or_initialize_by(namespace:, key:).tap do |ve|
           ve.encrypted_value = provider_params[:api_key]
           ve.save!
         end
@@ -69,8 +62,7 @@ class ProvidersController < ApplicationController
 
       redirect_to provider_path(@provider), notice: "Provider added successfully."
     else
-      @existing_types = ProviderConfig.pluck(:adapter_type)
-      @available_types = %w[openai anthropic ollama llama_cpp] - @existing_types
+      @available_types = %w[openai anthropic ollama llama_cpp]
       render :new, status: :unprocessable_entity
     end
   end
@@ -104,10 +96,8 @@ class ProvidersController < ApplicationController
     if @provider.save
       # Update API key if provided
       if provider_params[:api_key].present?
-        VaultEntry.find_or_initialize_by(
-          namespace: "providers",
-          key: "#{@provider.adapter_type}_api_key"
-        ).tap do |ve|
+        namespace, key = @provider.vault_key.split("/", 2)
+        VaultEntry.find_or_initialize_by(namespace:, key:).tap do |ve|
           ve.encrypted_value = provider_params[:api_key]
           ve.save!
         end
@@ -141,7 +131,7 @@ class ProvidersController < ApplicationController
 
   def provider_params
     permitted = [ :api_key, :default_model, :base_url, models: [] ]
-    permitted.unshift(:adapter_type) if action_name == "create"
+    permitted.unshift(:adapter_type, :name) if action_name == "create"
     params.require(:provider_config).permit(*permitted)
   end
 

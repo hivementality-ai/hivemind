@@ -277,21 +277,10 @@ RSpec.describe ProvidersController, type: :controller do
       expect(response).to be_successful
     end
 
-    it 'assigns available types excluding existing ones' do
+    it 'assigns all adapter types regardless of existing providers' do
       create(:provider_config, name: 'Anthropic', adapter_type: 'anthropic')
       get :new
-      expect(assigns(:available_types)).not_to include('anthropic')
-      expect(assigns(:available_types)).to include('openai', 'ollama', 'llama_cpp')
-    end
-
-    it 'redirects to index when all types are configured' do
-      create(:provider_config, name: 'OpenAI', adapter_type: 'openai')
-      create(:provider_config, name: 'Anthropic', adapter_type: 'anthropic')
-      create(:provider_config, name: 'Ollama', adapter_type: 'ollama')
-      create(:provider_config, name: 'llama.cpp', adapter_type: 'llama_cpp')
-      get :new
-      expect(response).to redirect_to(providers_path)
-      expect(flash[:notice]).to include('All provider types are already configured')
+      expect(assigns(:available_types)).to include('anthropic', 'openai', 'ollama', 'llama_cpp')
     end
   end
 
@@ -364,22 +353,42 @@ RSpec.describe ProvidersController, type: :controller do
     end
 
     context 'with duplicate adapter_type' do
-      it 'rejects the duplicate and re-renders the form' do
+      it 'allows a second provider of the same type with a different name' do
         create(:provider_config, name: 'Anthropic', adapter_type: 'anthropic')
 
         expect {
           post :create, params: {
             provider_config: {
               adapter_type: 'anthropic',
-              api_key: 'sk-ant-duplicate',
+              name: 'Anthropic EU',
+              api_key: 'sk-ant-second',
               models: [ 'claude-sonnet-4-5' ],
               default_model: 'claude-sonnet-4-5'
+            }
+          }
+        }.to change(ProviderConfig, :count).by(1)
+
+        provider = ProviderConfig.last
+        expect(provider.name).to eq('Anthropic EU')
+        expect(provider.adapter_type).to eq('anthropic')
+      end
+
+      it 'rejects duplicate names' do
+        create(:provider_config, name: 'Openai', adapter_type: 'openai')
+
+        expect {
+          post :create, params: {
+            provider_config: {
+              adapter_type: 'openai',
+              name: 'Openai',
+              api_key: 'sk-dup',
+              models: [ 'gpt-5.2' ],
+              default_model: 'gpt-5.2'
             }
           }
         }.not_to change(ProviderConfig, :count)
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response).to render_template(:new)
       end
     end
   end
