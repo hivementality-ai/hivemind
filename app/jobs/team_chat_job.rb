@@ -44,6 +44,8 @@ class TeamChatJob < ApplicationJob
       respond_as_agent(agent:, trigger_message: message)
       @current_round_agent_ids_responded << agent.id
     end
+
+    maybe_generate_team_chat_title
   end
 
   private
@@ -506,5 +508,17 @@ class TeamChatJob < ApplicationJob
       agent_name: agent.name,
       content: "#{agent.name} error: #{error}"
     })
+  end
+
+  def maybe_generate_team_chat_title
+    existing_title = @session.title.to_s.strip
+    return if existing_title.present? && existing_title != "New Chat"
+
+    message_count = @session.team_chat_messages.count
+    return if message_count < 2
+
+    TeamChatTitleJob.perform_later(@session.id)
+  rescue StandardError => e
+    Rails.logger.warn("[TeamChatJob] Title generation trigger failed: #{e.message}")
   end
 end

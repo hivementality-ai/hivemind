@@ -96,6 +96,65 @@ RSpec.describe TeamChatJob, type: :job do
     end
   end
 
+  describe "title generation trigger" do
+    # Use bypass_llm so the agent message is saved without needing a provider stub,
+    # which also means after the job runs the session has 2 messages total (user + agent).
+    let!(:agent) { create(:agent, team: team, model_provider: "anthropic", llm_model: "claude-haiku-4-5", enabled: true) }
+    let(:bypass_result) do
+      HashtagActions::Processor::ProcessResult.new(
+        bypass_llm: true,
+        response: "ok",
+        clean_message: "",
+        prompt_addons: [],
+        side_effects: []
+      )
+    end
+
+    before do
+      allow(HashtagActions::Processor).to receive(:call).and_return(bypass_result)
+      allow(CostEstimator).to receive(:estimate).and_return(0)
+    end
+
+    it "enqueues TeamChatTitleJob after the agent loop when title is 'New Chat' and 2+ messages exist" do
+      session.update!(title: "New Chat")
+      message = session.team_chat_messages.create!(sender_type: "user", sender_id: user.id, content: "Hello")
+
+      expect {
+        TeamChatJob.perform_now(session.id, message.id)
+      }.to have_enqueued_job(TeamChatTitleJob).with(session.id)
+    end
+
+    it "enqueues TeamChatTitleJob when title is nil and 2+ messages exist" do
+      session.update!(title: nil)
+      message = session.team_chat_messages.create!(sender_type: "user", sender_id: user.id, content: "Hello")
+
+      expect {
+        TeamChatJob.perform_now(session.id, message.id)
+      }.to have_enqueued_job(TeamChatTitleJob).with(session.id)
+    end
+
+    it "does not enqueue TeamChatTitleJob when title is already set to a real name" do
+      session.update!(title: "My Custom Chat")
+      message = session.team_chat_messages.create!(sender_type: "user", sender_id: user.id, content: "Hello")
+
+      expect {
+        TeamChatJob.perform_now(session.id, message.id)
+      }.not_to have_enqueued_job(TeamChatTitleJob)
+    end
+
+    it "enqueues TeamChatTitleJob only once regardless of how many agents respond" do
+      # A second enabled agent means agents_to_respond.each fires twice,
+      # but maybe_generate_team_chat_title runs once after the loop.
+      create(:agent, team: team, model_provider: "anthropic", llm_model: "claude-haiku-4-5", enabled: true)
+      session.update!(title: "New Chat")
+      message = session.team_chat_messages.create!(sender_type: "user", sender_id: user.id, content: "Hello")
+
+      expect {
+        TeamChatJob.perform_now(session.id, message.id)
+      }.to have_enqueued_job(TeamChatTitleJob).exactly(:once)
+    end
+  end
+
   describe "OAuth MCP path" do
     let!(:agent) { create(:agent, team: team, model_provider: "anthropic", llm_model: "claude-3-5-sonnet") }
     let!(:tool) { create(:tool, enabled: true, builtin: true) }

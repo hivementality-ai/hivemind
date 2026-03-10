@@ -2,6 +2,7 @@
      data-controller="team-chat"
      data-team-chat-session-id-value="<%= @session.id %>"
      data-team-chat-message-url-value="<%= message_team_chat_path(@session) %>"
+     data-team-chat-update-url-value="<%= team_chat_path(@session) %>"
      data-team-chat-csrf-value="<%= form_authenticity_token %>"
      data-team-chat-agents-value="<%= @agents.map { |a| { id: a.id, name: a.name, role: a.role, initial: a.name[0].upcase } }.to_json %>">
   <!-- Sidebar -->
@@ -71,7 +72,23 @@
         <%= hex_icon(size: "w-7 h-7", css: "text-purple-400") %>
       </div>
       <div>
-        <h1 class="text-white font-semibold text-sm"><%= @session.title %></h1>
+        <div class="flex items-center gap-1 group">
+          <h1 class="text-white font-semibold text-sm cursor-pointer"
+              data-team-chat-target="titleText"
+              data-action="click->team-chat#editTitle"
+              title="Click to rename"><%= @session.title %></h1>
+          <svg class="w-3 h-3 text-text-faint opacity-0 group-hover:opacity-100 transition cursor-pointer flex-shrink-0"
+               fill="none" stroke="currentColor" viewBox="0 0 24 24"
+               data-action="click->team-chat#editTitle">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 012.828 0l.172.172a2 2 0 010 2.828L12 15H9v-3z" />
+          </svg>
+          <input type="text"
+                 data-team-chat-target="titleInput"
+                 data-action="keydown->team-chat#handleTitleKeydown blur->team-chat#saveTitle"
+                 class="hidden text-white font-semibold text-sm bg-transparent border-b border-purple-400 outline-none min-w-0 w-40"
+                 maxlength="100">
+        </div>
         <p class="text-text-faint text-xs"><%= @session.session_key %></p>
       </div>
       <div class="ml-auto flex items-center gap-3">
