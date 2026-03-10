@@ -669,7 +669,8 @@ export default class extends Controller {
   }
 
   showToolResult(toolName, output, success) {
-    const block = this.messagesTarget.querySelector(`[data-tool-block="${toolName}"]:last-of-type`)
+    const blocks = this.messagesTarget.querySelectorAll(`[data-tool-block="${toolName}"]`)
+    const block = blocks[blocks.length - 1]
     if (block) {
       const statusEl = block.querySelector(".text-yellow-400")
       if (statusEl) {
