@@ -317,4 +317,181 @@ RSpec.describe TeamChatJob, type: :job do
       end
     end
   end
+
+  describe "interrupt handling" do
+    let!(:agent) { create(:agent, team: team) }
+    let(:message) do
+      session.team_chat_messages.create!(
+        sender_type: "user",
+        sender_id: user.id,
+        content: "Do something"
+      )
+    end
+
+    before do
+      allow(HashtagActions::Processor).to receive(:call).and_return(
+        HashtagActions::Processor::ProcessResult.new(
+          bypass_llm: false,
+          response: nil,
+          clean_message: "Do something",
+          prompt_addons: [],
+          side_effects: []
+        )
+      )
+      allow(Providers::Resolver).to receive(:call).and_return(
+        double(success?: true, data: { adapter: double("adapter", is_a?: false) })
+      )
+    end
+
+    context "when AgentInterrupted is raised by ToolLoop" do
+      before do
+        allow(Agents::ToolLoop).to receive(:call).and_raise(AgentInterrupted)
+      end
+
+      it "broadcasts cancelled event" do
+        TeamChatJob.perform_now(session.id, message.id)
+        expect(ActionCable.server).to have_received(:broadcast).with(
+          "team_chat_#{session.id}",
+          hash_including(type: "cancelled", agent_id: agent.id)
+        )
+      end
+
+      it "does not broadcast an error" do
+        TeamChatJob.perform_now(session.id, message.id)
+        expect(ActionCable.server).not_to have_received(:broadcast).with(
+          anything,
+          hash_including(type: "error")
+        )
+      end
+
+      it "does not save a partial message when no content was streamed" do
+        expect {
+          TeamChatJob.perform_now(session.id, message.id)
+        }.not_to change { session.team_chat_messages.where(sender_type: "agent").count }
+      end
+    end
+
+    context "when AgentInterrupted is raised after partial content was streamed via adapter.chat" do
+      before do
+        adapter = double("adapter")
+        allow(adapter).to receive(:is_a?).with(Providers::AnthropicAdapter).and_return(false)
+        allow(adapter).to receive(:chat)
+          .and_yield({ type: "content", content: "partial response so far" })
+          .and_raise(AgentInterrupted)
+        allow(Providers::Resolver).to receive(:call).and_return(
+          double(success?: true, data: { adapter: adapter })
+        )
+      end
+
+      it "saves partial content with cancelled suffix" do
+        TeamChatJob.perform_now(session.id, message.id)
+        agent_msg = session.team_chat_messages.where(sender_type: "agent").last
+        expect(agent_msg).to be_present
+        expect(agent_msg.content).to include("partial response so far")
+        expect(agent_msg.content).to include("_[Cancelled by user]_")
+      end
+
+      it "broadcasts cancelled event" do
+        TeamChatJob.perform_now(session.id, message.id)
+        expect(ActionCable.server).to have_received(:broadcast).with(
+          "team_chat_#{session.id}",
+          hash_including(type: "cancelled", agent_id: agent.id)
+        )
+      end
+    end
+
+    context "when AgentRedirected is raised by ToolLoop" do
+      before do
+        allow(Agents::ToolLoop).to receive(:call).and_raise(AgentRedirected.new("new direction"))
+        allow(Redis.current).to receive(:get).and_return(nil)
+        allow(Redis.current).to receive(:setex)
+      end
+
+      it "broadcasts redirected event with redirect message" do
+        TeamChatJob.perform_now(session.id, message.id)
+        expect(ActionCable.server).to have_received(:broadcast).with(
+          "team_chat_#{session.id}",
+          hash_including(type: "redirected", agent_id: agent.id, message: "new direction")
+        )
+      end
+
+      it "creates a new user-type TeamChatMessage with the redirect content" do
+        expect {
+          TeamChatJob.perform_now(session.id, message.id)
+        }.to change(TeamChatMessage, :count).by(1)
+
+        redirect_msg = TeamChatMessage.last
+        expect(redirect_msg.content).to eq("new direction")
+        expect(redirect_msg.sender_type).to eq("user")
+        expect(redirect_msg.target_agent_id).to be_nil
+      end
+
+      it "re-enqueues TeamChatJob with the redirect message" do
+        expect {
+          TeamChatJob.perform_now(session.id, message.id)
+        }.to have_enqueued_job(TeamChatJob)
+      end
+
+      it "does not broadcast an error" do
+        TeamChatJob.perform_now(session.id, message.id)
+        expect(ActionCable.server).not_to have_received(:broadcast).with(
+          anything,
+          hash_including(type: "error")
+        )
+      end
+
+      it "does not save a partial message when no content was streamed" do
+        expect {
+          TeamChatJob.perform_now(session.id, message.id)
+        }.not_to change { session.team_chat_messages.where(sender_type: "agent").count }
+      end
+
+      context "when a second agent also receives the redirect signal" do
+        before do
+          allow(Redis.current).to receive(:get).and_return("1") # dedup key already set by first agent
+        end
+
+        it "does not re-enqueue a second TeamChatJob" do
+          expect {
+            TeamChatJob.perform_now(session.id, message.id)
+          }.not_to have_enqueued_job(TeamChatJob)
+        end
+
+        it "does not create a duplicate redirect message" do
+          expect {
+            TeamChatJob.perform_now(session.id, message.id)
+          }.not_to change { session.team_chat_messages.where(sender_type: "user").count }
+        end
+      end
+    end
+
+    context "when AgentRedirected is raised after partial content was streamed via adapter.chat" do
+      before do
+        adapter = double("adapter")
+        allow(adapter).to receive(:is_a?).with(Providers::AnthropicAdapter).and_return(false)
+        allow(adapter).to receive(:chat)
+          .and_yield({ type: "content", content: "partial answer" })
+          .and_raise(AgentRedirected.new("ignore that, do this instead"))
+        allow(Providers::Resolver).to receive(:call).and_return(
+          double(success?: true, data: { adapter: adapter })
+        )
+        allow(Redis.current).to receive(:get).and_return(nil)
+        allow(Redis.current).to receive(:setex)
+      end
+
+      it "saves partial content with redirected suffix" do
+        TeamChatJob.perform_now(session.id, message.id)
+        agent_msg = session.team_chat_messages.where(sender_type: "agent").last
+        expect(agent_msg).to be_present
+        expect(agent_msg.content).to include("partial answer")
+        expect(agent_msg.content).to include("_[Redirected by user]_")
+      end
+
+      it "re-enqueues TeamChatJob for the redirect" do
+        expect {
+          TeamChatJob.perform_now(session.id, message.id)
+        }.to have_enqueued_job(TeamChatJob)
+      end
+    end
+  end
 end
