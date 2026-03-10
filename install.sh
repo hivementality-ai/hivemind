@@ -447,7 +447,7 @@ build_and_start() {
   local version
   version="$(git describe --tags --exact-match 2>/dev/null | sed 's/^v//' || git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo 'dev')"
   info "Pulling prebuilt images (version: $version)..."
-  if HIVEMIND_VERSION="$version" docker compose pull app worker workspace connector 2>/dev/null; then
+  if HIVEMIND_VERSION="$version" docker compose pull app workspace connector 2>/dev/null; then
     ok "Prebuilt images pulled successfully"
   else
     warn "Prebuilt images not available, building from source..."
