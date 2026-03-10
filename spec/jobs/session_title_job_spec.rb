@@ -19,6 +19,7 @@ RSpec.describe SessionTitleJob, type: :job do
     allow(Providers::Resolver).to receive(:call).and_return(resolver_success)
     allow(ActionCable.server).to receive(:broadcast)
     allow(CostEstimator).to receive(:estimate).and_return(0)
+    allow(adapter).to receive(:chat) # stub so not_to have_received assertions are valid
   end
 
   def stub_llm_title(title)
