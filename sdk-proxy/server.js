@@ -115,15 +115,19 @@ async function handleOAuth(_req, res, token, params) {
     });
 
     const activeTools = new Set();
+    let isThinking = false;
     try {
       for await (const message of query({ prompt, options })) {
         console.log(`[query] message type=${message.type}`, JSON.stringify(message).substring(0, 300));
 
         if (message.type === "text") {
+          if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
           sendSSE(res, "content", { content: message.text });
         } else if (message.type === "thinking") {
+          if (!isThinking) { sendSSE(res, "thinking_start", {}); isThinking = true; }
           sendSSE(res, "thinking", { thinking: message.thinking });
         } else if (message.type === "assistant") {
+          if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
           for (const block of message.message?.content || []) {
             if (block.type === "text" && block.text) {
               // When an assistant message arrives with text, any previously
@@ -134,6 +138,7 @@ async function handleOAuth(_req, res, token, params) {
               activeTools.clear();
               sendSSE(res, "content", { content: block.text });
             } else if (block.type === "thinking" && block.thinking) {
+              if (!isThinking) { sendSSE(res, "thinking_start", {}); isThinking = true; }
               sendSSE(res, "thinking", { thinking: block.thinking });
             } else if (block.type === "tool_use") {
               // MCP tools are handled by the bridge callbacks — only emit
@@ -145,12 +150,14 @@ async function handleOAuth(_req, res, token, params) {
             }
           }
         } else if (message.type === "tool_progress") {
+          if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
           // Claude Code's own tool is actively running
           if (!activeTools.has(message.tool_name)) {
             sendSSE(res, "tool_start", { tool: message.tool_name, input: {} });
             activeTools.add(message.tool_name);
           }
         } else if (message.type === "result") {
+          if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
           // Close any remaining active tools
           for (const toolName of activeTools) {
             sendSSE(res, "tool_result", { tool: toolName, output: "", success: true });
