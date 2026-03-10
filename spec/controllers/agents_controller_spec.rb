@@ -280,6 +280,41 @@ RSpec.describe AgentsController, type: :controller do
       expect(flash[:notice]).to eq("Agent deleted successfully")
     end
 
+    it 'destroys the agent and its sessions and tool_executions' do
+      session = create(:session, agent: agent_to_delete)
+      create(:tool_execution, session: session, agent: agent_to_delete)
+
+      expect {
+        delete :destroy, params: { slug: agent_to_delete.slug }
+      }.to change(Agent, :count).by(-1)
+        .and change(Session, :count).by(-1)
+        .and change(ToolExecution, :count).by(-1)
+    end
+
+    context 'when a foreign key violation occurs' do
+      before do
+        allow_any_instance_of(Agent).to receive(:destroy).and_raise(
+          ActiveRecord::InvalidForeignKey.new("FK violation")
+        )
+      end
+
+      it 'redirects back to the agent with an alert' do
+        delete :destroy, params: { slug: agent_to_delete.slug }
+        expect(response).to redirect_to(agent_to_delete)
+      end
+
+      it 'sets an alert message' do
+        delete :destroy, params: { slug: agent_to_delete.slug }
+        expect(flash[:alert]).to match(/Unable to delete agent/)
+      end
+
+      it 'does not destroy the agent' do
+        expect {
+          delete :destroy, params: { slug: agent_to_delete.slug }
+        }.not_to change(Agent, :count)
+      end
+    end
+
     context 'when not authenticated' do
       before { sign_out user }
 

@@ -7,6 +7,10 @@ RSpec.describe Session, type: :model do
     it { should belong_to(:agent) }
     it { should have_many(:transcript_archives).dependent(:destroy) }
     it { should have_many(:usage_records).dependent(:destroy) }
+    it { should have_many(:tool_executions).dependent(:destroy) }
+    it { should have_many(:coding_agent_tasks).dependent(:destroy) }
+    it { should have_many(:research_sessions).dependent(:destroy) }
+    it { should have_many(:heartbeat_runs).dependent(:nullify) }
   end
 
   describe 'validations' do
@@ -147,6 +151,43 @@ RSpec.describe Session, type: :model do
       expect(build(:session, :archived)).to be_valid
       expect(build(:session, :expired)).to be_valid
       expect(build(:session, :with_transcript)).to be_valid
+    end
+  end
+
+  describe 'dependent destruction' do
+    let!(:session) { create(:session) }
+
+    it 'destroys tool_executions when session is destroyed' do
+      create(:tool_execution, session: session)
+      expect { session.destroy }.to change(ToolExecution, :count).by(-1)
+    end
+
+    it 'destroys coding_agent_tasks when session is destroyed' do
+      create(:coding_agent_task, session: session)
+      expect { session.destroy }.to change(CodingAgentTask, :count).by(-1)
+    end
+
+    it 'destroys research_sessions when session is destroyed' do
+      create(:research_session, session: session)
+      expect { session.destroy }.to change(ResearchSession, :count).by(-1)
+    end
+
+    it 'nullifies heartbeat_run session_id when session is destroyed' do
+      run = create(:heartbeat_run, :with_session, session: session)
+      session.destroy
+      expect(run.reload.session_id).to be_nil
+    end
+
+    it 'nullifies sub_agent_task parent_session_id when session is destroyed' do
+      task = create(:sub_agent_task, :with_parent_session, parent_session: session)
+      session.destroy
+      expect(task.reload.parent_session_id).to be_nil
+    end
+
+    it 'nullifies sub_agent_task child_session_id when session is destroyed' do
+      task = create(:sub_agent_task, :with_child_session, child_session: session)
+      session.destroy
+      expect(task.reload.child_session_id).to be_nil
     end
   end
 end
