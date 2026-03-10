@@ -3,7 +3,7 @@
 class TeamChatsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_team, only: [ :create ]
-  before_action :set_session, only: [ :show, :message, :update ]
+  before_action :set_session, only: [ :show, :message, :update, :interrupt ]
 
   # GET /team_chats — list all team chat sessions
   def index; end
@@ -13,7 +13,7 @@ class TeamChatsController < ApplicationController
     @chat_session = TeamChatSession.create!(
       team: @team,
       user: current_user,
-      title: "New Chat"
+      title: "#{@team.name} Chat"
     )
 
     redirect_to team_chat_path(@chat_session)
@@ -64,6 +64,36 @@ class TeamChatsController < ApplicationController
     else
       head :unprocessable_entity
     end
+  end
+
+  # POST /team_chats/:id/interrupt — cancel, redirect, or inject into active agents
+  def interrupt
+    signal_type = params[:type].to_s.strip
+    message = params[:message].to_s.strip
+
+    unless SessionSignal::TYPES.include?(signal_type)
+      render json: { error: "Invalid signal type. Must be: #{SessionSignal::TYPES.join(', ')}" }, status: :unprocessable_entity
+      return
+    end
+
+    if signal_type != "cancel" && message.blank?
+      render json: { error: "Message required for #{signal_type}" }, status: :unprocessable_entity
+      return
+    end
+
+    # Fan out signal to all active agent sessions within this team chat
+    agent_sessions = @session.agent_sessions.to_a
+    agent_sessions.each do |agent_session|
+      SessionSignal.set(agent_session.id, type: signal_type, message: message.presence)
+    end
+
+    # Broadcast immediately for visual feedback
+    ActionCable.server.broadcast(
+      "team_chat_#{@session.id}",
+      { type: "interrupt_sent", signal_type: signal_type, message: message.presence }
+    )
+
+    render json: { status: "signal_sent", type: signal_type }
   end
 
   private

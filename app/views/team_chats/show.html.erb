@@ -3,6 +3,7 @@
      data-team-chat-session-id-value="<%= @session.id %>"
      data-team-chat-message-url-value="<%= message_team_chat_path(@session) %>"
      data-team-chat-update-url-value="<%= team_chat_path(@session) %>"
+     data-team-chat-interrupt-url-value="<%= interrupt_team_chat_path(@session) %>"
      data-team-chat-csrf-value="<%= form_authenticity_token %>"
      data-team-chat-agents-value="<%= @agents.map { |a| { id: a.id, name: a.name, role: a.role, initial: a.name[0].upcase } }.to_json %>">
   <!-- Sidebar -->
@@ -264,6 +265,13 @@
         <button data-team-chat-target="sendBtn" data-action="click->team-chat#send"
                 class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-xl transition cursor-pointer flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
           Send
+        </button>
+        <button data-team-chat-target="stopBtn" data-action="click->team-chat#stopAll"
+                class="hidden px-3 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl transition cursor-pointer flex-shrink-0"
+                title="Stop all agents">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <rect x="6" y="6" width="12" height="12" rx="1"/>
+          </svg>
         </button>
       </div>
     </div>
