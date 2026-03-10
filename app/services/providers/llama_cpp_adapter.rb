@@ -90,6 +90,11 @@ module Providers
       params[:temperature] = options[:temperature] if options[:temperature]
       params[:max_tokens] = options[:max_tokens] if options[:max_tokens]
 
+      if options[:thinking_enabled]
+        params[:reasoning_format] = "deepseek"
+        params.delete(:temperature) # Not compatible with thinking
+      end
+
       if tools.any?
         params[:tools] = tools.map do |t|
           {
@@ -130,6 +135,8 @@ module Providers
       end
 
       full_content = +""
+      full_thinking = +""
+      thinking_started = false
 
       streaming_conn = Faraday.new(url: llama_cpp_url) do |f|
         f.request :json
@@ -154,8 +161,23 @@ module Providers
 
             begin
               parsed = JSON.parse(data)
+
+              reasoning = parsed.dig("choices", 0, "delta", "reasoning_content")
+              if reasoning
+                unless thinking_started
+                  block.call({ type: "thinking_start" })
+                  thinking_started = true
+                end
+                full_thinking << reasoning
+                block.call({ type: "thinking", content: reasoning })
+              end
+
               delta = parsed.dig("choices", 0, "delta", "content")
               if delta
+                if thinking_started
+                  block.call({ type: "thinking_stop" })
+                  thinking_started = false
+                end
                 full_content << delta
                 block.call({ type: "content", content: delta })
               end
@@ -166,7 +188,9 @@ module Providers
         end
       end
 
-      result = ServiceResponse.success(data: { content: full_content, usage: {} })
+      thinking = full_thinking.presence
+
+      result = ServiceResponse.success(data: { content: full_content, thinking:, usage: {} })
       inject_request_payload(result, params)
     end
 
@@ -178,6 +202,7 @@ module Providers
       body = JSON.parse(response.body)
       choice = body.dig("choices", 0, "message")
       content = choice&.dig("content")
+      thinking = choice&.dig("reasoning_content").presence
       raw_tool_calls = choice&.dig("tool_calls")
 
       tool_calls = raw_tool_calls&.map do |tc|
@@ -199,7 +224,7 @@ module Providers
         output_tokens: usage_data["completion_tokens"]
       }
 
-      result = ServiceResponse.success(data: { content:, tool_calls:, usage: })
+      result = ServiceResponse.success(data: { content:, thinking:, tool_calls:, usage: })
       inject_request_payload(result, params)
     end
   end

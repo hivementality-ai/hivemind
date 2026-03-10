@@ -92,6 +92,11 @@ module Providers
       }
 
       # Convert tools to Ollama format if provided
+      if options[:thinking_enabled]
+        params[:think] = true
+        params[:options].delete(:temperature) # Not compatible with thinking
+      end
+
       if tools.any?
         params[:tools] = tools.map do |t|
           {
@@ -141,6 +146,8 @@ module Providers
       end
 
       full_content = +""
+      full_thinking = +""
+      thinking_started = false
 
       response = connection.post("/api/chat") do |req|
         req.body = params.merge(stream: true).to_json
@@ -150,15 +157,35 @@ module Providers
         next if line.strip.empty?
 
         chunk = JSON.parse(line)
-        if chunk["message"]&.dig("content")
+        if chunk["message"]&.key?("thinking")
+          thinking_text = chunk["message"]["thinking"]
+          if thinking_text.present?
+            unless thinking_started
+              block.call({ type: "thinking_start" })
+              thinking_started = true
+            end
+            full_thinking << thinking_text
+            block.call({ type: "thinking", content: thinking_text })
+          end
+        end
+
+        if chunk["message"]&.key?("content")
+          if thinking_started
+            block.call({ type: "thinking_stop" })
+            thinking_started = false
+          end
           delta = chunk["message"]["content"]
-          full_content << delta
-          block.call({ type: "content", content: delta })
+          if delta.present?
+            full_content << delta
+            block.call({ type: "content", content: delta })
+          end
         end
       end
 
+      thinking = full_thinking.presence
+
       # Ollama doesn't report token usage in streaming — estimate
-      result = ServiceResponse.success(data: { content: full_content, usage: {} })
+      result = ServiceResponse.success(data: { content: full_content, thinking:, usage: {} })
       inject_request_payload(result, params)
     end
 
@@ -169,6 +196,7 @@ module Providers
 
       body = JSON.parse(response.body)
       content = body.dig("message", "content")
+      thinking = body.dig("message", "thinking").presence
       raw_tool_calls = body.dig("message", "tool_calls")
 
       # Normalize tool calls to match expected format
@@ -191,7 +219,7 @@ module Providers
         output_tokens: body.dig("eval_count")
       }
 
-      result = ServiceResponse.success(data: { content:, tool_calls:, usage: })
+      result = ServiceResponse.success(data: { content:, thinking:, tool_calls:, usage: })
       inject_request_payload(result, params)
     end
   end
