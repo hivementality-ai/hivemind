@@ -81,7 +81,13 @@
               <div class="flex items-start gap-3 mb-2">
                 <%= agent_avatar(session.agent, size: :xs) %>
                 <div class="flex-1 min-w-0">
-                  <h4 class="text-white font-medium text-sm"><%= session.agent.name %></h4>
+                  <h4 class="text-white font-medium text-sm">
+                    <% if session.title.present? && session.title != "New Chat" %>
+                      <%= session.title %>
+                    <% else %>
+                      <%= session.agent.name %>
+                    <% end %>
+                  </h4>
                   <p class="text-text-faint text-xs">
                     <%= time_ago_in_words(session.last_activity_at || session.created_at) %> ago
                   </p>
