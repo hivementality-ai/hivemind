@@ -9,10 +9,8 @@
       </div>
     </div>
     <div class="flex items-center gap-3">
-      <% if ProviderConfig.count < 4 %>
-        <%= link_to new_provider_path, class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition" do %>
-          + Add Provider
-        <% end %>
+      <%= link_to new_provider_path, class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition" do %>
+        + Add Provider
       <% end %>
       <%= link_to root_path, class: "px-4 py-2 bg-surface-raised hover:bg-surface-overlay text-white text-sm font-medium rounded-lg transition" do %>
         ← Back
