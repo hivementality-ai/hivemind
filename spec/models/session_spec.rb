@@ -7,6 +7,11 @@ RSpec.describe Session, type: :model do
     it { should belong_to(:agent) }
     it { should have_many(:transcript_archives).dependent(:destroy) }
     it { should have_many(:usage_records).dependent(:destroy) }
+    it { should have_many(:chat_attachments).dependent(:destroy) }
+    it { should have_many(:tool_executions).dependent(:destroy) }
+    it { should have_many(:coding_agent_tasks).dependent(:destroy) }
+    it { should have_many(:research_sessions).dependent(:destroy) }
+    it { should have_many(:heartbeat_runs).dependent(:destroy) }
   end
 
   describe 'validations' do
@@ -147,6 +152,55 @@ RSpec.describe Session, type: :model do
       expect(build(:session, :archived)).to be_valid
       expect(build(:session, :expired)).to be_valid
       expect(build(:session, :with_transcript)).to be_valid
+    end
+  end
+
+  describe 'cascade destruction' do
+    let(:agent) { create(:agent) }
+    let(:session) { create(:session, agent: agent) }
+
+    it 'destroys tool_executions when session is destroyed' do
+      tool_execution = create(:tool_execution, session: session)
+      expect {
+        session.destroy
+      }.to change(ToolExecution, :count).by(-1)
+      expect(ToolExecution.exists?(tool_execution.id)).to be(false)
+    end
+
+    it 'destroys coding_agent_tasks when session is destroyed' do
+      coding_task = create(:coding_agent_task, session: session)
+      expect {
+        session.destroy
+      }.to change(CodingAgentTask, :count).by(-1)
+      expect(CodingAgentTask.exists?(coding_task.id)).to be(false)
+    end
+
+    it 'destroys research_sessions when session is destroyed' do
+      research = create(:research_session, session: session)
+      expect {
+        session.destroy
+      }.to change(ResearchSession, :count).by(-1)
+      expect(ResearchSession.exists?(research.id)).to be(false)
+    end
+
+    it 'destroys heartbeat_runs when session is destroyed' do
+      heartbeat = create(:heartbeat_run, session: session)
+      expect {
+        session.destroy
+      }.to change(HeartbeatRun, :count).by(-1)
+      expect(HeartbeatRun.exists?(heartbeat.id)).to be(false)
+    end
+
+    it 'nullifies sub_agent_tasks parent_session_id when session is destroyed' do
+      sub_task = create(:sub_agent_task, parent_session: session)
+      session.destroy
+      expect(sub_task.reload.parent_session_id).to be_nil
+    end
+
+    it 'nullifies sub_agent_tasks child_session_id when session is destroyed' do
+      sub_task = create(:sub_agent_task, child_session: session)
+      session.destroy
+      expect(sub_task.reload.child_session_id).to be_nil
     end
   end
 end

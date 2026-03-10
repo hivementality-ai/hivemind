@@ -280,6 +280,41 @@ RSpec.describe AgentsController, type: :controller do
       expect(flash[:notice]).to eq("Agent deleted successfully")
     end
 
+    context 'with sessions that have tool_executions' do
+      it 'cascades deletion and destroys all related records' do
+        session = create(:session, agent: agent_to_delete)
+        tool_execution = create(:tool_execution, session: session)
+
+        expect {
+          delete :destroy, params: { slug: agent_to_delete.slug }
+        }.to change(Agent, :count).by(-1)
+          .and change(Session, :count).by(-1)
+          .and change(ToolExecution, :count).by(-1)
+
+        expect(Agent.exists?(agent_to_delete.id)).to be(false)
+        expect(Session.exists?(session.id)).to be(false)
+        expect(ToolExecution.exists?(tool_execution.id)).to be(false)
+      end
+    end
+
+    context 'with FK constraint violation' do
+      it 'catches InvalidForeignKey and redirects with alert' do
+        allow_any_instance_of(Agent).to receive(:destroy).and_raise(ActiveRecord::InvalidForeignKey.new("FK violation"))
+
+        delete :destroy, params: { slug: agent_to_delete.slug }
+
+        expect(response).to redirect_to(agent_to_delete)
+        expect(flash[:alert]).to match(/Unable to delete agent/)
+      end
+
+      it 'logs the error' do
+        allow_any_instance_of(Agent).to receive(:destroy).and_raise(ActiveRecord::InvalidForeignKey.new("FK violation"))
+        expect(Rails.logger).to receive(:error).with(/Failed to delete agent/)
+
+        delete :destroy, params: { slug: agent_to_delete.slug }
+      end
+    end
+
     context 'when not authenticated' do
       before { sign_out user }
 
