@@ -41,7 +41,7 @@ RSpec.describe TeamChatsController, type: :controller do
         session = TeamChatSession.last
         expect(session.team).to eq(team)
         expect(session.user).to eq(user)
-        expect(session.title).to eq("#{team.name} Chat")
+        expect(session.title).to eq('New Chat')
       end
 
       it 'redirects to the new team chat session' do
@@ -64,6 +64,94 @@ RSpec.describe TeamChatsController, type: :controller do
 
       it 'redirects to sign in' do
         post :create, params: { team_id: team.id }
+        expect(response).to redirect_to(new_user_session_path)
+      end
+    end
+  end
+
+  describe 'PATCH #update' do
+    let(:team_chat_session) { create(:team_chat_session, team: team, user: user, title: 'New Chat') }
+
+    context 'with a valid title' do
+      before { allow(ActionCable.server).to receive(:broadcast) }
+
+      it 'updates the session title' do
+        patch :update, params: { id: team_chat_session.id, title: 'Project Planning' }
+        expect(team_chat_session.reload.title).to eq('Project Planning')
+      end
+
+      it 'returns JSON with the new title' do
+        patch :update, params: { id: team_chat_session.id, title: 'Project Planning' }
+        expect(response.content_type).to include('application/json')
+        expect(JSON.parse(response.body)['title']).to eq('Project Planning')
+      end
+
+      it 'returns 200 OK' do
+        patch :update, params: { id: team_chat_session.id, title: 'Project Planning' }
+        expect(response).to have_http_status(:ok)
+      end
+
+      it 'broadcasts a title_update over the team chat channel' do
+        patch :update, params: { id: team_chat_session.id, title: 'Project Planning' }
+        expect(ActionCable.server).to have_received(:broadcast).with(
+          "team_chat_#{team_chat_session.id}",
+          { type: 'title_update', title: 'Project Planning' }
+        )
+      end
+
+      it 'strips leading and trailing whitespace from the title' do
+        patch :update, params: { id: team_chat_session.id, title: '  Trimmed  ' }
+        expect(team_chat_session.reload.title).to eq('Trimmed')
+      end
+    end
+
+    context 'with a blank title' do
+      it 'returns 422 unprocessable_entity' do
+        patch :update, params: { id: team_chat_session.id, title: '' }
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'returns an error message' do
+        patch :update, params: { id: team_chat_session.id, title: '   ' }
+        body = JSON.parse(response.body)
+        expect(body['error']).to be_present
+      end
+
+      it 'does not change the title' do
+        patch :update, params: { id: team_chat_session.id, title: '' }
+        expect(team_chat_session.reload.title).to eq('New Chat')
+      end
+    end
+
+    context 'with a title exceeding 100 characters' do
+      let(:long_title) { 'B' * 101 }
+
+      it 'returns 422 unprocessable_entity' do
+        patch :update, params: { id: team_chat_session.id, title: long_title }
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'does not update the title' do
+        patch :update, params: { id: team_chat_session.id, title: long_title }
+        expect(team_chat_session.reload.title).to eq('New Chat')
+      end
+    end
+
+    context 'with a title of exactly 100 characters' do
+      before { allow(ActionCable.server).to receive(:broadcast) }
+
+      it 'accepts the title' do
+        patch :update, params: { id: team_chat_session.id, title: 'B' * 100 }
+        expect(response).to have_http_status(:ok)
+        expect(team_chat_session.reload.title.length).to eq(100)
+      end
+    end
+
+    context 'when not authenticated' do
+      before { sign_out user }
+
+      it 'redirects to sign in' do
+        patch :update, params: { id: team_chat_session.id, title: 'New Name' }
         expect(response).to redirect_to(new_user_session_path)
       end
     end
