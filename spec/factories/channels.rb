@@ -23,6 +23,18 @@ FactoryBot.define do
       config { { bot_token: "xoxb-123", channel_id: "C123456" } }
     end
 
+    trait :whatsapp do
+      channel_type { "whatsapp" }
+      name { "WhatsApp" }
+      config { { connector_url: "http://connector:3002" } }
+    end
+
+    trait :signal do
+      channel_type { "signal" }
+      name { "Signal" }
+      config { { "api_url" => "http://signal-cli:8080", "phone_number" => "+12175551234" } }
+    end
+
     trait :disabled do
       enabled { false }
     end

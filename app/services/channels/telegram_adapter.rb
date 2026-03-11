@@ -12,16 +12,26 @@ module Channels
       msg = payload[:message] || payload[:edited_message]
       return ServiceResponse.success(data: { skipped: true }) unless msg
 
+      content = msg[:text] || msg[:caption] || ""
+      metadata = {
+        chat_id: msg.dig(:chat, :id),
+        chat_type: msg.dig(:chat, :type),
+        from: msg[:from],
+        date: msg[:date],
+        reply_to_message_id: msg.dig(:reply_to_message, :message_id)
+      }
+
+      if msg[:photo].present?
+        largest_photo = msg[:photo].max_by { |p| p[:file_size].to_i }
+        metadata[:photo_file_id] = largest_photo[:file_id]
+        metadata[:has_photo] = true
+      end
+
       inbound = log_inbound_message(
         external_id: msg[:message_id].to_s,
         sender: msg.dig(:from, :id).to_s,
-        content: msg[:text].to_s,
-        metadata: {
-          chat_id: msg.dig(:chat, :id),
-          chat_type: msg.dig(:chat, :type),
-          from: msg[:from],
-          date: msg[:date]
-        }
+        content: content,
+        metadata: metadata
       )
 
       ServiceResponse.success(data: { inbound_message: inbound })
@@ -32,6 +42,10 @@ module Channels
     def send_message(to:, content:, **options)
       token = bot_token
       return ServiceResponse.failure(error: "Telegram bot token not configured") unless token
+
+      if options[:photo_url].present? || options[:photo_file_id].present?
+        return send_photo(to: to, token: token, content: content, **options)
+      end
 
       uri = URI("#{BASE_URL}/bot#{token}/sendMessage")
       body = {
@@ -54,6 +68,8 @@ module Channels
       else
         ServiceResponse.failure(error: "Telegram API: #{response["description"]}")
       end
+    rescue StandardError => e
+      ServiceResponse.failure(error: "Telegram send failed: #{e.message}")
     end
 
     def react(message_id:, emoji:, chat_id: nil)
@@ -75,9 +91,8 @@ module Channels
     end
 
     def verify_webhook(request)
-      # Telegram uses secret_token header for verification
       secret = channel.config&.dig("webhook_secret")
-      return true unless secret # No secret = no verification (dev mode)
+      return true unless secret
 
       request.headers["X-Telegram-Bot-Api-Secret-Token"] == secret
     end
@@ -87,6 +102,28 @@ module Channels
     def bot_token
       entry = VaultEntry.find_by(namespace: "channel_credentials", key: "telegram_bot_token")
       entry&.value
+    end
+
+    def send_photo(to:, token:, content:, **options)
+      uri = URI("#{BASE_URL}/bot#{token}/sendPhoto")
+      body = { chat_id: to }
+      body[:photo] = options[:photo_url] || options[:photo_file_id]
+      body[:caption] = content if content.present?
+      body[:parse_mode] = options[:parse_mode] || "Markdown"
+      body[:reply_to_message_id] = options[:reply_to] if options[:reply_to]
+
+      response = post_json(uri, body)
+
+      if response["ok"]
+        outbound = log_outbound_message(
+          recipient: to,
+          content: content,
+          metadata: { message_id: response.dig("result", "message_id"), type: "photo" }
+        )
+        ServiceResponse.success(data: { outbound_message: outbound, response: response["result"] })
+      else
+        ServiceResponse.failure(error: "Telegram API: #{response["description"]}")
+      end
     end
 
     def post_json(uri, body)
