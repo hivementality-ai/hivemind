@@ -60,9 +60,10 @@ RSpec.describe "Context Pruning in Jobs", type: :job do
     end
 
     it "prunes conversation when it would exceed budget" do
-      # Create context manager with very tight budget (10K tokens available)
-      # This will force pruning since even a few large messages exceed it
-      tight_manager = Agents::ContextManager.new(agent.llm_model, 190_000)
+      # Use a small context_window via agent to force a tight budget
+      allow(agent).to receive(:context_window).and_return(10_000)
+      allow(agent).to receive(:max_output_tokens).and_return(1_000)
+      tight_manager = Agents::ContextManager.new(agent.llm_model, 8192, agent: agent)
 
       # Create a conversation that exceeds budget
       messages = [

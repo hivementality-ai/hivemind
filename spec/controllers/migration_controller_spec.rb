@@ -53,9 +53,9 @@ RSpec.describe MigrationController, type: :controller do
           .and_return(ServiceResponse.success(data: { report: mock_report }))
       end
 
-      it "stores report in session and renders scan" do
+      it "stores report in session and redirects to results" do
         post :scan, params: { workspace_path: workspace_path }
-        expect(response).to be_successful
+        expect(response).to redirect_to(migration_results_path)
         expect(session[:pending_migration]).to be_present
         expect(session[:pending_migration][:workspace_path]).to eq(workspace_path)
       end
@@ -66,7 +66,7 @@ RSpec.describe MigrationController, type: :controller do
           .and_return(ServiceResponse.success(data: { report: mock_report }))
 
         post :scan, params: { workspace_path: workspace_path, agent_slug: "my-bot" }
-        expect(response).to be_successful
+        expect(response).to redirect_to(migration_results_path)
       end
     end
 

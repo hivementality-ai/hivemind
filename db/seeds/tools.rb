@@ -604,6 +604,34 @@ BUILTIN_TOOLS = [
       },
       "required" => [ "action" ]
     }
+  },
+  {
+    name: "canvas",
+    description: "Render HTML content to a live canvas view alongside the chat. The canvas is a dedicated visual workspace that agents can update in real-time. Actions: render (full page), update (specific element by ID), append (add content), clear (reset).",
+    executor_type: "canvas",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "action" => { "type" => "string", "description" => "Canvas action: render, update, append, clear", "enum" => %w[render update append clear] },
+        "html" => { "type" => "string", "description" => "HTML content to render, update, or append" },
+        "title" => { "type" => "string", "description" => "Title for the canvas page (render action only)" },
+        "element_id" => { "type" => "string", "description" => "DOM element ID to update (update action only)" }
+      },
+      "required" => [ "action" ]
+    }
+  },
+  {
+    name: "stt",
+    description: "Transcribe audio files to text using OpenAI Whisper API. Supports mp3, mp4, wav, webm, ogg, flac, m4a formats up to 25MB. Falls back to local whisper CLI if no API key is configured.",
+    executor_type: "stt",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "file_path" => { "type" => "string", "description" => "Path to the audio file to transcribe" },
+        "language" => { "type" => "string", "description" => "ISO language code (e.g., en, es, fr) to hint the language" }
+      },
+      "required" => [ "file_path" ]
+    }
   }
 ].freeze
 

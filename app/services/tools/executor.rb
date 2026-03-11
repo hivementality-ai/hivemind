@@ -47,7 +47,9 @@ module Tools
       "ask_user" => Tools::AskUserExecutor,
       "plan_mode" => Tools::PlanModeExecutor,
       "glob" => Tools::GlobExecutor,
-      "load_skill" => Tools::LoadSkillExecutor
+      "load_skill" => Tools::LoadSkillExecutor,
+      "canvas" => Tools::CanvasExecutor,
+      "stt" => Tools::SttExecutor
     }.freeze
 
     def self.call(tool:, input:, agent:, session:)

@@ -190,10 +190,8 @@ RSpec.describe ProvidersController, type: :controller do
         expect(anthropic_provider.model_definitions.count).to eq(2)
         expect(anthropic_provider.model_definitions.find { |m| m['default'] }['id']).to eq('claude-sonnet-4-5')
 
-        vault_entry = VaultEntry.find_by(
-          namespace: 'providers',
-          key: 'anthropic_api_key'
-        )
+        namespace, key = anthropic_provider.vault_key.split("/", 2)
+        vault_entry = VaultEntry.find_by(namespace:, key:)
         expect(vault_entry.encrypted_value).to eq('sk-ant-test-key-123')
       end
 
