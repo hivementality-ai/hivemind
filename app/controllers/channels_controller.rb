@@ -57,7 +57,14 @@ class ChannelsController < ApplicationController
   end
 
   def channel_params
-    params.require(:channel).permit(:name, :channel_type, :enabled, config: {})
+    permitted = params.require(:channel).permit(:name, :channel_type, :enabled, config: {})
+    if params[:channel][:routing_rules].present?
+      rules = params[:channel][:routing_rules].map do |rule|
+        { "pattern" => rule[:pattern].to_s.strip, "agent_id" => rule[:agent_id].to_i }
+      end.reject { |r| r["pattern"].blank? || r["agent_id"].zero? }
+      permitted[:routing_rules] = rules
+    end
+    permitted
   end
 
   def configure_connector(channel, creds)
