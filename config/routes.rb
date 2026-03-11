@@ -113,6 +113,15 @@ Rails.application.routes.draw do
   patch "integrations/search", to: "integrations#update_search", as: :update_search_integrations
   get "integrations/search/test", to: "integrations#test_search", as: :test_search_integrations
 
+  # MCP Server Management
+  post "integrations/mcp_servers", to: "integrations#create_mcp_server", as: :create_mcp_server
+  patch "integrations/mcp_servers/:id", to: "integrations#update_mcp_server", as: :update_mcp_server
+  delete "integrations/mcp_servers/:id", to: "integrations#destroy_mcp_server", as: :destroy_mcp_server
+  post "integrations/mcp_servers/:id/connect", to: "integrations#connect_mcp_server", as: :connect_mcp_server
+  post "integrations/mcp_servers/:id/disconnect", to: "integrations#disconnect_mcp_server", as: :disconnect_mcp_server
+  get "integrations/mcp_servers/:id/refresh", to: "integrations#refresh_mcp_tools", as: :refresh_mcp_tools
+  patch "integrations/mcp_servers/:id/toggle", to: "integrations#toggle_mcp_server", as: :toggle_mcp_server
+
   # API Integrations
   resources :api_integrations do
     member do
