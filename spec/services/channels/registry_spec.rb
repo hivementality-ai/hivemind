@@ -81,8 +81,8 @@ RSpec.describe Channels::Registry do
 
     context 'when adapter class does not exist' do
       before do
-        # Temporarily modify the ADAPTERS constant
-        stub_const("Channels::Registry::ADAPTERS", {
+        # Temporarily modify the BUILTIN_ADAPTERS constant
+        stub_const("Channels::Registry::BUILTIN_ADAPTERS", {
           "nonexistent" => "Channels::NonexistentAdapter"
         })
       end
