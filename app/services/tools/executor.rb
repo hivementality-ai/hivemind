@@ -4,7 +4,7 @@ module Tools
   class Executor
     NETWORK_EXECUTOR_TYPES = %w[http_request web_fetch browser].freeze
 
-    EXECUTORS = {
+    BUILTIN_EXECUTORS = {
       "shell" => Tools::ShellExecutor,
       "file_read" => Tools::FileReadExecutor,
       "file_write" => Tools::FileWriteExecutor,
@@ -50,8 +50,39 @@ module Tools
       "load_skill" => Tools::LoadSkillExecutor
     }.freeze
 
-    def self.call(tool:, input:, agent:, session:)
-      new(tool:, input:, agent:, session:).call
+    # Backwards compatibility alias
+    EXECUTORS = BUILTIN_EXECUTORS
+
+    class << self
+      def call(tool:, input:, agent:, session:)
+        new(tool:, input:, agent:, session:).call
+      end
+
+      def register(type, class_name)
+        plugin_executors[type.to_s] = class_name.is_a?(String) ? class_name.constantize : class_name
+      end
+
+      def unregister(type)
+        plugin_executors.delete(type.to_s)
+      end
+
+      def all_executors
+        BUILTIN_EXECUTORS.merge(plugin_executors)
+      end
+
+      def registered?(type)
+        all_executors.key?(type.to_s)
+      end
+
+      def reset_plugin_executors!
+        @plugin_executors = {}
+      end
+
+      private
+
+      def plugin_executors
+        @plugin_executors ||= {}
+      end
     end
 
     def initialize(tool:, input:, agent:, session:)
@@ -62,7 +93,7 @@ module Tools
     end
 
     def call
-      executor_class = EXECUTORS[@tool.executor_type]
+      executor_class = self.class.all_executors[@tool.executor_type]
       return ServiceResponse.failure(error: "Unknown executor: #{@tool.executor_type}") unless executor_class
 
       # System tools (e.g. load_skill) skip execution tracking
