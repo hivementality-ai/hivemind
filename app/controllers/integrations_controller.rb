@@ -13,6 +13,10 @@ class IntegrationsController < ApplicationController
     @search_provider = Search::Resolver.current_provider_name
     @remotes = CloudStorage::ConfigureRemote.list_remotes
     @backends = CloudStorage::ConfigureRemote::BACKENDS
+    @mcp_servers = McpServer.order(:name)
+    @mcp_presets = @mcp_servers.where(preset: true)
+    @mcp_custom = @mcp_servers.where(preset: false)
+    @agents = Agent.visible.order(:name)
   end
 
   def update_github
@@ -242,6 +246,82 @@ class IntegrationsController < ApplicationController
     render json: { status: "error", message: e.message }, status: :unprocessable_entity
   end
 
+  # === MCP Server Management ===
+
+  def create_mcp_server
+    server = McpServer.new(mcp_server_params)
+    if server.save
+      update_mcp_agent_assignments(server)
+      redirect_to integrations_path, notice: "MCP server '#{server.name}' created"
+    else
+      redirect_to integrations_path, alert: server.errors.full_messages.join(", ")
+    end
+  end
+
+  def update_mcp_server
+    server = McpServer.find(params[:id])
+    if server.update(mcp_server_params)
+      update_mcp_agent_assignments(server)
+      redirect_to integrations_path, notice: "MCP server '#{server.name}' updated"
+    else
+      redirect_to integrations_path, alert: server.errors.full_messages.join(", ")
+    end
+  end
+
+  def destroy_mcp_server
+    server = McpServer.find(params[:id])
+    server.destroy
+    redirect_to integrations_path, notice: "MCP server '#{server.name}' removed"
+  end
+
+  def connect_mcp_server
+    server = McpServer.find(params[:id])
+    if server.stdio?
+      result = Mcp::ProcessManager.new(server).start
+    else
+      result = Mcp::SseClient.discover_tools(server)
+    end
+
+    if result.success?
+      redirect_to integrations_path, notice: "Connected to '#{server.name}'"
+    else
+      redirect_to integrations_path, alert: "Connection failed: #{result.error}"
+    end
+  end
+
+  def disconnect_mcp_server
+    server = McpServer.find(params[:id])
+    if server.stdio?
+      Mcp::ProcessManager.new(server).stop
+    else
+      server.mark_disconnected!
+    end
+    redirect_to integrations_path, notice: "Disconnected from '#{server.name}'"
+  end
+
+  def refresh_mcp_tools
+    server = McpServer.find(params[:id])
+    result = if server.stdio?
+      Mcp::StdioClient.discover_tools(server)
+    else
+      Mcp::SseClient.discover_tools(server)
+    end
+
+    if result.success?
+      tools = result.data.is_a?(Hash) ? (result.data[:tools] || result.data["tools"] || []) : []
+      redirect_to integrations_path, notice: "Refreshed #{tools.size} tools from '#{server.name}'"
+    else
+      redirect_to integrations_path, alert: "Refresh failed: #{result.error}"
+    end
+  end
+
+  def toggle_mcp_server
+    server = McpServer.find(params[:id])
+    server.update!(enabled: !server.enabled)
+    status = server.enabled? ? "enabled" : "disabled"
+    redirect_to integrations_path, notice: "MCP server '#{server.name}' #{status}"
+  end
+
   private
 
   # GitHub CLI auth is handled lazily by the shell executor when agents need it
@@ -250,6 +330,35 @@ class IntegrationsController < ApplicationController
     entry = VaultEntry.find_or_initialize_by(namespace: namespace, key: key)
     entry.value = value
     entry.save!
+  end
+
+  def mcp_server_params
+    permitted = params.require(:mcp_server).permit(:name, :transport, :command, :url, :npm_package, :icon, env_vars: {})
+    if permitted[:env_vars].present?
+      permitted[:env_vars].each do |key, value|
+        if secret_looking?(key) && value.present? && !value.start_with?("vault:")
+          namespace = "mcp_#{permitted[:name].parameterize(separator: "_")}"
+          vault_key = key.downcase
+          store_vault(namespace, vault_key, value)
+          permitted[:env_vars][key] = "vault:#{namespace}/#{vault_key}"
+        end
+      end
+    end
+    permitted
+  end
+
+  def update_mcp_agent_assignments(server)
+    agent_ids = params.dig(:mcp_server, :agent_ids)
+    return unless agent_ids.is_a?(Array) || agent_ids.is_a?(ActionController::Parameters)
+
+    server.agent_mcp_servers.destroy_all
+    Array(agent_ids).reject(&:blank?).each do |agent_id|
+      AgentMcpServer.create(agent: Agent.find(agent_id), mcp_server: server)
+    end
+  end
+
+  def secret_looking?(key)
+    key.to_s.downcase.match?(/token|secret|key|password|credential/)
   end
 
   def cloud_params
