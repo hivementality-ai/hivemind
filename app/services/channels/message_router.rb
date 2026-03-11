@@ -13,6 +13,11 @@ module Channels
 
     def call
       agent = route_agent
+      return ServiceResponse.success(data: { agent: agent }) unless agent
+
+      dm_result = check_dm_policy(agent)
+      return dm_result if dm_result
+
       ServiceResponse.success(data: { agent: agent })
     rescue StandardError => e
       ServiceResponse.failure(error: "MessageRouter failed: #{e.message}")
@@ -136,6 +141,35 @@ module Channels
         message.content
       else
         message.to_s
+      end
+    end
+
+    def check_dm_policy(agent)
+      agent_channel = channel.agent_channels.find_by(agent: agent)
+      return nil unless agent_channel
+
+      sender = extract_sender
+      return nil if sender.blank?
+
+      is_mention = extract_mentioned_bot_id.present?
+      result = Channels::DmPolicyChecker.call(
+        agent_channel: agent_channel,
+        sender: sender,
+        is_mention: is_mention
+      )
+
+      return nil if result.data[:allowed]
+
+      ServiceResponse.success(data: { agent: agent, blocked: true, reply: result.data[:reply] })
+    end
+
+    def extract_sender
+      if message.is_a?(InboundMessage)
+        message.sender
+      elsif message.respond_to?(:dig)
+        message.dig(:sender) || message.dig("sender")
+      elsif message.respond_to?(:sender)
+        message.sender
       end
     end
   end

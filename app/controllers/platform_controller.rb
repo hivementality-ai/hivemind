@@ -6,6 +6,10 @@ require "socket"
 class PlatformController < ApplicationController
   before_action :authenticate_user!
 
+  def doctor
+    @result = Hivemind::Doctor.run_all_as_hash
+  end
+
   def status
     @stats = {
       agents: Agent.count,
