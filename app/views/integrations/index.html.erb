@@ -439,7 +439,153 @@
     }
   </script>
 
-  <!-- Cloud Storage -->
+  <!-- Telegram -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-sky-600/20 rounded-lg flex items-center justify-center">
+          <svg class="w-6 h-6 text-sky-400" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+        </div>
+        <div>
+          <h2 class="text-lg font-semibold text-white">Telegram</h2>
+          <p class="text-text-faint text-sm">Receive and send messages via Telegram Bot API</p>
+        </div>
+      </div>
+      <span class="px-3 py-1 rounded-full text-xs font-medium
+        <%= @telegram_configured ? 'bg-green-900 text-green-300' : 'bg-surface-raised text-text-muted' %>">
+        <%= @telegram_configured ? "Connected" : "Not configured" %>
+      </span>
+    </div>
+
+    <%= form_tag update_telegram_integrations_path, method: :patch do %>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Bot Token</label>
+          <%= password_field_tag :telegram_bot_token, nil,
+              placeholder: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+              class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand",
+              autocomplete: "off" %>
+          <p class="text-gray-600 text-xs mt-1">
+            Get your token from
+            <a href="https://t.me/BotFather" target="_blank" class="text-brand-light hover:text-brand-light">@BotFather</a>
+          </p>
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Webhook Secret <span class="text-gray-600">(optional)</span></label>
+          <%= text_field_tag :telegram_webhook_secret, nil,
+              placeholder: "random-secret-string",
+              class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand",
+              autocomplete: "off" %>
+        </div>
+        <div class="flex items-center justify-between">
+          <% if @telegram_configured %>
+            <button type="button" onclick="testTelegram()" class="text-brand-light hover:text-brand-light text-sm font-medium cursor-pointer">
+              Test Connection
+            </button>
+          <% else %>
+            <span></span>
+          <% end %>
+          <%= submit_tag @telegram_configured ? "Update" : "Connect Telegram",
+              class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+        </div>
+      </div>
+    <% end %>
+
+    <% if @telegram_configured %>
+      <div class="mt-3 bg-surface-base/50 rounded-lg px-4 py-3">
+        <p class="text-text-muted text-xs">Webhook URL: <code class="text-text-primary"><%= request.base_url %>/webhooks/telegram</code></p>
+      </div>
+    <% end %>
+  </div>
+
+  <script>
+    function testTelegram() {
+      fetch("<%= test_telegram_integrations_path %>")
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === "connected") {
+            alert(`Connected as @${data.username} (${data.name})`)
+          } else {
+            alert(`Error: ${data.message}`)
+          }
+        })
+        .catch(() => alert("Connection failed"))
+    }
+  </script>
+
+  <!-- Signal -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-blue-600/20 rounded-lg flex items-center justify-center">
+          <svg class="w-6 h-6 text-blue-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H8l5-7v4h3l-5 7z"/></svg>
+        </div>
+        <div>
+          <h2 class="text-lg font-semibold text-white">Signal</h2>
+          <p class="text-text-faint text-sm">Send and receive messages via signal-cli REST API sidecar</p>
+        </div>
+      </div>
+      <span class="px-3 py-1 rounded-full text-xs font-medium
+        <%= @signal_configured ? 'bg-green-900 text-green-300' : 'bg-surface-raised text-text-muted' %>">
+        <%= @signal_configured ? "Connected" : "Not configured" %>
+      </span>
+    </div>
+
+    <%= form_tag update_signal_integrations_path, method: :patch do %>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Phone Number</label>
+          <%= text_field_tag :signal_phone_number, nil,
+              placeholder: "+12175551234",
+              class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand",
+              autocomplete: "off" %>
+          <p class="text-gray-600 text-xs mt-1">The phone number registered with signal-cli (must be registered first)</p>
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">API URL <span class="text-gray-600">(optional)</span></label>
+          <%= text_field_tag :signal_api_url, nil,
+              placeholder: "http://signal-cli:8080",
+              class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand",
+              autocomplete: "off" %>
+          <p class="text-gray-600 text-xs mt-1">Defaults to http://signal-cli:8080 (Docker sidecar)</p>
+        </div>
+        <div class="flex items-center justify-between">
+          <% if @signal_configured %>
+            <button type="button" onclick="testSignal()" class="text-brand-light hover:text-brand-light text-sm font-medium cursor-pointer">
+              Test Connection
+            </button>
+          <% else %>
+            <span></span>
+          <% end %>
+          <%= submit_tag @signal_configured ? "Update" : "Connect Signal",
+              class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+        </div>
+      </div>
+    <% end %>
+
+    <% if @signal_configured %>
+      <div class="mt-3 bg-surface-base/50 rounded-lg px-4 py-3">
+        <p class="text-text-muted text-xs">Requires <code class="text-text-primary">signal-cli</code> REST API sidecar. Uncomment the <code class="text-text-primary">signal-cli</code> service in <code class="text-text-primary">docker-compose.yml</code> or run it externally.</p>
+      </div>
+    <% end %>
+  </div>
+
+  <script>
+    function testSignal() {
+      fetch("<%= test_signal_integrations_path %>")
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === "connected") {
+            alert(`Signal CLI connected (version: ${data.version || "unknown"})`)
+          } else {
+            alert(`Error: ${data.message}`)
+          }
+        })
+        .catch(() => alert("Connection failed"))
+    }
+  </script>
+
+    <!-- Cloud Storage -->
   <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center gap-3">
