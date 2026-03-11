@@ -138,7 +138,9 @@ module Tools
       begin
         # Merge session into config for executors that need it
         executor_config = @tool.effective_config.merge(session: @session)
+        Plugins::Hooks.trigger("before_tool_call", tool: @tool, input: @input, agent: @agent)
         result = executor_class.new(input: @input, config: executor_config, agent: @agent).call
+        Plugins::Hooks.trigger("after_tool_call", tool: @tool, input: @input, agent: @agent, result: result)
         duration = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).to_i
 
         if result.success?

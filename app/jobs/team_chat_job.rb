@@ -189,6 +189,8 @@ class TeamChatJob < ApplicationJob
 
       broadcast_extras = { agent_id: agent.id, agent_name: agent.name }
 
+      Plugins::Hooks.trigger("before_chat", agent: agent, session: @agent_session, messages: messages)
+
       if tools.any? && !oauth_mcp
         result = Agents::ToolLoop.call(
           adapter:,
@@ -244,6 +246,8 @@ class TeamChatJob < ApplicationJob
           })
         end
       end
+
+      Plugins::Hooks.trigger("after_chat", agent: agent, session: @agent_session, content: full_content)
 
       # Save the agent's response to team chat (thinking stored in metadata, not content)
       msg_metadata = { model: agent.llm_model, provider: agent.model_provider }

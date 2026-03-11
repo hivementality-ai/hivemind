@@ -24,6 +24,7 @@ class SessionsController < ApplicationController
           metadata: { started_by: current_user.id },
           last_activity_at: Time.current
         )
+        Plugins::Hooks.trigger("session_created", session: session)
         redirect_to session_path(session) and return
       end
     end
@@ -39,6 +40,7 @@ class SessionsController < ApplicationController
       metadata: { started_by: current_user.id },
       last_activity_at: Time.current
     )
+    Plugins::Hooks.trigger("session_created", session: @session)
 
     redirect_to session_path(@session)
   end
