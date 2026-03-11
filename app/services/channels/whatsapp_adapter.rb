@@ -17,10 +17,18 @@ module Channels
       msg = change.dig(:messages, 0)
       return ServiceResponse.success(data: { skipped: true }) unless msg
 
+      # Transcribe voice messages via STT
+      content = if msg[:type] == "audio" && msg.dig(:audio, :file_path)
+        result = transcribe_audio(msg.dig(:audio, :file_path))
+        result || msg.dig(:text, :body).to_s
+      else
+        msg.dig(:text, :body).to_s
+      end
+
       inbound = log_inbound_message(
         external_id: msg[:id].to_s,
         sender: msg[:from].to_s,
-        content: msg.dig(:text, :body).to_s,
+        content: content,
         metadata: {
           type: msg[:type],
           timestamp: msg[:timestamp],
@@ -130,6 +138,21 @@ module Channels
 
     def phone_number_id
       channel.config&.dig("phone_number_id")
+    end
+
+    def transcribe_audio(file_path)
+      return nil unless File.exist?(file_path.to_s)
+
+      result = Tools::SttExecutor.new(
+        input: { "file_path" => file_path },
+        config: {},
+        agent: nil
+      ).call
+
+      result.success? ? result.data[:transcription] : nil
+    rescue StandardError => e
+      Rails.logger.warn("WhatsApp voice transcription failed: \#{e.message}")
+      nil
     end
 
     def post_json(uri, body)

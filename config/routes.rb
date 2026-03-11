@@ -30,6 +30,7 @@ Rails.application.routes.draw do
     member do
       post :message
       post :interrupt
+      get :canvas
     end
   end
 
