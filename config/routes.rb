@@ -124,6 +124,10 @@ Rails.application.routes.draw do
   get "integrations/cloud_remote/test", to: "integrations#test_cloud_remote", as: :test_cloud_remote_integrations
   patch "integrations/search", to: "integrations#update_search", as: :update_search_integrations
   get "integrations/search/test", to: "integrations#test_search", as: :test_search_integrations
+  patch "integrations/telegram", to: "integrations#update_telegram", as: :update_telegram_integrations
+  get "integrations/telegram/test", to: "integrations#test_telegram", as: :test_telegram_integrations
+  patch "integrations/signal", to: "integrations#update_signal", as: :update_signal_integrations
+  get "integrations/signal/test", to: "integrations#test_signal", as: :test_signal_integrations
 
   # MCP Server Management
   post "integrations/mcp_servers", to: "integrations#create_mcp_server", as: :create_mcp_server
