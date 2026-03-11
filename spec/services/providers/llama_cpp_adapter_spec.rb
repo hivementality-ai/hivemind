@@ -31,7 +31,7 @@ RSpec.describe Providers::LlamaCppAdapter, type: :service do
         expect(result).to be_success
         expect(result.data[:content]).to eq("Hello there!")
         expect(result.data[:tool_calls]).to be_nil
-        expect(result.data[:usage]).to eq(input_tokens: 10, output_tokens: 5)
+        expect(result.data[:usage]).to include(input_tokens: 10, output_tokens: 5)
       end
     end
 

@@ -338,14 +338,16 @@ RSpec.describe TeamChatJob, type: :job do
           side_effects: []
         )
       )
+      @adapter = double("adapter")
+      allow(@adapter).to receive(:is_a?).and_return(false)
       allow(Providers::Resolver).to receive(:call).and_return(
-        double(success?: true, data: { adapter: double("adapter", is_a?: false) })
+        double(success?: true, data: { adapter: @adapter })
       )
     end
 
-    context "when AgentInterrupted is raised by ToolLoop" do
+    context "when AgentInterrupted is raised" do
       before do
-        allow(Agents::ToolLoop).to receive(:call).and_raise(AgentInterrupted)
+        allow(@adapter).to receive(:chat).and_raise(AgentInterrupted)
       end
 
       it "broadcasts cancelled event" do
@@ -400,9 +402,9 @@ RSpec.describe TeamChatJob, type: :job do
       end
     end
 
-    context "when AgentRedirected is raised by ToolLoop" do
+    context "when AgentRedirected is raised" do
       before do
-        allow(Agents::ToolLoop).to receive(:call).and_raise(AgentRedirected.new("new direction"))
+        allow(@adapter).to receive(:chat).and_raise(AgentRedirected.new("new direction"))
         allow(Redis.current).to receive(:get).and_return(nil)
         allow(Redis.current).to receive(:setex)
       end
