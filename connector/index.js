@@ -18,6 +18,7 @@ const {
   DisconnectReason,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
+  downloadMediaMessage,
 } = require("@whiskeysockets/baileys");
 const express = require("express");
 const pino = require("pino");
@@ -280,10 +281,25 @@ async function startWhatsApp() {
       // Skip ALL messages sent by us (fromMe) to prevent echo loops
       if (msg.key.fromMe) continue;
 
-      const text =
-        msg.message?.conversation ||
-        msg.message?.extendedTextMessage?.text ||
-        "";
+      // Check for voice/audio messages
+      const isAudio = !!(msg.message?.audioMessage);
+      let text = "";
+      let audioFilePath = null;
+
+      if (isAudio) {
+        try {
+          audioFilePath = await downloadVoiceMessage(msg);
+          text = "[Voice Message]";
+        } catch (err) {
+          logger.error({ err }, "Failed to download voice message");
+          continue;
+        }
+      } else {
+        text =
+          msg.message?.conversation ||
+          msg.message?.extendedTextMessage?.text ||
+          "";
+      }
 
       if (!text) continue;
 
@@ -332,8 +348,9 @@ async function forwardToHivemind(message) {
                     id: message.id,
                     from: message.from,
                     text: { body: message.text },
-                    type: "text",
+                    type: message.isAudio ? "audio" : "text",
                     timestamp: message.timestamp,
+                    ...(message.audioFilePath ? { audio: { file_path: message.audioFilePath } } : {}),
                   },
                 ],
                 metadata: {
@@ -359,6 +376,20 @@ async function forwardToHivemind(message) {
   }
 
   logger.info({ from: message.from }, "Forwarded to Hivemind");
+}
+
+
+async function downloadVoiceMessage(msg) {
+  const buffer = await downloadMediaMessage(msg, "buffer", {});
+  const voiceDir = path.join(AUTH_PATH, "..", "voice_messages");
+  if (!fs.existsSync(voiceDir)) {
+    fs.mkdirSync(voiceDir, { recursive: true });
+  }
+  const ext = msg.message?.audioMessage?.mimetype?.includes("ogg") ? "ogg" : "mp4";
+  const filePath = path.join(voiceDir, `${msg.key.id}.${ext}`);
+  fs.writeFileSync(filePath, buffer);
+  logger.info({ filePath }, "Voice message downloaded");
+  return filePath;
 }
 
 function normalizeJid(input) {

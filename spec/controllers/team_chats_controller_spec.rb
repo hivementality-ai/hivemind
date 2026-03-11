@@ -41,7 +41,7 @@ RSpec.describe TeamChatsController, type: :controller do
         session = TeamChatSession.last
         expect(session.team).to eq(team)
         expect(session.user).to eq(user)
-        expect(session.title).to eq('New Chat')
+        expect(session.title).to eq("#{team.name} Chat")
       end
 
       it 'redirects to the new team chat session' do
