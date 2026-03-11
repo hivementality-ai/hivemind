@@ -47,6 +47,7 @@
   - [Authentication](#authentication)
   - [Security](#security)
   - [Analytics & Budgets](#analytics--budgets)
+- [Plugins](#plugins)
 - [Operations](#operations)
 - [Best Practices](#best-practices)
 - [Coming from OpenClaw?](#coming-from-openclaw)
@@ -648,6 +649,142 @@ See [SECURITY.md](SECURITY.md) for our responsible disclosure policy.
 - Daily/monthly budget limits with alerts
 - Cost estimation for Anthropic, OpenAI, and Ollama models
 - Model usage breakdown, tool execution history
+
+---
+
+## Plugins
+
+Hivemind has a plugin system that lets you extend the platform without modifying core code. Plugins can add new channels, tools, and lifecycle hooks.
+
+### Plugin structure
+
+Each plugin lives in its own directory under `plugins/` and must contain a `hivemind-plugin.yml` manifest:
+
+```
+plugins/
+  my-plugin/
+    hivemind-plugin.yml    # Required — plugin metadata and extension points
+    lib/
+      my_hook.rb           # Ruby files loaded automatically
+```
+
+### Manifest format
+
+```yaml
+name: my-plugin
+version: 0.1.0
+description: "What this plugin does"
+author: "Your Name"
+
+extension_points:
+  - type: hook              # hook, tool, or channel
+    id: after_chat           # which event or executor type to register
+    class_name: "MyPlugin::AfterChatHook"  # fully-qualified Ruby class
+
+dependencies:
+  gems: []                  # gem dependencies (informational)
+  npm_packages: []          # npm dependencies (informational)
+```
+
+### Extension point types
+
+| Type | What it does | Registers with |
+|------|-------------|----------------|
+| `hook` | Runs code at lifecycle events | `Plugins::Hooks` |
+| `tool` | Adds a new tool executor type | `Tools::Executor` |
+| `channel` | Adds a new messaging channel adapter | `Channels::Registry` |
+
+### Available hooks
+
+Hooks fire at key points in the application lifecycle. Each handler is a Ruby class with a `#call(payload)` method that receives context about the event.
+
+| Event | Fires when | Payload keys |
+|-------|-----------|--------------|
+| `before_chat` | Before an LLM call (single or team chat) | `agent`, `session`, `messages` |
+| `after_chat` | After an LLM response is generated | `agent`, `session`, `content` |
+| `before_tool_call` | Before a tool executor runs | `tool`, `input`, `agent` |
+| `after_tool_call` | After a tool executor returns | `tool`, `input`, `agent`, `result` |
+| `agent_created` | After a new agent is saved | `agent` |
+| `session_created` | After a new session is created | `session` |
+
+### Writing a hook handler
+
+Hook handlers are simple Ruby classes. Return a `ServiceResponse` for consistency:
+
+```ruby
+module MyPlugin
+  class AfterChatHook
+    def call(payload)
+      agent = payload[:agent]
+      content = payload[:content]
+
+      # Do something — log, call a webhook, update a database, etc.
+      Rails.logger.info("[MyPlugin] #{agent.name} responded: #{content.truncate(100)}")
+
+      ServiceResponse.success(data: { logged: true })
+    rescue StandardError => e
+      ServiceResponse.failure(error: "MyPlugin error: #{e.message}")
+    end
+  end
+end
+```
+
+Hook failures are logged but never halt execution — other hooks and the main flow continue normally.
+
+### Writing a tool executor
+
+Tool executors follow the same pattern as built-in executors:
+
+```ruby
+module MyPlugin
+  class CustomExecutor
+    def initialize(input:, config:, agent:)
+      @input = input
+      @config = config
+      @agent = agent
+    end
+
+    def call
+      # Your logic here
+      ServiceResponse.success(data: { output: "result" })
+    rescue StandardError => e
+      ServiceResponse.failure(error: e.message)
+    end
+  end
+end
+```
+
+Register it in your manifest as `type: tool` with `id` matching the tool's `executor_type`.
+
+### Example: webhook plugin
+
+Hivemind ships with an example plugin at `plugins/example-webhook/` that fires a webhook after every chat response:
+
+```yaml
+# plugins/example-webhook/hivemind-plugin.yml
+name: example-webhook
+version: 0.1.0
+description: "Example plugin that fires webhooks on chat events"
+author: "Hivemind Team"
+
+extension_points:
+  - type: hook
+    id: after_chat
+    class_name: "ExampleWebhook::AfterChatHook"
+```
+
+Set `EXAMPLE_WEBHOOK_URL` in your environment to activate it. The handler POSTs a JSON payload with the agent name, session ID, and timestamp to that URL.
+
+### Plugin management
+
+```bash
+# List loaded plugins
+bin/rails plugins:list
+
+# Enable/disable via the web UI at /plugins
+```
+
+Plugins are loaded automatically on boot from the `plugins/` directory. Use the `/plugins` page to enable or disable individual plugins at runtime.
 
 ---
 
