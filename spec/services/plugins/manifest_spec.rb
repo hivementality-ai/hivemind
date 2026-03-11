@@ -38,8 +38,8 @@ RSpec.describe Plugins::Manifest do
           { "type" => "channel", "id" => "custom_chat", "class_name" => "CustomChatAdapter" }
         ],
         "dependencies" => {
-          "gems" => ["some_gem"],
-          "npm_packages" => ["some-pkg"]
+          "gems" => [ "some_gem" ],
+          "npm_packages" => [ "some-pkg" ]
         }
       }
 
@@ -50,8 +50,8 @@ RSpec.describe Plugins::Manifest do
       expect(manifest.extension_points.size).to eq(1)
       expect(manifest.extension_points.first.type).to eq("channel")
       expect(manifest.extension_points.first.id).to eq("custom_chat")
-      expect(manifest.dependencies.gems).to eq(["some_gem"])
-      expect(manifest.dependencies.npm_packages).to eq(["some-pkg"])
+      expect(manifest.dependencies.gems).to eq([ "some_gem" ])
+      expect(manifest.dependencies.npm_packages).to eq([ "some-pkg" ])
     end
 
     it "raises ArgumentError when name is missing" do

@@ -89,7 +89,7 @@ Rails.application.routes.draw do
   end
 
   # Plugins
-  resources :plugins, only: [:index, :show] do
+  resources :plugins, only: [ :index, :show ] do
     member do
       post :enable
       post :disable

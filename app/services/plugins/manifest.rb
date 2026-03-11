@@ -11,7 +11,7 @@ module Plugins
     def self.load(path:)
       raise ArgumentError, "Manifest not found: #{path}" unless File.exist?(path)
 
-      data = YAML.safe_load(File.read(path), permitted_classes: [Symbol])
+      data = YAML.safe_load(File.read(path), permitted_classes: [ Symbol ])
       new(data: data, path: path)
     end
 
