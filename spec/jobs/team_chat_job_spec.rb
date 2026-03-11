@@ -320,7 +320,7 @@ RSpec.describe TeamChatJob, type: :job do
 
   describe "interrupt handling" do
     let!(:agent) { create(:agent, team: team) }
-    let(:message) do
+    let!(:message) do
       session.team_chat_messages.create!(
         sender_type: "user",
         sender_id: user.id,
