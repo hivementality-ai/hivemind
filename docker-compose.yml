@@ -25,6 +25,7 @@ services:
       - active_storage_data:/rails/storage
       - rclone_config:/rails/storage/rclone
       - ${HOME}/hivemind-agents-shared:/app/agents-shared
+      - ./plugins:/rails/plugins
     env_file: .env
     environment:
       - DATABASE_URL=postgres://hivemind:hivemind@db:5432/hivemind_production
