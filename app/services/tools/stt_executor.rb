@@ -80,8 +80,8 @@ module Tools
         )
       end
 
-      cmd = [whisper_bin, file_path, "--output_format", "txt"]
-      cmd += ["--language", language] if language
+      cmd = [ whisper_bin, file_path, "--output_format", "txt" ]
+      cmd += [ "--language", language ] if language
 
       stdout, stderr, status = Open3.capture3(*cmd)
 
