@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REQUIRED_RUBY=$(cat "$(dirname "$0")/../.ruby-version" | tr -d '[:space:]')
+
+# ── Ensure correct Ruby version via rbenv ──
+ensure_ruby() {
+  if ! command -v rbenv &>/dev/null; then
+    echo "Error: rbenv not found. Install it or use Docker instead." >&2
+    exit 1
+  fi
+
+  local current
+  current=$(rbenv version-name 2>/dev/null || echo "none")
+
+  if [ "$current" = "$REQUIRED_RUBY" ]; then
+    return
+  fi
+
+  echo "Ruby $REQUIRED_RUBY required (found $current). Installing via rbenv..."
+  rbenv install --skip-existing "$REQUIRED_RUBY"
+  rbenv rehash
+}
+
+# ── Ensure bundle is installed ──
+ensure_bundle() {
+  if ! bundle check &>/dev/null; then
+    echo "Running bundle install..."
+    bundle install --quiet
+  fi
+}
+
+ensure_ruby
+export RBENV_VERSION="$REQUIRED_RUBY"
+eval "$(rbenv init - bash)"
+ensure_bundle
+
+exec bundle exec rubocop "$@"
