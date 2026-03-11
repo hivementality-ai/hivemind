@@ -25,7 +25,7 @@ RSpec.describe Tools::SttExecutor do
       end
 
       it "rejects unsupported formats" do
-        Tempfile.create(["test", ".exe"]) do |f|
+        Tempfile.create([ "test", ".exe" ]) do |f|
           result = execute("file_path" => f.path)
           expect(result.success?).to be(false)
           expect(result.error).to include("Unsupported audio format")
@@ -33,7 +33,7 @@ RSpec.describe Tools::SttExecutor do
       end
 
       it "rejects files over 25MB" do
-        Tempfile.create(["test", ".mp3"]) do |f|
+        Tempfile.create([ "test", ".mp3" ]) do |f|
           allow(File).to receive(:size).with(f.path).and_return(30 * 1024 * 1024)
           result = execute("file_path" => f.path)
           expect(result.success?).to be(false)
@@ -44,7 +44,7 @@ RSpec.describe Tools::SttExecutor do
 
     context "API transcription" do
       it "sends to Whisper API and returns transcription" do
-        Tempfile.create(["test", ".mp3"]) do |f|
+        Tempfile.create([ "test", ".mp3" ]) do |f|
           f.write("fake audio data")
           f.flush
 
@@ -61,7 +61,7 @@ RSpec.describe Tools::SttExecutor do
       end
 
       it "handles API errors" do
-        Tempfile.create(["test", ".wav"]) do |f|
+        Tempfile.create([ "test", ".wav" ]) do |f|
           f.write("fake audio")
           f.flush
 
@@ -79,7 +79,7 @@ RSpec.describe Tools::SttExecutor do
 
     context "local fallback" do
       it "falls back to local whisper when no API key" do
-        Tempfile.create(["test", ".mp3"]) do |f|
+        Tempfile.create([ "test", ".mp3" ]) do |f|
           f.write("fake audio")
           f.flush
 
@@ -99,7 +99,7 @@ RSpec.describe Tools::SttExecutor do
     context "supported formats" do
       %w[mp3 wav ogg flac webm m4a mp4].each do |ext|
         it "accepts .#{ext} files" do
-          Tempfile.create(["test", ".#{ext}"]) do |f|
+          Tempfile.create([ "test", ".#{ext}" ]) do |f|
             f.write("fake audio")
             f.flush
 
