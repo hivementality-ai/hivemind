@@ -93,6 +93,12 @@
         <p class="text-text-faint text-xs"><%= @session.session_key %></p>
       </div>
       <div class="ml-auto flex items-center gap-3">
+        <%= link_to export_team_chat_path(@session), class: "flex items-center gap-1 text-text-muted hover:text-white text-xs transition px-2 py-1 border border-border-default rounded hover:border-purple-400", title: "Export debug JSON" do %>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span>Export</span>
+        <% end %>
         <label class="flex items-center gap-1.5 cursor-pointer select-none" title="Show/hide tool calls">
           <input type="checkbox" data-team-chat-target="toolToggle" data-action="change->team-chat#toggleToolCalls"
                  class="w-3.5 h-3.5 rounded border-gray-500 text-yellow-600 focus:ring-yellow-500 bg-surface-overlay">

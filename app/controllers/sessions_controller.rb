@@ -3,7 +3,7 @@
 class SessionsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_agent, only: [ :create ]
-  before_action :set_session, only: [ :show, :message, :interrupt, :update, :canvas ]
+  before_action :set_session, only: [ :show, :message, :interrupt, :update, :canvas, :export ]
 
   # GET /sessions — list all sessions
   def index
@@ -96,6 +96,18 @@ class SessionsController < ApplicationController
   # GET /sessions/:id/canvas — live canvas view
   def canvas
     @agent = @session.agent
+  end
+
+  # GET /sessions/:id/export — download debug export as JSON
+  def export
+    result = Sessions::Export.call(session: @session)
+
+    if result.success?
+      filename = "session_#{@session.id}_export_#{Time.current.strftime('%Y%m%d_%H%M%S')}.json"
+      send_data result.data[:export].to_json, filename: filename, type: "application/json", disposition: "attachment"
+    else
+      redirect_to session_path(@session), alert: result.error
+    end
   end
 
   # POST /sessions/:id/interrupt — cancel, redirect, or inject into active agent
