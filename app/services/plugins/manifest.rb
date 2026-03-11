@@ -1,13 +1,33 @@
 # frozen_string_literal: true
 
 module Plugins
+  # Parses and validates a +hivemind-plugin.yml+ manifest file.
+  # Exposes plugin metadata, extension points, and dependency declarations.
   class Manifest
     REQUIRED_FIELDS = %w[name version].freeze
     OPTIONAL_FIELDS = %w[description author extension_points dependencies].freeze
     VALID_EXTENSION_TYPES = %w[channel tool memory hook].freeze
 
-    attr_reader :name, :version, :description, :author, :extension_points, :dependencies, :raw
+    # @return [String] plugin name
+    attr_reader :name
+    # @return [String] semver version string
+    attr_reader :version
+    # @return [String, nil] human-readable description
+    attr_reader :description
+    # @return [String, nil] plugin author
+    attr_reader :author
+    # @return [Array<ExtensionPoint>] declared extension points
+    attr_reader :extension_points
+    # @return [Dependencies] gem and npm dependency declarations
+    attr_reader :dependencies
+    # @return [Hash] the raw parsed YAML data
+    attr_reader :raw
 
+    # Loads and parses a manifest from a YAML file.
+    #
+    # @param path [String] absolute path to the YAML manifest
+    # @return [Manifest]
+    # @raise [ArgumentError] if the file does not exist or validation fails
     def self.load(path:)
       raise ArgumentError, "Manifest not found: #{path}" unless File.exist?(path)
 
@@ -15,6 +35,9 @@ module Plugins
       new(data: data, path: path)
     end
 
+    # @param data [Hash] parsed YAML hash
+    # @param path [String, nil] source file path (for error messages)
+    # @raise [ArgumentError] if required fields are missing or extension points are invalid
     def initialize(data:, path: nil)
       @raw = data || {}
       @path = path
@@ -22,10 +45,12 @@ module Plugins
       parse!
     end
 
+    # @return [Boolean] true if no validation errors were found
     def valid?
       @errors.empty?
     end
 
+    # @return [Array<String>] validation error messages (frozen copy)
     def errors
       @errors.dup
     end

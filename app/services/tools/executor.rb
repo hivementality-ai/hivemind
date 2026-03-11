@@ -58,22 +58,33 @@ module Tools
         new(tool:, input:, agent:, session:).call
       end
 
+      # Registers a plugin-provided executor type at runtime.
+      #
+      # @param type [String] executor type key (must match the tool's +executor_type+)
+      # @param class_name [Class, String] executor class or its fully-qualified name
       def register(type, class_name)
         plugin_executors[type.to_s] = class_name.is_a?(String) ? class_name.constantize : class_name
       end
 
+      # Removes a plugin-provided executor type.
+      #
+      # @param type [String] executor type key to remove
       def unregister(type)
         plugin_executors.delete(type.to_s)
       end
 
+      # @return [Hash{String => Class}] merged map of builtin and plugin executors
       def all_executors
         BUILTIN_EXECUTORS.merge(plugin_executors)
       end
 
+      # @param type [String] executor type key
+      # @return [Boolean] true if a builtin or plugin executor is registered for this type
       def registered?(type)
         all_executors.key?(type.to_s)
       end
 
+      # Clears all plugin-registered executors. Intended for tests.
       def reset_plugin_executors!
         @plugin_executors = {}
       end
