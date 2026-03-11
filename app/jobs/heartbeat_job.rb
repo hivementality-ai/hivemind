@@ -98,6 +98,14 @@ class HeartbeatJob < ApplicationJob
     tasks = load_tasks
     custom = config["prompt"]
 
+    if config["light_context"]
+      build_light_prompt(tasks, custom)
+    else
+      build_full_prompt(tasks, custom)
+    end
+  end
+
+  def build_full_prompt(tasks, custom)
     parts = []
     parts << "This is your periodic heartbeat check-in."
     parts << "First, check your memories for context from previous heartbeats using the memory_search tool."
@@ -121,6 +129,23 @@ class HeartbeatJob < ApplicationJob
     end
 
     parts << "\nIf nothing needs attention, reply with exactly: HEARTBEAT_OK"
+
+    parts.join("\n")
+  end
+
+  def build_light_prompt(tasks, custom)
+    parts = []
+    parts << "Heartbeat check-in. Tools: memory_search, delegate, message, heartbeat_write."
+
+    if tasks.any?
+      parts << "\nChecklist:"
+      tasks.each_with_index do |t, i|
+        parts << "#{i + 1}. #{t["task"]}"
+      end
+    end
+
+    parts << "\n#{custom}" if custom.present?
+    parts << "\nReply HEARTBEAT_OK if nothing needs attention."
 
     parts.join("\n")
   end
