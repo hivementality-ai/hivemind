@@ -3,7 +3,7 @@
 class SessionsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_agent, only: [ :create ]
-  before_action :set_session, only: [ :show, :message, :interrupt, :update ]
+  before_action :set_session, only: [ :show, :message, :interrupt, :update, :canvas ]
 
   # GET /sessions — list all sessions
   def index
@@ -89,6 +89,11 @@ class SessionsController < ApplicationController
     @session.update!(title: new_title)
     ActionCable.server.broadcast("session_#{@session.id}", { type: "title_update", title: new_title })
     render json: { title: new_title }
+  end
+
+  # GET /sessions/:id/canvas — live canvas view
+  def canvas
+    @agent = @session.agent
   end
 
   # POST /sessions/:id/interrupt — cancel, redirect, or inject into active agent

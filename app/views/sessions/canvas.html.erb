@@ -1,0 +1,121 @@
+<div class="flex flex-col h-[calc(100vh-4rem)]" data-controller="canvas" data-canvas-session-id-value="<%= @session.id %>">
+  <!-- Header -->
+  <div class="flex items-center gap-4 px-6 py-3 border-b border-border-default bg-surface-card/50 flex-shrink-0">
+    <%= link_to session_path(@session), class: "text-text-muted hover:text-white transition" do %>
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+    <% end %>
+    <div>
+      <h1 class="text-white font-semibold text-sm" data-canvas-target="title">Canvas</h1>
+      <p class="text-text-muted text-xs"><%= @agent.name %> &middot; Live Canvas</p>
+    </div>
+    <div class="ml-auto flex items-center gap-3">
+      <span class="text-text-faint text-xs" data-canvas-target="status">Waiting for content...</span>
+      <button data-action="click->canvas#openInNewWindow"
+              class="text-text-muted hover:text-white text-xs px-2 py-1 border border-border-default rounded hover:border-brand transition"
+              title="Open in new window">
+        <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Canvas Content -->
+  <div class="flex-1 overflow-hidden bg-white">
+    <iframe data-canvas-target="frame"
+            sandbox="allow-scripts allow-same-origin"
+            class="w-full h-full border-0"
+            srcdoc="<html><body style='font-family: system-ui, sans-serif; color: #666; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;'><p>Canvas is ready. The agent will render content here.</p></body></html>">
+    </iframe>
+  </div>
+</div>
+
+<script type="module">
+  import { Controller } from "@hotwired/stimulus"
+  import consumer from "channels/consumer"
+
+  const application = window.Stimulus || (await import("@hotwired/stimulus")).Application.start()
+
+  class CanvasController extends Controller {
+    static targets = ["frame", "title", "status"]
+    static values = { sessionId: Number }
+
+    connect() {
+      this.currentHtml = ""
+      this.subscription = consumer.subscriptions.create(
+        { channel: "CanvasChannel", session_id: this.sessionIdValue },
+        {
+          received: (data) => this.handleMessage(data),
+          connected: () => this.statusTarget.textContent = "Connected",
+          disconnected: () => this.statusTarget.textContent = "Disconnected"
+        }
+      )
+    }
+
+    disconnect() {
+      if (this.subscription) {
+        this.subscription.unsubscribe()
+      }
+    }
+
+    handleMessage(data) {
+      switch (data.type) {
+        case "render":
+          this.currentHtml = data.html
+          this.frameTarget.srcdoc = data.html
+          if (data.title) this.titleTarget.textContent = data.title
+          this.statusTarget.textContent = "Rendered"
+          break
+        case "update":
+          this.updateElement(data.element_id, data.html)
+          this.statusTarget.textContent = "Updated"
+          break
+        case "append":
+          this.appendContent(data.html)
+          this.statusTarget.textContent = "Updated"
+          break
+        case "clear":
+          this.currentHtml = ""
+          this.frameTarget.srcdoc = ""
+          this.titleTarget.textContent = "Canvas"
+          this.statusTarget.textContent = "Cleared"
+          break
+      }
+    }
+
+    updateElement(elementId, html) {
+      try {
+        const doc = this.frameTarget.contentDocument
+        const el = doc.getElementById(elementId)
+        if (el) el.innerHTML = html
+      } catch (e) {
+        console.error("Canvas update failed:", e)
+      }
+    }
+
+    appendContent(html) {
+      try {
+        const doc = this.frameTarget.contentDocument
+        const container = doc.body
+        container.insertAdjacentHTML("beforeend", html)
+        this.currentHtml = container.innerHTML
+      } catch (e) {
+        console.error("Canvas append failed:", e)
+      }
+    }
+
+    openInNewWindow() {
+      const win = window.open("", "_blank", "width=800,height=600")
+      if (win) {
+        win.document.write(this.currentHtml || this.frameTarget.srcdoc)
+        win.document.close()
+      }
+    }
+  }
+
+  if (!application.router.modulesByIdentifier.has("canvas")) {
+    application.register("canvas", CanvasController)
+  }
+</script>

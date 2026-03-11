@@ -29,8 +29,14 @@
       <p class="text-text-muted text-xs"><%= @agent.role %> · <%= @agent.llm_model %> · <%= @agent.model_provider %></p>
     </div>
     <div class="ml-auto flex items-center gap-4">
+      <%= link_to canvas_session_path(@session), class: "flex items-center gap-1 text-text-muted hover:text-white text-xs transition px-2 py-1 border border-border-default rounded hover:border-brand", title: "Open live canvas", target: "_blank" do %>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+        </svg>
+        <span>Canvas</span>
+      <% end %>
       <label class="flex items-center gap-2 text-text-muted text-xs cursor-pointer hover:text-white transition">
-        <input type="checkbox" 
+        <input type="checkbox"
                data-chat-target="toolCallsToggle"
                data-action="change->chat#toggleToolCallsVisibility"
                class="w-3 h-3 rounded border-border-default bg-surface-raised text-brand focus:ring-brand focus:ring-offset-0 focus:ring-2">
