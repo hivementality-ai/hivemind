@@ -56,6 +56,82 @@ RSpec.describe Channels::MessageRouter, type: :service do
       end
     end
 
+    context "with per-peer routing rules" do
+      let(:message) { double(content: "hello", metadata: { "sender" => "user@example.com" }) }
+
+      before do
+        slack_channel.update!(routing_rules: [
+          { "pattern" => "*@example.com", "agent_id" => agent1.id },
+          { "pattern" => "admin-*", "agent_id" => agent2.id }
+        ])
+      end
+
+      it "routes to agent matching glob pattern" do
+        result = subject
+        expect(result).to be_success
+        expect(result.data[:agent]).to eq(agent1)
+      end
+
+      context "with different sender matching second rule" do
+        let(:message) { double(content: "hello", metadata: { "sender" => "admin-bob" }) }
+
+        it "routes to agent matching second rule" do
+          result = subject
+          expect(result).to be_success
+          expect(result.data[:agent]).to eq(agent2)
+        end
+      end
+
+      context "when no rule matches" do
+        let(:message) { double(content: "hello", metadata: { "sender" => "unknown-user" }) }
+        let!(:default_agent_channel) { create(:agent_channel, agent: agent2, channel: slack_channel, is_default: true) }
+
+        it "falls through to default agent channel" do
+          result = subject
+          expect(result).to be_success
+          expect(result.data[:agent]).to eq(agent2)
+        end
+      end
+
+      context "when matched agent is disabled" do
+        before { agent1.update!(enabled: false) }
+
+        it "falls through to next rule or routing method" do
+          result = subject
+          expect(result).to be_success
+          expect(result.data[:agent]).not_to eq(agent1)
+        end
+      end
+
+      context "with case-insensitive matching" do
+        let(:message) { double(content: "hello", metadata: { "sender" => "USER@EXAMPLE.COM" }) }
+
+        it "matches regardless of case" do
+          result = subject
+          expect(result).to be_success
+          expect(result.data[:agent]).to eq(agent1)
+        end
+      end
+
+      context "with no sender in metadata" do
+        let(:message) { double(content: "hello", metadata: {}) }
+
+        it "falls through to next routing method" do
+          result = subject
+          expect(result).to be_success
+        end
+      end
+
+      context "with empty routing rules" do
+        before { slack_channel.update!(routing_rules: []) }
+
+        it "falls through to next routing method" do
+          result = subject
+          expect(result).to be_success
+        end
+      end
+    end
+
     context "with default agent channel routing" do
       let(:message) { double(content: "hello", metadata: {}) }
       let!(:default_agent_channel) { create(:agent_channel, agent: agent1, channel: slack_channel, is_default: true) }
