@@ -36,8 +36,7 @@ module Channels
 
       result = adapter.send_message(
         to: entry.recipient,
-        message: entry.content,
-        options: entry.options
+        content: entry.content
       )
 
       if result.success?
