@@ -30,6 +30,7 @@ Rails.application.routes.draw do
     member do
       post :message
       post :interrupt
+      get :export
     end
   end
 
@@ -41,6 +42,7 @@ Rails.application.routes.draw do
   resources :team_chats, only: [ :show, :update ] do
     member do
       post :message
+      get :export
     end
   end
 
@@ -146,7 +148,11 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       resources :agents, only: [ :index, :show, :create, :update, :destroy ], param: :slug
-      resources :sessions, only: [ :index, :show, :destroy ]
+      resources :sessions, only: [ :index, :show, :destroy ] do
+        member do
+          get :export
+        end
+      end
       post "plans/save", to: "plans#save", as: :save_plan
       get "providers/models", to: "providers#models"
       get "hashtag_actions", to: "hashtag_actions#index"

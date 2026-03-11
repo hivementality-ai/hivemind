@@ -3,7 +3,7 @@
 module Api
   module V1
     class SessionsController < ApiController
-      before_action :set_session, only: [ :show, :destroy ]
+      before_action :set_session, only: [ :show, :destroy, :export ]
 
       def index
         @sessions = Session.includes(:agent)
@@ -35,6 +35,11 @@ module Api
       def destroy
         @session.destroy
         head :no_content
+      end
+
+      def export
+        data = Sessions::Export.call(session: @session)
+        render json: data
       end
 
       private

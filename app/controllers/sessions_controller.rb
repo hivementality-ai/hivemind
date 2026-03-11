@@ -3,7 +3,7 @@
 class SessionsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_agent, only: [ :create ]
-  before_action :set_session, only: [ :show, :message, :interrupt, :update ]
+  before_action :set_session, only: [ :show, :message, :interrupt, :update, :export ]
 
   # GET /sessions — list all sessions
   def index
@@ -115,6 +115,19 @@ class SessionsController < ApplicationController
     )
 
     render json: { status: "signal_sent", type: signal_type }
+  end
+
+  # GET /sessions/:id/export
+  def export
+    data = Sessions::Export.call(session: @session)
+    filename = "hivemind_session_#{@session.id}_#{Date.current}.json"
+
+    send_data(
+      JSON.pretty_generate(data),
+      filename: filename,
+      type: "application/json",
+      disposition: "attachment"
+    )
   end
 
   private

@@ -3,7 +3,7 @@
 class TeamChatsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_team, only: [ :create ]
-  before_action :set_session, only: [ :show, :message, :update ]
+  before_action :set_session, only: [ :show, :message, :update, :export ]
 
   # GET /team_chats — list all team chat sessions
   def index; end
@@ -64,6 +64,19 @@ class TeamChatsController < ApplicationController
     else
       head :unprocessable_entity
     end
+  end
+
+  # GET /team_chats/:id/export
+  def export
+    data = TeamChats::Export.call(team_chat_session: @session)
+    filename = "hivemind_teamchat_#{@session.id}_#{Date.current}.json"
+
+    send_data(
+      JSON.pretty_generate(data),
+      filename: filename,
+      type: "application/json",
+      disposition: "attachment"
+    )
   end
 
   private
