@@ -131,6 +131,8 @@ class ChatStreamJob < ApplicationJob
       thinking_content = nil
       show_thinking = agent.thinking_enabled? && agent.thinking_visibility == "debug"
 
+      Plugins::Hooks.trigger("before_chat", agent: agent, session: session, messages: messages)
+
       if tools.any? && !oauth_mcp
         result = Agents::ToolLoop.call(
           adapter:, agent:, session:, messages:, tools:, channel:, options: llm_options
@@ -174,6 +176,8 @@ class ChatStreamJob < ApplicationJob
           full_content = error_msg
         end
       end
+
+      Plugins::Hooks.trigger("after_chat", agent: agent, session: session, content: full_content)
 
       # Append assistant response (thinking stored as metadata, not visible content)
       session.reload
