@@ -9,6 +9,8 @@ class IntegrationsController < ApplicationController
     @email_configured = VaultEntry.exists?(namespace: "email", key: "smtp_host")
     @jira_configured = VaultEntry.exists?(namespace: "jira", key: "base_url")
     @trello_configured = VaultEntry.exists?(namespace: "trello", key: "api_key")
+    @telegram_configured = VaultEntry.exists?(namespace: "channel_credentials", key: "telegram_bot_token")
+    @signal_configured = Channel.exists?(channel_type: "signal", enabled: true)
     @search_configured = Search::Resolver.configured?
     @search_provider = Search::Resolver.current_provider_name
     @remotes = CloudStorage::ConfigureRemote.list_remotes
@@ -320,6 +322,81 @@ class IntegrationsController < ApplicationController
     server.update!(enabled: !server.enabled)
     status = server.enabled? ? "enabled" : "disabled"
     redirect_to integrations_path, notice: "MCP server '#{server.name}' #{status}"
+  end
+
+  # === Telegram ===
+
+  def update_telegram
+    token = params[:telegram_bot_token].to_s.strip
+    if token.present?
+      store_vault("channel_credentials", "telegram_bot_token", token)
+      ch = Channel.find_or_initialize_by(channel_type: "telegram")
+      ch.name ||= "Telegram Bot"
+      ch.enabled = true
+      webhook_secret = params[:telegram_webhook_secret].to_s.strip
+      ch.config = (ch.config || {}).merge("webhook_secret" => webhook_secret) if webhook_secret.present?
+      ch.save!
+      redirect_to integrations_path, notice: "Telegram bot connected"
+    else
+      redirect_to integrations_path, alert: "Bot token is required"
+    end
+  end
+
+  def test_telegram
+    token = VaultEntry.find_by(namespace: "channel_credentials", key: "telegram_bot_token")&.value
+    return render(json: { status: "error", message: "Telegram not configured" }, status: :unprocessable_entity) unless token
+    uri = URI("https://api.telegram.org/bot\#{token}/getMe")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.open_timeout = 5
+    http.read_timeout = 5
+    response = http.request(Net::HTTP::Get.new(uri))
+    data = JSON.parse(response.body)
+    if data["ok"]
+      bot = data["result"]
+      render json: { status: "connected", username: bot["username"], name: bot["first_name"] }
+    else
+      render json: { status: "error", message: data["description"] }, status: :unprocessable_entity
+    end
+  rescue StandardError => e
+    render json: { status: "error", message: e.message }, status: :unprocessable_entity
+  end
+
+  # === Signal ===
+
+  def update_signal
+    phone = params[:signal_phone_number].to_s.strip
+    api_url = params[:signal_api_url].to_s.strip.presence || "http://signal-cli:8080"
+    if phone.present?
+      ch = Channel.find_or_initialize_by(channel_type: "signal")
+      ch.name ||= "Signal"
+      ch.enabled = true
+      ch.config = { "api_url" => api_url, "phone_number" => phone }
+      ch.save!
+      redirect_to integrations_path, notice: "Signal channel configured"
+    else
+      redirect_to integrations_path, alert: "Phone number is required"
+    end
+  end
+
+  def test_signal
+    ch = Channel.find_by(channel_type: "signal", enabled: true)
+    return render(json: { status: "error", message: "Signal not configured" }, status: :unprocessable_entity) unless ch
+    api_url = ch.config&.dig("api_url") || "http://signal-cli:8080"
+    uri = URI("\#{api_url}/v1/about")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = uri.scheme == "https"
+    http.open_timeout = 5
+    http.read_timeout = 5
+    response = http.request(Net::HTTP::Get.new(uri))
+    if response.is_a?(Net::HTTPSuccess)
+      info = JSON.parse(response.body)
+      render json: { status: "connected", version: info["versions"]&.first }
+    else
+      render json: { status: "error", message: "HTTP \#{response.code}" }, status: :unprocessable_entity
+    end
+  rescue StandardError => e
+    render json: { status: "error", message: e.message }, status: :unprocessable_entity
   end
 
   private

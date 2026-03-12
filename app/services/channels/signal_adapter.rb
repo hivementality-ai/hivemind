@@ -14,15 +14,24 @@ module Channels
       data_msg = envelope[:dataMessage]
       return ServiceResponse.success(data: { skipped: true }) unless data_msg
 
+      metadata = {
+        source_name: envelope[:sourceName],
+        group_id: data_msg.dig(:groupInfo, :groupId),
+        timestamp: data_msg[:timestamp],
+        quote: data_msg[:quote]
+      }
+
+      if data_msg[:attachments].present?
+        metadata[:attachments] = data_msg[:attachments].map do |att|
+          { content_type: att[:contentType], filename: att[:filename], size: att[:size] }
+        end
+      end
+
       inbound = log_inbound_message(
         external_id: data_msg[:timestamp].to_s,
         sender: envelope[:source].to_s,
         content: data_msg[:message].to_s,
-        metadata: {
-          source_name: envelope[:sourceName],
-          group_id: data_msg.dig(:groupInfo, :groupId),
-          timestamp: data_msg[:timestamp]
-        }
+        metadata: metadata
       )
 
       ServiceResponse.success(data: { inbound_message: inbound })
@@ -42,16 +51,12 @@ module Channels
         recipients: [ to ]
       }
 
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = uri.scheme == "https"
-      http.open_timeout = 10
-      http.read_timeout = 15
+      if options[:quote_timestamp] && options[:quote_author]
+        body[:quote_timestamp] = options[:quote_timestamp]
+        body[:quote_author] = options[:quote_author]
+      end
 
-      req = Net::HTTP::Post.new(uri)
-      req["Content-Type"] = "application/json"
-      req.body = body.to_json
-
-      response = http.request(req)
+      response = signal_post(uri, body)
 
       if response.is_a?(Net::HTTPSuccess)
         outbound = log_outbound_message(recipient: to, content: content)
@@ -66,7 +71,6 @@ module Channels
     end
 
     def verify_webhook(_request)
-      # signal-cli REST API doesn't use webhook signatures
       true
     end
 
@@ -78,6 +82,19 @@ module Channels
 
     def registered_number
       channel.config&.dig("phone_number")
+    end
+
+    def signal_post(uri, body)
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = uri.scheme == "https"
+      http.open_timeout = 10
+      http.read_timeout = 15
+
+      req = Net::HTTP::Post.new(uri)
+      req["Content-Type"] = "application/json"
+      req.body = body.to_json
+
+      http.request(req)
     end
   end
 end
