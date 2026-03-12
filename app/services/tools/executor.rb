@@ -4,7 +4,7 @@ module Tools
   class Executor
     NETWORK_EXECUTOR_TYPES = %w[http_request web_fetch browser].freeze
 
-    EXECUTORS = {
+    BUILTIN_EXECUTORS = {
       "shell" => Tools::ShellExecutor,
       "file_read" => Tools::FileReadExecutor,
       "file_write" => Tools::FileWriteExecutor,
@@ -52,8 +52,50 @@ module Tools
       "stt" => Tools::SttExecutor
     }.freeze
 
-    def self.call(tool:, input:, agent:, session:)
-      new(tool:, input:, agent:, session:).call
+    # Backwards compatibility alias
+    EXECUTORS = BUILTIN_EXECUTORS
+
+    class << self
+      def call(tool:, input:, agent:, session:)
+        new(tool:, input:, agent:, session:).call
+      end
+
+      # Registers a plugin-provided executor type at runtime.
+      #
+      # @param type [String] executor type key (must match the tool's +executor_type+)
+      # @param class_name [Class, String] executor class or its fully-qualified name
+      def register(type, class_name)
+        plugin_executors[type.to_s] = class_name.is_a?(String) ? class_name.constantize : class_name
+      end
+
+      # Removes a plugin-provided executor type.
+      #
+      # @param type [String] executor type key to remove
+      def unregister(type)
+        plugin_executors.delete(type.to_s)
+      end
+
+      # @return [Hash{String => Class}] merged map of builtin and plugin executors
+      def all_executors
+        BUILTIN_EXECUTORS.merge(plugin_executors)
+      end
+
+      # @param type [String] executor type key
+      # @return [Boolean] true if a builtin or plugin executor is registered for this type
+      def registered?(type)
+        all_executors.key?(type.to_s)
+      end
+
+      # Clears all plugin-registered executors. Intended for tests.
+      def reset_plugin_executors!
+        @plugin_executors = {}
+      end
+
+      private
+
+      def plugin_executors
+        @plugin_executors ||= {}
+      end
     end
 
     def initialize(tool:, input:, agent:, session:)
@@ -64,7 +106,7 @@ module Tools
     end
 
     def call
-      executor_class = EXECUTORS[@tool.executor_type]
+      executor_class = self.class.all_executors[@tool.executor_type]
       return ServiceResponse.failure(error: "Unknown executor: #{@tool.executor_type}") unless executor_class
 
       # System tools (e.g. load_skill) skip execution tracking
@@ -98,7 +140,9 @@ module Tools
       begin
         # Merge session into config for executors that need it
         executor_config = @tool.effective_config.merge(session: @session)
+        Plugins::Hooks.trigger("before_tool_call", tool: @tool, input: @input, agent: @agent)
         result = executor_class.new(input: @input, config: executor_config, agent: @agent).call
+        Plugins::Hooks.trigger("after_tool_call", tool: @tool, input: @input, agent: @agent, result: result)
         duration = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).to_i
 
         if result.success?

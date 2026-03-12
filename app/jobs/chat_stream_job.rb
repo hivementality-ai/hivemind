@@ -131,6 +131,8 @@ class ChatStreamJob < ApplicationJob
       thinking_content = nil
       show_thinking = agent.thinking_enabled? && agent.thinking_visibility == "debug"
 
+      Plugins::Hooks.trigger("before_chat", agent: agent, session: session, messages: messages)
+
       if tools.any? && !oauth_mcp
         result = Agents::ToolLoop.call(
           adapter:, agent:, session:, messages:, tools:, channel:, options: llm_options
@@ -155,8 +157,10 @@ class ChatStreamJob < ApplicationJob
               ActionCable.server.broadcast(channel, { type: "token", content: chunk[:content] })
             end
           when "tool_start"
+            Plugins::Hooks.trigger("before_tool_call", tool_name: chunk[:tool], input: chunk[:input] || {}, agent: agent, source: :proxy)
             ActionCable.server.broadcast(channel, { type: "tool_start", tool: chunk[:tool], input: chunk[:input] })
           when "tool_result"
+            Plugins::Hooks.trigger("after_tool_call", tool_name: chunk[:tool], output: chunk[:output], success: chunk[:success], agent: agent, source: :proxy)
             ActionCable.server.broadcast(channel, { type: "tool_result", tool: chunk[:tool], output: chunk[:output], success: chunk[:success] })
           end
         end
@@ -174,6 +178,8 @@ class ChatStreamJob < ApplicationJob
           full_content = error_msg
         end
       end
+
+      Plugins::Hooks.trigger("after_chat", agent: agent, session: session, content: full_content)
 
       # Append assistant response (thinking stored as metadata, not visible content)
       session.reload

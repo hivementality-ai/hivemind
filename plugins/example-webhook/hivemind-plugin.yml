@@ -1,0 +1,12 @@
+name: example-webhook
+version: 0.1.0
+description: "Example plugin that fires webhooks on chat events"
+author: "Hivemind Team"
+
+extension_points:
+  - type: hook
+    id: after_chat
+    class_name: "ExampleWebhook::AfterChatHook"
+
+dependencies:
+  gems: []

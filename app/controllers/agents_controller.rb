@@ -31,6 +31,7 @@ class AgentsController < ApplicationController
     assign_restricted_attrs(@agent)
 
     if @agent.save
+      Plugins::Hooks.trigger("agent_created", agent: @agent)
       Agents::SyncSkillTools.call(agent: @agent)
       redirect_to @agent, notice: "Agent created successfully"
     else
