@@ -3,7 +3,7 @@
 module Api
   module V1
     class SessionsController < ApiController
-      before_action :set_session, only: [ :show, :destroy ]
+      before_action :set_session, only: [ :show, :destroy, :export ]
 
       def index
         @sessions = Session.includes(:agent)
@@ -30,6 +30,16 @@ module Api
           include: :agent,
           methods: [ :transcript_summary ]
         )
+      end
+
+      def export
+        result = Sessions::Export.call(session: @session)
+
+        if result.success?
+          render json: result.data[:export]
+        else
+          render json: { error: result.error }, status: :unprocessable_entity
+        end
       end
 
       def destroy

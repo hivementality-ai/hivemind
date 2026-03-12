@@ -43,6 +43,7 @@
   - [Coding Agent](#coding-agent)
   - [File Sharing & Image Generation](#file-sharing--image-generation)
   - [Slack Multi-Bot](#slack-multi-bot)
+  - [Message Routing](#message-routing)
   - [Hashtag Actions](#hashtag-actions)
   - [Authentication](#authentication)
   - [Security](#security)
@@ -531,6 +532,40 @@ Give each agent its own Slack bot identity. When Agent "Aria" posts in Slack, it
 - Reply in Aria's thread → stays with Aria (thread ownership)
 - Message with no @mention → routes to the default agent
 - No agent channels configured → falls back to single-bot mode (backward compatible)
+
+### Message Routing
+
+When a message arrives on a channel, Hivemind determines which agent handles it using a 6-level priority cascade. The first match wins:
+
+| Priority | Method | How it works |
+|----------|--------|-------------|
+| 1 | **@mention** | `@aria help me` matches Aria via `AgentChannel.external_bot_user_id` |
+| 2 | **Thread ownership** | Replies in an agent's thread stay with that agent |
+| 3 | **Per-peer routing rules** | Glob pattern matching on sender identifier (see below) |
+| 4 | **Default agent** | The channel's `is_default: true` agent |
+| 5 | **Legacy default** | `channel.config["default_agent_id"]` (backward compat) |
+| 6 | **Fallback** | First enabled, visible agent |
+
+**Per-peer routing rules** let you route messages from specific senders to specific agents. Rules are stored as a JSONB array on the channel and checked in order — first match wins.
+
+```json
+[
+  { "pattern": "*@support.example.com", "agent_id": 42 },
+  { "pattern": "bot-*",                 "agent_id": 17 },
+  { "pattern": "vip-?-user",            "agent_id": 99 }
+]
+```
+
+Patterns use Ruby's `File.fnmatch` glob syntax with case-insensitive matching:
+
+| Pattern | Matches |
+|---------|---------|
+| `*@example.com` | Any sender ending in `@example.com` |
+| `bot-*` | Any sender starting with `bot-` |
+| `?-admin` | Single character prefix, e.g. `a-admin` |
+| `[abc]-team` | `a-team`, `b-team`, or `c-team` |
+
+The sender identifier is extracted from message metadata, checking these fields in order: `sender`, `sender_id`, `from`, `user_id`, `user_name`.
 
 ### Hashtag Actions
 
