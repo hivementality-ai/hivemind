@@ -26,10 +26,19 @@ module Channels
       channel = Channel.find_by(id: @session.origin_channel_id)
       return unless channel&.enabled?
 
-      adapter = Channels::Registry.adapter_for(channel)
-      adapter.send_message(to: @session.origin_sender, content: @content)
+      result = Channels::DeliveryQueue.enqueue(
+        channel: channel,
+        recipient: @session.origin_sender,
+        content: @content,
+        agent: @agent,
+        session: @session
+      )
 
-      Rails.logger.info("[OriginDelivery] Sent to #{@session.origin_channel_type} (#{@session.origin_sender})")
+      if result.success?
+        Rails.logger.info("[OriginDelivery] Enqueued for #{@session.origin_channel_type} (#{@session.origin_sender})")
+      else
+        Rails.logger.error("[OriginDelivery] Failed to enqueue: #{result.error}")
+      end
     rescue StandardError => e
       Rails.logger.error("[OriginDelivery] Failed: #{e.message}")
     end

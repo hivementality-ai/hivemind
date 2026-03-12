@@ -99,6 +99,7 @@ Rails.application.routes.draw do
 
   # Platform
   get "platform/status", to: "platform#status", as: :platform_status
+  get "platform/doctor", to: "platform#doctor", as: :platform_doctor
   post "platform/restart", to: "platform#restart", as: :platform_restart
   post "platform/clear_cache", to: "platform#clear_cache", as: :platform_clear_cache
 
