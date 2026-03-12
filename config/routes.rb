@@ -89,6 +89,14 @@ Rails.application.routes.draw do
     end
   end
 
+  # Plugins
+  resources :plugins, only: [ :index, :show ] do
+    member do
+      post :enable
+      post :disable
+    end
+  end
+
   # Platform
   get "platform/status", to: "platform#status", as: :platform_status
   post "platform/restart", to: "platform#restart", as: :platform_restart

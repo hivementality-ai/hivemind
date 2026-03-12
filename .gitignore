@@ -57,3 +57,7 @@ spec/examples.txt
 
 /app/assets/builds/*
 !/app/assets/builds/.keep
+
+# Plugins (third-party, user-installed)
+/plugins/*
+!/plugins/.gitkeep
