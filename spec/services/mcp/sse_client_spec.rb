@@ -7,7 +7,7 @@ RSpec.describe Mcp::SseClient do
 
   describe ".discover_tools" do
     it "fetches and stores tools" do
-      tools = [{ "name" => "test_tool", "description" => "A test" }]
+      tools = [ { "name" => "test_tool", "description" => "A test" } ]
       stub_request(:get, "https://mcp.example.com/tools")
         .to_return(status: 200, body: { tools: tools }.to_json, headers: { "Content-Type" => "application/json" })
 
@@ -37,7 +37,7 @@ RSpec.describe Mcp::SseClient do
 
   describe ".call_tool" do
     it "calls tool and returns result" do
-      content = [{ "type" => "text", "text" => "Hello" }]
+      content = [ { "type" => "text", "text" => "Hello" } ]
       stub_request(:post, "https://mcp.example.com/tools/call")
         .to_return(status: 200, body: { content: content }.to_json, headers: { "Content-Type" => "application/json" })
 
@@ -58,7 +58,7 @@ RSpec.describe Mcp::SseClient do
       server.update!(auth_config: { "Authorization" => "Bearer test-token" })
       stub_request(:post, "https://mcp.example.com/tools/call")
         .with(headers: { "Authorization" => "Bearer test-token" })
-        .to_return(status: 200, body: { content: [{ "text" => "ok" }] }.to_json)
+        .to_return(status: 200, body: { content: [ { "text" => "ok" } ] }.to_json)
 
       result = described_class.call_tool(server, tool_name: "test", arguments: {})
       expect(result).to be_success

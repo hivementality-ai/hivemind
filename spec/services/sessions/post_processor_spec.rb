@@ -139,7 +139,7 @@ RSpec.describe Sessions::PostProcessor do
       end
 
       it "does not enqueue SessionTitleJob when transcript has fewer than 2 messages" do
-        session.update!(title: nil, transcript: [{ "role" => "user", "content" => "Hello" }])
+        session.update!(title: nil, transcript: [ { "role" => "user", "content" => "Hello" } ])
 
         expect { result }.not_to have_enqueued_job(SessionTitleJob)
       end

@@ -106,6 +106,5 @@ module Providers
       end
       blocks.reject { |b| b[:text].blank? }
     end
-
   end
 end

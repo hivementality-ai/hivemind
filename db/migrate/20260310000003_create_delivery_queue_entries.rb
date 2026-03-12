@@ -18,6 +18,6 @@ class CreateDeliveryQueueEntries < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :delivery_queue_entries, [:status, :next_attempt_at]
+    add_index :delivery_queue_entries, [ :status, :next_attempt_at ]
   end
 end

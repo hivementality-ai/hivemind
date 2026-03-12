@@ -40,7 +40,7 @@ module Mcp
 
     def spawn_process
       env_args = build_env_args
-      cmd = ["docker", "exec", "-d", *env_args, WORKSPACE_CONTAINER, "sh", "-c", "#{@server.command} & echo $!"]
+      cmd = [ "docker", "exec", "-d", *env_args, WORKSPACE_CONTAINER, "sh", "-c", "#{@server.command} & echo $!" ]
       stdout, stderr, status = Open3.capture3(*cmd)
       raise "Failed to start: #{stderr}" unless status.success?
 
@@ -56,7 +56,7 @@ module Mcp
     end
 
     def build_env_args
-      @server.resolved_env_vars.flat_map { |k, v| ["--env", "#{k}=#{v}"] }
+      @server.resolved_env_vars.flat_map { |k, v| [ "--env", "#{k}=#{v}" ] }
     end
   end
 end

@@ -64,7 +64,7 @@ RSpec.describe "Integrations MCP Servers", type: :request do
     let!(:server) { create(:mcp_server, :sse, :connected) }
 
     it "refreshes tools" do
-      tools = [{ "name" => "test", "description" => "A tool" }]
+      tools = [ { "name" => "test", "description" => "A tool" } ]
       allow(Mcp::SseClient).to receive(:discover_tools).and_return(ServiceResponse.success(data: { tools: tools }))
       get refresh_mcp_tools_path(server)
       expect(response).to redirect_to(integrations_path)

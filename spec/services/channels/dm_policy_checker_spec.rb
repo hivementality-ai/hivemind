@@ -19,7 +19,7 @@ RSpec.describe Channels::DmPolicyChecker do
     end
 
     context "with allowlist mode" do
-      let(:policy) { { "mode" => "allowlist", "allowed_senders" => ["+15551234567"] } }
+      let(:policy) { { "mode" => "allowlist", "allowed_senders" => [ "+15551234567" ] } }
 
       it "allows listed senders" do
         result = described_class.call(agent_channel: agent_channel, sender: "+15551234567")
@@ -33,7 +33,7 @@ RSpec.describe Channels::DmPolicyChecker do
     end
 
     context "with blocklist mode" do
-      let(:policy) { { "mode" => "blocklist", "blocked_senders" => ["spam@example.com"] } }
+      let(:policy) { { "mode" => "blocklist", "blocked_senders" => [ "spam@example.com" ] } }
 
       it "blocks listed senders" do
         result = described_class.call(agent_channel: agent_channel, sender: "spam@example.com")

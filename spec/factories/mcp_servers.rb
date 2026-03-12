@@ -44,7 +44,7 @@ FactoryBot.define do
     trait :with_tools do
       discovered_tools do
         [
-          { "name" => "read_file", "description" => "Read a file", "inputSchema" => { "type" => "object", "properties" => { "path" => { "type" => "string" } }, "required" => ["path"] } },
+          { "name" => "read_file", "description" => "Read a file", "inputSchema" => { "type" => "object", "properties" => { "path" => { "type" => "string" } }, "required" => [ "path" ] } },
           { "name" => "list_files", "description" => "List files", "inputSchema" => { "type" => "object", "properties" => {}, "required" => [] } }
         ]
       end

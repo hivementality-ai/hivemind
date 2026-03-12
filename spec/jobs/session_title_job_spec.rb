@@ -110,7 +110,7 @@ RSpec.describe SessionTitleJob, type: :job do
 
       # Simulate race: another job sets the title between our LLM call and our update_all
       allow(Session).to receive(:where).and_call_original
-      allow(Session).to receive(:where).with(id: session.id, title: [nil, "", "New Chat"]).and_wrap_original do |m, *args|
+      allow(Session).to receive(:where).with(id: session.id, title: [ nil, "", "New Chat" ]).and_wrap_original do |m, *args|
         session.update_columns(title: "Set By Other Job")
         m.call(*args)
       end
@@ -126,7 +126,7 @@ RSpec.describe SessionTitleJob, type: :job do
   describe "guard: transcript too short" do
     it "does not generate a title with only one message" do
       session = create(:session, agent: agent, title: nil,
-                       transcript: [{ "role" => "user", "content" => "Hello" }])
+                       transcript: [ { "role" => "user", "content" => "Hello" } ])
 
       described_class.perform_now(session.id)
 

@@ -127,7 +127,7 @@ RSpec.describe TeamChatTitleJob, type: :job do
       session = create_session_with_messages(title: "New Chat")
 
       allow(TeamChatSession).to receive(:where).and_call_original
-      allow(TeamChatSession).to receive(:where).with(id: session.id, title: [nil, "", "New Chat"]).and_wrap_original do |m, *args|
+      allow(TeamChatSession).to receive(:where).with(id: session.id, title: [ nil, "", "New Chat" ]).and_wrap_original do |m, *args|
         session.update_columns(title: "Claimed By Other Job")
         m.call(*args)
       end

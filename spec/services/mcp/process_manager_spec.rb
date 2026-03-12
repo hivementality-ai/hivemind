@@ -11,7 +11,7 @@ RSpec.describe Mcp::ProcessManager do
       status_ok = instance_double(Process::Status, success?: true)
       tools_response = ServiceResponse.success(data: { tools: [] })
 
-      allow(Open3).to receive(:capture3).and_return(["12345\n", "", status_ok])
+      allow(Open3).to receive(:capture3).and_return([ "12345\n", "", status_ok ])
       allow(Mcp::StdioClient).to receive(:discover_tools).and_return(tools_response)
 
       result = manager.start
@@ -20,7 +20,7 @@ RSpec.describe Mcp::ProcessManager do
     end
 
     it "marks error on npm failure" do
-      allow(Open3).to receive(:capture3).and_return(["", "npm ERR!", instance_double(Process::Status, success?: false)])
+      allow(Open3).to receive(:capture3).and_return([ "", "npm ERR!", instance_double(Process::Status, success?: false) ])
       result = manager.start
       expect(result).not_to be_success
       expect(server.reload.status).to eq("error")
@@ -30,7 +30,7 @@ RSpec.describe Mcp::ProcessManager do
   describe "#stop" do
     it "kills process when pid present" do
       server.update!(metadata: { "pid" => "12345" }, status: "connected")
-      allow(Open3).to receive(:capture3).and_return(["", "", instance_double(Process::Status, success?: true)])
+      allow(Open3).to receive(:capture3).and_return([ "", "", instance_double(Process::Status, success?: true) ])
       result = manager.stop
       expect(result).to be_success
       expect(server.reload.status).to eq("disconnected")
