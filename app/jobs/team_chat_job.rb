@@ -228,8 +228,10 @@ class TeamChatJob < ApplicationJob
               })
             end
           when "tool_start"
+            Plugins::Hooks.trigger("before_tool_call", tool_name: chunk[:tool], input: chunk[:input] || {}, agent: agent, source: :proxy)
             ActionCable.server.broadcast(@channel, { type: "tool_start", tool: chunk[:tool], input: chunk[:input], **broadcast_extras })
           when "tool_result"
+            Plugins::Hooks.trigger("after_tool_call", tool_name: chunk[:tool], output: chunk[:output], success: chunk[:success], agent: agent, source: :proxy)
             ActionCable.server.broadcast(@channel, { type: "tool_result", tool: chunk[:tool], output: chunk[:output], success: chunk[:success], **broadcast_extras })
           end
         end
