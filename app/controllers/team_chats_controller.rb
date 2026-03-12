@@ -3,7 +3,7 @@
 class TeamChatsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_team, only: [ :create ]
-  before_action :set_session, only: [ :show, :message, :update, :interrupt ]
+  before_action :set_session, only: [ :show, :message, :update, :interrupt, :export ]
 
   # GET /team_chats — list all team chat sessions
   def index; end
@@ -63,6 +63,18 @@ class TeamChatsController < ApplicationController
       head :ok
     else
       head :unprocessable_entity
+    end
+  end
+
+  # GET /team_chats/:id/export — download debug export as JSON
+  def export
+    result = TeamChats::Export.call(session: @session)
+
+    if result.success?
+      filename = "team_chat_#{@session.id}_export_#{Time.current.strftime('%Y%m%d_%H%M%S')}.json"
+      send_data result.data[:export].to_json, filename: filename, type: "application/json", disposition: "attachment"
+    else
+      redirect_to team_chat_path(@session), alert: result.error
     end
   end
 

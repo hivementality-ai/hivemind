@@ -28,23 +28,27 @@ module Channels
     attr_reader :channel, :message
 
     def route_agent
-      # 1. Check for @mention → match external_bot_user_id on AgentChannel
+      # 1. Check for @mention -> match external_bot_user_id on AgentChannel
       mentioned_agent = check_mention_routing
       return mentioned_agent if mentioned_agent
 
-      # 2. Check thread ownership → ChannelThread lookup
+      # 2. Check thread ownership -> ChannelThread lookup
       thread_owner = check_thread_ownership
       return thread_owner if thread_owner
 
-      # 3. Fall back to channel's default agent (AgentChannel.is_default)
+      # 3. Check per-peer routing rules (glob matching on sender)
+      rules_match = check_routing_rules
+      return rules_match if rules_match
+
+      # 4. Fall back to channel's default agent (AgentChannel.is_default)
       default_agent_channel = check_default_agent_channel
       return default_agent_channel if default_agent_channel
 
-      # 4. Fall back to channel.config["default_agent_id"] (existing behavior)
+      # 5. Fall back to channel.config["default_agent_id"] (existing behavior)
       legacy_default = check_legacy_default
       return legacy_default if legacy_default
 
-      # 5. Fall back to first enabled agent
+      # 6. Fall back to first enabled agent
       fallback_agent
     end
 
@@ -66,6 +70,27 @@ module Channels
 
       thread_owner = ChannelThread.thread_owner(channel: channel, thread_id: tid)
       thread_owner if thread_owner&.enabled?
+    end
+
+    def check_routing_rules
+      rules = channel.routing_rules
+      return nil unless rules.is_a?(Array) && rules.any?
+
+      sender = sender_identifier
+      return nil unless sender.present?
+
+      rules.each do |rule|
+        pattern = rule["pattern"].to_s
+        agent_id = rule["agent_id"]
+        next if pattern.blank? || agent_id.blank?
+
+        if File.fnmatch(pattern, sender, File::FNM_CASEFOLD)
+          agent = Agent.find_by(id: agent_id)
+          return agent if agent&.enabled?
+        end
+      end
+
+      nil
     end
 
     def check_default_agent_channel
@@ -171,6 +196,14 @@ module Channels
       elsif message.respond_to?(:sender)
         message.sender
       end
+    end
+
+    def sender_identifier
+      extract_metadata_value("sender") ||
+        extract_metadata_value("sender_id") ||
+        extract_metadata_value("from") ||
+        extract_metadata_value("user_id") ||
+        extract_metadata_value("user_name")
     end
   end
 end

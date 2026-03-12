@@ -75,6 +75,49 @@
     <hr class="border-border-default">
 
     <div>
+      <h3 class="text-white font-semibold mb-3">Per-Peer Routing Rules</h3>
+      <p class="text-text-faint text-sm mb-4">Route messages to specific agents based on who sent them. Patterns use glob matching (e.g. <code class="text-text-muted">*@example.com</code>, <code class="text-text-muted">support-*</code>). Rules are checked in order; first match wins.</p>
+
+      <% rules = channel.routing_rules.presence || [] %>
+      <div id="routing-rules" class="space-y-2 mb-4">
+        <% rules.each_with_index do |rule, i| %>
+          <div class="flex items-center gap-2">
+            <input type="text" name="channel[routing_rules][][pattern]" value="<%= rule["pattern"] %>"
+                   placeholder="sender pattern (e.g. *@example.com)"
+                   class="flex-1 px-3 py-2 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+            <select name="channel[routing_rules][][agent_id]"
+                    class="flex-1 px-3 py-2 bg-surface-card border border-border-default rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+              <option value="">Select agent...</option>
+              <% Agent.visible.enabled.order(:name).each do |agent| %>
+                <option value="<%= agent.id %>" <%= 'selected' if rule["agent_id"].to_s == agent.id.to_s %>><%= agent.name %></option>
+              <% end %>
+            </select>
+          </div>
+        <% end %>
+      </div>
+
+      <template id="routing-rule-template">
+        <div class="flex items-center gap-2">
+          <input type="text" name="channel[routing_rules][][pattern]" value=""
+                 placeholder="sender pattern (e.g. *@example.com)"
+                 class="flex-1 px-3 py-2 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+          <select name="channel[routing_rules][][agent_id]"
+                  class="flex-1 px-3 py-2 bg-surface-card border border-border-default rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+            <option value="">Select agent...</option>
+            <% Agent.visible.enabled.order(:name).each do |agent| %>
+              <option value="<%= agent.id %>"><%= agent.name %></option>
+            <% end %>
+          </select>
+        </div>
+      </template>
+
+      <button type="button" onclick="document.getElementById('routing-rules').appendChild(document.getElementById('routing-rule-template').content.cloneNode(true))"
+              class="text-brand-light text-sm hover:underline">+ Add rule</button>
+    </div>
+
+    <hr class="border-border-default">
+
+    <div>
       <h3 class="text-white font-semibold mb-3">Credentials</h3>
       <p class="text-text-faint text-sm mb-4">Stored encrypted in the vault. Leave blank to keep existing.</p>
 

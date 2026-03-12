@@ -75,5 +75,43 @@ RSpec.describe HeartbeatJob, type: :job do
       allow(Sessions::Chat).to receive(:call).and_raise(StandardError, "boom")
       expect { described_class.perform_now }.not_to raise_error
     end
+
+    context "with light_context enabled" do
+      let(:config) { { "enabled" => true, "interval_minutes" => 30, "light_context" => true }.to_json }
+
+      it "uses a minimal prompt" do
+        described_class.perform_now
+        expect(Sessions::Chat).to have_received(:call).with(
+          hash_including(message: a_string_including("Heartbeat check-in. Tools:"))
+        )
+      end
+
+      it "does not include teammate listing" do
+        create(:agent, name: "Helper", role: "Developer", enabled: true)
+        described_class.perform_now
+        call_args = nil
+        expect(Sessions::Chat).to have_received(:call) do |args|
+          call_args = args
+        end
+        expect(call_args[:message]).not_to include("Available teammates")
+      end
+
+      it "still includes checklist tasks" do
+        allow(Setting).to receive(:get).with("heartbeat_tasks").and_return([ { "task" => "Check logs" } ].to_json)
+        described_class.perform_now
+        expect(Sessions::Chat).to have_received(:call).with(
+          hash_including(message: a_string_including("Check logs"))
+        )
+      end
+
+      it "still includes custom prompt" do
+        config_with_prompt = { "enabled" => true, "interval_minutes" => 30, "light_context" => true, "prompt" => "Watch for errors" }.to_json
+        allow(Setting).to receive(:get).with("heartbeat").and_return(config_with_prompt)
+        described_class.perform_now
+        expect(Sessions::Chat).to have_received(:call).with(
+          hash_including(message: a_string_including("Watch for errors"))
+        )
+      end
+    end
   end
 end
