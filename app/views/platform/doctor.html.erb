@@ -1,0 +1,35 @@
+<div class="container mx-auto px-4 py-6 max-w-3xl">
+  <h1 class="text-2xl font-bold mb-2">Hivemind Doctor</h1>
+  <p class="text-gray-500 mb-6">System diagnostics — <%= @result[:timestamp] %></p>
+
+  <div class="space-y-2">
+    <% @result[:checks].each do |check| %>
+      <div class="flex items-center gap-3 p-3 rounded-lg border
+        <%= case check[:status]
+            when :ok      then 'border-green-200 bg-green-50'
+            when :warning then 'border-yellow-200 bg-yellow-50'
+            when :error   then 'border-red-200 bg-red-50'
+            end %>">
+        <span class="text-lg">
+          <%= case check[:status]
+              when :ok      then raw('&#x2705;')
+              when :warning then raw('&#x26A0;&#xFE0F;')
+              when :error   then raw('&#x274C;')
+              end %>
+        </span>
+        <span class="font-medium"><%= check[:name] %></span>
+        <% if check[:detail] %>
+          <span class="text-gray-600 ml-auto text-sm"><%= check[:detail] %></span>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+
+  <% ok    = @result[:checks].count { |c| c[:status] == :ok } %>
+  <% warns = @result[:checks].count { |c| c[:status] == :warning } %>
+  <% errs  = @result[:checks].count { |c| c[:status] == :error } %>
+
+  <p class="mt-6 text-gray-600">
+    <%= ok %> passed, <%= warns %> warnings, <%= errs %> errors
+  </p>
+</div>

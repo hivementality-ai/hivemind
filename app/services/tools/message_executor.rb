@@ -35,12 +35,16 @@ module Tools
       channel = find_channel(channel_name)
       return ServiceResponse.failure(error: not_configured_error(channel_name)) unless channel
 
-      adapter = Channels::Registry.adapter_for(channel)
-      result = adapter.send_message(to: to, content: message)
+      result = Channels::DeliveryQueue.enqueue(
+        channel: channel,
+        recipient: to,
+        content: message,
+        agent: agent
+      )
 
       if result.success?
         ServiceResponse.success(data: {
-          output: "Message sent via #{channel.channel_type}#{to.present? ? " to #{to}" : ""}",
+          output: "Message queued for delivery via #{channel.channel_type}#{to.present? ? " to #{to}" : ""}",
           exit_code: 0
         })
       else
