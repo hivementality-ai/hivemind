@@ -31,31 +31,31 @@ RSpec.describe McpServer, type: :model do
     it "returns enabled servers" do
       enabled = create(:mcp_server, enabled: true)
       create(:mcp_server, :disabled)
-      expect(McpServer.enabled).to eq([enabled])
+      expect(McpServer.enabled).to eq([ enabled ])
     end
 
     it "returns preset servers" do
       preset = create(:mcp_server, :preset)
       create(:mcp_server)
-      expect(McpServer.preset).to eq([preset])
+      expect(McpServer.preset).to eq([ preset ])
     end
 
     it "filters by transport" do
       stdio = create(:mcp_server, :stdio)
       create(:mcp_server, :sse)
-      expect(McpServer.by_transport("stdio")).to eq([stdio])
+      expect(McpServer.by_transport("stdio")).to eq([ stdio ])
     end
 
     it "returns connected servers" do
       connected = create(:mcp_server, :connected)
       create(:mcp_server, :disconnected)
-      expect(McpServer.connected).to eq([connected])
+      expect(McpServer.connected).to eq([ connected ])
     end
 
     it "returns errored servers" do
       errored = create(:mcp_server, :error)
       create(:mcp_server)
-      expect(McpServer.errored).to eq([errored])
+      expect(McpServer.errored).to eq([ errored ])
     end
   end
 
@@ -101,7 +101,7 @@ RSpec.describe McpServer, type: :model do
 
     it "stores pid and tools when provided" do
       server = create(:mcp_server)
-      tools = [{ "name" => "test" }]
+      tools = [ { "name" => "test" } ]
       server.mark_connected!(pid: "12345", tools: tools)
       expect(server.reload.metadata["pid"]).to eq("12345")
       expect(server.discovered_tools).to eq(tools)
@@ -129,7 +129,7 @@ RSpec.describe McpServer, type: :model do
   describe "#update_discovered_tools!" do
     it "stores tools and refreshed timestamp" do
       server = create(:mcp_server)
-      tools = [{ "name" => "test", "description" => "A test tool" }]
+      tools = [ { "name" => "test", "description" => "A test tool" } ]
       server.update_discovered_tools!(tools)
       expect(server.reload.discovered_tools).to eq(tools)
       expect(server.tools_refreshed_at).to be_present

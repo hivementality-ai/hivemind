@@ -7,9 +7,9 @@ RSpec.describe Mcp::StdioClient do
 
   describe ".discover_tools" do
     it "fetches tools via JSON-RPC" do
-      tools = [{ "name" => "read_file", "description" => "Read a file" }]
+      tools = [ { "name" => "read_file", "description" => "Read a file" } ]
       rpc_response = { "jsonrpc" => "2.0", "id" => "uuid", "result" => { "tools" => tools } }.to_json
-      allow(Open3).to receive(:capture3).and_return([rpc_response, "", instance_double(Process::Status, success?: true)])
+      allow(Open3).to receive(:capture3).and_return([ rpc_response, "", instance_double(Process::Status, success?: true) ])
 
       result = described_class.discover_tools(server)
       expect(result).to be_success
@@ -18,7 +18,7 @@ RSpec.describe Mcp::StdioClient do
     end
 
     it "handles command failure" do
-      allow(Open3).to receive(:capture3).and_return(["", "error", instance_double(Process::Status, success?: false)])
+      allow(Open3).to receive(:capture3).and_return([ "", "error", instance_double(Process::Status, success?: false) ])
 
       result = described_class.discover_tools(server)
       expect(result).not_to be_success
@@ -26,7 +26,7 @@ RSpec.describe Mcp::StdioClient do
     end
 
     it "handles invalid JSON response" do
-      allow(Open3).to receive(:capture3).and_return(["not json\n", "", instance_double(Process::Status, success?: true)])
+      allow(Open3).to receive(:capture3).and_return([ "not json\n", "", instance_double(Process::Status, success?: true) ])
 
       result = described_class.discover_tools(server)
       expect(result).not_to be_success
@@ -35,9 +35,9 @@ RSpec.describe Mcp::StdioClient do
 
   describe ".call_tool" do
     it "calls tool via JSON-RPC" do
-      content = [{ "type" => "text", "text" => "file contents" }]
+      content = [ { "type" => "text", "text" => "file contents" } ]
       rpc_response = { "jsonrpc" => "2.0", "id" => "uuid", "result" => { "content" => content } }.to_json
-      allow(Open3).to receive(:capture3).and_return([rpc_response, "", instance_double(Process::Status, success?: true)])
+      allow(Open3).to receive(:capture3).and_return([ rpc_response, "", instance_double(Process::Status, success?: true) ])
 
       result = described_class.call_tool(server, tool_name: "read_file", arguments: { path: "/test" })
       expect(result).to be_success
@@ -46,7 +46,7 @@ RSpec.describe Mcp::StdioClient do
 
     it "handles RPC error" do
       rpc_response = { "jsonrpc" => "2.0", "id" => "uuid", "error" => { "message" => "not found" } }.to_json
-      allow(Open3).to receive(:capture3).and_return([rpc_response, "", instance_double(Process::Status, success?: true)])
+      allow(Open3).to receive(:capture3).and_return([ rpc_response, "", instance_double(Process::Status, success?: true) ])
 
       result = described_class.call_tool(server, tool_name: "missing", arguments: {})
       expect(result).not_to be_success
@@ -54,8 +54,8 @@ RSpec.describe Mcp::StdioClient do
 
     it "passes env vars to docker exec" do
       server.update!(env_vars: { "API_KEY" => "test-key" })
-      rpc_response = { "jsonrpc" => "2.0", "id" => "uuid", "result" => { "content" => [{ "text" => "ok" }] } }.to_json
-      allow(Open3).to receive(:capture3).and_return([rpc_response, "", instance_double(Process::Status, success?: true)])
+      rpc_response = { "jsonrpc" => "2.0", "id" => "uuid", "result" => { "content" => [ { "text" => "ok" } ] } }.to_json
+      allow(Open3).to receive(:capture3).and_return([ rpc_response, "", instance_double(Process::Status, success?: true) ])
 
       described_class.call_tool(server, tool_name: "test", arguments: {})
       expect(Open3).to have_received(:capture3) do |*args|

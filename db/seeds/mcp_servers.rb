@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-PRESET_MCP_SERVERS = [
-].freeze
+PRESET_MCP_SERVERS = [].freeze
 
 PRESET_MCP_SERVERS.each do |attrs|
   server = McpServer.find_or_initialize_by(name: attrs[:name])

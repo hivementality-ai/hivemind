@@ -14,13 +14,13 @@ RSpec.describe Mcp::HealthCheck do
       let!(:server) { create(:mcp_server, :stdio, :connected, metadata: { "pid" => "12345" }) }
 
       it "marks healthy when process is alive" do
-        allow(Open3).to receive(:capture3).and_return(["", "", instance_double(Process::Status, success?: true)])
+        allow(Open3).to receive(:capture3).and_return([ "", "", instance_double(Process::Status, success?: true) ])
         result = described_class.call
         expect(result.data[:healthy]).to eq(1)
       end
 
       it "marks unhealthy when process is dead" do
-        allow(Open3).to receive(:capture3).and_return(["", "", instance_double(Process::Status, success?: false)])
+        allow(Open3).to receive(:capture3).and_return([ "", "", instance_double(Process::Status, success?: false) ])
         result = described_class.call
         expect(result.data[:unhealthy]).to eq(1)
       end

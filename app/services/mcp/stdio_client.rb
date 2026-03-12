@@ -55,8 +55,8 @@ module Mcp
     end
 
     def execute_jsonrpc(request_json)
-      env_args = @server.resolved_env_vars.flat_map { |k, v| ["--env", "#{k}=#{v}"] }
-      cmd = ["docker", "exec", "-i", *env_args, WORKSPACE_CONTAINER, "sh", "-c", @server.command]
+      env_args = @server.resolved_env_vars.flat_map { |k, v| [ "--env", "#{k}=#{v}" ] }
+      cmd = [ "docker", "exec", "-i", *env_args, WORKSPACE_CONTAINER, "sh", "-c", @server.command ]
       stdout, stderr, status = Open3.capture3(*cmd, stdin_data: request_json + "\n")
       raise "Command failed: #{stderr}" unless status.success?
       stdout.lines.each do |line|
