@@ -2,7 +2,7 @@
 
 module Channels
   class Registry
-    ADAPTERS = {
+    BUILTIN_ADAPTERS = {
       "discord" => "Channels::DiscordAdapter",
       "slack" => "Channels::SlackAdapter",
       "telegram" => "Channels::TelegramAdapter",
@@ -10,15 +10,54 @@ module Channels
       "signal" => "Channels::SignalAdapter"
     }.freeze
 
-    def self.adapter_for(channel)
-      klass_name = ADAPTERS[channel.channel_type]
-      raise "Unknown channel type: #{channel.channel_type}" unless klass_name
+    # Backwards compatibility alias
+    ADAPTERS = BUILTIN_ADAPTERS
 
-      klass_name.constantize.new(channel)
-    end
+    class << self
+      def adapter_for(channel)
+        klass_name = all_adapters[channel.channel_type]
+        raise "Unknown channel type: #{channel.channel_type}" unless klass_name
 
-    def self.supported_types
-      ADAPTERS.keys
+        klass_name.constantize.new(channel)
+      end
+
+      def register(type, class_name)
+        plugin_adapters[type.to_s] = class_name.to_s
+      end
+
+      def unregister(type)
+        plugin_adapters.delete(type.to_s)
+      end
+
+      def all_adapters
+        BUILTIN_ADAPTERS.merge(plugin_adapters)
+      end
+
+      def supported_types
+        all_adapters.keys
+      end
+
+      def registered?(type)
+        all_adapters.key?(type.to_s)
+      end
+
+      def builtin?(type)
+        BUILTIN_ADAPTERS.key?(type.to_s)
+      end
+
+      def plugin_registered?(type)
+        plugin_adapters.key?(type.to_s)
+      end
+
+      def reset_plugin_adapters!
+        @plugin_adapters = {}
+      end
+
+      private
+
+      def plugin_adapters
+        @plugin_adapters ||= {}
+      end
     end
   end
 end
