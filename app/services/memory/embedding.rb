@@ -50,6 +50,30 @@ module Memory
       Embeddings::Registry.configured_provider
     end
 
+    # Generate a shadow embedding using the migration target provider.
+    # Returns nil if no migration is active.
+    def self.generate_shadow(text)
+      return nil unless migration_active?
+      return nil if text.blank?
+
+      target = Setting.get("embedding_migration_target")
+      return nil unless target
+
+      adapter = Embeddings::Registry.adapter_for(target)
+      adapter.embed_text(text)
+    rescue StandardError => e
+      Rails.logger.error("[Memory::Embedding] Shadow embedding failed: #{e.message}")
+      nil
+    end
+
+    def self.migration_active?
+      Setting.get("embedding_migration_active") == "true"
+    end
+
+    def self.migration_target
+      Setting.get("embedding_migration_target")
+    end
+
     # For backward compatibility with Memory::Status
     def initialize(provider: nil)
       @provider = provider

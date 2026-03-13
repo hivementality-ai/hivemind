@@ -5,6 +5,7 @@ class MemoryEntry < ApplicationRecord
   belongs_to :source, polymorphic: true, optional: true
 
   has_neighbors :embedding
+  has_neighbors :shadow_embedding
 
   before_save :sanitize_content_encoding
   validates :content, presence: true
