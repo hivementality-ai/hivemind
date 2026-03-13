@@ -43,6 +43,12 @@ ENV NPM_CONFIG_PREFIX="/home/agent/.npm-global"
 # Install Claude Code CLI
 RUN npm install -g @anthropic-ai/claude-code
 
+# Install Google Workspace CLI (gws)
+RUN npm install -g @googleworkspace/cli || true
+
+# Create tmpfs mount point for temp GWS credentials
+RUN mkdir -p /tmp/gws-creds && chmod 700 /tmp/gws-creds
+
 RUN mkdir -p /workspace && chmod 777 /workspace
 USER agent
 WORKDIR /workspace

@@ -3,4 +3,11 @@
 # The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
 
 # Load all seed files from db/seeds/
-Dir[Rails.root.join("db/seeds/**/*.rb")].each { |f| load f }
+# Tools must load before skills so SkillTool bindings resolve correctly.
+seed_files = Dir[Rails.root.join("db/seeds/**/*.rb")].sort
+tools_file = seed_files.find { |f| f.end_with?("tools.rb") }
+if tools_file
+  seed_files.delete(tools_file)
+  seed_files.unshift(tools_file)
+end
+seed_files.each { |f| load f }

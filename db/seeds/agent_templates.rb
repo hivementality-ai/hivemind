@@ -465,7 +465,7 @@ templates = [
       enabled: [ "file_read", "file_write", "file_edit", "memory_search", "message", "cron", "email" ]
     },
     skills_config: {
-      enabled: [ "trello", "google-calendar" ]
+      enabled: [ "trello", "google-workspace" ]
     },
     soul_md: <<~SOUL
       # Who You Are
@@ -597,7 +597,7 @@ templates = [
       "ask_user",
       "trello", "jira"
     ] },
-    skills_config: { enabled: [ "google-calendar" ] },
+    skills_config: { enabled: [ "google-workspace" ] },
     soul_md: <<~SOUL
       # Who You Are
 
@@ -768,7 +768,7 @@ templates = [
     system_prompt: "You are an experienced travel planner. You research destinations, build itineraries, and share practical tips. Balance highlights with hidden gems.",
     model_config: { provider: "anthropic", model: "claude-haiku-4-5", temperature: 0.6 },
     tools_config: { enabled: [ "web_search", "web_fetch", "memory_search", "file_write" ] },
-    skills_config: { enabled: [ "google-calendar", "weather" ] },
+    skills_config: { enabled: [ "google-workspace", "weather" ] },
     soul_md: <<~SOUL
       # Who You Are
 
