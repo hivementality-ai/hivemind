@@ -128,33 +128,73 @@ skills = [
     CONTENT
   },
   {
-    name: "google-calendar",
-    description: "Manage Google Calendar events, check availability, and schedule meetings.",
-    category: "productivity",
+    name: "google-workspace",
+    description: "Access Google Drive, Calendar, and Gmail via the gws CLI tools.",
+    category: "integrations",
     content: <<~CONTENT
-      # Google Calendar
+      # Google Workspace
 
-      Use the http_request tool with Google Calendar API.
+      You have access to the user's Google Workspace via dedicated tools. The user connects their Google account at /integrations — tokens are managed automatically.
 
-      ## Authentication
-      Store OAuth token in vault as `google/calendar_token`.
+      ## Available Tools
 
-      ## Common Endpoints (base: https://www.googleapis.com/calendar/v3)
-      - GET `/calendars/primary/events?timeMin={ISO}&timeMax={ISO}` — list events
-      - POST `/calendars/primary/events` — create event
-      - PUT `/calendars/primary/events/{id}` — update event
-      - DELETE `/calendars/primary/events/{id}` — delete event
-      - GET `/freeBusy` — check availability
+      ### google_drive
+      Search, read, create, and manage files in Google Drive.
 
-      ## Event Body
-      ```json
-      {
-        "summary": "Meeting title",
-        "start": { "dateTime": "2026-01-01T09:00:00-06:00" },
-        "end": { "dateTime": "2026-01-01T10:00:00-06:00" },
-        "attendees": [{ "email": "person@example.com" }]
-      }
-      ```
+      **Actions:** list, search, get, create, upload, download
+
+      - Always search before creating — check if a file already exists
+      - Use specific queries: `name contains 'Q3' and mimeType = 'application/pdf'`
+      - Use `get` with a file_id to retrieve metadata (name, type, size, modified date)
+      - Use `download` with `mime_type` to export Google-native files (Docs, Sheets) to PDF, CSV, etc.
+
+      Examples:
+      - `{ "action": "list" }` — list recent files
+      - `{ "action": "search", "query": "name contains 'budget'" }` — find files by name
+      - `{ "action": "get", "file_id": "abc123" }` — get file metadata
+      - `{ "action": "create", "name": "Notes.txt", "mime_type": "text/plain" }` — create a file
+      - `{ "action": "upload", "local_path": "/workspace/report.pdf" }` — upload from workspace
+      - `{ "action": "download", "file_id": "abc123", "mime_type": "application/pdf" }` — export as PDF
+
+      ### google_calendar
+      List, create, update, and delete calendar events.
+
+      **Actions:** list, get, create, update, delete, calendars
+
+      - Always check for conflicts before creating events
+      - Include timezone in event creation (defaults to UTC)
+      - Use `calendars` action to list available calendars
+      - Default calendar_id is "primary" if not specified
+
+      Examples:
+      - `{ "action": "list" }` — upcoming events from primary calendar
+      - `{ "action": "calendars" }` — list all calendars
+      - `{ "action": "create", "summary": "Team sync", "start_time": "2026-03-14T10:00:00Z", "end_time": "2026-03-14T10:30:00Z", "timezone": "America/Chicago" }` — create event
+      - `{ "action": "update", "event_id": "evt123", "updates": { "summary": "Renamed meeting" } }` — update event
+      - `{ "action": "delete", "event_id": "evt123" }` — delete event
+
+      ### google_gmail
+      Read, search, send, and draft emails.
+
+      **Actions:** list, get, search, send, draft
+
+      - **Never send emails without explicit user confirmation** — always draft first or ask before sending
+      - Draft emails first, let the user review before sending
+      - Use `search` with Gmail query syntax (same as the Gmail search bar)
+
+      Examples:
+      - `{ "action": "list" }` — list recent messages
+      - `{ "action": "search", "query": "is:unread from:boss@company.com" }` — search inbox
+      - `{ "action": "get", "message_id": "msg123" }` — read full message
+      - `{ "action": "draft", "to": "alice@example.com", "subject": "Re: Project", "body": "..." }` — create draft
+      - `{ "action": "send", "to": "alice@example.com", "subject": "Update", "body": "..." }` — send email
+
+      ## Scope Awareness
+
+      Users grant access to individual services. If a tool returns a "not authorized" error, the user needs to grant that service's permissions at /integrations. Available scopes:
+      - Drive: file management
+      - Calendar: event management
+      - Gmail: email access (requires explicit user opt-in)
     CONTENT
   },
   {
@@ -383,7 +423,7 @@ SKILL_TOOL_MAP = {
   "trello" => [ "http_request" ],
   "notion" => [ "http_request" ],
   "summarize" => [ "web_fetch", "pdf_read", "file_read" ],
-  "google-calendar" => [ "http_request" ],
+  "google-workspace" => [ "google_drive", "google_calendar", "google_gmail" ],
   "docker" => [ "shell" ],
   "git" => [ "shell", "file_read", "file_write", "file_edit" ],
   "ticket-planning" => [ "ask_user", "file_read", "web_fetch" ],
