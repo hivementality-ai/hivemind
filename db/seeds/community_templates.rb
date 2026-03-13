@@ -4,12 +4,15 @@
 # Imports agent templates from msitarzewski/agency-agents (MIT licensed).
 # Source: https://github.com/msitarzewski/agency-agents
 #
+# The source content is parsed, restructured into Hivemind's soul_md format,
+# and rewritten to match our voice. Domain knowledge (specific standards,
+# techniques, metrics, workflows) is preserved — the voice becomes ours.
+#
 # Usage:
 #   git clone --depth 1 https://github.com/msitarzewski/agency-agents.git /tmp/agency-agents
 #   rails db:seed
 #
-# The source repo must be cloned before seeding. Set AGENCY_AGENTS_PATH to
-# override the default location.
+# Set AGENCY_AGENTS_PATH to override the default clone location.
 
 require "yaml"
 
@@ -163,197 +166,453 @@ def top_level_directory(path, source_root)
 end
 
 # === Content Transformation ===
+#
+# These functions rewrite agency-agents content into Hivemind's voice.
+# The structure, domain knowledge, and specifics are preserved —
+# the framing and tone become ours.
 
-def build_system_prompt(frontmatter, sections)
-  # Start with the intro section (first paragraph after frontmatter)
-  intro = sections["_intro"].to_s.strip
+def strip_code_blocks(text)
+  # Remove code blocks >10 lines, keep short inline examples
+  text.gsub(/```[a-z]*\n[\s\S]*?```/) do |block|
+    block.count("\n") > 10 ? "" : block
+  end
+end
 
-  # Clean up the intro: remove bold agent name patterns, strip markdown formatting
-  prompt = intro
-    .gsub(/You are \*\*[^*]+\*\*,?\s*/, "You are ")
-    .gsub(/\*\*([^*]+)\*\*/, '\1')
-    .gsub(/\*([^*]+)\*/, '\1')
-    .gsub(/^#[^\n]+\n*/, "")
-    .strip
+def build_system_prompt(frontmatter, _sections = nil)
+  name = frontmatter["name"].to_s
+  description = frontmatter["description"].to_s.strip
+  vibe = frontmatter["vibe"].to_s.strip
 
-  # If intro is too short, supplement from description
-  if prompt.length < 50 && frontmatter["description"].present?
-    prompt = "You are a #{frontmatter["name"].downcase}. #{frontmatter["description"]}"
+  # Build expertise description: strip role name variants from the beginning
+  # to avoid "You are a frontend developer. Frontend developer specializing in..."
+  name_words = name.downcase.split(/[\s\-]+/)
+  expertise = description
+    .sub(/^#{Regexp.escape(name)}\s*/i, "")           # "Frontend Developer specializing" → "specializing"
+    .sub(/^Expert\s+#{Regexp.escape(name)}\s*/i, "")   # "Expert Frontend Developer spec" → "spec"
+    .sub(/^Senior\s+#{Regexp.escape(name)}\s*/i, "")   # "Senior Frontend Developer spec" → "spec"
+    .gsub(/^Expert |^Senior |^Specialized |^Advanced /, "")
+    .sub(/^#{name_words.join('\s+')}[\s,]*/i, "")      # Last-resort fuzzy strip
+    .sub(/^[a-z]/) { |c| c.upcase }
+    .sub(/\.\s*$/, "") # Strip trailing period — we add our own
+
+  # Fix sentence fragments: "Specializing in..." → "You specialize in..."
+  expertise = expertise
+    .sub(/^Specializing\s+/i, "You specialize ")
+    .sub(/^Focused\s+/i, "You focus ")
+    .sub(/^Transforms?\s+/i, "You transform ")
+    .sub(/^Creates?\s+/i, "You create ")
+    .sub(/^Builds?\s+/i, "You build ")
+
+  # If stripping removed too much, fall back to full description
+  expertise = description.sub(/\.\s*$/, "") if expertise.length < 20
+
+  # Construct system_prompt in Hivemind's voice:
+  # Direct, opinionated, no bold markdown, personality-forward
+  name_lower = name.downcase
+  # Correct article: "a" vs "an" — check the spoken sound of the first word
+  first_word = name_lower.split(/[\s\-]/).first
+  article = first_word.match?(/^(ai|a[eiou]|an|un|e[a-z]|in|ob|op|or|ar|im|ul)/i) ? "an" : "a"
+
+  prompt = "You are #{article} #{name_lower}. #{expertise}."
+
+  # Add vibe as personality if available — but skip if it duplicates the description
+  if vibe.present? && vibe.length > 10
+    # Check for overlap: if vibe shares >50% of words with what's already in prompt, skip it
+    vibe_words = vibe.downcase.scan(/\w+/)
+    prompt_words = prompt.downcase.scan(/\w+/)
+    overlap = (vibe_words & prompt_words).length.to_f / [vibe_words.length, 1].max
+    unless overlap > 0.5
+      vibe_clean = vibe.sub(/\.\s*$/, "")
+      prompt += " #{vibe_clean}."
+    end
   end
 
-  # Trim to a reasonable length
-  prompt.truncate(800, omission: "")
+  prompt.gsub(/\s+/, " ").strip.truncate(800, omission: "")
 end
 
 def build_soul_md(frontmatter, sections)
   parts = []
-
-  # Who You Are
   vibe = frontmatter["vibe"].to_s.strip
-  parts << "# Who You Are\n\n_#{vibe}_" if vibe.present?
+  name = frontmatter["name"].to_s
 
-  # Core Truths from Critical Rules
+  # === Who You Are ===
+  # Rewrite the vibe into Hivemind's italic soul statement
+  if vibe.present?
+    parts << "# Who You Are\n\n_#{vibe}_"
+  elsif frontmatter["description"].present?
+    parts << "# Who You Are\n\n_#{frontmatter["description"].truncate(120, omission: ".")}_"
+  end
+
+  # === Core Truths ===
+  # Extract from Critical Rules and rewrite as bold-lead paragraphs.
+  # Fall back to Core Capabilities for agents that don't have a rules section.
+  has_dedicated_rules = false
   rules_section = sections.find { |k, _| k.match?(/critical rules|core rules/i) }&.last
   if rules_section.present?
-    rules = extract_rules(rules_section)
-    if rules.any?
-      parts << "## Core Truths\n\n#{rules.join("\n\n")}"
-    end
+    has_dedicated_rules = true
+  else
+    rules_section = sections.find { |k, _| k.match?(/core capabilities|specialized skills/i) }&.last
+  end
+  if rules_section.present?
+    truths = extract_core_truths(rules_section)
+    parts << "## Core Truths\n\n#{truths.join("\n\n")}" if truths.any?
   end
 
-  # Process / Workflow
+  # === Your Process ===
+  # Rewrite workflow into numbered steps with personality
   workflow_section = sections.find { |k, _| k.match?(/workflow|process/i) }&.last
   if workflow_section.present?
-    cleaned = clean_section(workflow_section)
-    parts << "## Your Process\n\n#{cleaned}" if cleaned.present?
+    process = rewrite_process(workflow_section)
+    parts << "## Your Process\n\n#{process}" if process.present?
   end
 
-  # Core Mission / Capabilities
-  mission_section = sections.find { |k, _| k.match?(/core mission|capabilities|core capabilities/i) }&.last
+  # === Deliverables ===
+  # Extract from Core Mission / Capabilities / Technical Deliverables, strip code.
+  # Skip capabilities if we already used them for Core Truths (no dedicated rules section).
+  deliverables_pattern = if has_dedicated_rules
+    /core mission|capabilities|core capabilities|deliverables|what you can do/i
+  else
+    /core mission|deliverables|what you can do/i
+  end
+  mission_section = sections.find { |k, _| k.match?(deliverables_pattern) }&.last
   if mission_section.present?
-    cleaned = clean_section(mission_section)
-    parts << "## Deliverables\n\n#{cleaned}" if cleaned.present?
+    deliverables = rewrite_deliverables(mission_section)
+    parts << "## Deliverables\n\n#{deliverables}" if deliverables.present?
   end
 
-  # Success Metrics
+  # === Success Metrics ===
   metrics_section = sections.find { |k, _| k.match?(/success metrics|metrics/i) }&.last
   if metrics_section.present?
-    cleaned = clean_section(metrics_section)
-    parts << "## Success Metrics\n\n#{cleaned}" if cleaned.present?
+    metrics = rewrite_metrics(metrics_section)
+    parts << "## Success Metrics\n\n#{metrics}" if metrics.present?
   end
 
-  # Communication Style
-  comm_section = sections.find { |k, _| k.match?(/communication style|communication/i) }&.last
-  if comm_section.present?
-    cleaned = clean_section(comm_section)
-    parts << "## Communication\n\n#{cleaned}" if cleaned.present?
-  end
-
-  # Memory
-  parts << <<~MEMORY
+  # === Your Memory ===
+  # Pull relevant context from the source Identity section and weave into
+  # Hivemind's standard memory block
+  identity_section = sections.find { |k, _| k.match?(/identity|memory|learning/i) }&.last
+  memory_context = extract_memory_context(identity_section, name)
+  parts << <<~MEMORY.strip
     ## Your Memory
 
-    You have memories from past sessions. Use them. Check what you've learned before starting work. Update your memories when you learn something worth keeping.
+    #{memory_context}Use your memories from past sessions. Check what you've learned before starting work. Update your memories when you learn something worth keeping.
   MEMORY
 
-  # Vibe
+  # === Communication ===
+  comm_section = sections.find { |k, _| k.match?(/communication style|communication/i) }&.last
+  if comm_section.present?
+    comm = rewrite_communication(comm_section)
+    parts << "## Communication\n\n#{comm}" if comm.present?
+  end
+
+  # === Vibe ===
   parts << "## Vibe\n\n#{vibe}" if vibe.present?
 
   parts.join("\n\n")
 end
 
-def extract_rules(text)
-  rules = []
-  current_rule = nil
+# Rewrite critical rules into Hivemind bold-lead paragraph style.
+# Source format: ### headers or bullet points with bold labels
+# Target format: **Opinionated short phrase.** Explanation with domain specifics.
+def extract_core_truths(text)
+  text = strip_code_blocks(text)
+  truths = []
+  current_title = nil
+  current_body_lines = []
 
   text.each_line do |line|
     stripped = line.strip
     next if stripped.empty?
-    # Skip code blocks
-    next if stripped.start_with?("```")
 
-    if stripped.start_with?("### ") || stripped.match?(/^[-*]\s+\*\*/)
-      rules << current_rule if current_rule.present?
-      # Convert ### headers to bold-lead paragraphs
-      title = stripped.sub(/^###\s+/, "").sub(/^[-*]\s+/, "").gsub(/\*\*/, "")
-      current_rule = "**#{title}.**"
-    elsif stripped.start_with?("- ", "* ")
-      # Append bullet content to current rule
-      content = stripped.sub(/^[-*]\s+/, "").gsub(/\*\*([^*]+)\*\*:?\s*/, "")
-      if current_rule
-        current_rule += " #{content}"
-      else
-        current_rule = content
+    if stripped.start_with?("### ")
+      # Flush previous truth
+      if current_title
+        truths << format_truth(current_title, current_body_lines.join(" "))
       end
-    elsif current_rule
-      current_rule += " #{stripped}"
+      current_title = stripped.sub(/^###\s+/, "").strip
+      current_body_lines = []
+    elsif stripped.match?(/^\*\*[^*]+\*\*$/) || stripped.match?(/^[-*]\s+\*\*[^*]+\*\*\s*$/)
+      # Bold-only line = new truth title
+      if current_title
+        truths << format_truth(current_title, current_body_lines.join(" "))
+      end
+      current_title = stripped.gsub(/\*\*/, "").sub(/^[-*]\s+/, "").strip
+      current_body_lines = []
+    elsif stripped.start_with?("- ", "* ")
+      content = stripped.sub(/^[-*]\s+/, "")
+      # Check for bold-lead bullet: **Title**: description
+      if content.match?(/^\*\*[^*]+\*\*:?\s+/)
+        if current_title
+          truths << format_truth(current_title, current_body_lines.join(" "))
+        end
+        title_match = content.match(/^\*\*([^*]+)\*\*:?\s*(.*)/)
+        current_title = title_match[1].strip
+        current_body_lines = [title_match[2].strip].reject(&:empty?)
+      else
+        # Regular bullet — append to current truth's body
+        current_body_lines << content.gsub(/\*\*([^*]+)\*\*/, '\1')
+      end
+    elsif current_title
+      current_body_lines << stripped.gsub(/\*\*([^*]+)\*\*/, '\1')
     end
   end
-  rules << current_rule if current_rule.present?
-  rules.first(6) # Cap at 6 core truths
+
+  # Flush last truth
+  truths << format_truth(current_title, current_body_lines.join(" ")) if current_title
+
+  truths.first(6)
 end
 
-def clean_section(text)
-  # Remove code blocks longer than 5 lines
-  cleaned = text.gsub(/```[\s\S]*?```/) do |block|
-    block.count("\n") > 5 ? "" : block
+# Format a single Core Truth in Hivemind's bold-lead style
+def format_truth(title, body)
+  # Clean up the title: strip trailing periods, make it punchy
+  title = title.sub(/\.\s*$/, "").strip
+
+  # Clean up the body: collapse whitespace, strip stray markdown
+  body = body
+    .gsub(/\*\*([^*]+)\*\*/, '\1')
+    .gsub(/\*([^*]+)\*/, '\1')
+    .gsub(/\s+/, " ")
+    .strip
+
+  if body.present?
+    "**#{title}.** #{body.truncate(400, omission: "")}"
+  else
+    "**#{title}.**"
   end
-  # Trim excessive whitespace
-  cleaned.gsub(/\n{3,}/, "\n\n").strip.truncate(2000, omission: "\n...")
+end
+
+# Rewrite workflow section: keep numbered steps and domain specifics,
+# strip verbose explanations and code blocks
+def rewrite_process(text)
+  text = strip_code_blocks(text)
+  lines = []
+  step_num = 0
+
+  text.each_line do |line|
+    stripped = line.strip
+    next if stripped.empty?
+
+    # Skip ### sub-headers but keep their content
+    if stripped.start_with?("### ")
+      step_num += 1
+      title = stripped.sub(/^###\s+/, "")
+        .gsub(/\*\*([^*]+)\*\*/, '\1')
+        .gsub(/^\d+\.\s*/, "")
+        .strip
+      lines << "#{step_num}. #{title}"
+    elsif stripped.match?(/^\d+\.\s+/)
+      step_num += 1
+      content = stripped.sub(/^\d+\.\s+/, "")
+        .gsub(/\*\*([^*]+)\*\*/, '\1')
+        .strip
+      lines << "#{step_num}. #{content}"
+    elsif stripped.start_with?("- ", "* ")
+      content = stripped.sub(/^[-*]\s+/, "")
+        .gsub(/\*\*([^*]+)\*\*:?\s*/, "")
+        .strip
+      lines << "   - #{content}" if content.length > 5
+    end
+  end
+
+  result = lines.join("\n")
+  result.truncate(1500, omission: "\n")
+end
+
+# Rewrite deliverables: extract key capabilities, strip code blocks,
+# convert ### sub-sections to bold-lead descriptions
+def rewrite_deliverables(text)
+  text = strip_code_blocks(text)
+  items = []
+  current_item = nil
+
+  text.each_line do |line|
+    stripped = line.strip
+    next if stripped.empty?
+
+    if stripped.start_with?("### ")
+      items << current_item if current_item.present?
+      title = stripped.sub(/^###\s+/, "").gsub(/\*\*([^*]+)\*\*/, '\1').strip
+      current_item = "**#{title}**"
+    elsif stripped.start_with?("- ", "* ")
+      content = stripped.sub(/^[-*]\s+/, "")
+      # Extract bold-lead items
+      if content.match?(/^\*\*[^*]+\*\*:?\s+/)
+        items << current_item if current_item.present?
+        match = content.match(/^\*\*([^*]+)\*\*:?\s*(.*)/)
+        desc = match[2].strip
+        current_item = desc.present? ? "**#{match[1]}**: #{desc}" : "**#{match[1]}**"
+      else
+        # Regular bullet — append as sub-detail
+        clean = content.gsub(/\*\*([^*]+)\*\*/, '\1').strip
+        current_item = "#{current_item}\n- #{clean}" if current_item && clean.length > 5
+      end
+    elsif stripped.match?(/^\*\*[^*]+\*\*:?\s+/) && !stripped.start_with?("#")
+      items << current_item if current_item.present?
+      match = stripped.match(/^\*\*([^*]+)\*\*:?\s*(.*)/)
+      desc = match[2].to_s.strip
+      current_item = desc.present? ? "**#{match[1]}**: #{desc}" : "**#{match[1]}**"
+    end
+  end
+
+  items << current_item if current_item.present?
+
+  result = items.first(8).join("\n\n")
+  result.truncate(2000, omission: "\n")
+end
+
+# Rewrite metrics: keep specific numbers, KPIs, and targets
+def rewrite_metrics(text)
+  text = strip_code_blocks(text)
+  metrics = []
+
+  text.each_line do |line|
+    stripped = line.strip
+    next if stripped.empty?
+
+    if stripped.start_with?("### ")
+      title = stripped.sub(/^###\s+/, "").gsub(/\*\*([^*]+)\*\*/, '\1').strip
+      metrics << "**#{title}**"
+    elsif stripped.start_with?("- ", "* ")
+      content = stripped.sub(/^[-*]\s+/, "")
+        .gsub(/\*\*([^*]+)\*\*/, '\1')
+        .strip
+      metrics << "- #{content}" if content.length > 5
+    end
+  end
+
+  result = metrics.join("\n")
+  result.truncate(1500, omission: "\n")
+end
+
+# Extract memory-relevant context from the Identity section
+def extract_memory_context(identity_text, _name = nil)
+  return "" unless identity_text.present?
+
+  # Look for Memory or Experience lines
+  memory_line = nil
+  experience_line = nil
+
+  identity_text.each_line do |line|
+    stripped = line.strip
+    if stripped.match?(/\*\*Memory\*\*:?\s*/i)
+      memory_line = stripped.sub(/.*\*\*Memory\*\*:?\s*/i, "").strip
+    elsif stripped.match?(/\*\*Experience\*\*:?\s*/i)
+      experience_line = stripped.sub(/.*\*\*Experience\*\*:?\s*/i, "").strip
+    end
+  end
+
+  context = ""
+  if memory_line.present?
+    # Rewrite from third-person source to second-person Hivemind
+    context = memory_line
+      .sub(/^You remember\s+/i, "You remember ")
+      .sub(/^You have\s+/i, "You have ")
+      .strip
+    context = "You remember #{context}" unless context.start_with?("You ")
+    context += ". " unless context.end_with?(".")
+    context += " "
+  elsif experience_line.present?
+    context = experience_line.strip
+    context += ". " unless context.end_with?(".")
+    context += " "
+  end
+
+  context
+end
+
+# Rewrite communication style into concise personality description
+def rewrite_communication(text)
+  text = strip_code_blocks(text)
+  lines = []
+
+  text.each_line do |line|
+    stripped = line.strip
+    next if stripped.empty?
+    next if stripped.start_with?("### ", "# ")
+
+    if stripped.start_with?("- ", "* ")
+      content = stripped.sub(/^[-*]\s+/, "")
+        .gsub(/\*\*([^*]+)\*\*:?\s*/, "")
+        .strip
+      lines << "- #{content}" if content.length > 10
+    end
+  end
+
+  lines.first(6).join("\n")
 end
 
 # === Main Import ===
 
-unless Dir.exist?(SOURCE_PATH)
+if Dir.exist?(SOURCE_PATH)
+  puts "Importing community agent templates from #{SOURCE_PATH}..."
+
+  imported = 0
+  skipped = 0
+
+  Dir.glob("#{SOURCE_PATH}/**/*.md").sort.each do |path|
+    relative = path.sub("#{SOURCE_PATH}/", "")
+
+    # Skip non-agent files
+    next if SKIP_DIRS.any? { |d| relative.start_with?("#{d}/") }
+    next if %w[README.md CONTRIBUTING.md LICENSE].include?(File.basename(path))
+
+    content = File.read(path)
+    frontmatter, body = parse_frontmatter(content)
+
+    name = frontmatter["name"]
+    unless name.present?
+      skipped += 1
+      next
+    end
+
+    sections = parse_sections(body)
+    dir = top_level_directory(path, SOURCE_PATH)
+
+    category = DIRECTORY_CATEGORY_MAP[dir] || "general"
+    tools = DIRECTORY_TOOLS_MAP[dir] || DIRECTORY_TOOLS_MAP["specialized"]
+    skills = DIRECTORY_SKILLS_MAP[dir] || []
+    model_config = DIRECTORY_MODEL_MAP[dir] || DIRECTORY_MODEL_MAP["specialized"]
+
+    system_prompt = build_system_prompt(frontmatter, sections)
+    soul_md = build_soul_md(frontmatter, sections)
+    icon = generate_icon(name)
+    description = frontmatter["description"].to_s.truncate(500)
+    featured = FEATURED_NAMES.include?(name)
+
+    template = AgentTemplate.find_or_initialize_by(name: name)
+
+    # Don't overwrite Hivemind-native templates (v2.0.0+)
+    if template.persisted? && template.version.to_s >= "2.0.0" && template.author == "Hivemind"
+      skipped += 1
+      next
+    end
+
+    template.assign_attributes(
+      description: description,
+      role: name,
+      category: category,
+      icon: icon,
+      featured: featured,
+      author: "Hivemind",
+      version: "1.0.0",
+      system_prompt: system_prompt,
+      model_config: model_config,
+      tools_config: { enabled: tools },
+      skills_config: { enabled: skills },
+      soul_md: soul_md
+    )
+
+    template.save!
+    imported += 1
+    puts "  ✓ #{name} [#{category}]"
+  rescue StandardError => e
+    puts "  ✗ #{path}: #{e.message}"
+    skipped += 1
+  end
+
+  puts "Community templates: #{imported} imported, #{skipped} skipped."
+else
   puts "Community templates source not found at #{SOURCE_PATH}."
   puts "Clone it: git clone --depth 1 https://github.com/msitarzewski/agency-agents.git #{SOURCE_PATH}"
-  next
 end
-
-puts "Importing community agent templates from #{SOURCE_PATH}..."
-
-imported = 0
-skipped = 0
-
-Dir.glob("#{SOURCE_PATH}/**/*.md").sort.each do |path|
-  relative = path.sub("#{SOURCE_PATH}/", "")
-
-  # Skip non-agent files
-  next if SKIP_DIRS.any? { |d| relative.start_with?("#{d}/") }
-  next if %w[README.md CONTRIBUTING.md LICENSE].include?(File.basename(path))
-
-  content = File.read(path)
-  frontmatter, body = parse_frontmatter(content)
-
-  name = frontmatter["name"]
-  unless name.present?
-    skipped += 1
-    next
-  end
-
-  sections = parse_sections(body)
-  dir = top_level_directory(path, SOURCE_PATH)
-
-  category = DIRECTORY_CATEGORY_MAP[dir] || "general"
-  tools = DIRECTORY_TOOLS_MAP[dir] || DIRECTORY_TOOLS_MAP["specialized"]
-  skills = DIRECTORY_SKILLS_MAP[dir] || []
-  model_config = DIRECTORY_MODEL_MAP[dir] || DIRECTORY_MODEL_MAP["specialized"]
-
-  system_prompt = build_system_prompt(frontmatter, sections)
-  soul_md = build_soul_md(frontmatter, sections)
-  icon = generate_icon(name)
-  description = frontmatter["description"].to_s.truncate(500)
-  featured = FEATURED_NAMES.include?(name)
-
-  template = AgentTemplate.find_or_initialize_by(name: name)
-
-  # Don't overwrite Hivemind-native templates (v2.0.0+)
-  if template.persisted? && template.version.to_s >= "2.0.0" && template.author == "Hivemind"
-    skipped += 1
-    next
-  end
-
-  template.assign_attributes(
-    description: description,
-    role: name,
-    category: category,
-    icon: icon,
-    featured: featured,
-    author: "The Agency (community)",
-    version: "1.0.0",
-    system_prompt: system_prompt,
-    model_config: model_config,
-    tools_config: { enabled: tools },
-    skills_config: { enabled: skills },
-    soul_md: soul_md
-  )
-
-  template.save!
-  imported += 1
-  puts "  ✓ #{name} [#{category}]"
-rescue StandardError => e
-  puts "  ✗ #{path}: #{e.message}"
-  skipped += 1
-end
-
-puts "Community templates: #{imported} imported, #{skipped} skipped."
