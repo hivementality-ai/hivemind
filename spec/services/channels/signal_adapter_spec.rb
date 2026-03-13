@@ -63,7 +63,7 @@ RSpec.describe Channels::SignalAdapter do
             source: "+19175559876", sourceName: "Alice",
             dataMessage: {
               message: "See attached", timestamp: 1707900002,
-              attachments: [{ contentType: "image/png", filename: "photo.png", size: 12345 }]
+              attachments: [ { contentType: "image/png", filename: "photo.png", size: 12345 } ]
             }
           }
         }
@@ -123,7 +123,7 @@ RSpec.describe Channels::SignalAdapter do
     context "with text content" do
       it "sends a message via signal-cli REST API" do
         stub_request(:post, "http://signal-cli:8080/v2/send")
-          .with(body: hash_including("message" => "Hello from Hivemind!", "number" => "+12175551234", "recipients" => ["+19175559876"]))
+          .with(body: hash_including("message" => "Hello from Hivemind!", "number" => "+12175551234", "recipients" => [ "+19175559876" ]))
           .to_return(status: 201, body: { timestamp: 1707900100 }.to_json)
 
         result = adapter.send_message(to: "+19175559876", content: "Hello from Hivemind!")

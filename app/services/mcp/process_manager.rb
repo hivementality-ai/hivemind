@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "open3"
+require "shellwords"
 
 module Mcp
   class ProcessManager
@@ -40,7 +41,8 @@ module Mcp
 
     def spawn_process
       env_args = build_env_args
-      cmd = [ "docker", "exec", "-d", *env_args, WORKSPACE_CONTAINER, "sh", "-c", "#{@server.command} & echo $!" ]
+      safe_cmd = Shellwords.join(Shellwords.shellsplit(@server.command))
+      cmd = [ "docker", "exec", "-d", *env_args, WORKSPACE_CONTAINER, "sh", "-c", "#{safe_cmd} & echo $!" ]
       stdout, stderr, status = Open3.capture3(*cmd)
       raise "Failed to start: #{stderr}" unless status.success?
 
