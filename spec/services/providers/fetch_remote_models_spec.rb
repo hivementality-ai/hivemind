@@ -49,7 +49,7 @@ RSpec.describe Providers::FetchRemoteModels, type: :service do
       it "returns models on success" do
         stub_request(:get, "http://host.docker.internal:8080/v1/models")
           .to_return(status: 200, body: {
-            data: [{ id: "default" }]
+            data: [ { id: "default" } ]
           }.to_json)
 
         result = described_class.call(:llama_cpp)

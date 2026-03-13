@@ -6,6 +6,14 @@ RSpec.describe Sessions::ResolvePendingQuestion, type: :service do
   let(:agent) { create(:agent) }
   let(:session) { create(:session, agent: agent, transcript: []) }
 
+  around do |example|
+    original_cache = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    example.run
+  ensure
+    Rails.cache = original_cache
+  end
+
   describe ".call" do
     context "when no pending question exists" do
       it "returns failure" do
