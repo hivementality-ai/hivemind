@@ -89,7 +89,7 @@ module Analytics
     end
 
     def build_summary(team_data, unassigned)
-      all_entries = team_data + [unassigned].compact
+      all_entries = team_data + [ unassigned ].compact
 
       {
         total_input_tokens: all_entries.sum { |e| e[:input_tokens] },
