@@ -129,6 +129,11 @@ Rails.application.routes.draw do
   patch "integrations/signal", to: "integrations#update_signal", as: :update_signal_integrations
   get "integrations/signal/test", to: "integrations#test_signal", as: :test_signal_integrations
 
+  # Google Workspace OAuth
+  get "oauth/google/authorize", to: "oauth/google#authorize", as: :oauth_google_authorize
+  get "oauth/google/callback", to: "oauth/google#callback", as: :oauth_google_callback
+  delete "oauth/google/disconnect", to: "oauth/google#disconnect", as: :oauth_google_disconnect
+
   # MCP Server Management
   post "integrations/mcp_servers", to: "integrations#create_mcp_server", as: :create_mcp_server
   patch "integrations/mcp_servers/:id", to: "integrations#update_mcp_server", as: :update_mcp_server
