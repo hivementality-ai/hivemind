@@ -49,7 +49,9 @@ module Tools
       "glob" => Tools::GlobExecutor,
       "load_skill" => Tools::LoadSkillExecutor,
       "canvas" => Tools::CanvasExecutor,
-      "stt" => Tools::SttExecutor
+      "stt" => Tools::SttExecutor,
+      "create_skill" => Tools::CreateSkillExecutor,
+      "create_tool" => Tools::CreateToolExecutor
     }.freeze
 
     # Backwards compatibility alias
