@@ -71,18 +71,52 @@ module Approvals
     end
 
     def execute_pending_action(approval)
-      # This is where the approved action would be executed
-      # The implementation depends on the action type
       Rails.logger.info("Executing approved action: #{approval.action} on #{approval.resource}")
 
-      # Future: dispatch to appropriate service based on approval.action
-      # Example:
-      # case approval.action
-      # when "delete_file"
-      #   Files::Delete.call(**approval.params.symbolize_keys)
-      # when "send_message"
-      #   Messages::Send.call(**approval.params.symbolize_keys)
-      # end
+      case approval.action
+      when "create_skill"
+        activate_skill(approval)
+      when "create_tool"
+        activate_tool(approval)
+      end
+    end
+
+    def activate_skill(approval)
+      skill = Skill.find_by(id: approval.params["skill_id"])
+      return unless skill
+
+      skill.update!(enabled: true, approved_at: Time.current, approved_by: @resolved_by)
+
+      agent = Agent.find_by(id: skill.metadata&.dig("created_by_agent_id"))
+      if agent
+        AgentSkill.find_or_create_by!(agent: agent, skill: skill)
+
+        if skill.metadata&.dig("share_with_team") && agent.team
+          agent.team.agents.where.not(id: agent.id).find_each do |teammate|
+            AgentSkill.find_or_create_by!(agent: teammate, skill: skill)
+          end
+        end
+
+        Agents::SyncSkillTools.call(agent: agent)
+      end
+    end
+
+    def activate_tool(approval)
+      tool = Tool.find_by(id: approval.params["tool_id"])
+      return unless tool
+
+      tool.update!(enabled: true)
+
+      agent = Agent.find_by(id: tool.config&.dig("created_by_agent_id"))
+      if agent
+        AgentTool.find_or_create_by!(agent: agent, tool: tool)
+
+        if tool.config&.dig("share_with_team") && agent.team
+          agent.team.agents.where.not(id: agent.id).find_each do |teammate|
+            AgentTool.find_or_create_by!(agent: teammate, tool: tool)
+          end
+        end
+      end
     end
   end
 end
