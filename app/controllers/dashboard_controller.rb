@@ -63,6 +63,14 @@ class DashboardController < ApplicationController
       @summary = {}
       @per_agent = []
     end
+
+    # Team tokens breakdown
+    tokens_response = Analytics::TeamTokens.call(period: @period)
+    if tokens_response.success?
+      @team_tokens = tokens_response.data
+    else
+      @team_tokens = nil
+    end
   end
 
   # === Health Tab (from Platform) ===
