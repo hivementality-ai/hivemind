@@ -44,8 +44,7 @@ module Analytics
     end
 
     def build_team_stats(team, sdk_proxy_active)
-      agent_ids = team.agents.pluck(:id)
-      usage = UsageRecord.where(agent_id: agent_ids, created_at: @date_range)
+      usage = team.usage_records.where(created_at: @date_range)
 
       input_tokens = usage.sum(:input_tokens)
       output_tokens = usage.sum(:output_tokens)
@@ -70,7 +69,7 @@ module Analytics
       agent_ids = Agent.where(team_id: nil).pluck(:id)
       return nil if agent_ids.empty?
 
-      usage = UsageRecord.where(agent_id: agent_ids, created_at: @date_range)
+      usage = UsageRecord.where(team_id: nil, agent_id: agent_ids, created_at: @date_range)
       input_tokens = usage.sum(:input_tokens)
       output_tokens = usage.sum(:output_tokens)
       raw_cost_cents = usage.sum(:cost_cents)
