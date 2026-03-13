@@ -122,4 +122,21 @@ RSpec.describe Analytics::TeamTokens, type: :service do
       end
     end
   end
+
+  describe "team_id tracking on UsageRecord" do
+    it "auto-sets team_id from agent on create" do
+      record = create(:usage_record, agent: agent1, provider: "anthropic")
+      expect(record.team_id).to eq(team.id)
+    end
+
+    it "leaves team_id nil for unassigned agents" do
+      record = create(:usage_record, agent: solo_agent, provider: "openai")
+      expect(record.team_id).to be_nil
+    end
+
+    it "allows querying usage directly by team" do
+      expect(team.usage_records.count).to eq(3)
+      expect(team.usage_records.sum(:input_tokens)).to eq(3500)
+    end
+  end
 end
