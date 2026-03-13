@@ -49,7 +49,10 @@ module Tools
       "glob" => Tools::GlobExecutor,
       "load_skill" => Tools::LoadSkillExecutor,
       "canvas" => Tools::CanvasExecutor,
-      "stt" => Tools::SttExecutor
+      "stt" => Tools::SttExecutor,
+      "google_drive" => Tools::GoogleDriveExecutor,
+      "google_calendar" => Tools::GoogleCalendarExecutor,
+      "google_gmail" => Tools::GoogleGmailExecutor
     }.freeze
 
     # Backwards compatibility alias
