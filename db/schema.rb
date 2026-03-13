@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_03_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_10_000005) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -60,6 +60,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_03_000000) do
     t.bigint "channel_id", null: false
     t.jsonb "config", default: {}
     t.datetime "created_at", null: false
+    t.jsonb "dm_policy", default: {}, null: false
     t.string "external_bot_user_id"
     t.boolean "is_default", default: false
     t.datetime "updated_at", null: false
@@ -67,6 +68,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_03_000000) do
     t.index ["agent_id", "channel_id"], name: "index_agent_channels_on_agent_id_and_channel_id", unique: true
     t.index ["agent_id"], name: "index_agent_channels_on_agent_id"
     t.index ["channel_id"], name: "index_agent_channels_on_channel_id"
+  end
+
+  create_table "agent_mcp_servers", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.datetime "created_at", null: false
+    t.bigint "mcp_server_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id", "mcp_server_id"], name: "index_agent_mcp_servers_on_agent_id_and_mcp_server_id", unique: true
+    t.index ["agent_id"], name: "index_agent_mcp_servers_on_agent_id"
+    t.index ["mcp_server_id"], name: "index_agent_mcp_servers_on_mcp_server_id"
   end
 
   create_table "agent_skills", force: :cascade do |t|
@@ -229,6 +240,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_03_000000) do
     t.datetime "created_at", null: false
     t.boolean "enabled"
     t.string "name"
+    t.jsonb "routing_rules", default: [], null: false
     t.datetime "updated_at", null: false
     t.string "webhook_path"
     t.index ["channel_type"], name: "index_channels_on_channel_type"
@@ -263,6 +275,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_03_000000) do
     t.index ["agent_id"], name: "index_coding_agent_tasks_on_agent_id"
     t.index ["session_id"], name: "index_coding_agent_tasks_on_session_id"
     t.index ["task_key"], name: "index_coding_agent_tasks_on_task_key", unique: true
+  end
+
+  create_table "delivery_queue_entries", force: :cascade do |t|
+    t.bigint "agent_id"
+    t.integer "attempts", default: 0, null: false
+    t.bigint "channel_id", null: false
+    t.text "content", null: false
+    t.datetime "created_at", null: false
+    t.text "last_error"
+    t.integer "max_attempts", default: 5, null: false
+    t.datetime "next_attempt_at"
+    t.jsonb "options", default: {}
+    t.string "recipient", null: false
+    t.datetime "sent_at"
+    t.bigint "session_id"
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id"], name: "index_delivery_queue_entries_on_agent_id"
+    t.index ["channel_id"], name: "index_delivery_queue_entries_on_channel_id"
+    t.index ["session_id"], name: "index_delivery_queue_entries_on_session_id"
+    t.index ["status", "next_attempt_at"], name: "index_delivery_queue_entries_on_status_and_next_attempt_at"
   end
 
   create_table "device_pairings", force: :cascade do |t|
@@ -310,6 +343,30 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_03_000000) do
     t.index ["channel_id", "external_id"], name: "index_inbound_messages_on_channel_id_and_external_id", unique: true
     t.index ["channel_id"], name: "index_inbound_messages_on_channel_id"
     t.index ["received_at"], name: "index_inbound_messages_on_received_at"
+  end
+
+  create_table "mcp_servers", force: :cascade do |t|
+    t.jsonb "auth_config", default: {}
+    t.string "command"
+    t.datetime "created_at", null: false
+    t.jsonb "discovered_tools", default: []
+    t.boolean "enabled", default: true, null: false
+    t.jsonb "env_vars", default: {}
+    t.string "icon"
+    t.datetime "last_connected_at"
+    t.text "last_error"
+    t.jsonb "metadata", default: {}
+    t.string "name", null: false
+    t.string "npm_package"
+    t.boolean "preset", default: false, null: false
+    t.string "status", default: "disconnected", null: false
+    t.datetime "tools_refreshed_at"
+    t.string "transport", default: "stdio", null: false
+    t.datetime "updated_at", null: false
+    t.string "url"
+    t.index ["enabled"], name: "index_mcp_servers_on_enabled"
+    t.index ["name"], name: "index_mcp_servers_on_name", unique: true
+    t.index ["transport"], name: "index_mcp_servers_on_transport"
   end
 
   create_table "memory_entries", force: :cascade do |t|
@@ -647,6 +704,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_03_000000) do
   add_foreign_key "agent_budgets", "agents"
   add_foreign_key "agent_channels", "agents"
   add_foreign_key "agent_channels", "channels"
+  add_foreign_key "agent_mcp_servers", "agents"
+  add_foreign_key "agent_mcp_servers", "mcp_servers"
   add_foreign_key "agent_skills", "agents"
   add_foreign_key "agent_skills", "skills"
   add_foreign_key "agent_tools", "agents"
@@ -660,6 +719,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_03_000000) do
   add_foreign_key "chat_attachments", "sessions"
   add_foreign_key "coding_agent_tasks", "agents"
   add_foreign_key "coding_agent_tasks", "sessions"
+  add_foreign_key "delivery_queue_entries", "agents"
+  add_foreign_key "delivery_queue_entries", "channels"
+  add_foreign_key "delivery_queue_entries", "sessions"
   add_foreign_key "heartbeat_runs", "agents"
   add_foreign_key "heartbeat_runs", "sessions"
   add_foreign_key "inbound_messages", "channels"

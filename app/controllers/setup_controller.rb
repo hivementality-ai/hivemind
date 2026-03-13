@@ -129,67 +129,12 @@ class SetupController < ApplicationController
     end
   end
 
-  # Check Ollama connectivity and fetch available models
   def ollama_models
-    url = params[:url].presence || "http://host.docker.internal:11434"
-
-    # Validate URL to prevent SSRF
-    uri = URI.parse("#{url}/api/tags")
-    unless uri.is_a?(URI::HTTP) && uri.host.present? && !uri.host.match?(/\A\[?::1?\]?\z/) # allow local but block obvious abuse
-      return render json: { status: "error", message: "Invalid Ollama URL" }, status: :unprocessable_entity
-    end
-
-    http = Net::HTTP.new(uri.host, uri.port) # rubocop:disable Brakeman/FileAccess
-    http.use_ssl = uri.scheme == "https"
-    http.open_timeout = 3
-    http.read_timeout = 3
-
-    response = http.request(Net::HTTP::Get.new(uri))
-    data = JSON.parse(response.body)
-
-    models = (data["models"] || []).map do |m|
-      {
-        id: m["name"],
-        name: m["name"],
-        size: (m["size"].to_f / 1_000_000_000).round(1),
-        parameter_size: m.dig("details", "parameter_size"),
-        family: m.dig("details", "family")
-      }
-    end.sort_by { |m| m[:name] }
-
-    render json: { status: "connected", models: models }
-  rescue StandardError => e
-    render json: { status: "error", message: e.message }, status: :unprocessable_entity
+    render_remote_models(:ollama)
   end
 
-  # Check llama.cpp connectivity and fetch available models
   def llama_cpp_models
-    url = params[:url].presence || "http://host.docker.internal:8080"
-
-    # Validate URL to prevent SSRF
-    uri = URI.parse("#{url}/v1/models")
-    unless uri.is_a?(URI::HTTP) && uri.host.present? && !uri.host.match?(/\A\[?::1?\]?\z/)
-      return render json: { status: "error", message: "Invalid llama.cpp URL" }, status: :unprocessable_entity
-    end
-
-    http = Net::HTTP.new(uri.host, uri.port) # rubocop:disable Brakeman/FileAccess
-    http.use_ssl = uri.scheme == "https"
-    http.open_timeout = 3
-    http.read_timeout = 5
-
-    response = http.request(Net::HTTP::Get.new(uri))
-    data = JSON.parse(response.body)
-
-    models = (data["data"] || []).map do |m|
-      {
-        id: m["id"],
-        name: m["id"]
-      }
-    end.sort_by { |m| m[:name] }
-
-    render json: { status: "connected", models: models }
-  rescue StandardError => e
-    render json: { status: "error", message: e.message }, status: :unprocessable_entity
+    render_remote_models(:llama_cpp)
   end
 
   # Done!
@@ -199,6 +144,15 @@ class SetupController < ApplicationController
   end
 
   private
+
+  def render_remote_models(provider)
+    result = Providers::FetchRemoteModels.call(provider, url: params[:url])
+    if result.success?
+      render json: result.data
+    else
+      render json: { status: "error", message: result.error }, status: :unprocessable_entity
+    end
+  end
 
   def redirect_if_setup_complete
     redirect_to root_path if Setting.get("setup_complete") == "true"

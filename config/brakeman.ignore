@@ -25,16 +25,8 @@
       "note": "Net::HTTP to admin-configured API base URL \u2014 not user input"
     },
     {
-      "fingerprint": "b7820cdabc4971f02ffcfacb4a9c2e18db66b109fff736fac3c48540138e1b66",
-      "note": "Net::HTTP to admin-configured Jira URL from vault \u2014 not user input"
-    },
-    {
       "fingerprint": "153c96f299cf01d99d3f778964747f7caadaf507cd401b275463208e56440d29",
       "note": "CodingAgentJob: Open3.capture3 with fixed docker command array + script file path we control"
-    },
-    {
-      "fingerprint": "0dcaaea6789f0c08c8ce76f559f26dc016d528ce3543c2915de6cb0fb91f079f",
-      "note": "Ollama URL is user-provided during setup \u2014 validated as HTTP URI, used only for local model detection"
     },
     {
       "fingerprint": "79770329b85047f80227d131cc80d6358fd442a83cc02643a2768a580111efde",
@@ -53,12 +45,8 @@
       "note": "WorkspaceIo: path is shell_escaped, runs in isolated workspace container"
     },
     {
-      "fingerprint": "e8a4755b9673b6dde053be9a12ce611d0cbe0bf63d96cf4757131d0eb74002a6",
-      "note": "False positive: Net::HTTP.new with URI, not file access"
-    },
-    {
-      "fingerprint": "809f00a2999bbd873a33f3bc8557e12775d60483880d0c954ac6fae574155de1",
-      "note": "llama.cpp URL is user-provided during setup — validated as HTTP URI, used only for local model detection"
+      "fingerprint": "f2105dd5a551f89e6489f6e2d2e8d30f48ce2d184d340ee01b42ea7272b8c24e",
+      "note": "False positive: server.command is Shellwords.shellsplit into array args, no shell interpretation"
     }
   ],
   "updated": "2026-02-15",
