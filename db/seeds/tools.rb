@@ -632,6 +632,69 @@ BUILTIN_TOOLS = [
       },
       "required" => [ "file_path" ]
     }
+  },
+  {
+    name: "google_drive",
+    description: "Search, read, create, and manage files in Google Drive via the gws CLI. Requires Google Workspace connection at /integrations.",
+    executor_type: "google_drive",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "action" => { "type" => "string", "description" => "Action: list, search, get, create, upload, download", "enum" => %w[list search get create upload download] },
+        "query" => { "type" => "string", "description" => "Search query (for search action)" },
+        "file_id" => { "type" => "string", "description" => "Google Drive file ID (for get/download)" },
+        "name" => { "type" => "string", "description" => "File name (for create/upload)" },
+        "mime_type" => { "type" => "string", "description" => "MIME type for create or export format for download" },
+        "parent_id" => { "type" => "string", "description" => "Parent folder ID (for create/upload)" },
+        "local_path" => { "type" => "string", "description" => "Local file path in workspace (for upload)" },
+        "params" => { "type" => "object", "description" => "Additional gws parameters as key-value pairs" }
+      },
+      "required" => [ "action" ]
+    }
+  },
+  {
+    name: "google_calendar",
+    description: "List, create, update, and delete Google Calendar events via the gws CLI. Requires Google Workspace connection at /integrations.",
+    executor_type: "google_calendar",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "action" => { "type" => "string", "description" => "Action: list, get, create, update, delete, calendars", "enum" => %w[list get create update delete calendars] },
+        "calendar_id" => { "type" => "string", "description" => "Calendar ID (defaults to 'primary')" },
+        "event_id" => { "type" => "string", "description" => "Event ID (for get/update/delete)" },
+        "summary" => { "type" => "string", "description" => "Event title (for create)" },
+        "description" => { "type" => "string", "description" => "Event description (for create)" },
+        "location" => { "type" => "string", "description" => "Event location (for create)" },
+        "start_time" => { "type" => "string", "description" => "Start time in ISO 8601 format (for create)" },
+        "end_time" => { "type" => "string", "description" => "End time in ISO 8601 format (for create)" },
+        "timezone" => { "type" => "string", "description" => "Timezone (e.g. America/Chicago). Defaults to UTC" },
+        "attendees" => { "type" => "array", "items" => { "type" => "string" }, "description" => "List of attendee email addresses (for create)" },
+        "updates" => { "type" => "object", "description" => "Fields to update (for update action)" },
+        "params" => { "type" => "object", "description" => "Additional gws parameters" }
+      },
+      "required" => [ "action" ]
+    }
+  },
+  {
+    name: "google_gmail",
+    description: "Read, search, send, and draft emails via Google Gmail using the gws CLI. Requires Google Workspace connection with Gmail scope at /integrations.",
+    executor_type: "google_gmail",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "action" => { "type" => "string", "description" => "Action: list, get, search, send, draft", "enum" => %w[list get search send draft] },
+        "message_id" => { "type" => "string", "description" => "Message ID (for get)" },
+        "query" => { "type" => "string", "description" => "Gmail search query (for search)" },
+        "to" => { "type" => "string", "description" => "Recipient email address (for send/draft)" },
+        "subject" => { "type" => "string", "description" => "Email subject (for send/draft)" },
+        "body" => { "type" => "string", "description" => "Email body text (for send/draft)" },
+        "cc" => { "type" => "string", "description" => "CC recipients (for send/draft)" },
+        "bcc" => { "type" => "string", "description" => "BCC recipients (for send/draft)" },
+        "max_results" => { "type" => "integer", "description" => "Max messages to return (default: 20)" },
+        "params" => { "type" => "object", "description" => "Additional gws parameters" }
+      },
+      "required" => [ "action" ]
+    }
   }
 ].freeze
 

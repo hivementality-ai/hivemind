@@ -103,6 +103,8 @@ services:
       - workspace_data:/workspace
       - workspace_home:/home/agent
       - ${HOME}/hivemind-agents-shared:/app/agents-shared
+    tmpfs:
+      - /tmp/gws-creds:size=10M,mode=0700
     deploy:
       resources:
         limits:

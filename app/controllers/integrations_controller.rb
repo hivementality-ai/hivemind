@@ -21,155 +21,68 @@ class IntegrationsController < ApplicationController
     @agents = Agent.visible.order(:name)
   end
 
+  # === Credential Updates ===
+
   def update_github
-    token = params[:github_token].to_s.strip
-
-    if token.present?
-      store_vault("github", "token", token)
-
-      redirect_to integrations_path, notice: "GitHub connected"
-    else
-      redirect_to integrations_path, alert: "Personal access token required"
-    end
-  end
-
-  def test_github
-    token = VaultEntry.find_by(namespace: "github", key: "token")&.value
-    return render(json: { status: "error", message: "GitHub not configured" }, status: :unprocessable_entity) unless token
-
-    uri = URI("https://api.github.com/user")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    http.open_timeout = 5
-    http.read_timeout = 5
-
-    req = Net::HTTP::Get.new(uri)
-    req["Authorization"] = "Bearer #{token}"
-    req["Accept"] = "application/vnd.github+json"
-
-    response = http.request(req)
-    if response.is_a?(Net::HTTPSuccess)
-      user = JSON.parse(response.body)
-      render json: { status: "connected", user: user["login"], name: user["name"] }
-    else
-      render json: { status: "error", message: "HTTP #{response.code}" }, status: :unprocessable_entity
-    end
-  rescue StandardError => e
-    render json: { status: "error", message: e.message }, status: :unprocessable_entity
+    save_credentials("github", { token: params[:github_token] }, required: %i[token], notice: "GitHub connected")
   end
 
   def update_gmail
-    address = params[:gmail_address].to_s.strip
-    password = params[:gmail_app_password].to_s.strip
-
-    if address.present? && password.present?
-      store_vault("google", "gmail_address", address)
-      store_vault("google", "gmail_app_password", password)
-      redirect_to integrations_path, notice: "Gmail credentials saved"
-    else
-      redirect_to integrations_path, alert: "Email and app password required"
-    end
+    save_credentials("google", {
+      gmail_address: params[:gmail_address],
+      gmail_app_password: params[:gmail_app_password]
+    }, required: %i[gmail_address gmail_app_password], notice: "Gmail credentials saved")
   end
 
   def update_email
-    host = params[:smtp_host].to_s.strip
-    port = params[:smtp_port].to_s.strip.presence || "587"
-    username = params[:smtp_username].to_s.strip
-    password = params[:smtp_password].to_s.strip
-    from_addr = params[:from_address].to_s.strip
-    from_name = params[:from_name].to_s.strip
-
-    if host.present? && username.present? && password.present?
-      store_vault("email", "smtp_host", host)
-      store_vault("email", "smtp_port", port)
-      store_vault("email", "smtp_username", username)
-      store_vault("email", "smtp_password", password)
-      store_vault("email", "from_address", from_addr) if from_addr.present?
-      store_vault("email", "from_name", from_name) if from_name.present?
-      redirect_to integrations_path, notice: "SMTP credentials saved"
-    else
-      redirect_to integrations_path, alert: "Host, username, and password are required"
-    end
+    save_credentials("email", {
+      smtp_host: params[:smtp_host],
+      smtp_port: params[:smtp_port].to_s.strip.presence || "587",
+      smtp_username: params[:smtp_username],
+      smtp_password: params[:smtp_password],
+      from_address: params[:from_address],
+      from_name: params[:from_name]
+    }, required: %i[smtp_host smtp_username smtp_password], notice: "SMTP credentials saved")
   end
 
   def update_jira
-    base_url = params[:jira_base_url].to_s.strip.chomp("/")
-    email = params[:jira_email].to_s.strip
-    token = params[:jira_api_token].to_s.strip
-
-    if base_url.present? && email.present? && token.present?
-      store_vault("jira", "base_url", base_url)
-      store_vault("jira", "email", email)
-      store_vault("jira", "api_token", token)
-      redirect_to integrations_path, notice: "Jira credentials saved"
-    else
-      redirect_to integrations_path, alert: "All three Jira fields are required"
-    end
-  end
-
-  def test_jira
-    base_url = VaultEntry.find_by(namespace: "jira", key: "base_url")&.value
-    email = VaultEntry.find_by(namespace: "jira", key: "email")&.value
-    token = VaultEntry.find_by(namespace: "jira", key: "api_token")&.value
-
-    return render(json: { status: "error", message: "Jira not configured" }, status: :unprocessable_entity) unless base_url
-
-    uri = URI("#{base_url}/rest/api/3/myself")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    http.open_timeout = 5
-    http.read_timeout = 5
-
-    req = Net::HTTP::Get.new(uri)
-    req["Authorization"] = "Basic #{Base64.strict_encode64("#{email}:#{token}")}"
-    req["Accept"] = "application/json"
-
-    response = http.request(req)
-    if response.is_a?(Net::HTTPSuccess)
-      user = JSON.parse(response.body)
-      render json: { status: "connected", user: user["displayName"], email: user["emailAddress"] }
-    else
-      render json: { status: "error", message: "HTTP #{response.code}" }, status: :unprocessable_entity
-    end
-  rescue StandardError => e
-    render json: { status: "error", message: e.message }, status: :unprocessable_entity
+    save_credentials("jira", {
+      base_url: params[:jira_base_url].to_s.strip.chomp("/"),
+      email: params[:jira_email],
+      api_token: params[:jira_api_token]
+    }, required: %i[base_url email api_token], notice: "Jira credentials saved")
   end
 
   def update_trello
-    api_key = params[:trello_api_key].to_s.strip
-    api_token = params[:trello_api_token].to_s.strip
+    save_credentials("trello", {
+      api_key: params[:trello_api_key],
+      token: params[:trello_api_token]
+    }, required: %i[api_key token], notice: "Trello credentials saved")
+  end
 
-    if api_key.present? && api_token.present?
-      store_vault("trello", "api_key", api_key)
-      store_vault("trello", "token", api_token)
-      redirect_to integrations_path, notice: "Trello credentials saved"
-    else
-      redirect_to integrations_path, alert: "Both API Key and API Token are required"
-    end
+  # === Connection Tests ===
+
+  def test_github
+    render_test_result(Integrations::ConnectionTester.call(:github))
+  end
+
+  def test_jira
+    render_test_result(Integrations::ConnectionTester.call(:jira))
   end
 
   def test_trello
-    api_key = VaultEntry.find_by(namespace: "trello", key: "api_key")&.value
-    api_token = VaultEntry.find_by(namespace: "trello", key: "token")&.value
-
-    return render(json: { status: "error", message: "Trello not configured" }, status: :unprocessable_entity) unless api_key
-
-    uri = URI("https://api.trello.com/1/members/me?key=#{api_key}&token=#{api_token}")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    http.open_timeout = 5
-    http.read_timeout = 5
-
-    response = http.request(Net::HTTP::Get.new(uri))
-    if response.is_a?(Net::HTTPSuccess)
-      user = JSON.parse(response.body)
-      render json: { status: "connected", user: user["fullName"], username: user["username"] }
-    else
-      render json: { status: "error", message: "HTTP #{response.code}" }, status: :unprocessable_entity
-    end
-  rescue StandardError => e
-    render json: { status: "error", message: e.message }, status: :unprocessable_entity
+    render_test_result(Integrations::ConnectionTester.call(:trello))
   end
+
+  def test_telegram
+    render_test_result(Integrations::ConnectionTester.call(:telegram))
+  end
+
+  def test_signal
+    render_test_result(Integrations::ConnectionTester.call(:signal))
+  end
+
+  # === Cloud Storage ===
 
   def add_cloud_remote
     backend = params[:backend].to_s.strip
@@ -183,7 +96,7 @@ class IntegrationsController < ApplicationController
     ).call
 
     if result[:success] != false
-      redirect_to integrations_path, notice: "☁️ Remote '#{remote_name}' connected!"
+      redirect_to integrations_path, notice: "Remote '#{remote_name}' connected!"
     else
       redirect_to integrations_path, alert: result[:error]
     end
@@ -208,6 +121,8 @@ class IntegrationsController < ApplicationController
       render json: { status: "error", message: "Could not connect to #{name}" }, status: :unprocessable_entity
     end
   end
+
+  # === Search ===
 
   def update_search
     provider = params[:search_provider].to_s.strip
@@ -278,11 +193,7 @@ class IntegrationsController < ApplicationController
 
   def connect_mcp_server
     server = McpServer.find(params[:id])
-    if server.stdio?
-      result = Mcp::ProcessManager.new(server).start
-    else
-      result = Mcp::SseClient.discover_tools(server)
-    end
+    result = server.stdio? ? Mcp::ProcessManager.new(server).start : Mcp::SseClient.discover_tools(server)
 
     if result.success?
       redirect_to integrations_path, notice: "Connected to '#{server.name}'"
@@ -293,21 +204,13 @@ class IntegrationsController < ApplicationController
 
   def disconnect_mcp_server
     server = McpServer.find(params[:id])
-    if server.stdio?
-      Mcp::ProcessManager.new(server).stop
-    else
-      server.mark_disconnected!
-    end
+    server.stdio? ? Mcp::ProcessManager.new(server).stop : server.mark_disconnected!
     redirect_to integrations_path, notice: "Disconnected from '#{server.name}'"
   end
 
   def refresh_mcp_tools
     server = McpServer.find(params[:id])
-    result = if server.stdio?
-      Mcp::StdioClient.discover_tools(server)
-    else
-      Mcp::SseClient.discover_tools(server)
-    end
+    result = server.stdio? ? Mcp::StdioClient.discover_tools(server) : Mcp::SseClient.discover_tools(server)
 
     if result.success?
       tools = result.data.is_a?(Hash) ? (result.data[:tools] || result.data["tools"] || []) : []
@@ -342,26 +245,6 @@ class IntegrationsController < ApplicationController
     end
   end
 
-  def test_telegram
-    token = VaultEntry.find_by(namespace: "channel_credentials", key: "telegram_bot_token")&.value
-    return render(json: { status: "error", message: "Telegram not configured" }, status: :unprocessable_entity) unless token
-    uri = URI("https://api.telegram.org/bot\#{token}/getMe")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    http.open_timeout = 5
-    http.read_timeout = 5
-    response = http.request(Net::HTTP::Get.new(uri))
-    data = JSON.parse(response.body)
-    if data["ok"]
-      bot = data["result"]
-      render json: { status: "connected", username: bot["username"], name: bot["first_name"] }
-    else
-      render json: { status: "error", message: data["description"] }, status: :unprocessable_entity
-    end
-  rescue StandardError => e
-    render json: { status: "error", message: e.message }, status: :unprocessable_entity
-  end
-
   # === Signal ===
 
   def update_signal
@@ -379,29 +262,26 @@ class IntegrationsController < ApplicationController
     end
   end
 
-  def test_signal
-    ch = Channel.find_by(channel_type: "signal", enabled: true)
-    return render(json: { status: "error", message: "Signal not configured" }, status: :unprocessable_entity) unless ch
-    api_url = ch.config&.dig("api_url") || "http://signal-cli:8080"
-    uri = URI("\#{api_url}/v1/about")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = uri.scheme == "https"
-    http.open_timeout = 5
-    http.read_timeout = 5
-    response = http.request(Net::HTTP::Get.new(uri))
-    if response.is_a?(Net::HTTPSuccess)
-      info = JSON.parse(response.body)
-      render json: { status: "connected", version: info["versions"]&.first }
-    else
-      render json: { status: "error", message: "HTTP \#{response.code}" }, status: :unprocessable_entity
-    end
-  rescue StandardError => e
-    render json: { status: "error", message: e.message }, status: :unprocessable_entity
-  end
-
   private
 
-  # GitHub CLI auth is handled lazily by the shell executor when agents need it
+  def save_credentials(namespace, fields, required:, notice:)
+    cleaned = fields.transform_values { |v| v.to_s.strip }
+    result = Integrations::SaveCredentials.call(namespace: namespace, fields: cleaned, required: required)
+
+    if result.success?
+      redirect_to integrations_path, notice: notice
+    else
+      redirect_to integrations_path, alert: result.error
+    end
+  end
+
+  def render_test_result(result)
+    if result.success?
+      render json: result.data
+    else
+      render json: { status: "error", message: result.error }, status: :unprocessable_entity
+    end
+  end
 
   def store_vault(namespace, key, value)
     entry = VaultEntry.find_or_initialize_by(namespace: namespace, key: key)

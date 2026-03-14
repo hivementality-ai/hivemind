@@ -70,7 +70,7 @@ RSpec.describe IntegrationsController, type: :controller do
       it 'redirects with error' do
         post :update_github, params: { github_token: "   " }
         expect(response).to redirect_to(integrations_path)
-        expect(flash[:alert]).to eq("Personal access token required")
+        expect(flash[:alert]).to eq("Token required")
       end
 
       it 'does not create vault entry' do
@@ -120,7 +120,7 @@ RSpec.describe IntegrationsController, type: :controller do
         expect(response).to have_http_status(:unprocessable_entity)
         json = JSON.parse(response.body)
         expect(json['status']).to eq('error')
-        expect(json['message']).to eq('GitHub not configured')
+        expect(json['message']).to eq('Github not configured')
       end
     end
 
@@ -177,13 +177,13 @@ RSpec.describe IntegrationsController, type: :controller do
       it 'redirects with error when email missing' do
         post :update_gmail, params: { gmail_address: "", gmail_app_password: "password" }
         expect(response).to redirect_to(integrations_path)
-        expect(flash[:alert]).to eq("Email and app password required")
+        expect(flash[:alert]).to eq("Gmail address required")
       end
 
       it 'redirects with error when password missing' do
         post :update_gmail, params: { gmail_address: "test@gmail.com", gmail_app_password: "" }
         expect(response).to redirect_to(integrations_path)
-        expect(flash[:alert]).to eq("Email and app password required")
+        expect(flash[:alert]).to eq("Gmail app password required")
       end
     end
 
@@ -239,7 +239,7 @@ RSpec.describe IntegrationsController, type: :controller do
       it 'redirects with error when host missing' do
         post :update_email, params: valid_params.merge(smtp_host: "")
         expect(response).to redirect_to(integrations_path)
-        expect(flash[:alert]).to eq("Host, username, and password are required")
+        expect(flash[:alert]).to eq("Smtp host required")
       end
     end
 
@@ -284,7 +284,7 @@ RSpec.describe IntegrationsController, type: :controller do
       it 'redirects with error when any field is missing' do
         post :update_jira, params: valid_params.merge(jira_email: "")
         expect(response).to redirect_to(integrations_path)
-        expect(flash[:alert]).to eq("All three Jira fields are required")
+        expect(flash[:alert]).to eq("Email required")
       end
     end
 
@@ -379,7 +379,7 @@ RSpec.describe IntegrationsController, type: :controller do
       it 'redirects with success notice' do
         post :add_cloud_remote, params: valid_params
         expect(response).to redirect_to(integrations_path)
-        expect(flash[:notice]).to eq("☁️ Remote 'test_remote' connected!")
+        expect(flash[:notice]).to eq("Remote 'test_remote' connected!")
       end
     end
 
