@@ -104,7 +104,7 @@ module Tools
 
       metadata = { "name" => name }
       metadata["mimeType"] = input["mime_type"] if input["mime_type"].present?
-      metadata["parents"] = [input["parent_id"]] if input["parent_id"].present?
+      metadata["parents"] = [ input["parent_id"] ] if input["parent_id"].present?
 
       result = gws("drive", "files", "create", "--json", metadata.to_json)
       return result if result.is_a?(ServiceResponse) && !result.success?
@@ -123,7 +123,7 @@ module Tools
 
       metadata = {}
       metadata["name"] = input["name"] || File.basename(local_path)
-      metadata["parents"] = [input["parent_id"]] if input["parent_id"].present?
+      metadata["parents"] = [ input["parent_id"] ] if input["parent_id"].present?
 
       result = gws("drive", "files", "create", "--json", metadata.to_json, "--upload", local_path)
       return result if result.is_a?(ServiceResponse) && !result.success?

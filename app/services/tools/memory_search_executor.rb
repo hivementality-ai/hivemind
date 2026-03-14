@@ -42,7 +42,7 @@ module Tools
       return MemoryEntry.none unless agent
 
       # Attempt vector search
-      embedding = Memory::Embedding.generate(query)
+      embedding = Memory::Embedding.generate_query(query)
       if embedding
         return MemoryEntry.where(agent: agent)
                           .nearest_neighbors(:embedding, embedding, distance: "cosine")

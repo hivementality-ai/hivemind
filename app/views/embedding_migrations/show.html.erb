@@ -1,0 +1,133 @@
+<div class="max-w-5xl mx-auto px-6 py-8">
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-white">Embedding Migration</h1>
+    <p class="text-text-muted mt-1">Manage embedding provider migrations with zero-downtime cutover</p>
+  </div>
+
+  <%# Flash messages %>
+  <% if flash[:notice] %>
+    <div class="bg-green-500/10 border border-green-500/30 text-green-400 px-4 py-3 rounded-xl mb-6"><%= flash[:notice] %></div>
+  <% end %>
+  <% if flash[:alert] %>
+    <div class="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl mb-6"><%= flash[:alert] %></div>
+  <% end %>
+
+  <%# Current status %>
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+    <h2 class="text-lg font-semibold text-white mb-4">Current Status</h2>
+    <% if @progress %>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div>
+          <p class="text-text-muted text-sm">Phase</p>
+          <p class="text-white font-semibold"><%= @progress[:phase] %></p>
+        </div>
+        <div>
+          <p class="text-text-muted text-sm">From</p>
+          <p class="text-white font-semibold"><%= @progress[:from_provider] %></p>
+        </div>
+        <div>
+          <p class="text-text-muted text-sm">To</p>
+          <p class="text-white font-semibold"><%= @progress[:to_provider] %></p>
+        </div>
+        <div>
+          <p class="text-text-muted text-sm">Progress</p>
+          <p class="text-white font-semibold"><%= @progress[:percent_complete] %>%</p>
+        </div>
+      </div>
+
+      <div class="w-full bg-surface-default rounded-full h-2 mb-4">
+        <div class="bg-accent-primary h-2 rounded-full" style="width: <%= @progress[:percent_complete] %>%"></div>
+      </div>
+
+      <p class="text-text-faint text-sm">
+        <%= @progress[:shadow_entries] %> / <%= @progress[:total_entries] %> entries re-embedded
+      </p>
+
+      <% if @progress[:validation_results].is_a?(Hash) && @progress[:validation_results]["multimodal_degradation"] %>
+        <div class="mt-3 bg-yellow-900/20 border border-yellow-700/30 rounded-lg px-4 py-3">
+          <p class="text-yellow-300 text-sm">Switching to a text-only provider will reduce search quality for image-based memories (<%= @progress[:multimodal_entries] || 0 %> multimodal entries). Image data is preserved and can be re-indexed if you switch back to a multimodal provider later.</p>
+        </div>
+      <% end %>
+
+      <% if @progress[:phase] == "shadow" && @progress[:percent_complete] >= 100 %>
+        <div class="mt-4 flex gap-3">
+          <%= button_to "Validate", validate_embedding_migration_path, method: :post, class: "px-4 py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/80" %>
+          <%= button_to "Rollback", rollback_embedding_migration_path, method: :post, class: "px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700", data: { turbo_confirm: "Roll back this migration?" } %>
+        </div>
+      <% elsif @progress[:phase] == "validated" %>
+        <div class="mt-4 flex gap-3">
+          <%= button_to "Cutover", cutover_embedding_migration_path, method: :post, class: "px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700", data: { turbo_confirm: "This will swap embeddings to the new provider. Continue?" } %>
+          <%= button_to "Rollback", rollback_embedding_migration_path, method: :post, class: "px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700", data: { turbo_confirm: "Roll back this migration?" } %>
+        </div>
+        <% if @progress[:validation_results].present? %>
+          <div class="mt-4 bg-surface-default rounded-lg p-4">
+            <h3 class="text-sm font-semibold text-white mb-2">Validation Results</h3>
+            <div class="grid grid-cols-2 gap-2 text-sm">
+              <p class="text-text-muted">Coverage: <span class="text-white"><%= @progress[:validation_results]["coverage_percent"] %>%</span></p>
+              <p class="text-text-muted">Result Overlap: <span class="text-white"><%= @progress[:validation_results]["avg_result_overlap"] %></span></p>
+              <p class="text-text-muted">Pass: <span class="<%= @progress[:validation_results]["pass"] ? "text-green-400" : "text-red-400" %>"><%= @progress[:validation_results]["pass"] ? "Yes" : "No" %></span></p>
+            </div>
+          </div>
+        <% end %>
+      <% elsif @progress[:phase] == "shadow" %>
+        <div class="mt-4">
+          <%= button_to "Rollback", rollback_embedding_migration_path, method: :post, class: "px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700", data: { turbo_confirm: "Roll back this migration?" } %>
+        </div>
+      <% end %>
+    <% else %>
+      <p class="text-text-muted">No active migration. Start one below.</p>
+    <% end %>
+  </div>
+
+  <%# Start new migration %>
+  <% unless @progress %>
+    <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+      <h2 class="text-lg font-semibold text-white mb-4">Start New Migration</h2>
+      <%= form_with url: start_embedding_migration_path, method: :post, class: "flex items-end gap-4" do |f| %>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">From Provider</label>
+          <input type="text" name="from_provider" value="<%= @current_provider %>" readonly class="bg-surface-default border border-border-default rounded-lg px-3 py-2 text-white text-sm" />
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">To Provider</label>
+          <select name="to_provider" class="bg-surface-default border border-border-default rounded-lg px-3 py-2 text-white text-sm">
+            <% @providers.each do |p| %>
+              <% next if p[:name] == @current_provider %>
+              <option value="<%= p[:name] %>"><%= p[:name] %><%= " (configured)" if p[:configured] %></option>
+            <% end %>
+          </select>
+        </div>
+        <button type="submit" class="px-4 py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/80">Start Migration</button>
+      <% end %>
+    </div>
+  <% end %>
+
+  <%# History %>
+  <% if @history.any? %>
+    <div class="bg-surface-card rounded-xl border border-border-default p-6">
+      <h2 class="text-lg font-semibold text-white mb-4">Migration History</h2>
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-text-muted border-b border-border-default">
+            <th class="text-left py-2">From</th>
+            <th class="text-left py-2">To</th>
+            <th class="text-left py-2">Phase</th>
+            <th class="text-left py-2">Started</th>
+            <th class="text-left py-2">Completed</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @history.each do |m| %>
+            <tr class="border-b border-border-default/50">
+              <td class="py-2 text-white"><%= m.from_provider %></td>
+              <td class="py-2 text-white"><%= m.to_provider %></td>
+              <td class="py-2"><span class="px-2 py-0.5 rounded text-xs <%= m.active? ? 'bg-yellow-500/20 text-yellow-400' : m.complete? ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400' %>"><%= m.phase %></span></td>
+              <td class="py-2 text-text-muted"><%= m.started_at&.strftime("%b %d, %Y %H:%M") || "-" %></td>
+              <td class="py-2 text-text-muted"><%= m.completed_at&.strftime("%b %d, %Y %H:%M") || m.rolled_back_at&.strftime("%b %d, %Y %H:%M") || "-" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</div>

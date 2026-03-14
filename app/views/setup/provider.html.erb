@@ -412,6 +412,61 @@
           </script>
         </div>
 
+        <!-- Embedding Provider -->
+        <div class="border-t border-border-default pt-6 mt-2">
+          <p class="text-text-primary text-sm font-medium mb-3">Embedding Provider</p>
+          <p class="text-text-muted text-xs mb-4">Embeddings power agent memory search. Choose how memories are indexed.</p>
+
+          <div class="space-y-3">
+            <label class="flex items-start gap-3 p-4 bg-surface-raised rounded-lg border border-border-default cursor-pointer hover:border-purple-500/50 transition has-[:checked]:border-purple-500 has-[:checked]:bg-purple-900/10">
+              <input type="radio" name="embedding_provider" value="ollama" checked
+                     class="mt-0.5 w-4 h-4 text-purple-600 focus:ring-purple-500 bg-surface-overlay border-gray-500">
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-white text-sm font-medium">Ollama</span>
+                  <span class="px-1.5 py-0.5 bg-green-900/40 text-green-400 text-xs rounded">Free</span>
+                  <span class="px-1.5 py-0.5 bg-purple-900/40 text-purple-400 text-xs rounded">Local</span>
+                </div>
+                <p class="text-text-muted text-xs mt-1">Text-only embeddings via nomic-embed-text. Runs locally, no API key needed. Requires Ollama enabled above.</p>
+              </div>
+            </label>
+
+            <label class="flex items-start gap-3 p-4 bg-surface-raised rounded-lg border border-border-default cursor-pointer hover:border-blue-500/50 transition has-[:checked]:border-blue-500 has-[:checked]:bg-blue-900/10">
+              <input type="radio" name="embedding_provider" value="gemini"
+                     class="mt-0.5 w-4 h-4 text-blue-600 focus:ring-blue-500 bg-surface-overlay border-gray-500">
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-white text-sm font-medium">Gemini</span>
+                  <span class="px-1.5 py-0.5 bg-blue-900/40 text-blue-400 text-xs rounded">Multimodal</span>
+                  <span class="px-1.5 py-0.5 bg-yellow-900/40 text-yellow-400 text-xs rounded">Cloud</span>
+                </div>
+                <p class="text-text-muted text-xs mt-1">Text, images, audio, video, and PDFs. ~$0.20/1M tokens. Requires a Google AI API key.</p>
+                <div class="mt-2" id="gemini-embedding-key-field">
+                  <input type="text" name="gemini_embedding_api_key"
+                         placeholder="Google AI API key (AIza...)"
+                         autocomplete="off"
+                         class="w-full px-3 py-2 bg-surface-overlay border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-xs">
+                  <p class="text-text-faint text-xs mt-1">
+                    Get a key at <a href="https://aistudio.google.com/apikey" target="_blank" class="text-brand-light hover:underline">aistudio.google.com</a>
+                  </p>
+                </div>
+              </div>
+            </label>
+
+            <label class="flex items-start gap-3 p-4 bg-surface-raised rounded-lg border border-border-default cursor-pointer hover:border-green-500/50 transition has-[:checked]:border-green-500 has-[:checked]:bg-green-900/10">
+              <input type="radio" name="embedding_provider" value="openai"
+                     class="mt-0.5 w-4 h-4 text-green-600 focus:ring-green-500 bg-surface-overlay border-gray-500">
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-white text-sm font-medium">OpenAI</span>
+                  <span class="px-1.5 py-0.5 bg-yellow-900/40 text-yellow-400 text-xs rounded">Cloud</span>
+                </div>
+                <p class="text-text-muted text-xs mt-1">Text embeddings via text-embedding-3-small. Uses your OpenAI API key from above.</p>
+              </div>
+            </label>
+          </div>
+        </div>
+
         <div class="flex items-center gap-3 p-3 bg-brand-glow/30 border border-brand-dark/50 rounded-lg">
           <svg class="w-5 h-5 text-brand-light flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

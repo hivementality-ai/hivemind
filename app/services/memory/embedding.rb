@@ -2,134 +2,151 @@
 
 module Memory
   class Embedding
-    OLLAMA_MODEL = "nomic-embed-text"
-    OPENAI_MODEL = "text-embedding-3-small"
     DIMENSIONS = 768
 
     # Generate an embedding vector for the given text.
     # Returns Array[Float] (768 dims) or nil on failure.
+    # Delegates to the pluggable adapter registry.
     def self.generate(text, provider: nil)
-      new(provider: provider).generate(text)
-    end
-
-    # Check if embedding generation is available
-    def self.available?
-      new.available?
-    end
-
-    def initialize(provider: nil)
-      @provider = provider || configured_provider
-    end
-
-    def generate(text)
       return nil if text.blank?
-      return nil unless available?
 
-      case @provider
-      when "openai"
-        generate_openai(text)
-      when "ollama"
-        generate_ollama(text)
+      adapter = if provider
+                  Embeddings::Registry.adapter_for(provider)
       else
-        nil
+                  Embeddings::Registry.current
       end
+      return nil unless adapter
+
+      adapter.embed_text(text)
     rescue StandardError => e
       Rails.logger.error("[Memory::Embedding] Failed to generate embedding: #{e.message}")
       nil
     end
 
-    def available?
-      case @provider
-      when "ollama"
-        ollama_reachable?
-      when "openai"
-        fetch_openai_key.present?
+    # Generate a query embedding (may use asymmetric task type for providers that support it)
+    def self.generate_query(text, provider: nil)
+      return nil if text.blank?
+
+      adapter = if provider
+                  Embeddings::Registry.adapter_for(provider)
       else
-        false
+                  Embeddings::Registry.current
       end
+      return nil unless adapter
+
+      adapter.embed_query(text)
+    rescue StandardError => e
+      Rails.logger.error("[Memory::Embedding] Failed to generate query embedding: #{e.message}")
+      nil
     end
 
-    private
+    # Check if embedding generation is available
+    def self.available?
+      Embeddings::Registry.current&.healthy? || false
+    end
 
-    def configured_provider
-      # Embeddings disabled entirely?
-      return nil if ENV["MEMORY_EMBEDDINGS_ENABLED"] == "false"
+    # Return the active provider name
+    def self.provider_name
+      Embeddings::Registry.configured_provider
+    end
 
-      # Explicit provider from env
-      env_provider = ENV["MEMORY_EMBEDDINGS_PROVIDER"]
-      return env_provider if env_provider.present?
+    # Generate a shadow embedding using the migration target provider.
+    # Returns nil if no migration is active.
+    def self.generate_shadow(text)
+      return nil unless migration_active?
+      return nil if text.blank?
 
-      # Check app config
-      config_provider = Rails.application.config.try(:memory_embedding_provider)
-      return config_provider if config_provider.present?
+      target = Setting.get("embedding_migration_target")
+      return nil unless target
 
-      # Auto-detect: prefer Ollama (free, local), fall back to OpenAI
-      if ollama_reachable?
-        "ollama"
-      elsif fetch_openai_key.present?
-        "openai"
-      else
-        nil
+      adapter = Embeddings::Registry.adapter_for(target)
+      adapter.embed_text(text)
+    rescue StandardError => e
+      Rails.logger.error("[Memory::Embedding] Shadow embedding failed: #{e.message}")
+      nil
+    end
+
+    # Generate a multimodal embedding (text + media) if the adapter supports it.
+    # Falls back to text-only embedding if multimodal is not supported.
+    # Accepts any combination of media types:
+    #   images:    [{ data: "<base64>", mime_type: "image/png" }]
+    #   audio:     [{ data: "<base64>", mime_type: "audio/mp3" }]
+    #   video:     [{ data: "<base64>", mime_type: "video/mp4" }]
+    #   documents: [{ data: "<base64>", mime_type: "application/pdf" }]
+    # Returns { embedding: Array[Float], modality: String } or nil.
+    def self.generate_multimodal(text, images: [], audio: [], video: [], documents: [], provider: nil)
+      adapter = provider ? Embeddings::Registry.adapter_for(provider) : Embeddings::Registry.current
+      return nil unless adapter
+
+      supported = adapter.capabilities[:modalities] || []
+      parts = [ { text: text } ]
+      has_media = false
+
+      if images.any? && supported.include?(:image)
+        parts += images.map { |img| { image: img[:data], mime_type: img[:mime_type] } }
+        has_media = true
       end
-    end
 
-    def generate_ollama(text)
-      response = Faraday.post(
-        "#{ollama_base_url}/api/embeddings",
-        { model: OLLAMA_MODEL, prompt: text, options: { num_ctx: 2048 } }.to_json,
-        { "Content-Type" => "application/json" }
-      )
-
-      if response.success?
-        embedding = JSON.parse(response.body)["embedding"]
-        return nil unless embedding.is_a?(Array) && embedding.any?
-
-        # nomic-embed-text natively outputs 768 dims — no padding needed
-        embedding.take(DIMENSIONS)
-      else
-        Rails.logger.error("[Memory::Embedding] Ollama error: #{response.status}")
-        nil
+      if audio.any? && supported.include?(:audio)
+        parts += audio.map { |a| { audio: a[:data], mime_type: a[:mime_type] } }
+        has_media = true
       end
-    end
 
-    def generate_openai(text)
-      api_key = fetch_openai_key
-      return nil unless api_key
-
-      response = Faraday.post(
-        "https://api.openai.com/v1/embeddings",
-        { model: OPENAI_MODEL, input: text, dimensions: DIMENSIONS }.to_json,
-        {
-          "Authorization" => "Bearer #{api_key}",
-          "Content-Type" => "application/json"
-        }
-      )
-
-      if response.success?
-        JSON.parse(response.body).dig("data", 0, "embedding")
-      else
-        Rails.logger.error("[Memory::Embedding] OpenAI error: #{response.status} #{response.body.truncate(200)}")
-        nil
+      if video.any? && supported.include?(:video)
+        parts += video.map { |v| { video: v[:data], mime_type: v[:mime_type] } }
+        has_media = true
       end
+
+      if documents.any? && supported.include?(:pdf)
+        parts += documents.map { |d| { document: d[:data], mime_type: d[:mime_type] } }
+        has_media = true
+      end
+
+      if has_media
+        vector = adapter.embed_multimodal(parts)
+        return { embedding: vector, modality: "multimodal" } if vector
+      end
+
+      # Fall back to text-only
+      vector = adapter.embed_text(text)
+      vector ? { embedding: vector, modality: "text" } : nil
+    rescue StandardError => e
+      Rails.logger.error("[Memory::Embedding] Multimodal embedding failed: #{e.message}")
+      nil
     end
 
-    def ollama_base_url
-      provider_config = ProviderConfig.find_by(adapter_type: "ollama", enabled: true)
-      provider_config&.base_url || ENV.fetch("OLLAMA_BASE_URL", "http://localhost:11434")
-    end
+    # Check if the current adapter supports multimodal embedding
+    def self.multimodal?
+      adapter = Embeddings::Registry.current
+      return false unless adapter
 
-    def ollama_reachable?
-      response = Faraday.get("#{ollama_base_url}/api/tags") { |req| req.options.timeout = 2 }
-      response.success?
-    rescue StandardError
+      capabilities = adapter.capabilities
+      (capabilities[:modalities] || []).include?(:image)
+    rescue
       false
     end
 
-    def fetch_openai_key
-      @openai_key ||= VaultEntry.find_by(
-        namespace: "provider_credentials",
-        key: "openai_api_key"
-      )&.encrypted_value
+    def self.migration_active?
+      Setting.get("embedding_migration_active") == "true"
+    end
+
+    def self.migration_target
+      Setting.get("embedding_migration_target")
+    end
+
+    # For backward compatibility with Memory::Status
+    def initialize(provider: nil)
+      @provider = provider
+    end
+
+    def available?
+      if @provider
+        Embeddings::Registry.adapter_for(@provider).healthy?
+      else
+        self.class.available?
+      end
+    rescue
+      false
     end
   end
 end
