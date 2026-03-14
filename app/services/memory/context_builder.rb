@@ -86,7 +86,7 @@ module Memory
 
     # Semantic search for memories relevant to the current query
     def relevant_memories
-      embedding = Memory::Embedding.generate(@query)
+      embedding = Memory::Embedding.generate_query(@query)
       return [] unless embedding
 
       # Use relevance search (similarity + recency weighted)

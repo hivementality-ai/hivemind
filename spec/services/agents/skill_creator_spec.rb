@@ -76,7 +76,7 @@ RSpec.describe Agents::SkillCreator, type: :service do
           status: "warning",
           risk_level: "medium",
           blocked: false,
-          findings: [{ severity: "medium", pattern: "test" }],
+          findings: [ { severity: "medium", pattern: "test" } ],
           blocklist_reasons: [],
           checksum: "abc123",
           source: "agent",
@@ -99,7 +99,7 @@ RSpec.describe Agents::SkillCreator, type: :service do
         ServiceResponse.success(data: {
           status: "blocked",
           blocked: true,
-          blocklist_reasons: ["malicious pattern detected"]
+          blocklist_reasons: [ "malicious pattern detected" ]
         })
       )
 

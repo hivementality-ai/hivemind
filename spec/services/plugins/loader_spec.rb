@@ -10,6 +10,13 @@ RSpec.describe Plugins::Loader do
     Tools::Executor.reset_plugin_executors!
   end
 
+  after do
+    Plugins::Registry.reset!
+    Plugins::Hooks.reset!
+    Channels::Registry.reset_plugin_adapters!
+    Tools::Executor.reset_plugin_executors!
+  end
+
   describe ".load_all" do
     it "returns success with empty loaded list when plugin dir does not exist" do
       allow(Plugins::Loader::PLUGIN_DIR).to receive(:exist?).and_return(false)

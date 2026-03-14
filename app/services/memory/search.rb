@@ -17,7 +17,7 @@ module Memory
     def call
       return ServiceResponse.failure(error: "Query cannot be blank") if @query.blank?
 
-      query_embedding = Memory::Embedding.generate(@query)
+      query_embedding = Memory::Embedding.generate_query(@query)
 
       # Fall back to keyword search if embedding generation fails
       unless query_embedding

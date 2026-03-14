@@ -5,6 +5,7 @@ class MemoryEntry < ApplicationRecord
   belongs_to :source, polymorphic: true, optional: true
 
   has_neighbors :embedding
+  has_neighbors :shadow_embedding
 
   before_save :sanitize_content_encoding
   validates :content, presence: true
@@ -28,6 +29,8 @@ class MemoryEntry < ApplicationRecord
   scope :consolidated, -> { where(consolidated: true) }
   scope :by_importance, -> { order(importance: :desc) }
   scope :by_source_type, ->(type) { where(source_type: type) }
+  scope :multimodal, -> { where(modality: "multimodal") }
+  scope :text_only, -> { where(modality: "text") }
 
   # --- Vector Search ---
 

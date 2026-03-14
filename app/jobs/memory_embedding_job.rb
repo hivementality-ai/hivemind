@@ -22,16 +22,37 @@ class MemoryEmbeddingJob < ApplicationJob
 
     if duplicate && duplicate.id != entry.id
       # Merge into existing: keep the newer content, higher importance
-      duplicate.update!(
+      attrs = {
         content: entry.content,
         metadata: duplicate.metadata.merge(entry.metadata),
         importance: [ entry.importance, duplicate.importance ].max
-      )
+      }
+      # Dual-write shadow embedding if migration is active
+      shadow = Memory::Embedding.generate_shadow(entry.content)
+      attrs[:shadow_embedding] = shadow if shadow
+
+      duplicate.update!(attrs)
       entry.destroy!
     else
-      entry.update!(embedding: embedding)
+      attrs = {
+        embedding: embedding,
+        embedding_provider: Memory::Embedding.provider_name,
+        embedding_model: current_model_name
+      }
+      # Dual-write shadow embedding if migration is active
+      shadow = Memory::Embedding.generate_shadow(entry.content)
+      attrs[:shadow_embedding] = shadow if shadow
+
+      entry.update!(attrs)
     end
   rescue ActiveRecord::RecordNotFound
     # Entry was deleted before job ran — no-op
+  end
+
+  private
+
+  def current_model_name
+    adapter = Embeddings::Registry.current
+    adapter&.capabilities&.dig(:model) || adapter&.capabilities&.dig(:name)
   end
 end

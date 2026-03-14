@@ -4,6 +4,7 @@ require "rails_helper"
 
 RSpec.describe Channels::Registry, "dynamic registration" do
   before { described_class.reset_plugin_adapters! }
+  after { described_class.reset_plugin_adapters! }
 
   describe "BUILTIN_ADAPTERS" do
     it "contains all built-in channel types" do

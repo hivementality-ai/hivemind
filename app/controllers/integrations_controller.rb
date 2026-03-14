@@ -13,6 +13,16 @@ class IntegrationsController < ApplicationController
     @signal_configured = Channel.exists?(channel_type: "signal", enabled: true)
     @search_configured = Search::Resolver.configured?
     @search_provider = Search::Resolver.current_provider_name
+    @embedding_provider = Embeddings::Registry.configured_provider
+    @embedding_healthy = Memory::Embedding.available?
+    @embedding_capabilities = begin
+      Embeddings::Registry.current&.capabilities || {}
+    rescue
+      {}
+    end
+    @memory_count = MemoryEntry.count
+    @embedded_count = MemoryEntry.where.not(embedding: nil).count
+    @embedding_migration_active = Embeddings::Migration.active_migration.present?
     @remotes = CloudStorage::ConfigureRemote.list_remotes
     @backends = CloudStorage::ConfigureRemote::BACKENDS
     @mcp_servers = McpServer.order(:name)

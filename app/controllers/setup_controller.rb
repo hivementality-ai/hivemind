@@ -68,6 +68,20 @@ class SetupController < ApplicationController
       end
     end
 
+    # Save embedding provider selection
+    embedding_provider = params[:embedding_provider].presence || "ollama"
+    if Embeddings::Registry::ADAPTERS.key?(embedding_provider)
+      Setting.set("memory_embeddings_provider", embedding_provider)
+
+      # Store Gemini embedding API key if provided
+      if embedding_provider == "gemini" && params[:gemini_embedding_api_key].present?
+        VaultEntry.find_or_initialize_by(namespace: "embedding", key: "google_ai_api_key").tap do |ve|
+          ve.encrypted_value = params[:gemini_embedding_api_key]
+          ve.save
+        end
+      end
+    end
+
     if ProviderConfig.enabled_providers.any?
       redirect_to setup_team_path
     else

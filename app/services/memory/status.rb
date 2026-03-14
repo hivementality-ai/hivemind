@@ -7,11 +7,14 @@ module Memory
     end
 
     def call
-      embedding_available = Memory::Embedding.available?
+      provider = Embeddings::Registry.configured_provider
+      adapter = provider ? Embeddings::Registry.adapter_for(provider) : nil
+      embedding_available = adapter&.healthy? || false
 
       {
         embeddings_enabled: embedding_available,
-        embedding_provider: embedding_available ? detect_provider : nil,
+        embedding_provider: embedding_available ? provider_label(provider, adapter) : nil,
+        available_providers: Embeddings::Registry.available,
         total_memories: MemoryEntry.count,
         embedded_memories: MemoryEntry.where.not(embedding: nil).count,
         pending_embeddings: MemoryEntry.where(embedding: nil).count,
@@ -21,24 +24,14 @@ module Memory
 
     private
 
-    def detect_provider
-      embedding = Memory::Embedding.new
-      # Check Ollama first (preferred), then OpenAI
-      if ollama_available?
-        "ollama/#{Memory::Embedding::OLLAMA_MODEL}"
-      elsif openai_available?
-        "openai/#{Memory::Embedding::OPENAI_MODEL}"
-      else
-        nil
+    def provider_label(provider, adapter)
+      model = case provider
+      when "ollama" then ENV.fetch("MEMORY_OLLAMA_MODEL", Embeddings::OllamaAdapter::MODEL)
+      when "openai" then ENV.fetch("MEMORY_OPENAI_MODEL", Embeddings::OpenaiAdapter::MODEL)
+      when "gemini" then ENV.fetch("MEMORY_GEMINI_MODEL", Embeddings::GeminiAdapter::MODEL)
+      else provider
       end
-    end
-
-    def ollama_available?
-      Memory::Embedding.new(provider: "ollama").available?
-    end
-
-    def openai_available?
-      Memory::Embedding.new(provider: "openai").available?
+      "#{provider}/#{model}"
     end
   end
 end
