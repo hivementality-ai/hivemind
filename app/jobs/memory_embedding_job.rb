@@ -25,7 +25,7 @@ class MemoryEmbeddingJob < ApplicationJob
       attrs = {
         content: entry.content,
         metadata: duplicate.metadata.merge(entry.metadata),
-        importance: [entry.importance, duplicate.importance].max
+        importance: [ entry.importance, duplicate.importance ].max
       }
       # Dual-write shadow embedding if migration is active
       shadow = Memory::Embedding.generate_shadow(entry.content)

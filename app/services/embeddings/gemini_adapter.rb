@@ -8,8 +8,8 @@ module Embeddings
     def capabilities
       {
         name: "gemini",
-        modalities: [:text, :image, :audio, :video, :pdf],
-        dimensions: [768, 1536, 3072],
+        modalities: [ :text, :image, :audio, :video, :pdf ],
+        dimensions: [ 768, 1536, 3072 ],
         default_dimensions: 768,
         max_tokens: 8192,
         local: false,
@@ -23,7 +23,7 @@ module Embeddings
 
     def embed_text(text, dimensions: nil)
       call_api(
-        content: { parts: [{ text: text }] },
+        content: { parts: [ { text: text } ] },
         task_type: "RETRIEVAL_DOCUMENT",
         dimensions: dimensions
       )
@@ -31,10 +31,42 @@ module Embeddings
 
     def embed_query(text, dimensions: nil)
       call_api(
-        content: { parts: [{ text: text }] },
+        content: { parts: [ { text: text } ] },
         task_type: "RETRIEVAL_QUERY",
         dimensions: dimensions
       )
+    end
+
+    def embed_image(base64_data, mime_type:, dimensions: nil)
+      call_api(
+        content: { parts: [ { inlineData: { mimeType: mime_type, data: base64_data } } ] },
+        dimensions: dimensions
+      )
+    end
+
+    # Embed interleaved multimodal content (text + images + audio + video + documents).
+    # Each part is a hash with one of:
+    #   { text: "..." }
+    #   { image: "<base64>", mime_type: "image/png" }
+    #   { audio: "<base64>", mime_type: "audio/mp3" }
+    #   { video: "<base64>", mime_type: "video/mp4" }
+    #   { document: "<base64>", mime_type: "application/pdf" }
+    def embed_multimodal(parts, dimensions: nil)
+      api_parts = parts.filter_map do |part|
+        if part[:text]
+          { text: part[:text] }
+        elsif part[:image]
+          { inlineData: { mimeType: part[:mime_type], data: part[:image] } }
+        elsif part[:audio]
+          { inlineData: { mimeType: part[:mime_type], data: part[:audio] } }
+        elsif part[:video]
+          { inlineData: { mimeType: part[:mime_type], data: part[:video] } }
+        elsif part[:document]
+          { inlineData: { mimeType: part[:mime_type], data: part[:document] } }
+        end
+      end
+
+      call_api(content: { parts: api_parts }, dimensions: dimensions)
     end
 
     def healthy?

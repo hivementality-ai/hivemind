@@ -100,7 +100,7 @@ RSpec.describe Tools::GoogleGmailExecutor, type: :service do
     it "returns formatted message" do
       gws_output = {
         "id" => "msg001",
-        "labelIds" => ["INBOX", "UNREAD"],
+        "labelIds" => [ "INBOX", "UNREAD" ],
         "payload" => {
           "headers" => [
             { "name" => "From", "value" => "alice@example.com" },
@@ -130,7 +130,7 @@ RSpec.describe Tools::GoogleGmailExecutor, type: :service do
     end
 
     it "returns matching messages" do
-      list_output = { "messages" => [{ "id" => "msg001" }] }.to_json
+      list_output = { "messages" => [ { "id" => "msg001" } ] }.to_json
       summary = {
         "id" => "msg001",
         "payload" => { "headers" => [
@@ -172,7 +172,7 @@ RSpec.describe Tools::GoogleGmailExecutor, type: :service do
     end
 
     it "sends a message" do
-      gws_output = { "id" => "sent001", "labelIds" => ["SENT"] }.to_json
+      gws_output = { "id" => "sent001", "labelIds" => [ "SENT" ] }.to_json
       allow_any_instance_of(described_class).to receive(:gws).and_return(gws_output)
 
       response = execute("action" => "send", "to" => "bob@example.com", "subject" => "Hello", "body" => "Hi Bob!")

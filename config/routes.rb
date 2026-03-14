@@ -99,6 +99,14 @@ Rails.application.routes.draw do
     end
   end
 
+  # Embedding Migration
+  get  "embedding_migration",          to: "embedding_migrations#show",     as: :embedding_migration
+  post "embedding_migration/start",    to: "embedding_migrations#start",    as: :start_embedding_migration
+  post "embedding_migration/validate", to: "embedding_migrations#validate", as: :validate_embedding_migration
+  post "embedding_migration/cutover",  to: "embedding_migrations#cutover",  as: :cutover_embedding_migration
+  post "embedding_migration/rollback", to: "embedding_migrations#rollback", as: :rollback_embedding_migration
+  get  "embedding_migration/progress", to: "embedding_migrations#progress", as: :embedding_migration_progress
+
   # Platform
   get "platform/status", to: "platform#status", as: :platform_status
   get "platform/doctor", to: "platform#doctor", as: :platform_doctor

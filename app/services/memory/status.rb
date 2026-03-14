@@ -26,11 +26,11 @@ module Memory
 
     def provider_label(provider, adapter)
       model = case provider
-              when "ollama" then ENV.fetch("MEMORY_OLLAMA_MODEL", Embeddings::OllamaAdapter::MODEL)
-              when "openai" then ENV.fetch("MEMORY_OPENAI_MODEL", Embeddings::OpenaiAdapter::MODEL)
-              when "gemini" then ENV.fetch("MEMORY_GEMINI_MODEL", Embeddings::GeminiAdapter::MODEL)
-              else provider
-              end
+      when "ollama" then ENV.fetch("MEMORY_OLLAMA_MODEL", Embeddings::OllamaAdapter::MODEL)
+      when "openai" then ENV.fetch("MEMORY_OPENAI_MODEL", Embeddings::OpenaiAdapter::MODEL)
+      when "gemini" then ENV.fetch("MEMORY_GEMINI_MODEL", Embeddings::GeminiAdapter::MODEL)
+      else provider
+      end
       "#{provider}/#{model}"
     end
   end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_10_000005) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_14_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -313,6 +313,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_10_000005) do
     t.index ["status"], name: "index_device_pairings_on_status"
   end
 
+  create_table "embedding_migration_statuses", force: :cascade do |t|
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.string "from_provider", null: false
+    t.string "phase", default: "shadow", null: false
+    t.datetime "rolled_back_at"
+    t.datetime "started_at"
+    t.string "to_provider", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "validated_at"
+    t.jsonb "validation_results", default: {}
+  end
+
   create_table "heartbeat_runs", force: :cascade do |t|
     t.bigint "agent_id", null: false
     t.datetime "created_at", null: false
@@ -350,7 +363,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_10_000005) do
     t.string "command"
     t.datetime "created_at", null: false
     t.jsonb "discovered_tools", default: []
-    t.boolean "enabled", default: true, null: false
+    t.boolean "enabled", default: true
     t.jsonb "env_vars", default: {}
     t.string "icon"
     t.datetime "last_connected_at"
@@ -358,8 +371,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_10_000005) do
     t.jsonb "metadata", default: {}
     t.string "name", null: false
     t.string "npm_package"
-    t.boolean "preset", default: false, null: false
-    t.string "status", default: "disconnected", null: false
+    t.boolean "preset", default: false
+    t.string "status", default: "disconnected"
     t.datetime "tools_refreshed_at"
     t.string "transport", default: "stdio", null: false
     t.datetime "updated_at", null: false
@@ -375,10 +388,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_10_000005) do
     t.text "content", null: false
     t.datetime "created_at", null: false
     t.vector "embedding", limit: 768
+    t.string "embedding_model"
+    t.string "embedding_provider"
     t.float "importance", default: 0.5, null: false
     t.datetime "last_accessed_at"
     t.string "memory_type", default: "episodic", null: false
     t.jsonb "metadata", default: {}, null: false
+    t.string "modality", default: "text", null: false
+    t.vector "shadow_embedding", limit: 768
     t.bigint "source_id"
     t.string "source_type"
     t.datetime "updated_at", null: false
@@ -388,6 +405,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_10_000005) do
     t.index ["embedding"], name: "index_memory_entries_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["importance"], name: "index_memory_entries_on_importance"
     t.index ["memory_type"], name: "index_memory_entries_on_memory_type"
+    t.index ["shadow_embedding"], name: "index_memory_entries_on_shadow_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["source_type", "source_id"], name: "index_memory_entries_on_source_type_and_source_id"
   end
 
@@ -520,6 +538,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_10_000005) do
     t.jsonb "declared_capabilities", default: {}, null: false
     t.text "description"
     t.boolean "enabled", default: true, null: false
+    t.jsonb "metadata", default: {}, null: false
     t.string "name", null: false
     t.jsonb "security_scan_result", default: {}, null: false
     t.string "source", default: "manual", null: false
@@ -665,11 +684,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_10_000005) do
     t.string "provider", null: false
     t.jsonb "request_payload"
     t.bigint "session_id"
+    t.bigint "team_id"
     t.datetime "updated_at", null: false
     t.index ["agent_id", "created_at"], name: "index_usage_records_on_agent_id_and_created_at"
     t.index ["agent_id"], name: "index_usage_records_on_agent_id"
     t.index ["created_at"], name: "index_usage_records_on_created_at"
     t.index ["session_id"], name: "index_usage_records_on_session_id"
+    t.index ["team_id", "created_at"], name: "index_usage_records_on_team_id_and_created_at"
+    t.index ["team_id"], name: "index_usage_records_on_team_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -750,5 +772,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_10_000005) do
   add_foreign_key "transcript_archives", "sessions"
   add_foreign_key "usage_records", "agents"
   add_foreign_key "usage_records", "sessions"
+  add_foreign_key "usage_records", "teams"
   add_foreign_key "vault_entries", "agents"
 end

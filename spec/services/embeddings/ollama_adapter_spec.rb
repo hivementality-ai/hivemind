@@ -14,7 +14,7 @@ RSpec.describe Embeddings::OllamaAdapter, type: :service do
     it "reports text-only, local, 768 dimensions" do
       caps = adapter.capabilities
       expect(caps[:name]).to eq("ollama")
-      expect(caps[:modalities]).to eq([:text])
+      expect(caps[:modalities]).to eq([ :text ])
       expect(caps[:local]).to be true
       expect(caps[:default_dimensions]).to eq(768)
     end

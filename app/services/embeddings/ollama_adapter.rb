@@ -7,12 +7,12 @@ module Embeddings
     def capabilities
       {
         name: "ollama",
-        modalities: [:text],
-        dimensions: [768],
+        modalities: [ :text ],
+        dimensions: [ 768 ],
         default_dimensions: 768,
         max_tokens: 2048,
         local: true,
-        task_types: [:retrieval_query, :retrieval_document]
+        task_types: [ :retrieval_query, :retrieval_document ]
       }
     end
 

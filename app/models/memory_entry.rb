@@ -29,6 +29,8 @@ class MemoryEntry < ApplicationRecord
   scope :consolidated, -> { where(consolidated: true) }
   scope :by_importance, -> { order(importance: :desc) }
   scope :by_source_type, ->(type) { where(source_type: type) }
+  scope :multimodal, -> { where(modality: "multimodal") }
+  scope :text_only, -> { where(modality: "text") }
 
   # --- Vector Search ---
 

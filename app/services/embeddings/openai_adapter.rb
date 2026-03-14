@@ -7,12 +7,12 @@ module Embeddings
     def capabilities
       {
         name: "openai",
-        modalities: [:text],
-        dimensions: [256, 512, 768, 1536, 3072],
+        modalities: [ :text ],
+        dimensions: [ 256, 512, 768, 1536, 3072 ],
         default_dimensions: 768,
         max_tokens: 8191,
         local: false,
-        task_types: [:retrieval_query, :retrieval_document]
+        task_types: [ :retrieval_query, :retrieval_document ]
       }
     end
 

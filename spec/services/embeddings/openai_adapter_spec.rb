@@ -14,7 +14,7 @@ RSpec.describe Embeddings::OpenaiAdapter, type: :service do
     it "reports text-only, cloud, flexible dimensions" do
       caps = adapter.capabilities
       expect(caps[:name]).to eq("openai")
-      expect(caps[:modalities]).to eq([:text])
+      expect(caps[:modalities]).to eq([ :text ])
       expect(caps[:local]).to be false
       expect(caps[:dimensions]).to include(768, 1536, 3072)
     end
@@ -24,7 +24,7 @@ RSpec.describe Embeddings::OpenaiAdapter, type: :service do
     it "returns a vector from OpenAI" do
       vector = Array.new(768) { rand }
       stub_request(:post, "https://api.openai.com/v1/embeddings")
-        .to_return(status: 200, body: { data: [{ embedding: vector }] }.to_json)
+        .to_return(status: 200, body: { data: [ { embedding: vector } ] }.to_json)
 
       result = adapter.embed_text("hello world")
       expect(result).to eq(vector)
