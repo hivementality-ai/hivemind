@@ -59,6 +59,17 @@ module Tools
     end
 
     def broadcast_canvas(session, payload)
+      # Persist last canvas state so it survives page loads/refreshes
+      case payload[:type]
+      when "render"
+        session.update_column(:metadata, (session.metadata || {}).merge(
+          "canvas_html" => payload[:html],
+          "canvas_title" => payload[:title]
+        ))
+      when "clear"
+        session.update_column(:metadata, (session.metadata || {}).except("canvas_html", "canvas_title"))
+      end
+
       ActionCable.server.broadcast("canvas_#{session.id}", payload)
     end
   end

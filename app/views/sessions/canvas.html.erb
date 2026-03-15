@@ -1,3 +1,4 @@
+<% persisted_html = @session.metadata&.dig("canvas_html") %>
 <div class="flex flex-col h-[calc(100vh-4rem)]" data-controller="canvas" data-canvas-session-id-value="<%= @session.id %>">
   <!-- Header -->
   <div class="flex items-center gap-4 px-6 py-3 border-b border-border-default bg-surface-card/50 flex-shrink-0">
@@ -7,11 +8,11 @@
       </svg>
     <% end %>
     <div>
-      <h1 class="text-white font-semibold text-sm" data-canvas-target="title">Canvas</h1>
+      <h1 class="text-white font-semibold text-sm" data-canvas-target="title"><%= @session.metadata&.dig("canvas_title") || "Canvas" %></h1>
       <p class="text-text-muted text-xs"><%= @agent.name %> &middot; Live Canvas</p>
     </div>
     <div class="ml-auto flex items-center gap-3">
-      <span class="text-text-faint text-xs" data-canvas-target="status">Waiting for content...</span>
+      <span class="text-text-faint text-xs" data-canvas-target="status"><%= persisted_html.present? ? "Rendered" : "Waiting for content..." %></span>
       <button data-action="click->canvas#openInNewWindow"
               class="text-text-muted hover:text-white text-xs px-2 py-1 border border-border-default rounded hover:border-brand transition"
               title="Open in new window">
@@ -27,14 +28,14 @@
     <iframe data-canvas-target="frame"
             sandbox="allow-scripts allow-same-origin"
             class="w-full h-full border-0"
-            srcdoc="<html><body style='font-family: system-ui, sans-serif; color: #666; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;'><p>Canvas is ready. The agent will render content here.</p></body></html>">
+            srcdoc="<%= persisted_html.present? ? persisted_html.gsub('"', '&quot;') : '<html><body style=\"font-family: system-ui, sans-serif; color: #666; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;\"><p>Canvas is ready. The agent will render content here.</p></body></html>' %>">
     </iframe>
   </div>
 </div>
 
 <script type="module">
   import { Controller } from "@hotwired/stimulus"
-  import consumer from "channels/consumer"
+  import { createConsumer } from "@rails/actioncable"
 
   const application = window.Stimulus || (await import("@hotwired/stimulus")).Application.start()
 
@@ -44,7 +45,8 @@
 
     connect() {
       this.currentHtml = ""
-      this.subscription = consumer.subscriptions.create(
+      this.consumer = createConsumer()
+      this.subscription = this.consumer.subscriptions.create(
         { channel: "CanvasChannel", session_id: this.sessionIdValue },
         {
           received: (data) => this.handleMessage(data),
@@ -57,6 +59,9 @@
     disconnect() {
       if (this.subscription) {
         this.subscription.unsubscribe()
+      }
+      if (this.consumer) {
+        this.consumer.disconnect()
       }
     }
 
