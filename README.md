@@ -44,6 +44,14 @@
   - [File Sharing & Image Generation](#file-sharing--image-generation)
   - [Slack Multi-Bot](#slack-multi-bot)
   - [Message Routing](#message-routing)
+  - [Google Workspace](#google-workspace)
+  - [MCP Servers](#mcp-servers)
+  - [OpenAI-Compatible Providers](#openai-compatible-providers)
+  - [Thinking & Reasoning](#thinking--reasoning)
+  - [Gemini Embeddings](#gemini-embeddings)
+  - [Agent Self-Evolution](#agent-self-evolution)
+  - [Live Canvas](#live-canvas)
+  - [Team Token Analytics](#team-token-analytics)
   - [Hashtag Actions](#hashtag-actions)
   - [Authentication](#authentication)
   - [Security](#security)
@@ -65,7 +73,7 @@ Most AI platforms give you one agent in a chat box. Hivemind gives you a **team*
 - **Team chat** with @mentions — agents collaborate and chain-react
 - **34 built-in tools** — shell, files, browser, Jira, email, cloud storage, Gmail, vision, TTS, and more
 - **Skills system** — teach agents new capabilities, import OpenClaw SKILL.md files
-- **5 messaging channels** — Discord, Slack, Telegram (coming soon), WhatsApp, Signal (coming soon)
+- **5 messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal
 - **Slack multi-bot** — each agent gets its own Slack bot identity with thread routing
 - **Coding agent** — delegate complex tasks to Claude Code, Codex, or Aider with live progress streaming
 - **File sharing** — agents create files and images, deliver them directly to chat
@@ -157,7 +165,7 @@ Hivemind is an **agent sandbox** — a platform where AI agents live, work, and 
 | **Integrations** | Credentials and connections to **external services**. Configured via UI, stored encrypted in vault. | Jira (URL + email + token), SMTP (host + port + auth), Cloud Storage (OAuth) |
 | **API Integrations** | Connect to **any API** by importing an OpenAPI/Swagger spec. Agents call endpoints via `http_request`. | Import Stripe's API spec → agent can create charges, list customers |
 | **Custom Tools** | User-created script tools with `{{param}}` templates. No code deploy needed. | A `deploy_staging` tool that runs `kubectl rollout restart deploy/{{service}}` |
-| **Channels** | Messaging surfaces where humans **talk to agents**. Inbound/outbound message routing. | WhatsApp, Discord, Slack, Telegram (coming soon), Signal (coming soon) |
+| **Channels** | Messaging surfaces where humans **talk to agents**. Inbound/outbound message routing. | WhatsApp, Discord, Slack, Telegram, Signal |
 | **Agents** | AI personalities with a role, model, tools, skills, and instructions. The workers. | "Devon" — Software Engineer on Claude Sonnet with GitHub + Docker skills |
 | **Teams** | Groups of agents with shared context. Enables collaboration. | Backend Team: Devon (engineer) + Doc (reviewer) + Liam (tester) |
 
@@ -302,9 +310,9 @@ On first launch, Hivemind guides you through 4 steps — no config files, no CLI
 | Step | What happens |
 |------|-------------|
 | **1. Account** | Create the owner account (email + password) |
-| **2. Provider** | Connect Anthropic, OpenAI, or Ollama — pick your models |
+| **2. Provider** | Connect Anthropic, OpenAI, Ollama, or any OpenAI-compatible API — pick your models |
 | **3. Team** | Name your first agent team |
-| **4. Agent** | Choose from 10 templates and deploy |
+| **4. Agent** | Choose from 150+ templates and deploy |
 
 After setup, you land in **Mission Control** — the real-time dashboard.
 
@@ -316,7 +324,7 @@ After setup, you land in **Mission Control** — the real-time dashboard.
 
 Group agents into teams with shared context. Each agent has its own model, role, system prompt, custom instructions, and tool access. Teams have a soul (shared context injected into every agent's prompt).
 
-**16 pre-built templates:** Code Reviewer, Research Analyst, DevOps Engineer, Technical Writer, Data Analyst, Security Auditor, Project Manager, Creative Writer, Software Engineer, Software Tester, Administrative Assistant, Sports Fan, Chef, Fitness Coach, Travel Planner, Music Nerd.
+**150+ pre-built templates** across 18 categories — coding, research, devops, writing, data, security, project management, creative, marketing, sales, design, testing, gamedev, support, and more. Browse and deploy from the Agent Templates page.
 
 ### Team Chat
 
@@ -417,13 +425,87 @@ Connect Google Drive, Amazon S3, Dropbox, OneDrive, Backblaze B2, or SFTP throug
 
 | Channel | Method | Auth |
 |---------|--------|------|
-| **Discord** | Bot API + webhooks | Bot token |
-| **Slack** | Web API + signing secret | Bot token |
-| **Telegram** (coming soon) | Bot API + webhooks | Bot token from @BotFather |
+| **Discord** | Bot API + Gateway | Bot token |
+| **Slack** | Socket Mode (no public URL needed) | App token + bot token |
+| **Telegram** | Long polling via connector | Bot token from @BotFather |
 | **WhatsApp** | Connector sidecar (Baileys) | QR code scan |
-| **Signal** (coming soon) | signal-cli REST API | Registration |
+| **Signal** | signal-cli REST API via connector | Phone number registration |
 
 Credentials stored in the encrypted vault. Configure via the Channels page.
+
+### Google Workspace
+
+Connect Google Drive, Calendar, and Gmail so agents can manage your documents, schedule, and email.
+
+**Setup:** Run `gws auth` on your local machine, then paste the credentials JSON on the Integrations page. No Google Cloud Console project needed.
+
+| Service | What agents can do |
+|---------|-------------------|
+| **Google Drive** | Search, read, create, upload, and export files |
+| **Google Calendar** | List, create, update, and delete events across calendars |
+| **Gmail** | Search, read, send, and draft emails |
+
+### MCP Servers
+
+Connect external [Model Context Protocol](https://modelcontextprotocol.io/) servers to give agents access to third-party tools. Hivemind acts as an MCP client — each server exposes tools that agents can call directly.
+
+- **Stdio and SSE transports** supported
+- **Per-agent assignment** — control which agents can use which MCP servers
+- **Preset library** — common servers pre-configured, one-click enable
+- **Custom servers** — add any MCP server by command or URL
+- **Auto-discovery** — tools are discovered and registered automatically on connect
+
+Manage MCP servers at **Settings → Integrations → MCP Servers**.
+
+### OpenAI-Compatible Providers
+
+Connect any server that implements the OpenAI API format — llama.cpp, vLLM, LocalAI, LM Studio, text-generation-webui, or any other compatible endpoint.
+
+- **Base URL configuration** — point to any `/v1/chat/completions` endpoint
+- **Optional API key** — Bearer token auth for secured endpoints
+- **Model auto-detection** — fetches available models from `/v1/models`
+- **Streaming + tool calling** — full feature parity with cloud providers
+- **Thinking/reasoning** — supports DeepSeek-style `reasoning_content` for thinking models
+
+Configure via **Settings → Providers → Add Provider → OpenAI Compatible**.
+
+### Thinking & Reasoning
+
+All provider adapters support extended thinking / chain-of-thought reasoning:
+
+- **Anthropic** — native extended thinking with configurable budget
+- **OpenAI** — o-series reasoning tokens
+- **Ollama** — `<think>` tag parsing
+- **OpenAI Compatible** — DeepSeek-style `reasoning_content` streaming
+
+Thinking output streams live to the UI in a collapsible block, separate from the main response. Enable per-agent in **Advanced Model Settings**.
+
+### Gemini Embeddings
+
+Multimodal embedding support via Google's Gemini model — embed text, images, audio, video, and PDFs for semantic memory search.
+
+- **Configure from Integrations** — paste your Google AI API key (from [aistudio.google.com](https://aistudio.google.com/apikey))
+- **Zero-downtime migration** — switch embedding providers without losing existing memories. Shadow-write to the new provider, validate accuracy, then cut over.
+- **3 dimension options** — 768, 1536, or 3072 dimensions
+
+### Agent Self-Evolution
+
+Agents can create their own tools and skills at runtime — no human intervention needed.
+
+- **Tool creation** — agents generate custom tool definitions (name, description, script template, parameters) and register them for immediate use
+- **Skill creation** — agents write new skill instructions based on learned patterns and save them for future sessions
+
+### Live Canvas
+
+A real-time collaborative canvas that renders agent-generated content (HTML, SVGs, diagrams, interactive widgets) alongside the chat. Agents write to the canvas using the `canvas` tool — content renders live as it streams.
+
+### Team Token Analytics
+
+Per-team usage tracking and cost attribution:
+
+- **Team-level dashboards** — token counts, cost breakdowns, request volumes per team
+- **Agent-within-team drilldown** — see which agents on a team consume the most resources
+- **SDK proxy detection** — separate internal tool-bridge usage from direct agent calls
 
 ### Autonomous Heartbeat
 
@@ -596,10 +678,12 @@ If you prefer, you can use OpenAI's embedding API instead — add your API key u
 
 Without an embedding model, agents still save and recall memories using keyword search. Semantic search is optional but recommended.
 
+For multimodal memory (images, audio, video, PDFs), use the Gemini provider — configure your API key on the Integrations page.
+
 | Config | Default | Description |
 |--------|---------|-------------|
 | `MEMORY_EMBEDDINGS_ENABLED` | `true` | Enable/disable embedding generation |
-| `MEMORY_EMBEDDINGS_PROVIDER` | `ollama` | `ollama` or `openai` |
+| `MEMORY_EMBEDDINGS_PROVIDER` | `ollama` | `ollama`, `openai`, or `gemini` |
 | `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` | Ollama API endpoint |
 
 ### Authentication
@@ -981,7 +1065,7 @@ This imports your agent's identity, memories, skills, conversations, and tools i
 ### What migrates directly
 
 - **Skills** — Import your SKILL.md files directly (Integrations > Skills > Import). Same YAML frontmatter + markdown format
-- **Messaging channels** — WhatsApp (Baileys QR pairing), Discord, Slack, Telegram (coming soon), Signal (coming soon)
+- **Messaging channels** — WhatsApp (Baileys QR pairing), Discord, Slack, Telegram, Signal
 - **Tool concepts** — Same tool patterns: shell exec, file read/write/edit, web search/fetch, browser, memory, cron, messaging, sub-agents
 - **Workspace files** — Agent instructions, memory, and context translate to Hivemind's DB-backed agent config
 
@@ -992,7 +1076,10 @@ This imports your agent's identity, memories, skills, conversations, and tools i
 - **In-app skill editor** — Create and modify skills in the browser, no file system needed
 - **Integrations page** — Jira, Email (SMTP), Gmail, Cloud Storage configured via UI
 - **Per-agent tool/skill assignment** — Control exactly what each agent can do
-- **16 agent templates** — Pre-built roles from Software Engineer to Sports Fan
+- **150+ agent templates** — Pre-built roles across 18 categories
+- **Google Workspace** — Drive, Calendar, Gmail access via `gws` CLI credential passthrough
+- **MCP servers** — Connect external tool servers via Model Context Protocol
+- **OpenAI-compatible providers** — llama.cpp, vLLM, LocalAI, LM Studio, and more
 - **Hashtag actions** — Platform-agnostic commands (#remember, #summarize, #mood, etc.)
 - **Docker-native** — 9-container Compose stack, production-ready out of the box
 
