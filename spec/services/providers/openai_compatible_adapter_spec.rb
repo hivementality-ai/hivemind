@@ -2,7 +2,7 @@
 
 require 'rails_helper'
 
-RSpec.describe Providers::LlamaCppAdapter, type: :service do
+RSpec.describe Providers::OpenaiCompatibleAdapter, type: :service do
   let(:config) { double("Config", base_url: nil) }
   let(:adapter) { described_class.new(config: config) }
   let(:messages) { [ { role: "user", content: "Hello, world!" } ] }
@@ -10,7 +10,7 @@ RSpec.describe Providers::LlamaCppAdapter, type: :service do
   let(:options) { {} }
 
   before do
-    allow(adapter).to receive(:llama_cpp_url).and_return("http://localhost:8080")
+    allow(adapter).to receive(:openai_compatible_url).and_return("http://localhost:8080")
   end
 
   describe "#chat" do
@@ -139,7 +139,7 @@ RSpec.describe Providers::LlamaCppAdapter, type: :service do
         expect(result).to be_success
         expect(result.data[:tool_calls].length).to eq(2)
         ids = result.data[:tool_calls].map { |tc| tc["id"] }
-        expect(ids).to all(start_with("llamacpp_"))
+        expect(ids).to all(start_with("oaicompat_"))
         expect(ids.uniq).to eq(ids)
       end
 
@@ -258,7 +258,7 @@ RSpec.describe Providers::LlamaCppAdapter, type: :service do
         result = adapter.chat(messages: messages, tools: tools, options: options)
 
         expect(result.success?).to be_falsey
-        expect(result.error).to include("llama.cpp error")
+        expect(result.error).to include("OpenAI Compatible error")
       end
     end
   end

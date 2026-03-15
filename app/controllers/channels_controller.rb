@@ -18,7 +18,7 @@ class ChannelsController < ApplicationController
 
     if @channel.save
       store_credentials(@credentials) if @credentials.present?
-      configure_connector(@channel, @credentials) if @credentials.present?
+      configure_connector(@channel, @credentials)
       process_agent_assignments(params[:agent_assignments].to_unsafe_h) if params[:agent_assignments].present?
       redirect_to channels_path, notice: "#{@channel.name} channel created"
     else
@@ -37,7 +37,7 @@ class ChannelsController < ApplicationController
 
     if @channel.update(channel_params)
       store_credentials(@credentials) if @credentials.present?
-      configure_connector(@channel, @credentials) if @credentials.present?
+      configure_connector(@channel, @credentials)
       process_agent_assignments(params[:agent_assignments].to_unsafe_h) if params[:agent_assignments].present?
       redirect_to channels_path, notice: "#{@channel.name} updated"
     else
@@ -68,21 +68,41 @@ class ChannelsController < ApplicationController
   end
 
   def configure_connector(channel, creds)
-    return unless channel.channel_type == "slack"
-
-    app_token = creds["slack_app_token"].presence || VaultEntry.find_by(namespace: "channel_credentials", key: "slack_app_token")&.value
-    bot_token = creds["slack_bot_token"].presence || VaultEntry.find_by(namespace: "channel_credentials", key: "slack_bot_token")&.value
-    return unless app_token && bot_token
-
     connector_url = channel.config&.dig("connector_url") || "http://connector:3002"
 
-    Net::HTTP.post(
-      URI("#{connector_url}/slack/configure"),
-      { app_token: app_token, bot_token: bot_token, channel_id: channel.id }.to_json,
-      "Content-Type" => "application/json"
-    )
+    case channel.channel_type
+    when "slack"
+      app_token = creds["slack_app_token"].presence || VaultEntry.find_by(namespace: "channel_credentials", key: "slack_app_token")&.value
+      bot_token = creds["slack_bot_token"].presence || VaultEntry.find_by(namespace: "channel_credentials", key: "slack_bot_token")&.value
+      return unless app_token && bot_token
+
+      Net::HTTP.post(
+        URI("#{connector_url}/slack/configure"),
+        { app_token: app_token, bot_token: bot_token, channel_id: channel.id }.to_json,
+        "Content-Type" => "application/json"
+      )
+    when "telegram"
+      token = creds["telegram_bot_token"].presence || VaultEntry.find_by(namespace: "channel_credentials", key: "telegram_bot_token")&.value
+      return unless token
+
+      Net::HTTP.post(
+        URI("#{connector_url}/telegram/configure"),
+        { bot_token: token, channel_id: channel.id }.to_json,
+        "Content-Type" => "application/json"
+      )
+    when "signal"
+      phone = channel.config&.dig("phone_number")
+      api_url = channel.config&.dig("signal_api_url") || "http://signal-cli:8080"
+      return unless phone
+
+      Net::HTTP.post(
+        URI("#{connector_url}/signal/configure"),
+        { phone_number: phone, api_url: api_url, channel_id: channel.id }.to_json,
+        "Content-Type" => "application/json"
+      )
+    end
   rescue StandardError => e
-    Rails.logger.warn("[Channels] Failed to configure Slack connector: #{e.message}")
+    Rails.logger.warn("[Channels] Failed to configure #{channel.channel_type} connector: #{e.message}")
   end
 
   def store_credentials(creds)

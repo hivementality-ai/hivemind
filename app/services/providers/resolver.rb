@@ -6,7 +6,7 @@ module Providers
       "openai" => Providers::OpenaiAdapter,
       "anthropic" => Providers::AnthropicAdapter,
       "ollama" => Providers::OllamaAdapter,
-      "llama_cpp" => Providers::LlamaCppAdapter
+      "openai_compatible" => Providers::OpenaiCompatibleAdapter
     }.freeze
 
     def self.call(provider_name:, agent: nil)

@@ -6,9 +6,12 @@ RSpec.describe GoogleWorkspace::OAuthClient, type: :service do
   let(:client) { described_class.new }
 
   before do
-    allow(ENV).to receive(:[]).and_call_original
-    allow(ENV).to receive(:[]).with("GOOGLE_CLIENT_ID").and_return("test-client-id")
-    allow(ENV).to receive(:[]).with("GOOGLE_CLIENT_SECRET").and_return("test-client-secret")
+    allow(VaultEntry).to receive(:find_by)
+      .with(namespace: "google_workspace", key: "client_id")
+      .and_return(instance_double(VaultEntry, value: "test-client-id"))
+    allow(VaultEntry).to receive(:find_by)
+      .with(namespace: "google_workspace", key: "client_secret")
+      .and_return(instance_double(VaultEntry, value: "test-client-secret"))
   end
 
   describe "#configured?" do
@@ -17,7 +20,9 @@ RSpec.describe GoogleWorkspace::OAuthClient, type: :service do
     end
 
     it "returns false when client ID is missing" do
-      allow(ENV).to receive(:[]).with("GOOGLE_CLIENT_ID").and_return(nil)
+      allow(VaultEntry).to receive(:find_by)
+        .with(namespace: "google_workspace", key: "client_id")
+        .and_return(nil)
       expect(described_class.new.configured?).to be false
     end
   end

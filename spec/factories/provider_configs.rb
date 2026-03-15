@@ -1,7 +1,7 @@
 FactoryBot.define do
   factory :provider_config do
     sequence(:name) { |n| "Provider #{n}" }
-    sequence(:adapter_type) { |n| %w[openai anthropic ollama llama_cpp][n % 4] }
+    sequence(:adapter_type) { |n| %w[openai anthropic ollama openai_compatible][n % 4] }
     model_definitions { [] }
     vault_key { "providers/api_key" }
     enabled { true }
@@ -41,9 +41,9 @@ FactoryBot.define do
       vault_key { nil }
     end
 
-    trait :llama_cpp do
-      name { "llama.cpp" }
-      adapter_type { "llama_cpp" }
+    trait :openai_compatible do
+      name { "OpenAI Compatible" }
+      adapter_type { "openai_compatible" }
       model_definitions do
         [
           { name: "default", max_tokens: 4096 }
