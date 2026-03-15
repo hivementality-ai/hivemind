@@ -289,11 +289,9 @@
       <div class="space-y-4" data-channel-fields-target="signal" style="display: none;">
         <div class="bg-surface-base rounded-lg border border-border-default p-5">
           <h4 class="text-white font-medium mb-3">Signal Setup</h4>
-          <p class="text-text-muted text-sm mb-3">Signal requires the <a href="https://github.com/bbernhard/signal-cli-rest-api" target="_blank" class="text-brand-light hover:underline">signal-cli-rest-api</a> sidecar container.</p>
+          <p class="text-text-muted text-sm mb-3">The signal-cli sidecar is included and starts automatically with Hivemind.</p>
           <ol class="text-text-muted text-sm space-y-2 list-decimal list-inside">
-            <li>Uncomment the <code class="text-amber-300">signal-cli</code> service in your <code class="text-amber-300">docker-compose.yml</code></li>
-            <li>Run <code class="text-amber-300">docker compose up -d signal-cli</code></li>
-            <li>Register your phone number with signal-cli (see signal-cli docs)</li>
+            <li>Register your phone number with signal-cli (see <a href="https://github.com/bbernhard/signal-cli-rest-api#registration" target="_blank" class="text-brand-light hover:underline">signal-cli docs</a>)</li>
             <li>Enter the registered phone number below</li>
           </ol>
           <div class="mt-4 bg-surface-card rounded-lg px-4 py-3 border border-border-default">
