@@ -181,18 +181,15 @@ services:
       - internal
       - web
 
-  # Signal CLI REST API sidecar (optional -- uncomment to enable Signal messaging)
-  # signal-cli:
-  #   image: bbernhard/signal-cli-rest-api:latest
-  #   environment:
-  #     - MODE=normal
-  #   volumes:
-  #     - signal_data:/home/.local/share/signal-cli
-  #   ports:
-  #     - "8080"
-  #   networks:
-  #     - internal
-  #   restart: unless-stopped
+  signal-cli:
+    image: bbernhard/signal-cli-rest-api:latest
+    environment:
+      - MODE=normal
+    volumes:
+      - signal_data:/home/.local/share/signal-cli
+    networks:
+      - internal
+    restart: unless-stopped
 
 volumes:
   postgres_data:
@@ -202,7 +199,7 @@ volumes:
   active_storage_data:
   connector_auth:
   rclone_config:
-  # signal_data:
+  signal_data:
 
 networks:
   internal:
