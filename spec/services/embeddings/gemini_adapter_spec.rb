@@ -9,10 +9,14 @@ RSpec.describe Embeddings::GeminiAdapter, type: :service do
 
   before do
     allow(ENV).to receive(:[]).and_call_original
-    allow(ENV).to receive(:[]).with("GOOGLE_AI_API_KEY").and_return(api_key)
     allow(ENV).to receive(:fetch).and_call_original
     allow(ENV).to receive(:fetch).with("MEMORY_GEMINI_MODEL", model).and_return(model)
     allow(ENV).to receive(:fetch).with("MEMORY_EMBEDDING_DIMENSIONS", 768).and_return(768)
+
+    vault_entry = instance_double(VaultEntry, value: api_key)
+    allow(VaultEntry).to receive(:find_by)
+      .with(namespace: "embedding", key: "google_ai_api_key")
+      .and_return(vault_entry)
   end
 
   describe "#capabilities" do
@@ -38,10 +42,11 @@ RSpec.describe Embeddings::GeminiAdapter, type: :service do
     end
 
     it "returns nil when API key is missing" do
-      allow(ENV).to receive(:[]).with("GOOGLE_AI_API_KEY").and_return(nil)
-      allow(VaultEntry).to receive(:find_by).and_return(nil)
+      allow(VaultEntry).to receive(:find_by)
+        .with(namespace: "embedding", key: "google_ai_api_key")
+        .and_return(nil)
 
-      expect(adapter.embed_text("test")).to be_nil
+      expect(described_class.new.embed_text("test")).to be_nil
     end
 
     it "returns nil on API error" do
@@ -71,8 +76,9 @@ RSpec.describe Embeddings::GeminiAdapter, type: :service do
     end
 
     it "returns false when API key is missing" do
-      allow(ENV).to receive(:[]).with("GOOGLE_AI_API_KEY").and_return(nil)
-      allow(VaultEntry).to receive(:find_by).and_return(nil)
+      allow(VaultEntry).to receive(:find_by)
+        .with(namespace: "embedding", key: "google_ai_api_key")
+        .and_return(nil)
 
       expect(described_class.new.healthy?).to be false
     end

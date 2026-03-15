@@ -5,11 +5,14 @@
  * to the Hivemind Rails app webhook, and exposes a REST API for sending replies.
  *
  * Environment variables:
- *   HIVEMIND_URL     — Rails app URL (default: http://app:3000)
- *   CONNECTOR_PORT   — Port for the REST API (default: 3002)
- *   AUTH_STORE_PATH  — Where to store WhatsApp auth state (default: ./auth)
- *   SLACK_APP_TOKEN  — Slack App-Level Token (xapp-...) for Socket Mode
- *   SLACK_BOT_TOKEN  — Slack Bot User OAuth Token (xoxb-...)
+ *   HIVEMIND_URL          — Rails app URL (default: http://app:3000)
+ *   CONNECTOR_PORT        — Port for the REST API (default: 3002)
+ *   AUTH_STORE_PATH       — Where to store WhatsApp auth state (default: ./auth)
+ *   SLACK_APP_TOKEN       — Slack App-Level Token (xapp-...) for Socket Mode
+ *   SLACK_BOT_TOKEN       — Slack Bot User OAuth Token (xoxb-...)
+ *   TELEGRAM_BOT_TOKEN    — Telegram Bot Token from @BotFather
+ *   SIGNAL_PHONE_NUMBER   — Phone number registered with signal-cli
+ *   SIGNAL_API_URL        — signal-cli REST API URL (default: http://signal-cli:8080)
  */
 
 const {
@@ -475,6 +478,139 @@ app.post("/slack/configure", async (req, res) => {
   }
 });
 
+// ─── Telegram Bot Long Polling ─────────────────────────────────────────
+
+const { TelegramBridge } = require("./telegram");
+let telegramBridge = null;
+
+app.get("/telegram/health", (req, res) => {
+  if (!telegramBridge) {
+    return res.json({ status: "not_configured" });
+  }
+  res.json({ status: "connected", ...telegramBridge.status });
+});
+
+app.post("/telegram/send", async (req, res) => {
+  try {
+    if (!telegramBridge) {
+      return res.status(400).json({ error: "Telegram not configured" });
+    }
+    const { chat_id, text, reply_to_message_id, parse_mode } = req.body;
+    if (!chat_id || !text) {
+      return res.status(400).json({ error: "chat_id and text required" });
+    }
+    const result = await telegramBridge.sendMessage({
+      chatId: chat_id,
+      text,
+      replyToMessageId: reply_to_message_id,
+      parseMode: parse_mode,
+    });
+    res.json({ status: "sent", message_id: result.result?.message_id });
+  } catch (err) {
+    logger.error({ err }, "Failed to send Telegram message");
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/telegram/react", async (req, res) => {
+  try {
+    if (!telegramBridge) {
+      return res.status(400).json({ error: "Telegram not configured" });
+    }
+    const { chat_id, message_id, emoji } = req.body;
+    if (!chat_id || !message_id || !emoji) {
+      return res.status(400).json({ error: "chat_id, message_id, and emoji required" });
+    }
+    await telegramBridge.setReaction({ chatId: chat_id, messageId: message_id, emoji });
+    res.json({ status: "reacted" });
+  } catch (err) {
+    logger.error({ err }, "Failed to react on Telegram");
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/telegram/configure", async (req, res) => {
+  try {
+    const { bot_token, channel_id } = req.body;
+    if (!bot_token) {
+      return res.status(400).json({ error: "bot_token required" });
+    }
+
+    if (telegramBridge) {
+      await telegramBridge.stop();
+      telegramBridge = null;
+    }
+
+    telegramBridge = new TelegramBridge({
+      botToken: bot_token,
+      hivemindUrl: HIVEMIND_URL,
+      channelId: channel_id,
+    });
+
+    await telegramBridge.start();
+    res.json({ status: "connected", ...telegramBridge.status });
+  } catch (err) {
+    logger.error({ err }, "Failed to configure Telegram");
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Signal CLI Bridge ─────────────────────────────────────────────────
+
+const { SignalBridge } = require("./signal");
+let signalBridge = null;
+
+app.get("/signal/health", (req, res) => {
+  if (!signalBridge) {
+    return res.json({ status: "not_configured" });
+  }
+  res.json({ status: "connected", ...signalBridge.status });
+});
+
+app.post("/signal/send", async (req, res) => {
+  try {
+    if (!signalBridge) {
+      return res.status(400).json({ error: "Signal not configured" });
+    }
+    const { to, text } = req.body;
+    if (!to || !text) {
+      return res.status(400).json({ error: "to and text required" });
+    }
+    const result = await signalBridge.sendMessage({ to, text });
+    res.json(result);
+  } catch (err) {
+    logger.error({ err }, "Failed to send Signal message");
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/signal/configure", async (req, res) => {
+  try {
+    const { phone_number, api_url, channel_id } = req.body;
+    if (!phone_number) {
+      return res.status(400).json({ error: "phone_number required" });
+    }
+
+    if (signalBridge) {
+      await signalBridge.stop();
+      signalBridge = null;
+    }
+
+    signalBridge = new SignalBridge({
+      phoneNumber: phone_number,
+      apiUrl: api_url,
+      hivemindUrl: HIVEMIND_URL,
+      channelId: channel_id,
+    });
+
+    await signalBridge.start();
+    res.json({ status: "connected", ...signalBridge.status });
+  } catch (err) {
+    logger.error({ err }, "Failed to configure Signal");
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Start ────────────────────────────────────────────────────────────
 
 // Only auto-start WhatsApp if auth state exists (previously paired).
@@ -496,5 +632,28 @@ if (process.env.SLACK_APP_TOKEN && process.env.SLACK_BOT_TOKEN) {
   });
   slackBridge.start().catch((err) => {
     logger.error({ err }, "Failed to start Slack bridge");
+  });
+}
+
+// Auto-start Telegram if env var is set
+if (process.env.TELEGRAM_BOT_TOKEN) {
+  telegramBridge = new TelegramBridge({
+    botToken: process.env.TELEGRAM_BOT_TOKEN,
+    hivemindUrl: HIVEMIND_URL,
+  });
+  telegramBridge.start().catch((err) => {
+    logger.error({ err }, "Failed to start Telegram bridge");
+  });
+}
+
+// Auto-start Signal if env vars are set
+if (process.env.SIGNAL_PHONE_NUMBER) {
+  signalBridge = new SignalBridge({
+    phoneNumber: process.env.SIGNAL_PHONE_NUMBER,
+    apiUrl: process.env.SIGNAL_API_URL || "http://signal-cli:8080",
+    hivemindUrl: HIVEMIND_URL,
+  });
+  signalBridge.start().catch((err) => {
+    logger.error({ err }, "Failed to start Signal bridge");
   });
 }

@@ -274,39 +274,39 @@
           </script>
         </div>
 
-        <!-- llama.cpp -->
-        <div class="bg-surface-raised rounded-lg border border-border-default p-5" data-provider-models-target="section" data-provider="llama_cpp">
+        <!-- OpenAI Compatible -->
+        <div class="bg-surface-raised rounded-lg border border-border-default p-5" data-provider-models-target="section" data-provider="openai_compatible">
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-3">
-              <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">LC</div>
+              <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">OC</div>
               <div>
-                <h3 class="text-white font-medium">llama.cpp</h3>
-                <p class="text-text-muted text-xs">Local llama-server — free, no API key needed</p>
+                <h3 class="text-white font-medium">OpenAI Compatible</h3>
+                <p class="text-text-muted text-xs">llama.cpp, vLLM, LocalAI, LM Studio, or any OpenAI-compatible API</p>
               </div>
             </div>
             <!-- Toggle switch -->
             <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" name="providers[llama_cpp][enabled]" value="1"
+              <input type="checkbox" name="providers[openai_compatible][enabled]" value="1"
                      class="sr-only peer"
-                     data-action="change->provider-models#toggleLlamaCpp"
-                     data-provider-models-target="llamaCppToggle">
+                     data-action="change->provider-models#toggleOpenaiCompatible"
+                     data-provider-models-target="openaiCompatibleToggle">
               <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
           </div>
 
           <!-- Hidden field for the URL (auto-set to default when toggled on) -->
-          <input type="hidden" name="providers[llama_cpp][api_key]"
-                 data-provider-models-target="llamaCppUrl"
+          <input type="hidden" name="providers[openai_compatible][api_key]"
+                 data-provider-models-target="openaiCompatibleUrl"
                  value="">
 
           <!-- Enabled state info -->
-          <div class="hidden" data-provider-models-target="llamaCppEnabled">
+          <div class="hidden" data-provider-models-target="openaiCompatibleEnabled">
             <!-- Status indicator -->
-            <div id="llamacpp-status" class="flex items-center gap-2 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg mb-3">
-              <svg class="w-4 h-4 text-blue-400 flex-shrink-0 animate-spin" id="llamacpp-spinner" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div id="openai-compatible-status" class="flex items-center gap-2 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg mb-3">
+              <svg class="w-4 h-4 text-blue-400 flex-shrink-0 animate-spin" id="openai-compatible-spinner" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              <p class="text-blue-300 text-sm" id="llamacpp-status-text">Checking llama-server connection...</p>
+              <p class="text-blue-300 text-sm" id="openai-compatible-status-text">Checking server connection...</p>
             </div>
 
             <!-- Advanced Settings (collapsed by default) -->
@@ -315,19 +315,19 @@
                 Advanced Settings
               </summary>
               <div class="mt-2 p-3 bg-surface-overlay rounded-lg border border-border-default">
-                <label class="text-text-primary text-xs font-medium block mb-1">llama-server URL</label>
+                <label class="text-text-primary text-xs font-medium block mb-1">Server URL</label>
                 <input type="text"
-                       id="llamacpp-custom-url"
-                       name="providers[llama_cpp][base_url]"
-                       data-provider-models-target="llamaCppCustomUrl"
-                       data-action="input->provider-models#updateLlamaCppUrl"
+                       id="openai-compatible-custom-url"
+                       name="providers[openai_compatible][base_url]"
+                       data-provider-models-target="openaiCompatibleCustomUrl"
+                       data-action="input->provider-models#updateOpenaiCompatibleUrl"
                        class="w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-xs"
                        placeholder="http://host.docker.internal:8080"
                        value="http://host.docker.internal:8080">
                 <p class="text-text-faint text-xs mt-1">
-                  Change this if llama-server is running on another machine or port (e.g. <code class="text-text-muted">http://192.168.1.100:8080</code>)
+                  Point this to your OpenAI-compatible server (e.g. <code class="text-text-muted">http://192.168.1.100:8080</code>)
                 </p>
-                <button type="button" onclick="detectLlamaCppModels()"
+                <button type="button" onclick="detectOpenaiCompatibleModels()"
                         class="mt-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition cursor-pointer">
                   Re-check Connection
                 </button>
@@ -335,31 +335,31 @@
             </details>
 
             <!-- Dynamic model selection -->
-            <div id="llamacpp-models-container" class="space-y-2" data-provider-models-target="modelList" data-provider="llama_cpp">
+            <div id="openai-compatible-models-container" class="space-y-2" data-provider-models-target="modelList" data-provider="openai_compatible">
               <p class="text-text-muted text-sm">Detecting loaded model...</p>
             </div>
           </div>
 
           <script>
-            function detectLlamaCppModels() {
-              const urlInput = document.getElementById('llamacpp-custom-url');
+            function detectOpenaiCompatibleModels() {
+              const urlInput = document.getElementById('openai-compatible-custom-url');
               const url = urlInput ? urlInput.value : 'http://host.docker.internal:8080';
-              const statusEl = document.getElementById('llamacpp-status');
-              const statusText = document.getElementById('llamacpp-status-text');
-              const spinner = document.getElementById('llamacpp-spinner');
-              const container = document.getElementById('llamacpp-models-container');
+              const statusEl = document.getElementById('openai-compatible-status');
+              const statusText = document.getElementById('openai-compatible-status-text');
+              const spinner = document.getElementById('openai-compatible-spinner');
+              const container = document.getElementById('openai-compatible-models-container');
 
-              statusText.textContent = 'Checking llama-server connection...';
+              statusText.textContent = 'Checking server connection...';
               spinner.classList.remove('hidden');
               statusEl.className = 'flex items-center gap-2 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg mb-3';
 
-              fetch(`/setup/llama_cpp_models?url=${encodeURIComponent(url)}`)
+              fetch(`/setup/openai_compatible_models?url=${encodeURIComponent(url)}`)
                 .then(r => r.json())
                 .then(data => {
                   spinner.classList.add('hidden');
                   if (data.status === 'connected' && data.models.length > 0) {
                     statusEl.className = 'flex items-center gap-2 p-3 bg-green-900/20 border border-green-700/30 rounded-lg mb-3';
-                    statusText.innerHTML = `<svg class="w-4 h-4 text-green-400 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> llama-server connected — ${data.models.length} model${data.models.length === 1 ? '' : 's'} loaded`;
+                    statusText.innerHTML = `<svg class="w-4 h-4 text-green-400 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Server connected — ${data.models.length} model${data.models.length === 1 ? '' : 's'} loaded`;
                     statusText.className = 'text-green-300 text-sm';
 
                     let html = '<p class="text-text-primary text-sm font-medium mb-2">Available models:</p>';
@@ -367,7 +367,7 @@
                       const checked = i === 0 ? 'checked' : '';
                       html += `
                         <label class="flex items-start gap-3 p-3 bg-surface-raised/50 rounded-lg cursor-pointer hover:bg-surface-raised transition group">
-                          <input type="checkbox" name="providers[llama_cpp][models][]" value="${m.id}" ${checked}
+                          <input type="checkbox" name="providers[openai_compatible][models][]" value="${m.id}" ${checked}
                                  class="mt-0.5 w-4 h-4 rounded border-gray-500 text-blue-600 focus:ring-blue-500 bg-surface-overlay">
                           <div class="flex-1">
                             <span class="text-white text-sm font-medium">${m.name}</span>
@@ -376,7 +376,7 @@
                     });
 
                     html += '<div class="mt-3"><label class="text-text-primary text-sm font-medium">Default model:</label>';
-                    html += '<select name="providers[llama_cpp][default_model]" class="mt-1 w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">';
+                    html += '<select name="providers[openai_compatible][default_model]" class="mt-1 w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">';
                     data.models.forEach((m, i) => {
                       html += `<option value="${m.id}" ${i === 0 ? 'selected' : ''}>${m.name}</option>`;
                     });
@@ -384,30 +384,30 @@
                     container.innerHTML = html;
                   } else if (data.status === 'connected') {
                     statusEl.className = 'flex items-center gap-2 p-3 bg-yellow-900/20 border border-yellow-700/30 rounded-lg mb-3';
-                    statusText.textContent = 'llama-server is running but no model is loaded.';
+                    statusText.textContent = 'Server is running but no model is loaded.';
                     statusText.className = 'text-yellow-300 text-sm';
-                    container.innerHTML = '<p class="text-text-muted text-sm">No model loaded. Start llama-server with a model: <code class="text-text-primary font-mono text-xs">llama-server -m model.gguf</code></p>';
+                    container.innerHTML = '<p class="text-text-muted text-sm">No model loaded. Make sure your server has a model available.</p>';
                   } else {
-                    showLlamaCppError(data.message || 'Could not connect');
+                    showOpenaiCompatibleError(data.message || 'Could not connect');
                   }
                 })
                 .catch(() => {
                   spinner.classList.add('hidden');
-                  showLlamaCppError('Could not reach llama-server. Make sure it is running.');
+                  showOpenaiCompatibleError('Could not reach server. Make sure it is running.');
                 });
             }
 
-            function showLlamaCppError(msg) {
-              const statusEl = document.getElementById('llamacpp-status');
-              const statusText = document.getElementById('llamacpp-status-text');
-              const container = document.getElementById('llamacpp-models-container');
+            function showOpenaiCompatibleError(msg) {
+              const statusEl = document.getElementById('openai-compatible-status');
+              const statusText = document.getElementById('openai-compatible-status-text');
+              const container = document.getElementById('openai-compatible-models-container');
 
               statusEl.className = 'flex items-center gap-2 p-3 bg-red-900/20 border border-red-700/30 rounded-lg mb-3';
               statusText.textContent = msg;
               statusText.className = 'text-red-300 text-sm';
               container.innerHTML = `
-                <p class="text-text-muted text-sm mb-2">llama-server doesn't appear to be running.</p>
-                <p class="text-text-faint text-xs">Start it with: <code class="text-text-primary font-mono text-xs">llama-server -m model.gguf --port 8080</code></p>`;
+                <p class="text-text-muted text-sm mb-2">Server doesn't appear to be running.</p>
+                <p class="text-text-faint text-xs">Make sure your OpenAI-compatible server is running and accessible at the URL above.</p>`;
             }
           </script>
         </div>

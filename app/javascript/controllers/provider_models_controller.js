@@ -1,14 +1,14 @@
 import { Controller } from "@hotwired/stimulus"
 
 const OLLAMA_DEFAULT_URL = "http://host.docker.internal:11434"
-const LLAMA_CPP_DEFAULT_URL = "http://host.docker.internal:8080"
+const OPENAI_COMPATIBLE_DEFAULT_URL = "http://host.docker.internal:8080"
 
 // Connects to data-controller="provider-models"
 export default class extends Controller {
   static targets = [
     "keyInput", "modelList", "section",
     "ollamaToggle", "ollamaUrl", "ollamaEnabled", "ollamaCustomUrl",
-    "llamaCppToggle", "llamaCppUrl", "llamaCppEnabled", "llamaCppCustomUrl"
+    "openaiCompatibleToggle", "openaiCompatibleUrl", "openaiCompatibleEnabled", "openaiCompatibleCustomUrl"
   ]
 
   connect() {
@@ -23,11 +23,11 @@ export default class extends Controller {
       }
     }
 
-    // Restore llama.cpp toggle state if URL was previously set
-    if (this.hasLlamaCppUrlTarget && this.llamaCppUrlTarget.value) {
-      if (this.hasLlamaCppToggleTarget) {
-        this.llamaCppToggleTarget.checked = true
-        this.showLlamaCppSettings()
+    // Restore OpenAI Compatible toggle state if URL was previously set
+    if (this.hasOpenaiCompatibleUrlTarget && this.openaiCompatibleUrlTarget.value) {
+      if (this.hasOpenaiCompatibleToggleTarget) {
+        this.openaiCompatibleToggleTarget.checked = true
+        this.showOpenaiCompatibleSettings()
       }
     }
   }
@@ -87,50 +87,50 @@ export default class extends Controller {
     }
   }
 
-  toggleLlamaCpp(event) {
+  toggleOpenaiCompatible(event) {
     if (event.currentTarget.checked) {
-      this.enableLlamaCpp()
+      this.enableOpenaiCompatible()
     } else {
-      this.disableLlamaCpp()
+      this.disableOpenaiCompatible()
     }
   }
 
-  enableLlamaCpp() {
-    if (this.hasLlamaCppUrlTarget) {
-      this.llamaCppUrlTarget.value = LLAMA_CPP_DEFAULT_URL
+  enableOpenaiCompatible() {
+    if (this.hasOpenaiCompatibleUrlTarget) {
+      this.openaiCompatibleUrlTarget.value = OPENAI_COMPATIBLE_DEFAULT_URL
     }
-    if (this.hasLlamaCppCustomUrlTarget) {
-      this.llamaCppCustomUrlTarget.value = LLAMA_CPP_DEFAULT_URL
+    if (this.hasOpenaiCompatibleCustomUrlTarget) {
+      this.openaiCompatibleCustomUrlTarget.value = OPENAI_COMPATIBLE_DEFAULT_URL
     }
-    this.showLlamaCppSettings()
+    this.showOpenaiCompatibleSettings()
   }
 
-  disableLlamaCpp() {
-    if (this.hasLlamaCppUrlTarget) {
-      this.llamaCppUrlTarget.value = ""
+  disableOpenaiCompatible() {
+    if (this.hasOpenaiCompatibleUrlTarget) {
+      this.openaiCompatibleUrlTarget.value = ""
     }
-    this.hideLlamaCppSettings()
+    this.hideOpenaiCompatibleSettings()
   }
 
-  showLlamaCppSettings() {
-    if (this.hasLlamaCppEnabledTarget) {
-      this.llamaCppEnabledTarget.classList.remove("hidden")
-      if (typeof detectLlamaCppModels === "function") {
-        detectLlamaCppModels()
+  showOpenaiCompatibleSettings() {
+    if (this.hasOpenaiCompatibleEnabledTarget) {
+      this.openaiCompatibleEnabledTarget.classList.remove("hidden")
+      if (typeof detectOpenaiCompatibleModels === "function") {
+        detectOpenaiCompatibleModels()
       }
     }
   }
 
-  hideLlamaCppSettings() {
-    if (this.hasLlamaCppEnabledTarget) {
-      this.llamaCppEnabledTarget.classList.add("hidden")
+  hideOpenaiCompatibleSettings() {
+    if (this.hasOpenaiCompatibleEnabledTarget) {
+      this.openaiCompatibleEnabledTarget.classList.add("hidden")
     }
   }
 
-  updateLlamaCppUrl(event) {
+  updateOpenaiCompatibleUrl(event) {
     const customUrl = event.currentTarget.value.trim()
-    if (this.hasLlamaCppUrlTarget) {
-      this.llamaCppUrlTarget.value = customUrl || LLAMA_CPP_DEFAULT_URL
+    if (this.hasOpenaiCompatibleUrlTarget) {
+      this.openaiCompatibleUrlTarget.value = customUrl || OPENAI_COMPATIBLE_DEFAULT_URL
     }
   }
 

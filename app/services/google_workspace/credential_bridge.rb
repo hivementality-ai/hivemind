@@ -33,18 +33,52 @@ module GoogleWorkspace
       VaultEntry.find_by(namespace: VAULT_NAMESPACE, key: "scopes")&.value
     end
 
-    def self.store_tokens(access_token:, refresh_token:, expires_in:, scope:, email: nil)
-      expires_at = Time.current + expires_in.to_i.seconds
+    def self.store_tokens(access_token:, refresh_token:, expires_in: nil, expires_at: nil, scope: nil, email: nil, client_id: nil, client_secret: nil)
+      if expires_at.present?
+        computed_expires_at = expires_at.is_a?(String) ? expires_at : expires_at.iso8601
+      elsif expires_in.present?
+        computed_expires_at = (Time.current + expires_in.to_i.seconds).iso8601
+      end
 
       store(VAULT_NAMESPACE, "access_token", access_token)
       store(VAULT_NAMESPACE, "refresh_token", refresh_token) if refresh_token.present?
-      store(VAULT_NAMESPACE, "expires_at", expires_at.iso8601)
-      store(VAULT_NAMESPACE, "scopes", scope)
+      store(VAULT_NAMESPACE, "expires_at", computed_expires_at) if computed_expires_at.present?
+      store(VAULT_NAMESPACE, "scopes", scope) if scope.present?
       store(VAULT_NAMESPACE, "email", email) if email.present?
+      store(VAULT_NAMESPACE, "client_id", client_id) if client_id.present?
+      store(VAULT_NAMESPACE, "client_secret", client_secret) if client_secret.present?
+    end
+
+    # Import credentials JSON from `gws auth` output
+    def self.import_credentials(json_string)
+      data = JSON.parse(json_string)
+
+      access_token = data["access_token"] || data["token"]
+      refresh_token = data["refresh_token"]
+
+      raise "Missing access_token in credentials" unless access_token.present?
+      raise "Missing refresh_token in credentials" unless refresh_token.present?
+
+      store_tokens(
+        access_token: access_token,
+        refresh_token: refresh_token,
+        expires_at: data["expiry"] || data["expires_at"],
+        client_id: data["client_id"],
+        client_secret: data["client_secret"]
+      )
+
+      # Fetch email if we have a valid access token
+      begin
+        client = GoogleWorkspace::OAuthClient.new
+        result = client.fetch_user_info(access_token)
+        store(VAULT_NAMESPACE, "email", result.data[:email]) if result.success? && result.data[:email]
+      rescue StandardError
+        # Not critical — email is just for display
+      end
     end
 
     def self.disconnect!
-      %w[access_token refresh_token expires_at scopes email].each do |key|
+      %w[access_token refresh_token expires_at scopes email client_id client_secret].each do |key|
         VaultEntry.find_by(namespace: VAULT_NAMESPACE, key: key)&.destroy
       end
     end
@@ -73,19 +107,17 @@ module GoogleWorkspace
     def write_temp_credentials
       FileUtils.mkdir_p(CREDS_DIR, mode: 0o700) unless Dir.exist?(CREDS_DIR)
 
-      access_token = VaultEntry.find_by(namespace: VAULT_NAMESPACE, key: "access_token")&.value
-      refresh_token = VaultEntry.find_by(namespace: VAULT_NAMESPACE, key: "refresh_token")&.value
-      expires_at = VaultEntry.find_by(namespace: VAULT_NAMESPACE, key: "expires_at")&.value
+      creds = {}
+      %w[access_token refresh_token expires_at client_id client_secret].each do |key|
+        val = VaultEntry.find_by(namespace: VAULT_NAMESPACE, key: key)&.value
+        creds[key] = val if val.present?
+      end
+
+      creds["token_type"] = "Bearer"
+      creds["expiry"] = creds.delete("expires_at") if creds["expires_at"]
 
       path = File.join(CREDS_DIR, SecureRandom.hex(16))
-      creds = {
-        access_token: access_token,
-        refresh_token: refresh_token,
-        token_type: "Bearer",
-        expiry: expires_at
-      }.to_json
-
-      File.write(path, creds, perm: 0o600)
+      File.write(path, creds.to_json, perm: 0o600)
       path
     end
 

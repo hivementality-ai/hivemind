@@ -92,7 +92,7 @@ module Agents
     end
 
     def default_limit_for_provider
-      if %w[ollama llama_cpp].include?(@provider)
+      if %w[ollama openai_compatible].include?(@provider)
         # Ollama dynamically sizes num_ctx, so use a generous default.
         # The adapter will request the right context window from the server.
         131_072

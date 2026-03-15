@@ -227,12 +227,37 @@
 
       <!-- Telegram -->
       <div class="space-y-4" data-channel-fields-target="telegram" style="display: none;">
+        <div class="bg-surface-base rounded-lg border border-border-default p-5">
+          <h4 class="text-white font-medium mb-3">Telegram Bot Setup</h4>
+          <ol class="text-text-muted text-sm space-y-2 list-decimal list-inside">
+            <li>Open <a href="https://t.me/BotFather" target="_blank" class="text-brand-light hover:underline">@BotFather</a> on Telegram</li>
+            <li>Send <code class="text-amber-300">/newbot</code> and follow the prompts to name your bot</li>
+            <li>Copy the <strong class="text-white">bot token</strong> and paste it below</li>
+            <li>Send <code class="text-amber-300">/setprivacy</code> to @BotFather, select your bot, then choose <strong class="text-white">Disable</strong> so it can read group messages</li>
+            <li>Add the bot to your Telegram group or start a direct chat with it</li>
+          </ol>
+          <div class="mt-4 bg-surface-card rounded-lg px-4 py-3 border border-border-default">
+            <p class="text-text-muted text-sm">
+              <strong class="text-white">Delivery:</strong>
+              The connector uses long polling — no public URL or webhook setup required.
+            </p>
+          </div>
+        </div>
+
         <div>
           <label class="block text-text-muted text-sm mb-1">Bot Token</label>
           <%= text_field_tag "credentials[telegram_bot_token]", creds["telegram_bot_token"], placeholder: "123456789:ABCdef...",
               class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm",
               autocomplete: "off" %>
           <p class="text-text-faint text-xs mt-1">From <a href="https://t.me/BotFather" target="_blank" class="text-brand-light hover:underline">@BotFather</a> on Telegram</p>
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Webhook Secret <span class="text-text-faint">(optional)</span></label>
+          <%= text_field_tag "channel[config][webhook_secret]", channel.config&.dig("webhook_secret"),
+              placeholder: "random-secret-string",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm",
+              autocomplete: "off" %>
+          <p class="text-text-faint text-xs mt-1">If set, used to verify inbound Telegram webhooks</p>
         </div>
       </div>
 
@@ -262,6 +287,23 @@
 
       <!-- Signal -->
       <div class="space-y-4" data-channel-fields-target="signal" style="display: none;">
+        <div class="bg-surface-base rounded-lg border border-border-default p-5">
+          <h4 class="text-white font-medium mb-3">Signal Setup</h4>
+          <p class="text-text-muted text-sm mb-3">Signal requires the <a href="https://github.com/bbernhard/signal-cli-rest-api" target="_blank" class="text-brand-light hover:underline">signal-cli-rest-api</a> sidecar container.</p>
+          <ol class="text-text-muted text-sm space-y-2 list-decimal list-inside">
+            <li>Uncomment the <code class="text-amber-300">signal-cli</code> service in your <code class="text-amber-300">docker-compose.yml</code></li>
+            <li>Run <code class="text-amber-300">docker compose up -d signal-cli</code></li>
+            <li>Register your phone number with signal-cli (see signal-cli docs)</li>
+            <li>Enter the registered phone number below</li>
+          </ol>
+          <div class="mt-4 bg-surface-card rounded-lg px-4 py-3 border border-border-default">
+            <p class="text-text-muted text-sm">
+              <strong class="text-white">Delivery:</strong>
+              The connector polls signal-cli for new messages — no public URL needed.
+            </p>
+          </div>
+        </div>
+
         <div>
           <label class="block text-text-muted text-sm mb-1">Phone Number</label>
           <%= text_field_tag "channel[config][phone_number]", channel.config&.dig("phone_number"),

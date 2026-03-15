@@ -103,8 +103,8 @@ module Embeddings
     end
 
     def api_key
-      @api_key ||= ENV["GOOGLE_AI_API_KEY"] || VaultEntry.find_by(
-        namespace: "provider_credentials",
+      @api_key ||= VaultEntry.find_by(
+        namespace: "embedding",
         key: "google_ai_api_key"
       )&.value
     end

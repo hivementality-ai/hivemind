@@ -3,7 +3,7 @@
 require "securerandom"
 
 module Providers
-  class LlamaCppAdapter < Base
+  class OpenaiCompatibleAdapter < Base
     def chat(messages:, tools: [], options: {}, &block)
       params = build_chat_params(messages:, tools:, options:)
 
@@ -13,7 +13,7 @@ module Providers
         sync_chat(params:)
       end
     rescue Faraday::Error => e
-      ServiceResponse.failure(error: "llama.cpp error: #{e.message}")
+      ServiceResponse.failure(error: "OpenAI-compatible API error: #{e.message}")
     end
 
     def models
@@ -40,8 +40,11 @@ module Providers
     private
 
     def connection
-      @connection ||= Faraday.new(url: llama_cpp_url) do |f|
+      @connection ||= Faraday.new(url: server_url) do |f|
         f.request :json
+        if api_key.present?
+          f.request :authorization, "Bearer", api_key
+        end
         f.response :raise_error
         f.options.open_timeout = 10
         f.options.timeout = 120
@@ -49,8 +52,8 @@ module Providers
       end
     end
 
-    def llama_cpp_url
-      base_url || ENV.fetch("LLAMA_CPP_URL", "http://host.docker.internal:8080")
+    def server_url
+      base_url || "http://host.docker.internal:8080"
     end
 
     def build_chat_params(messages:, tools:, options:)
@@ -92,7 +95,7 @@ module Providers
 
       if options[:thinking_enabled]
         params[:reasoning_format] = "deepseek"
-        params.delete(:temperature) # Not compatible with thinking
+        params.delete(:temperature)
       end
 
       if tools.any?
@@ -111,7 +114,7 @@ module Providers
       params
     end
 
-    # llama.cpp requires content to be a plain string.
+    # OpenAI-compatible APIs require content to be a plain string.
     # Flatten Anthropic-style content blocks (arrays of {type: "text", text: "..."})
     # into a single string.
     def flatten_content(content)
@@ -138,8 +141,11 @@ module Providers
       full_thinking = +""
       thinking_started = false
 
-      streaming_conn = Faraday.new(url: llama_cpp_url) do |f|
+      streaming_conn = Faraday.new(url: server_url) do |f|
         f.request :json
+        if api_key.present?
+          f.request :authorization, "Bearer", api_key
+        end
         f.options.open_timeout = 10
         f.options.timeout = 120
         f.adapter Faraday.default_adapter
@@ -147,7 +153,7 @@ module Providers
 
       buffer = +""
 
-      response = streaming_conn.post("/v1/chat/completions") do |req|
+      streaming_conn.post("/v1/chat/completions") do |req|
         req.body = params.merge(stream: true).to_json
         req.options.on_data = proc do |chunk, _overall_received_bytes, _env|
           buffer << chunk
@@ -210,7 +216,7 @@ module Providers
         args = JSON.parse(args) if args.is_a?(String) rescue args
 
         {
-          "id" => tc["id"] || "llamacpp_#{SecureRandom.hex(4)}",
+          "id" => tc["id"] || "oai_compat_#{SecureRandom.hex(4)}",
           "name" => tc.dig("function", "name"),
           "input" => args
         }
