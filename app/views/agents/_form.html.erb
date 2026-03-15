@@ -137,7 +137,7 @@
           <%= form.label :top_p, "Top P", class: "block text-sm font-medium text-text-primary mb-1" %>
           <%= form.number_field :top_p, value: (agent.model_config || {})["top_p"], placeholder: "model default", step: 0.1, min: 0, max: 1,
               class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
-          <p class="text-text-faint text-xs mt-1">Nucleus sampling threshold (0.0–1.0). Ollama and llama.cpp only.</p>
+          <p class="text-text-faint text-xs mt-1">Nucleus sampling threshold (0.0–1.0). Ollama and OpenAI Compatible only.</p>
         </div>
         <div>
           <%= form.label :top_k, "Top K", class: "block text-sm font-medium text-text-primary mb-1" %>

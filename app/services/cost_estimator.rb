@@ -30,7 +30,7 @@ class CostEstimator
 
     # Local models (free)
     "ollama"              => { input: 0, output: 0 },
-    "llama_cpp"           => { input: 0, output: 0 }
+    "openai_compatible"   => { input: 0, output: 0 }
   }.freeze
 
   DEFAULT_RATE = { input: 100, output: 400 }.freeze

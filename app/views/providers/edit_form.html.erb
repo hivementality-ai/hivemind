@@ -78,8 +78,8 @@
                 Get a key at <a href="https://platform.openai.com/" target="_blank" class="text-brand-light hover:underline">platform.openai.com</a>
               <% when "ollama" %>
                 Leave blank for local Ollama (no API key needed). Modify the URL in Advanced Settings if running on another machine.
-              <% when "llama_cpp" %>
-                Leave blank for local llama-server (no API key needed). Modify the URL in Advanced Settings if running on another machine.
+              <% when "openai_compatible" %>
+                Leave blank for local server (no API key needed). Modify the URL in Advanced Settings if running on another machine.
             <% end %>
           </p>
         </div>
@@ -111,25 +111,25 @@
           </details>
         <% end %>
 
-        <% if @provider.adapter_type == "llama_cpp" %>
-          <!-- llama.cpp Advanced Settings -->
+        <% if @provider.adapter_type == "openai_compatible" %>
+          <!-- OpenAI Compatible Advanced Settings -->
           <details class="mt-4">
             <summary class="text-text-muted text-sm cursor-pointer hover:text-white transition select-none flex items-center gap-2">
               <span class="text-lg">▶</span> Advanced Settings
             </summary>
             <div class="mt-3 p-4 bg-surface-overlay rounded-lg border border-border-default space-y-3">
               <div>
-                <label class="block text-text-primary font-medium text-sm mb-1">llama-server URL</label>
+                <label class="block text-text-primary font-medium text-sm mb-1">Server URL</label>
                 <input type="text"
-                       id="llamacpp-custom-url"
+                       id="openai-compatible-custom-url"
                        name="provider_config[base_url]"
                        class="w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
                        placeholder="http://host.docker.internal:8080"
                        value="<%= @provider.base_url || 'http://host.docker.internal:8080' %>">
                 <p class="text-text-faint text-xs mt-1">
-                  Change this if llama-server is running on another machine or port (e.g. <code class="text-text-muted">http://192.168.1.100:8080</code>)
+                  Point this to your OpenAI-compatible server (e.g. <code class="text-text-muted">http://192.168.1.100:8080</code>)
                 </p>
-                <button type="button" onclick="detectLlamaCppModels()"
+                <button type="button" onclick="detectOpenaiCompatibleModels()"
                         class="mt-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition cursor-pointer">
                   Check Connection
                 </button>
@@ -144,7 +144,7 @@
         <label class="block text-text-primary font-semibold">Select Available Models</label>
 
         <!-- Anthropic/OpenAI Static Model List -->
-        <% if !%w[ollama llama_cpp].include?(@provider.adapter_type) %>
+        <% if !%w[ollama openai_compatible].include?(@provider.adapter_type) %>
           <div class="space-y-2" id="model-list">
             <% @available_models.each do |model| %>
               <% is_selected = @selected_models.any? { |m| m["id"] == model[:id] } %>
@@ -166,16 +166,16 @@
           <div id="ollama-models-container" class="space-y-2">
             <p class="text-text-muted text-sm">Click "Check Connection" above to detect installed Ollama models.</p>
           </div>
-        <% elsif @provider.adapter_type == "llama_cpp" %>
-          <!-- llama.cpp Dynamic Model List -->
-          <div id="llamacpp-models-container" class="space-y-2">
+        <% elsif @provider.adapter_type == "openai_compatible" %>
+          <!-- OpenAI Compatible Dynamic Model List -->
+          <div id="openai-compatible-models-container" class="space-y-2">
             <p class="text-text-muted text-sm">Click "Check Connection" above to detect loaded models.</p>
           </div>
         <% end %>
       </div>
 
       <!-- Default Model Selection -->
-      <% if @available_models.present? || !%w[ollama llama_cpp].include?(@provider.adapter_type) %>
+      <% if @available_models.present? || !%w[ollama openai_compatible].include?(@provider.adapter_type) %>
         <div class="space-y-2">
           <label class="block text-text-primary font-semibold text-sm">Default Model</label>
           <select name="provider_config[default_model]"
@@ -250,14 +250,14 @@
         <p class="text-text-faint text-xs">Install Ollama from <a href="https://ollama.com/" target="_blank" class="text-brand-light hover:underline">ollama.com</a></p>`;
     }
 
-    function detectLlamaCppModels() {
-      const urlInput = document.getElementById('llamacpp-custom-url');
+    function detectOpenaiCompatibleModels() {
+      const urlInput = document.getElementById('openai-compatible-custom-url');
       const url = urlInput ? urlInput.value : 'http://host.docker.internal:8080';
-      const container = document.getElementById('llamacpp-models-container');
+      const container = document.getElementById('openai-compatible-models-container');
 
       container.innerHTML = '<p class="text-text-muted text-sm">Detecting models...</p>';
 
-      fetch(`/setup/llama_cpp_models?url=${encodeURIComponent(url)}`)
+      fetch(`/setup/openai_compatible_models?url=${encodeURIComponent(url)}`)
         .then(r => r.json())
         .then(data => {
           if (data.status === 'connected' && data.models.length > 0) {
@@ -276,21 +276,21 @@
             html += '</div>';
             container.innerHTML = html;
           } else if (data.status === 'connected') {
-            container.innerHTML = '<p class="text-yellow-300 text-sm">llama-server is running but no model is loaded. Start it with: <code class="text-text-primary font-mono text-xs">llama-server -m model.gguf</code></p>';
+            container.innerHTML = '<p class="text-yellow-300 text-sm">Server is running but no model is loaded. Make sure your server has a model available.</p>';
           } else {
-            showLlamaCppError(data.message || 'Could not connect');
+            showOpenaiCompatibleError(data.message || 'Could not connect');
           }
         })
         .catch(() => {
-          showLlamaCppError('Could not reach llama-server. Make sure it is running.');
+          showOpenaiCompatibleError('Could not reach server. Make sure it is running.');
         });
     }
 
-    function showLlamaCppError(msg) {
-      const container = document.getElementById('llamacpp-models-container');
+    function showOpenaiCompatibleError(msg) {
+      const container = document.getElementById('openai-compatible-models-container');
       container.innerHTML = `
         <p class="text-red-300 text-sm mb-2">⚠ Error: ${msg}</p>
-        <p class="text-text-faint text-xs">Start llama-server with: <code class="text-text-primary font-mono text-xs">llama-server -m model.gguf --port 8080</code></p>`;
+        <p class="text-text-faint text-xs">Make sure your OpenAI-compatible server is running and accessible.</p>`;
     }
   </script>
 </div>

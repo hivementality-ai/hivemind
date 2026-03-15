@@ -14,9 +14,11 @@ module GoogleWorkspace
 
     DEFAULT_SCOPES = %i[drive calendar].freeze
 
+    VAULT_NAMESPACE = "google_workspace"
+
     def initialize
-      @client_id = ENV["GOOGLE_CLIENT_ID"]
-      @client_secret = ENV["GOOGLE_CLIENT_SECRET"]
+      @client_id = VaultEntry.find_by(namespace: VAULT_NAMESPACE, key: "client_id")&.value
+      @client_secret = VaultEntry.find_by(namespace: VAULT_NAMESPACE, key: "client_secret")&.value
     end
 
     def configured?

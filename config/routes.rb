@@ -17,7 +17,7 @@ Rails.application.routes.draw do
   post "setup/agent",    to: "setup#save_agent"
   get  "setup/complete", to: "setup#complete",        as: :setup_complete
   get  "setup/ollama_models", to: "setup#ollama_models", as: :setup_ollama_models
-  get  "setup/llama_cpp_models", to: "setup#llama_cpp_models", as: :setup_llama_cpp_models
+  get  "setup/openai_compatible_models", to: "setup#openai_compatible_models", as: :setup_openai_compatible_models
 
   # Root - Mission Control Dashboard
   root "dashboard#index"
@@ -132,10 +132,8 @@ Rails.application.routes.draw do
   get "integrations/cloud_remote/test", to: "integrations#test_cloud_remote", as: :test_cloud_remote_integrations
   patch "integrations/search", to: "integrations#update_search", as: :update_search_integrations
   get "integrations/search/test", to: "integrations#test_search", as: :test_search_integrations
-  patch "integrations/telegram", to: "integrations#update_telegram", as: :update_telegram_integrations
-  get "integrations/telegram/test", to: "integrations#test_telegram", as: :test_telegram_integrations
-  patch "integrations/signal", to: "integrations#update_signal", as: :update_signal_integrations
-  get "integrations/signal/test", to: "integrations#test_signal", as: :test_signal_integrations
+  patch "integrations/google_workspace", to: "integrations#update_google_workspace", as: :update_google_workspace_integrations
+  patch "integrations/embedding_key", to: "integrations#update_embedding_key", as: :update_embedding_key_integrations
 
   # Google Workspace OAuth
   get "oauth/google/authorize", to: "oauth/google#authorize", as: :oauth_google_authorize
