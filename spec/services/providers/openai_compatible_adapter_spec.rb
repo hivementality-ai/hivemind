@@ -10,7 +10,7 @@ RSpec.describe Providers::OpenaiCompatibleAdapter, type: :service do
   let(:options) { {} }
 
   before do
-    allow(adapter).to receive(:openai_compatible_url).and_return("http://localhost:8080")
+    allow(adapter).to receive(:server_url).and_return("http://localhost:8080")
   end
 
   describe "#chat" do
@@ -139,7 +139,7 @@ RSpec.describe Providers::OpenaiCompatibleAdapter, type: :service do
         expect(result).to be_success
         expect(result.data[:tool_calls].length).to eq(2)
         ids = result.data[:tool_calls].map { |tc| tc["id"] }
-        expect(ids).to all(start_with("oaicompat_"))
+        expect(ids).to all(start_with("oai_compat_"))
         expect(ids.uniq).to eq(ids)
       end
 
@@ -258,7 +258,7 @@ RSpec.describe Providers::OpenaiCompatibleAdapter, type: :service do
         result = adapter.chat(messages: messages, tools: tools, options: options)
 
         expect(result.success?).to be_falsey
-        expect(result.error).to include("OpenAI Compatible error")
+        expect(result.error).to include("OpenAI-compatible API error")
       end
     end
   end
