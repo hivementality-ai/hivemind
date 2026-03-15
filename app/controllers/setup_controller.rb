@@ -2,9 +2,9 @@
 
 class SetupController < ApplicationController
   layout "setup"
-  skip_before_action :authenticate_user!, only: [ :index, :account, :create_account, :ollama_models, :llama_cpp_models ]
-  skip_before_action :verify_authenticity_token, only: [ :ollama_models, :llama_cpp_models ]
-  before_action :redirect_if_setup_complete, except: [ :complete, :ollama_models, :llama_cpp_models ]
+  skip_before_action :authenticate_user!, only: [ :index, :account, :create_account, :ollama_models, :openai_compatible_models ]
+  skip_before_action :verify_authenticity_token, only: [ :ollama_models, :openai_compatible_models ]
+  before_action :redirect_if_setup_complete, except: [ :complete, :ollama_models, :openai_compatible_models ]
   before_action :authenticate_user!, only: [ :provider, :save_provider, :team, :save_team, :agent, :save_agent, :complete ]
 
   # Step 0: Landing — shows the welcome screen
@@ -147,8 +147,8 @@ class SetupController < ApplicationController
     render_remote_models(:ollama)
   end
 
-  def llama_cpp_models
-    render_remote_models(:llama_cpp)
+  def openai_compatible_models
+    render_remote_models(:openai_compatible)
   end
 
   # Done!
@@ -181,7 +181,7 @@ class SetupController < ApplicationController
       anthropic: [ :api_key, :default_model, models: [] ],
       openai: [ :api_key, :default_model, models: [] ],
       ollama: [ :api_key, :default_model, :base_url, models: [] ],
-      llama_cpp: [ :api_key, :default_model, :base_url, models: [] ]
+      openai_compatible: [ :api_key, :default_model, :base_url, models: [] ]
     )
   end
 

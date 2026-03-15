@@ -8,7 +8,7 @@ module OAuth
       client = GoogleWorkspace::OAuthClient.new
 
       unless client.configured?
-        redirect_to integrations_path, alert: "Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET."
+        redirect_to integrations_path, alert: "Google OAuth not configured. Add your Client ID and Client Secret on the Integrations page first."
         return
       end
 

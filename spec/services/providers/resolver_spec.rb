@@ -86,12 +86,12 @@ RSpec.describe Providers::Resolver do
         expect(result.data[:adapter]).to be_a(Providers::OllamaAdapter)
       end
 
-      it 'returns LlamaCppAdapter for llama_cpp type' do
-        provider = create(:provider_config, :llama_cpp, name: "llama.cpp")
-        result = described_class.call(provider_name: "llama.cpp")
+      it 'returns OpenaiCompatibleAdapter for openai_compatible type' do
+        provider = create(:provider_config, :openai_compatible, name: "OpenAI Compatible")
+        result = described_class.call(provider_name: "OpenAI Compatible")
 
         expect(result.success?).to be true
-        expect(result.data[:adapter]).to be_a(Providers::LlamaCppAdapter)
+        expect(result.data[:adapter]).to be_a(Providers::OpenaiCompatibleAdapter)
       end
     end
 

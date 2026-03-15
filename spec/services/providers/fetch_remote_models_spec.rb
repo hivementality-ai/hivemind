@@ -45,14 +45,14 @@ RSpec.describe Providers::FetchRemoteModels, type: :service do
       end
     end
 
-    context "with llama_cpp" do
+    context "with openai_compatible" do
       it "returns models on success" do
         stub_request(:get, "http://host.docker.internal:8080/v1/models")
           .to_return(status: 200, body: {
             data: [ { id: "default" } ]
           }.to_json)
 
-        result = described_class.call(:llama_cpp)
+        result = described_class.call(:openai_compatible)
         expect(result).to be_success
         expect(result.data[:models].first[:id]).to eq("default")
       end

@@ -7,7 +7,6 @@ require "json"
 require "logger"
 
 require_relative "whatsapp_connection"
-require_relative "signal_connection"
 
 # Connector Sidecar - Maintains persistent channel connections
 # Forwards inbound messages to Rails via HTTP POST
@@ -62,21 +61,13 @@ class ConnectorDaemon
       @connections[:whatsapp].connect
     end
 
-    # Signal connection
-    if ENV["SIGNAL_ENABLED"] == "true"
-      @connections[:signal] = SignalConnection.new(
-        redis: @redis,
-        logger: @logger,
-        callback: method(:forward_inbound)
-      )
-      @connections[:signal].connect
-    end
+    # Signal connection now handled by the Node.js connector (connector/signal.js)
   end
 
   def listen_for_outbound
     @logger.info "Listening for outbound messages on Redis..."
 
-    @redis.subscribe("connector:outbound:whatsapp", "connector:outbound:signal") do |on|
+    @redis.subscribe("connector:outbound:whatsapp") do |on|
       on.message do |channel, message|
         handle_outbound(channel, message)
       end

@@ -278,7 +278,7 @@ RSpec.describe ProvidersController, type: :controller do
     it 'assigns all adapter types regardless of existing providers' do
       create(:provider_config, name: 'Anthropic', adapter_type: 'anthropic')
       get :new
-      expect(assigns(:available_types)).to include('anthropic', 'openai', 'ollama', 'llama_cpp')
+      expect(assigns(:available_types)).to include('anthropic', 'openai', 'ollama', 'openai_compatible')
     end
   end
 

@@ -9,7 +9,7 @@ module ProvidersHelper
       "bg-green-600"
     when "ollama"
       "bg-purple-600"
-    when "llama_cpp"
+    when "openai_compatible"
       "bg-blue-600"
     else
       "bg-gray-600"
@@ -24,8 +24,8 @@ module ProvidersHelper
       "O"
     when "ollama"
       "OL"
-    when "llama_cpp"
-      "LC"
+    when "openai_compatible"
+      "OC"
     else
       "?"
     end
@@ -39,8 +39,8 @@ module ProvidersHelper
       "sk-..."
     when "ollama"
       "Leave blank for local Ollama"
-    when "llama_cpp"
-      "Leave blank for local llama-server"
+    when "openai_compatible"
+      "Leave blank for local server"
     else
       "Enter API key..."
     end

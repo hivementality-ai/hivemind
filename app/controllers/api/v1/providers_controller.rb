@@ -17,8 +17,8 @@ module Api
                    fetch_anthropic_models
         when "openai"
                    fetch_openai_models
-        when "llama_cpp"
-                   fetch_llama_cpp_models
+        when "openai_compatible"
+                   fetch_openai_compatible_models
         else
                    []
         end
@@ -59,18 +59,18 @@ module Api
         ]
       end
 
-      def fetch_llama_cpp_models
-        config = ProviderConfig.find_by(adapter_type: "llama_cpp") || ProviderConfig.new(adapter_type: "llama_cpp")
-        adapter = Providers::LlamaCppAdapter.new(config: config)
+      def fetch_openai_compatible_models
+        config = ProviderConfig.find_by(adapter_type: "openai_compatible") || ProviderConfig.new(adapter_type: "openai_compatible")
+        adapter = Providers::OpenaiCompatibleAdapter.new(config: config)
         result = adapter.models
         if result.success?
           result.data[:models].map { |name| { id: name, name: format_model_name(name) } }
         else
-          [ { id: "", name: "llama-server not reachable — is it running?" } ]
+          [ { id: "", name: "Server not reachable — is it running?" } ]
         end
       rescue StandardError => e
-        Rails.logger.warn("llama.cpp model fetch failed: #{e.message}")
-        [ { id: "", name: "llama-server not reachable — is it running?" } ]
+        Rails.logger.warn("OpenAI Compatible model fetch failed: #{e.message}")
+        [ { id: "", name: "Server not reachable — is it running?" } ]
       end
 
       def format_model_name(name)

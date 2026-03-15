@@ -20,7 +20,7 @@ module Providers
           end
         }
       },
-      llama_cpp: {
+      openai_compatible: {
         default_url: "http://host.docker.internal:8080",
         path: "/v1/models",
         timeout: 5,

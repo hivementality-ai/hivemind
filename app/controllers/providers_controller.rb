@@ -19,7 +19,7 @@ class ProvidersController < ApplicationController
   # Show form to add a new provider
   def new
     @provider = ProviderConfig.new
-    @available_types = %w[openai anthropic ollama llama_cpp]
+    @available_types = %w[openai anthropic ollama openai_compatible]
   end
 
   # POST /providers
@@ -30,7 +30,7 @@ class ProvidersController < ApplicationController
     default_model = provider_params[:default_model]
 
     custom_name = provider_params[:name].presence
-    name = custom_name || (adapter_type == "llama_cpp" ? "llama.cpp" : adapter_type.titleize)
+    name = custom_name || (adapter_type == "openai_compatible" ? "OpenAI Compatible" : adapter_type.titleize)
     vault_slug = name.parameterize(separator: "_")
     vault_key = "providers/#{vault_slug}_api_key"
 
@@ -62,7 +62,7 @@ class ProvidersController < ApplicationController
 
       redirect_to provider_path(@provider), notice: "Provider added successfully."
     else
-      @available_types = %w[openai anthropic ollama llama_cpp]
+      @available_types = %w[openai anthropic ollama openai_compatible]
       render :new, status: :unprocessable_entity
     end
   end
@@ -89,7 +89,7 @@ class ProvidersController < ApplicationController
       { "id" => model_id, "default" => (model_id == default_model) }
     end
 
-    # Update base URL if provided (Ollama, llama.cpp)
+    # Update base URL if provided (Ollama, OpenAI Compatible)
     @provider.base_url = provider_params[:base_url] if provider_params.key?(:base_url)
 
     # Save provider config
@@ -155,8 +155,8 @@ class ProvidersController < ApplicationController
       # Ollama models should be dynamically fetched, but for now return empty
       # The edit view will handle dynamic loading via JavaScript
       []
-    when "llama_cpp"
-      # llama.cpp models are dynamically fetched via JavaScript
+    when "openai_compatible"
+      # OpenAI Compatible models are dynamically fetched via JavaScript
       []
     else
       []

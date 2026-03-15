@@ -9,8 +9,8 @@ class IntegrationsController < ApplicationController
     @email_configured = VaultEntry.exists?(namespace: "email", key: "smtp_host")
     @jira_configured = VaultEntry.exists?(namespace: "jira", key: "base_url")
     @trello_configured = VaultEntry.exists?(namespace: "trello", key: "api_key")
-    @telegram_configured = VaultEntry.exists?(namespace: "channel_credentials", key: "telegram_bot_token")
-    @signal_configured = Channel.exists?(channel_type: "signal", enabled: true)
+    @gws_connected = GoogleWorkspace::CredentialBridge.configured?
+    @gws_email = GoogleWorkspace::CredentialBridge.connected_email if @gws_connected
     @search_configured = Search::Resolver.configured?
     @search_provider = Search::Resolver.current_provider_name
     @embedding_provider = Embeddings::Registry.configured_provider
@@ -23,6 +23,7 @@ class IntegrationsController < ApplicationController
     @memory_count = MemoryEntry.count
     @embedded_count = MemoryEntry.where.not(embedding: nil).count
     @embedding_migration_active = Embeddings::Migration.active_migration.present?
+    @gemini_key_configured = VaultEntry.exists?(namespace: "embedding", key: "google_ai_api_key")
     @remotes = CloudStorage::ConfigureRemote.list_remotes
     @backends = CloudStorage::ConfigureRemote::BACKENDS
     @mcp_servers = McpServer.order(:name)
@@ -70,6 +71,37 @@ class IntegrationsController < ApplicationController
     }, required: %i[api_key token], notice: "Trello credentials saved")
   end
 
+  def update_google_workspace
+    json = if params[:gws_credentials_file].present?
+      params[:gws_credentials_file].read
+    else
+      params[:gws_credentials_json].to_s.strip
+    end
+
+    if json.blank?
+      redirect_to integrations_path, alert: "Paste your credentials JSON or upload the file"
+      return
+    end
+
+    GoogleWorkspace::CredentialBridge.import_credentials(json)
+    email = GoogleWorkspace::CredentialBridge.connected_email
+    redirect_to integrations_path, notice: "Google Workspace connected#{email ? " (#{email})" : ""}"
+  rescue JSON::ParserError
+    redirect_to integrations_path, alert: "Invalid JSON — paste the output from `gws auth` exactly"
+  rescue StandardError => e
+    redirect_to integrations_path, alert: "Failed to import credentials: #{e.message}"
+  end
+
+  def update_embedding_key
+    key = params[:gemini_embedding_api_key].to_s.strip
+    if key.present?
+      store_vault("embedding", "google_ai_api_key", key)
+      redirect_to integrations_path, notice: "Gemini embedding API key saved"
+    else
+      redirect_to integrations_path, alert: "API key is required"
+    end
+  end
+
   # === Connection Tests ===
 
   def test_github
@@ -82,14 +114,6 @@ class IntegrationsController < ApplicationController
 
   def test_trello
     render_test_result(Integrations::ConnectionTester.call(:trello))
-  end
-
-  def test_telegram
-    render_test_result(Integrations::ConnectionTester.call(:telegram))
-  end
-
-  def test_signal
-    render_test_result(Integrations::ConnectionTester.call(:signal))
   end
 
   # === Cloud Storage ===
@@ -235,41 +259,6 @@ class IntegrationsController < ApplicationController
     server.update!(enabled: !server.enabled)
     status = server.enabled? ? "enabled" : "disabled"
     redirect_to integrations_path, notice: "MCP server '#{server.name}' #{status}"
-  end
-
-  # === Telegram ===
-
-  def update_telegram
-    token = params[:telegram_bot_token].to_s.strip
-    if token.present?
-      store_vault("channel_credentials", "telegram_bot_token", token)
-      ch = Channel.find_or_initialize_by(channel_type: "telegram")
-      ch.name ||= "Telegram Bot"
-      ch.enabled = true
-      webhook_secret = params[:telegram_webhook_secret].to_s.strip
-      ch.config = (ch.config || {}).merge("webhook_secret" => webhook_secret) if webhook_secret.present?
-      ch.save!
-      redirect_to integrations_path, notice: "Telegram bot connected"
-    else
-      redirect_to integrations_path, alert: "Bot token is required"
-    end
-  end
-
-  # === Signal ===
-
-  def update_signal
-    phone = params[:signal_phone_number].to_s.strip
-    api_url = params[:signal_api_url].to_s.strip.presence || "http://signal-cli:8080"
-    if phone.present?
-      ch = Channel.find_or_initialize_by(channel_type: "signal")
-      ch.name ||= "Signal"
-      ch.enabled = true
-      ch.config = { "api_url" => api_url, "phone_number" => phone }
-      ch.save!
-      redirect_to integrations_path, notice: "Signal channel configured"
-    else
-      redirect_to integrations_path, alert: "Phone number is required"
-    end
   end
 
   private
