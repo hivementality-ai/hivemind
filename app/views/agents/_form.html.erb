@@ -39,27 +39,10 @@
       <div>
         <%= form.label :role, class: "block text-sm font-medium text-text-primary mb-1" %>
         <%= form.select :role,
-            options_for_select([
-              ["Software Engineer", "Software Engineer"],
-              ["Software Tester", "Software Tester"],
-              ["Code Reviewer", "Code Reviewer"],
-              ["DevOps Engineer", "DevOps Engineer"],
-              ["Research Analyst", "Research Analyst"],
-              ["Data Analyst", "Data Analyst"],
-              ["Technical Writer", "Technical Writer"],
-              ["Security Auditor", "Security Auditor"],
-              ["Project Manager", "Project Manager"],
-              ["Creative Writer", "Creative Writer"],
-              ["Customer Support", "Customer Support"],
-              ["Sales Assistant", "Sales Assistant"],
-              ["General Assistant", "General Assistant"],
-              ["Administrative Assistant", "Administrative Assistant"],
-              ["Sports Fan", "Sports Fan"],
-              ["Chef", "Chef"],
-              ["Fitness Coach", "Fitness Coach"],
-              ["Travel Planner", "Travel Planner"],
-              ["Music Nerd", "Music Nerd"],
-            ], agent.role),
+            options_for_select(
+              AgentTemplate.distinct.order(:role).pluck(:role).map { |r| [r, r] },
+              agent.role
+            ),
             { include_blank: "— Select Role —" },
             { class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand" } %>
       </div>
