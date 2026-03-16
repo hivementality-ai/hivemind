@@ -87,6 +87,8 @@
             </div>
 
             <div class="flex items-center gap-2 flex-shrink-0">
+              <%= link_to "Edit", edit_scheduled_task_path(task),
+                  class: "px-3 py-1.5 text-xs font-medium bg-surface-raised hover:bg-surface-overlay text-text-muted hover:text-white rounded-lg transition" %>
               <%= button_to run_now_scheduled_task_path(task), method: :post,
                   class: "px-3 py-1.5 text-xs font-medium bg-surface-raised hover:bg-surface-overlay text-text-muted hover:text-white rounded-lg transition",
                   title: "Run now" do %>
