@@ -44,7 +44,7 @@ module Tools
       params["singleEvents"] = true
       params["orderBy"] = "startTime"
 
-      result = gws("calendar", "events", "list", calendar_id, "--params", params.to_json)
+      result = gws("calendar", "events", "list", "--params", params.merge("calendarId" => calendar_id).to_json)
       return result if result.is_a?(ServiceResponse) && !result.success?
 
       events = parse_events(result)
@@ -61,7 +61,7 @@ module Tools
       event_id = input["event_id"].to_s.strip
       return ServiceResponse.failure(error: "No event_id provided") if event_id.empty?
 
-      result = gws("calendar", "events", "get", calendar_id, event_id)
+      result = gws("calendar", "events", "get", "--params", { "calendarId" => calendar_id, "eventId" => event_id }.to_json)
       return result if result.is_a?(ServiceResponse) && !result.success?
 
       data = JSON.parse(result) rescue result
@@ -92,7 +92,7 @@ module Tools
         event["attendees"] = Array(input["attendees"]).map { |email| { "email" => email } }
       end
 
-      result = gws("calendar", "events", "insert", calendar_id, "--json", event.to_json)
+      result = gws("calendar", "events", "insert", "--params", { "calendarId" => calendar_id }.to_json, "--json", event.to_json)
       return result if result.is_a?(ServiceResponse) && !result.success?
 
       data = JSON.parse(result) rescue result
@@ -111,7 +111,7 @@ module Tools
       updates = input["updates"] || {}
       return ServiceResponse.failure(error: "No updates provided") if updates.empty?
 
-      result = gws("calendar", "events", "patch", calendar_id, event_id, "--json", updates.to_json)
+      result = gws("calendar", "events", "patch", "--params", { "calendarId" => calendar_id, "eventId" => event_id }.to_json, "--json", updates.to_json)
       return result if result.is_a?(ServiceResponse) && !result.success?
 
       data = JSON.parse(result) rescue result
@@ -127,14 +127,14 @@ module Tools
       event_id = input["event_id"].to_s.strip
       return ServiceResponse.failure(error: "No event_id provided") if event_id.empty?
 
-      result = gws("calendar", "events", "delete", calendar_id, event_id)
+      result = gws("calendar", "events", "delete", "--params", { "calendarId" => calendar_id, "eventId" => event_id }.to_json)
       return result if result.is_a?(ServiceResponse) && !result.success?
 
       ServiceResponse.success(data: { output: "Deleted event #{event_id}.", exit_code: 0 })
     end
 
     def list_calendars
-      result = gws("calendar", "calendarList", "list")
+      result = gws("calendar", "calendarList", "list", "--params", {}.to_json)
       return result if result.is_a?(ServiceResponse) && !result.success?
 
       data = JSON.parse(result) rescue {}

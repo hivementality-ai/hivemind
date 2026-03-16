@@ -64,9 +64,10 @@ RSpec.describe Tools::GoogleGmailExecutor, type: :service do
       call_count = 0
       allow_any_instance_of(described_class).to receive(:gws) do |_instance, *args|
         call_count += 1
+        args_str = args.join(" ")
         if call_count == 1
           list_output
-        elsif args.include?("msg001")
+        elsif args_str.include?("msg001")
           summary1.to_json
         else
           summary2.to_json
@@ -172,13 +173,11 @@ RSpec.describe Tools::GoogleGmailExecutor, type: :service do
     end
 
     it "sends a message" do
-      gws_output = { "id" => "sent001", "labelIds" => [ "SENT" ] }.to_json
-      allow_any_instance_of(described_class).to receive(:gws).and_return(gws_output)
+      allow_any_instance_of(described_class).to receive(:gws).and_return("")
 
       response = execute("action" => "send", "to" => "bob@example.com", "subject" => "Hello", "body" => "Hi Bob!")
       expect(response.success?).to be true
       expect(response.data[:output]).to include("Sent message to bob@example.com")
-      expect(response.data[:output]).to include("sent001")
     end
   end
 

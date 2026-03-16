@@ -41,7 +41,7 @@ module Tools
       params = input["params"] || {}
       params["maxResults"] ||= 20
 
-      result = gws("gmail", "users.messages", "list", USER_ID, "--params", params.to_json)
+      result = gws("gmail", "users", "messages", "list", "--params", params.merge("userId" => USER_ID).to_json)
       return result if result.is_a?(ServiceResponse) && !result.success?
 
       data = JSON.parse(result) rescue {}
@@ -60,7 +60,7 @@ module Tools
       message_id = input["message_id"].to_s.strip
       return ServiceResponse.failure(error: "No message_id provided") if message_id.empty?
 
-      result = gws("gmail", "users.messages", "get", USER_ID, message_id)
+      result = gws("gmail", "users", "messages", "get", "--params", { "userId" => USER_ID, "id" => message_id }.to_json)
       return result if result.is_a?(ServiceResponse) && !result.success?
 
       data = JSON.parse(result) rescue result
@@ -74,7 +74,7 @@ module Tools
       return ServiceResponse.failure(error: "No query provided") if query.empty?
 
       params = { "q" => query, "maxResults" => input["max_results"] || 20 }
-      result = gws("gmail", "users.messages", "list", USER_ID, "--params", params.to_json)
+      result = gws("gmail", "users", "messages", "list", "--params", params.merge("userId" => USER_ID).to_json)
       return result if result.is_a?(ServiceResponse) && !result.success?
 
       data = JSON.parse(result) rescue {}
@@ -97,18 +97,14 @@ module Tools
       return ServiceResponse.failure(error: "No subject provided") if subject.empty?
       return ServiceResponse.failure(error: "No body provided") if body.empty?
 
-      raw = build_raw_message(to: to, subject: subject, body: body, cc: input["cc"], bcc: input["bcc"])
-      message_json = { "raw" => raw }
+      args = [ "gmail", "+send", "--to", to, "--subject", subject, "--body", body ]
+      args.push("--cc", input["cc"]) if input["cc"].present?
+      args.push("--bcc", input["bcc"]) if input["bcc"].present?
 
-      result = gws("gmail", "users.messages", "send", USER_ID, "--json", message_json.to_json)
+      result = gws(*args)
       return result if result.is_a?(ServiceResponse) && !result.success?
 
-      data = JSON.parse(result) rescue result
-      if data.is_a?(Hash)
-        ServiceResponse.success(data: { output: "Sent message to #{to} (ID: #{data["id"]})", exit_code: 0 })
-      else
-        ServiceResponse.success(data: { output: "Sent message to #{to}.", exit_code: 0 })
-      end
+      ServiceResponse.success(data: { output: "Sent message to #{to}.", exit_code: 0 })
     end
 
     def create_draft
@@ -122,7 +118,7 @@ module Tools
       raw = build_raw_message(to: to, subject: subject, body: body, cc: input["cc"], bcc: input["bcc"])
       draft_json = { "message" => { "raw" => raw } }
 
-      result = gws("gmail", "users.drafts", "create", USER_ID, "--json", draft_json.to_json)
+      result = gws("gmail", "users", "drafts", "create", "--params", { "userId" => USER_ID }.to_json, "--json", draft_json.to_json)
       return result if result.is_a?(ServiceResponse) && !result.success?
 
       data = JSON.parse(result) rescue result
@@ -164,7 +160,7 @@ module Tools
     end
 
     def fetch_message_summary(message_id)
-      result = gws("gmail", "users.messages", "get", USER_ID, message_id, "--params", { "format" => "metadata", "metadataHeaders" => "From,To,Subject,Date" }.to_json)
+      result = gws("gmail", "users", "messages", "get", "--params", { "userId" => USER_ID, "id" => message_id, "format" => "metadata", "metadataHeaders" => "From,To,Subject,Date" }.to_json)
       return nil if result.is_a?(ServiceResponse) && !result.success?
 
       JSON.parse(result) rescue nil
