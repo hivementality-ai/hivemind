@@ -26,14 +26,14 @@ module Tools
           s.metadata = { type: "heartbeat", delegated_by: agent.name }
         end
       else
-        Session.find_or_create_by!(
+        # Fresh session per delegation — prevents context leaking between tasks
+        Session.create!(
           agent: target,
-          title: "📋 Delegated by #{agent&.name || 'System'}"
-        ) do |s|
-          s.session_key = "delegate-#{target.id}-#{agent&.id || 'system'}"
-          s.status = "active"
-          s.metadata = { type: "delegation", delegated_by: agent&.name }
-        end
+          session_key: "delegate-#{target.id}-#{agent&.id || 'system'}-#{SecureRandom.hex(4)}",
+          title: "📋 Delegated by #{agent&.name || 'System'}",
+          status: "active",
+          metadata: { type: "delegation", delegated_by: agent&.name }
+        )
       end
 
       result = Sessions::Chat.call(
