@@ -49,31 +49,53 @@ module GoogleWorkspace
       store(VAULT_NAMESPACE, "client_secret", client_secret) if client_secret.present?
     end
 
-    # Import credentials JSON from `gws auth` output
+    # Import credentials JSON from `gws auth export` or full token output.
+    # Handles two formats:
+    #   1. Full: { access_token, refresh_token, client_id, client_secret, expiry }
+    #   2. Minimal (gws auth export): { client_id, client_secret, refresh_token, type }
     def self.import_credentials(json_string)
       data = JSON.parse(json_string)
 
-      access_token = data["access_token"] || data["token"]
       refresh_token = data["refresh_token"]
+      client_id = data["client_id"]
+      client_secret = data["client_secret"]
 
-      raise "Missing access_token in credentials" unless access_token.present?
       raise "Missing refresh_token in credentials" unless refresh_token.present?
 
-      store_tokens(
-        access_token: access_token,
-        refresh_token: refresh_token,
-        expires_at: data["expiry"] || data["expires_at"],
-        client_id: data["client_id"],
-        client_secret: data["client_secret"]
-      )
+      # Store client credentials first so OAuthClient can use them for refresh
+      store(VAULT_NAMESPACE, "client_id", client_id) if client_id.present?
+      store(VAULT_NAMESPACE, "client_secret", client_secret) if client_secret.present?
+      store(VAULT_NAMESPACE, "refresh_token", refresh_token)
 
-      # Fetch email if we have a valid access token
-      begin
+      access_token = data["access_token"] || data["token"]
+
+      # If no access_token provided, use refresh_token to get one
+      if access_token.blank? && client_id.present? && client_secret.present?
         client = GoogleWorkspace::OAuthClient.new
-        result = client.fetch_user_info(access_token)
-        store(VAULT_NAMESPACE, "email", result.data[:email]) if result.success? && result.data[:email]
-      rescue StandardError
-        # Not critical — email is just for display
+        result = client.refresh_token(refresh_token)
+        raise "Failed to refresh token: #{result.error}" unless result.success?
+
+        access_token = result.data[:access_token]
+        expires_in = result.data[:expires_in]
+
+        store(VAULT_NAMESPACE, "access_token", access_token)
+        store(VAULT_NAMESPACE, "expires_at", (Time.current + expires_in.to_i.seconds).iso8601) if expires_in
+      else
+        store(VAULT_NAMESPACE, "access_token", access_token) if access_token.present?
+        if data["expiry"].present? || data["expires_at"].present?
+          store(VAULT_NAMESPACE, "expires_at", data["expiry"] || data["expires_at"])
+        end
+      end
+
+      # Fetch email for display
+      if access_token.present?
+        begin
+          client = GoogleWorkspace::OAuthClient.new
+          user_result = client.fetch_user_info(access_token)
+          store(VAULT_NAMESPACE, "email", user_result.data[:email]) if user_result.success? && user_result.data[:email]
+        rescue StandardError
+          # Not critical
+        end
       end
     end
 
