@@ -222,55 +222,64 @@
           </p>
         </div>
         <div class="flex items-center justify-between">
-          <span class="text-text-faint text-xs">To update, paste new credentials below</span>
+          <%= link_to "Re-authorize", oauth_google_authorize_path, class: "text-brand-light hover:underline text-sm font-medium" %>
           <%= button_to "Disconnect", oauth_google_disconnect_path, method: :delete,
               class: "text-red-400 hover:text-red-300 text-sm font-medium",
               data: { turbo_confirm: "Disconnect Google Workspace?" } %>
         </div>
       </div>
+    <% elsif @gws_oauth_configured %>
+      <div class="space-y-4">
+        <div class="bg-surface-base rounded-lg border border-border-default p-4">
+          <p class="text-text-muted text-sm">OAuth client configured. Click below to sign in with your Google account.</p>
+        </div>
+        <div class="flex justify-end">
+          <%= link_to "Connect Google Account", oauth_google_authorize_path,
+              class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition" %>
+        </div>
+      </div>
     <% end %>
 
-    <div class="<%= @gws_connected ? 'mt-4 pt-4 border-t border-border-default' : '' %>">
-      <% unless @gws_connected %>
-        <div class="bg-surface-base rounded-lg border border-border-default p-4 mb-4">
-          <p class="text-text-muted text-sm mb-3">Connect Google Workspace so agents can use Drive, Calendar, and Gmail.</p>
-          <ol class="text-text-muted text-sm space-y-2 list-decimal list-inside">
-            <li>Install the CLI: <code class="text-amber-300">npm install -g @googleworkspace/cli</code></li>
-            <li>Set up your Google Cloud OAuth client (one-time):
-              <div class="mt-1 ml-4">
-                <p class="text-text-faint text-xs">If you have <code class="text-amber-300">gcloud</code> installed:</p>
-                <code class="text-amber-300 text-xs block mt-1">gws auth setup --login</code>
-                <p class="text-text-faint text-xs mt-2">Or manually: create an OAuth client in <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-brand-light hover:underline">Google Cloud Console</a>, download <code class="text-text-muted">client_secret.json</code>, and save it to <code class="text-text-muted">~/.config/gws/client_secret.json</code></p>
-              </div>
-            </li>
-            <li>Log in: <code class="text-amber-300">gws auth login</code> (opens browser for OAuth consent)</li>
-            <li>Export credentials: <code class="text-amber-300">gws auth export</code></li>
-            <li>Paste the JSON output below</li>
-          </ol>
-        </div>
-      <% end %>
+    <% unless @gws_connected %>
+      <div class="<%= @gws_oauth_configured ? 'mt-4 pt-4 border-t border-border-default' : '' %>">
+        <% unless @gws_oauth_configured %>
+          <div class="bg-surface-base rounded-lg border border-border-default p-4 mb-4">
+            <p class="text-text-muted text-sm mb-3">Connect Google Workspace so agents can use Drive, Calendar, and Gmail.</p>
+            <ol class="text-text-muted text-sm space-y-2 list-decimal list-inside">
+              <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-brand-light hover:underline">Google Cloud Console > Credentials</a></li>
+              <li>Click <strong class="text-white">Create Credentials</strong> > <strong class="text-white">OAuth client ID</strong></li>
+              <li>Select <strong class="text-white">Web application</strong> as the type</li>
+              <li>Add <code class="text-amber-300"><%= request.base_url %>/oauth/google/callback</code> as an authorized redirect URI</li>
+              <li>Copy the <strong class="text-white">Client ID</strong> and <strong class="text-white">Client Secret</strong> below</li>
+            </ol>
+            <p class="text-text-faint text-xs mt-3">Also enable the Google Drive, Calendar, and Gmail APIs in your project's <a href="https://console.cloud.google.com/apis/library" target="_blank" class="text-brand-light hover:underline">API Library</a>.</p>
+          </div>
+        <% end %>
 
-      <%= form_tag update_google_workspace_integrations_path, method: :patch, multipart: true do %>
-        <div class="space-y-3">
-          <div>
-            <label class="block text-text-muted text-sm mb-1">Credentials JSON</label>
-            <%= text_area_tag :gws_credentials_json, nil,
-                placeholder: '{"access_token":"ya29...","refresh_token":"1//...","client_id":"...","client_secret":"...","expiry":"..."}',
-                rows: 3,
-                class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-xs" %>
-          </div>
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="text-text-faint text-xs">or</span>
-              <%= file_field_tag :gws_credentials_file, accept: ".json,application/json",
-                  class: "text-xs text-text-muted file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-surface-raised file:text-text-primary hover:file:bg-surface-overlay" %>
+        <%= form_tag update_google_workspace_integrations_path, method: :patch do %>
+          <div class="space-y-3">
+            <div>
+              <label class="block text-text-muted text-sm mb-1">Client ID</label>
+              <%= text_field_tag :google_client_id, nil,
+                  placeholder: "123456789-abc.apps.googleusercontent.com",
+                  class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-xs",
+                  autocomplete: "off" %>
             </div>
-            <%= submit_tag @gws_connected ? "Update Credentials" : "Connect",
+            <div>
+              <label class="block text-text-muted text-sm mb-1">Client Secret</label>
+              <%= password_field_tag :google_client_secret, nil,
+                  placeholder: "GOCSPX-...",
+                  class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-xs",
+                  autocomplete: "off" %>
+            </div>
+            <div class="flex justify-end">
+              <%= submit_tag @gws_oauth_configured ? "Update Credentials" : "Save & Connect",
                 class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+            </div>
           </div>
-        </div>
-      <% end %>
-    </div>
+        <% end %>
+      </div>
+    <% end %>
   </div>
 
   <!-- Jira -->
