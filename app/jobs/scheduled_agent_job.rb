@@ -16,16 +16,13 @@ class ScheduledAgentJob < ApplicationJob
 
     # Create a new conversation for this scheduled run
     session = agent.sessions.create!(
+      session_key: "scheduled-#{task.id}-#{SecureRandom.hex(4)}",
       title: "Scheduled: #{task.name}",
       metadata: { type: "scheduled", scheduled_task_id: task.id }
     )
 
     # Enqueue the chat
-    ChatStreamJob.perform_later(
-      session_id: session.id,
-      agent_id: agent.id,
-      message: prompt
-    )
+    ChatStreamJob.perform_later(session.id, prompt)
 
     # Update task tracking
     task.update!(
