@@ -31,7 +31,7 @@ module Memory
       summarized = Memory::Summarizer.call(agent: @agent)
 
       if summarized.present?
-        File.write(memory_file, summarized)
+        File.open(memory_file, "w+") { |f| f.write(summarized) }
         Rails.logger.info("[Memory::FileSync] Wrote summarized MEMORY.md for agent #{@agent.slug} (#{summarized.lines.count} lines)")
       else
         # Fallback to raw dump if summarizer fails (no provider, etc.)
@@ -80,7 +80,7 @@ module Memory
         procedures.each { |p| lines << "- #{p.content}" }
       end
 
-      File.write(memory_file, lines.join("\n"))
+      File.open(memory_file, "w+") { |f| f.write(lines.join("\n")) }
     end
 
     def write_recent_context(dir)
@@ -92,7 +92,7 @@ module Memory
       lines = [ "# Recent Context", "" ]
       recent.each { |r| lines << "- #{r.content}" }
 
-      File.write(File.join(dir, "recent_context.md"), lines.join("\n"))
+      File.open(File.join(dir, "recent_context.md"), "w+") { |f| f.write(lines.join("\n")) }
     end
   end
 end
