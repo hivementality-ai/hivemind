@@ -34,7 +34,7 @@ module Memory
       prefs = MemoryEntry.where(agent: @agent).preferences.by_importance.limit(15)
       if prefs.any?
         lines << "## Preferences"
-        prefs.each { |p| lines << "- #{p.content.truncate(200)}" }
+        prefs.each { |p| lines << "- #{p.content}" }
         lines << ""
       end
 
@@ -44,7 +44,7 @@ module Memory
                          .limit(10)
       if facts.any?
         lines << "## Key Knowledge"
-        facts.each { |f| lines << "- #{f.content.truncate(200)}" }
+        facts.each { |f| lines << "- #{f.content}" }
         lines << ""
       end
 
@@ -54,7 +54,7 @@ module Memory
                               .limit(5)
       if procedures.any?
         lines << "## Procedures"
-        procedures.each { |p| lines << "- #{p.content.truncate(200)}" }
+        procedures.each { |p| lines << "- #{p.content}" }
       end
 
       # Enforce line budget
@@ -69,7 +69,7 @@ module Memory
                           .limit(5)
 
       lines = [ "# Recent Context", "" ]
-      recent.each { |r| lines << "- #{r.content.truncate(300)}" }
+      recent.each { |r| lines << "- #{r.content}" }
 
       File.write(File.join(dir, "recent_context.md"), lines.join("\n"))
     end
