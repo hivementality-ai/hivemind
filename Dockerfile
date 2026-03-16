@@ -14,11 +14,12 @@ FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 # Rails app lives here
 WORKDIR /rails
 
-# Install base packages + Python for PDF/document processing
+# Install base packages + Python for PDF/document processing + Node.js for gws CLI
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libjemalloc2 libvips postgresql-client unzip python3 python3-pip && \
+    apt-get install --no-install-recommends -y curl libjemalloc2 libvips postgresql-client unzip python3 python3-pip nodejs npm && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
     pip3 install --no-cache-dir --break-system-packages pymupdf && \
+    npm install -g @googleworkspace/cli || true && \
     curl -fsSL https://rclone.org/install.sh | bash && \
     curl -fsSL https://get.docker.com | sh && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
@@ -72,7 +73,8 @@ FROM base
 RUN groupadd --system --gid 1000 rails && \
     useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash && \
     groupadd -f docker && usermod -aG docker rails && \
-    mkdir -p /workspace && chmod 777 /workspace
+    mkdir -p /workspace && chmod 777 /workspace && \
+    mkdir -p /tmp/gws-creds && chmod 700 /tmp/gws-creds && chown rails:rails /tmp/gws-creds
 USER 1000:1000
 
 # Copy built artifacts: gems, application
