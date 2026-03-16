@@ -3,7 +3,7 @@
 module Memory
   class FileSync
     MEMORY_BASE = "/workspace/.hivemind/agents"
-    STALE_AFTER = 5.minutes
+    STALE_AFTER = 30.minutes
 
     def self.call(agent:, query: nil, force: false)
       new(agent: agent, query: query, force: force).call
