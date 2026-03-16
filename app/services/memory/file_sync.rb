@@ -4,20 +4,28 @@ module Memory
   class FileSync
     MEMORY_BASE = "/workspace/.hivemind/agents"
     MAX_LINES = 150 # Stay under SDK's 200-line MEMORY.md limit
+    STALE_AFTER = 5.minutes
 
-    def self.call(agent:, query: nil)
-      new(agent: agent, query: query).call
+    def self.call(agent:, query: nil, force: false)
+      new(agent: agent, query: query, force: force).call
     end
 
-    def initialize(agent:, query: nil)
+    def initialize(agent:, query: nil, force: false)
       @agent = agent
       @query = query
+      @force = force
     end
 
     def call
       dir = File.join(MEMORY_BASE, @agent.id.to_s, "memory")
-      FileUtils.mkdir_p(dir)
+      memory_file = File.join(dir, "MEMORY.md")
 
+      # Skip if file exists and is fresh (written within STALE_AFTER)
+      if !@force && File.exist?(memory_file) && File.mtime(memory_file) > STALE_AFTER.ago
+        return
+      end
+
+      FileUtils.mkdir_p(dir)
       write_memory_index(dir)
       write_recent_context(dir) if @query.present?
     rescue StandardError => e
