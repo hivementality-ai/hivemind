@@ -135,6 +135,7 @@ module GoogleWorkspace
         creds[key] = val if val.present?
       end
 
+      creds["type"] = "authorized_user"
       creds["token_type"] = "Bearer"
       creds["expiry"] = creds.delete("expires_at") if creds["expires_at"]
 
