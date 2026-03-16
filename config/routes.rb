@@ -84,6 +84,14 @@ Rails.application.routes.draw do
   patch "heartbeat", to: "heartbeats#update", as: :update_heartbeat
   post "heartbeat/trigger", to: "heartbeats#trigger", as: :trigger_heartbeat
 
+  # Scheduled Tasks
+  resources :scheduled_tasks, only: [ :index, :destroy ] do
+    member do
+      patch :toggle
+      post :run_now
+    end
+  end
+
   # Analytics
   resources :analytics, only: [ :index, :show ] do
     member do
