@@ -437,13 +437,25 @@ Credentials stored in the encrypted vault. Configure via the Channels page.
 
 Connect Google Drive, Calendar, and Gmail so agents can manage your documents, schedule, and email.
 
-**Setup:** Run `gws auth` on your local machine, then paste the credentials JSON on the Integrations page. No Google Cloud Console project needed.
-
 | Service | What agents can do |
 |---------|-------------------|
 | **Google Drive** | Search, read, create, upload, and export files |
 | **Google Calendar** | List, create, update, and delete events across calendars |
 | **Gmail** | Search, read, send, and draft emails |
+
+**Setup (one-time):**
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) and create a project (or use an existing one)
+2. Enable the **Google Drive API**, **Google Calendar API**, and **Gmail API** in [API Library](https://console.cloud.google.com/apis/library)
+3. Go to [APIs & Services > Credentials](https://console.cloud.google.com/apis/credentials) and click **Create Credentials > OAuth client ID**
+4. Select **Web application** as the type
+5. Add your Hivemind URL + `/oauth/google/callback` as an authorized redirect URI (e.g., `http://localhost:8080/oauth/google/callback`)
+6. Copy the **Client ID** and **Client Secret**
+7. In Hivemind, go to **Settings > Integrations > Google Workspace**, paste both values, and click **Save & Connect**
+8. You'll be redirected to Google to authorize — grant access to Drive, Calendar, and Gmail
+9. Done. Agents with Google Workspace tools can now use Drive, Calendar, and Gmail.
+
+> **Note:** You may need to configure the [OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent) first. For personal use, "External" type in testing mode works — just add your email as a test user.
 
 ### MCP Servers
 
@@ -1077,7 +1089,7 @@ This imports your agent's identity, memories, skills, conversations, and tools i
 - **Integrations page** — Jira, Email (SMTP), Gmail, Cloud Storage configured via UI
 - **Per-agent tool/skill assignment** — Control exactly what each agent can do
 - **150+ agent templates** — Pre-built roles across 18 categories
-- **Google Workspace** — Drive, Calendar, Gmail access via `gws` CLI credential passthrough
+- **Google Workspace** — Drive, Calendar, Gmail via OAuth (requires a Google Cloud project)
 - **MCP servers** — Connect external tool servers via Model Context Protocol
 - **OpenAI-compatible providers** — llama.cpp, vLLM, LocalAI, LM Studio, and more
 - **Hashtag actions** — Platform-agnostic commands (#remember, #summarize, #mood, etc.)
