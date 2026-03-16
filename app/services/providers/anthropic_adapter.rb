@@ -36,12 +36,10 @@ module Providers
 
     def sync_memories_for_oauth(messages, options)
       return unless options[:agent_id]
-      agent = Agent.find_by(id: options[:agent_id])
-      return unless agent
-      last_content = messages.last&.dig(:content) || messages.last&.dig("content")
-      Memory::FileSync.call(agent: agent, query: last_content.to_s)
+      # Run async so memory sync doesn't block the chat response
+      MemoryFileSyncJob.perform_later(options[:agent_id], query: messages.last&.dig(:content) || messages.last&.dig("content"))
     rescue StandardError => e
-      Rails.logger.warn("[AnthropicAdapter] Memory sync failed: #{e.message}")
+      Rails.logger.warn("[AnthropicAdapter] Memory sync enqueue failed: #{e.message}")
     end
 
     def gem_client
