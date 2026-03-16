@@ -42,6 +42,11 @@ export default class extends Controller {
     // Close hashtag dropdown when clicking outside
     this._boundOutsideClick = this.handleOutsideClick.bind(this)
     document.addEventListener('click', this._boundOutsideClick)
+
+    // Request notification permission for background alerts
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission()
+    }
   }
 
   disconnect() {
@@ -187,6 +192,7 @@ export default class extends Controller {
         this.appendAgentToken(data.agent_id, data.agent_name, data.content)
         break
       case "agent_done":
+        this.notifyIfHidden(data.agent_name, this.streamRawTexts[data.agent_id] || "")
         this.activeAgents.delete(data.agent_id)
         if (this.activeAgents.size === 0) this.hideStopBtn()
         this.hideThinking(data.agent_id)
@@ -527,6 +533,18 @@ export default class extends Controller {
     }
     delete this.streamBubbles[agentId]
     delete this.streamRawTexts[agentId]
+  }
+
+  notifyIfHidden(agentName, responseText) {
+    if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+      const body = responseText.length > 0
+        ? responseText.replace(/[#*_`~\[\]]/g, "").substring(0, 120)
+        : "Response ready"
+      new Notification(agentName || "Team Chat", {
+        body: body,
+        tag: `hivemind-team-${this.sessionIdValue}`
+      })
+    }
   }
 
   showTeamToolStart(agentId, agentName, toolName, input) {
