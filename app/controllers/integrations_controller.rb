@@ -84,8 +84,7 @@ class IntegrationsController < ApplicationController
     store_vault("google_workspace", "client_id", client_id)
     store_vault("google_workspace", "client_secret", client_secret)
 
-    # Redirect straight to OAuth flow
-    redirect_to oauth_google_authorize_path
+    redirect_to integrations_path, notice: "Google Workspace credentials saved. Click \"Connect Google Account\" to authorize."
   end
 
   def update_embedding_key

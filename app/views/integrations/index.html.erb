@@ -222,7 +222,7 @@
           </p>
         </div>
         <div class="flex items-center justify-between">
-          <%= link_to "Re-authorize", oauth_google_authorize_path, class: "text-brand-light hover:underline text-sm font-medium" %>
+          <%= link_to "Re-authorize", oauth_google_authorize_path, class: "text-brand-light hover:underline text-sm font-medium", data: { turbo: false } %>
           <%= button_to "Disconnect", oauth_google_disconnect_path, method: :delete,
               class: "text-red-400 hover:text-red-300 text-sm font-medium",
               data: { turbo_confirm: "Disconnect Google Workspace?" } %>
@@ -235,7 +235,8 @@
         </div>
         <div class="flex justify-end">
           <%= link_to "Connect Google Account", oauth_google_authorize_path,
-              class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition" %>
+              class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition",
+              data: { turbo: false } %>
         </div>
       </div>
     <% end %>
