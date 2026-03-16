@@ -65,15 +65,30 @@ app.post("/v1/chat", async (req, res) => {
 async function handleOAuth(_req, res, token, params) {
   const { messages, systemPrompt, model, stream, agent_id, session_id, tool_definitions } = params;
 
-  // Set the OAuth token for Claude Code to pick up
-  process.env.CLAUDE_CODE_OAUTH_TOKEN = token;
-  // Clear API key so Claude Code doesn't try to use it
-  delete process.env.ANTHROPIC_API_KEY;
+  // Extract system prompt text for structured passing
+  const systemText = extractSystemPrompt(systemPrompt);
 
-  const prompt = buildPrompt(messages, systemPrompt);
-  const options = {}
+  // Extract the last user message as the prompt
+  const lastUserMsg = messages
+    ?.filter(m => m.role === "user")
+    ?.pop();
+  const prompt = typeof lastUserMsg?.content === "string"
+    ? lastUserMsg.content
+    : Array.isArray(lastUserMsg?.content)
+      ? lastUserMsg.content.filter(b => b.type === "text").map(b => b.text).join("\n")
+      : "Continue";
+
+  const options = {};
+  if (systemText) options.systemPrompt = systemText;
   if (model) options.model = model;
+  options.env = { CLAUDE_CODE_OAUTH_TOKEN: token };
   options.stderr = (data) => console.error(`[claude-code stderr] ${data}`);
+
+  // Set agent-scoped working directory for memory file access
+  if (agent_id) {
+    const memoryDir = `/workspace/.hivemind/agents/${agent_id}`;
+    options.cwd = memoryDir;
+  }
 
   // Build MCP server from Hivemind tool definitions (if provided)
   const mcpToolNames = new Set();
@@ -194,29 +209,13 @@ async function handleOAuth(_req, res, token, params) {
   }
 }
 
-// Build a text prompt from chat messages for the Agent SDK
-function buildPrompt(messages, systemPrompt) {
-  const parts = [];
-
-  if (systemPrompt) {
-    const text = typeof systemPrompt === "string"
-      ? systemPrompt
-      : Array.isArray(systemPrompt)
-        ? systemPrompt.map((b) => b.text).filter(Boolean).join("\n")
-        : String(systemPrompt);
-    parts.push(`[System]\n${text}`);
+function extractSystemPrompt(systemPrompt) {
+  if (!systemPrompt) return null;
+  if (typeof systemPrompt === "string") return systemPrompt;
+  if (Array.isArray(systemPrompt)) {
+    return systemPrompt.map(b => b.text).filter(Boolean).join("\n\n");
   }
-
-  for (const msg of messages) {
-    const role = msg.role;
-    const content = typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
-    if (role === "system") continue;
-    if (role === "user") parts.push(`[User]\n${content}`);
-    else if (role === "assistant") parts.push(`[Assistant]\n${content}`);
-    else if (role === "tool") parts.push(`[Tool Result (${msg.tool_use_id})]\n${content}`);
-  }
-
-  return parts.join("\n\n");
+  return String(systemPrompt);
 }
 
 // ─── API key path: direct Anthropic SDK ───

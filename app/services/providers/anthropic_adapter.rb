@@ -8,6 +8,7 @@ module Providers
       params = build_chat_params(messages:, tools:, options:)
 
       if oauth_token?
+        sync_memories_for_oauth(messages, options)
         result = proxy_client.chat(params:, options:, &block)
         inject_request_payload(result, params)
       else
@@ -31,6 +32,16 @@ module Providers
 
     def oauth_token?
       api_key&.start_with?("sk-ant-oat")
+    end
+
+    def sync_memories_for_oauth(messages, options)
+      return unless options[:agent_id]
+      agent = Agent.find_by(id: options[:agent_id])
+      return unless agent
+      last_content = messages.last&.dig(:content) || messages.last&.dig("content")
+      Memory::FileSync.call(agent: agent, query: last_content.to_s)
+    rescue StandardError => e
+      Rails.logger.warn("[AnthropicAdapter] Memory sync failed: #{e.message}")
     end
 
     def gem_client
