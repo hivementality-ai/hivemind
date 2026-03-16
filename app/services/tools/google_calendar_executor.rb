@@ -157,7 +157,10 @@ module Tools
         end
 
         unless status.success?
-          return ServiceResponse.failure(error: "gws: #{stderr.to_s.truncate(500)}")
+          error_msg = stderr.to_s.strip
+          error_msg = stdout.to_s.strip if error_msg.blank?
+          error_msg = "exit code #{status.exitstatus}" if error_msg.blank?
+          return ServiceResponse.failure(error: "gws: #{error_msg.truncate(500)}")
         end
 
         stdout.to_s.strip
