@@ -3,7 +3,7 @@
 module Embeddings
   class GeminiAdapter < BaseAdapter
     API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
-    MODEL = "gemini-embedding-exp-03-07"
+    MODEL = "gemini-embedding-2-preview"
 
     def capabilities
       {
