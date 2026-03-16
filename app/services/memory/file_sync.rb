@@ -21,6 +21,7 @@ module Memory
 
       # Skip if file exists and is fresh (written within STALE_AFTER)
       if !@force && File.exist?(memory_file) && File.mtime(memory_file) > STALE_AFTER.ago
+        Rails.logger.debug("[Memory::FileSync] Skipping agent #{@agent.slug} — MEMORY.md is fresh (#{((Time.current - File.mtime(memory_file)) / 60).round}min old)")
         return
       end
 
@@ -31,12 +32,17 @@ module Memory
 
       if summarized.present?
         File.write(memory_file, summarized)
+        Rails.logger.info("[Memory::FileSync] Wrote summarized MEMORY.md for agent #{@agent.slug} (#{summarized.lines.count} lines)")
       else
         # Fallback to raw dump if summarizer fails (no provider, etc.)
         write_raw_memory(memory_file)
+        Rails.logger.info("[Memory::FileSync] Wrote raw MEMORY.md for agent #{@agent.slug} (summarizer unavailable)")
       end
 
-      write_recent_context(dir) if @query.present?
+      if @query.present?
+        write_recent_context(dir)
+        Rails.logger.info("[Memory::FileSync] Wrote recent_context.md for agent #{@agent.slug}")
+      end
     rescue StandardError => e
       Rails.logger.warn("[Memory::FileSync] Failed for agent #{@agent.id}: #{e.message}")
     end
