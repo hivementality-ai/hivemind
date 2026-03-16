@@ -40,7 +40,7 @@ export function buildMcpServer({ tools, agentId, sessionId, onToolEvent }) {
       description,
       zodShape,
       async (args) => {
-        console.log(`[mcp-bridge] Tool called: ${name}`, JSON.stringify(args).substring(0, 200));
+        console.log(`[mcp-bridge] Tool called: ${name}`, JSON.stringify(args).substring(0, 500));
         onToolEvent?.("tool_start", { tool: name, input: args });
 
         try {
@@ -53,7 +53,8 @@ export function buildMcpServer({ tools, agentId, sessionId, onToolEvent }) {
 
           onToolEvent?.("tool_result", {
             tool: name,
-            output: (result.output || "").substring(0, 500),
+            input: args,
+            output: result.output || "",
             success: result.success,
           });
 

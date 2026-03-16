@@ -8,7 +8,8 @@ module Providers
       params = build_chat_params(messages:, tools:, options:)
 
       if oauth_token?
-        proxy_client.chat(params:, options:, &block)
+        result = proxy_client.chat(params:, options:, &block)
+        inject_request_payload(result, params)
       else
         result = gem_client.chat(client: ::Anthropic::Client.new(api_key:), params:, &block)
         inject_request_payload(result, params)
