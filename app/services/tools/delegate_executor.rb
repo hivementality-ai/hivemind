@@ -43,7 +43,7 @@ module Tools
       )
 
       if result.success?
-        reply = result.data[:reply].to_s.truncate(3000)
+        reply = result.data[:content].to_s.truncate(3000)
         ServiceResponse.success(data: {
           output: "#{target.name} responded:\n\n#{reply}",
           exit_code: 0
