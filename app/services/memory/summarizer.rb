@@ -106,22 +106,60 @@ module Memory
     end
 
     def run_llm(raw_content)
-      resolver = Providers::Resolver.call(provider_name: "anthropic", agent: @agent)
-      return nil unless resolver.success?
-
-      adapter = resolver.data[:adapter]
+      # Use the cheapest available provider — don't bill the agent's own model for housekeeping
+      adapter, model = resolve_cheap_provider
+      return nil unless adapter
 
       messages = [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: "Agent name: #{@agent.name}\nRole: #{@agent.role}\n\nRaw memories to consolidate:\n\n#{raw_content}" }
       ]
 
-      result = adapter.chat(messages: messages, options: { model: "claude-haiku-4-5", max_tokens: 4096 })
+      result = adapter.chat(messages: messages, options: { model: model, max_tokens: 4096 })
       return nil unless result.success?
 
       content = result.data[:content].to_s.strip
       # Strip any markdown code fences the model might wrap it in
       content.gsub(/\A```markdown?\s*\n?/, "").gsub(/\n?```\z/, "")
+    end
+
+    # Find the cheapest available provider for background work.
+    # Priority: Anthropic Haiku > OpenAI Nano > Ollama > agent's own provider
+    def resolve_cheap_provider
+      # Try Anthropic with Haiku
+      anthropic = ProviderConfig.find_by(adapter_type: "anthropic", enabled: true)
+      if anthropic
+        resolver = Providers::Resolver.call(provider_name: "anthropic")
+        return [ resolver.data[:adapter], "claude-haiku-4-5" ] if resolver.success?
+      end
+
+      # Try OpenAI with cheapest model
+      openai = ProviderConfig.find_by(adapter_type: "openai", enabled: true)
+      if openai
+        resolver = Providers::Resolver.call(provider_name: "openai")
+        return [ resolver.data[:adapter], "gpt-5.2-nano" ] if resolver.success?
+      end
+
+      # Try Ollama
+      ollama = ProviderConfig.find_by(adapter_type: "ollama", enabled: true)
+      if ollama
+        resolver = Providers::Resolver.call(provider_name: "ollama")
+        return [ resolver.data[:adapter], "llama3.2:3b" ] if resolver.success?
+      end
+
+      # Last resort: agent's own provider with cheapest model
+      resolver = Providers::Resolver.call(provider_name: @agent.model_provider, agent: @agent)
+      if resolver.success?
+        cheap =
+          case @agent.model_provider
+          when "anthropic" then "claude-haiku-4-5"
+          when "openai" then "gpt-5.2-nano"
+          else @agent.llm_model
+          end
+        return [ resolver.data[:adapter], cheap ]
+      end
+
+      [ nil, nil ]
     end
   end
 end
