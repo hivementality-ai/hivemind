@@ -17,7 +17,7 @@ class ScheduledAgentJob < ApplicationJob
     # Create a new conversation for this scheduled run
     session = agent.sessions.create!(
       title: "Scheduled: #{task.name}",
-      session_type: "scheduled"
+      metadata: { type: "scheduled", scheduled_task_id: task.id }
     )
 
     # Enqueue the chat
