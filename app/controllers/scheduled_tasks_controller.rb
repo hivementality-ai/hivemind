@@ -26,12 +26,11 @@ class ScheduledTasksController < ApplicationController
   end
 
   def update
-    old_agent = @task.agent
+    old_agent_changed = @task.agent_id.to_s != params.dig(:scheduled_task, :agent_id).to_s
 
     if @task.update(task_params)
-      # Re-sync sidekiq if agent or schedule changed
-      Agents::ManageCron.new(agent: old_agent).send(:remove_from_sidekiq, @task) if old_agent.id != @task.agent_id
-      Agents::ManageCron.new(agent: @task.agent).send(:sync_to_sidekiq, @task) if @task.enabled?
+      remove_from_sidekiq(@task) if old_agent_changed
+      sync_to_sidekiq(@task) if @task.enabled?
       redirect_to scheduled_tasks_path, notice: "#{@task.name} updated"
     else
       @agents = Agent.visible.order(:name)
@@ -42,11 +41,11 @@ class ScheduledTasksController < ApplicationController
   def toggle
     if @task.enabled?
       @task.update!(enabled: false, confirmation_status: "paused")
-      Agents::ManageCron.new(agent: @task.agent).send(:remove_from_sidekiq, @task)
+      remove_from_sidekiq(@task)
       notice = "#{@task.name} paused"
     else
       @task.update!(enabled: true, confirmation_status: "active")
-      Agents::ManageCron.new(agent: @task.agent).send(:sync_to_sidekiq, @task)
+      sync_to_sidekiq(@task)
       notice = "#{@task.name} resumed"
     end
     redirect_to scheduled_tasks_path, notice: notice
@@ -54,7 +53,7 @@ class ScheduledTasksController < ApplicationController
 
   def destroy
     name = @task.name
-    Agents::ManageCron.new(agent: @task.agent).send(:remove_from_sidekiq, @task)
+    remove_from_sidekiq(@task)
     @task.destroy!
     redirect_to scheduled_tasks_path, notice: "#{name} deleted"
   end
@@ -81,5 +80,18 @@ class ScheduledTasksController < ApplicationController
       permitted[:job_params] = (@task.job_params || {}).merge("prompt" => params[:scheduled_task][:prompt])
     end
     permitted
+  end
+
+  def sync_to_sidekiq(task)
+    Sidekiq::Cron::Job.create(
+      name: "scheduled_task_#{task.id}",
+      cron: task.schedule,
+      class: task.job_class,
+      args: [ task.id ]
+    )
+  end
+
+  def remove_from_sidekiq(task)
+    Sidekiq::Cron::Job.destroy("scheduled_task_#{task.id}")
   end
 end
