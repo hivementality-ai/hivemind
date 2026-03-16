@@ -3,7 +3,6 @@
 module Memory
   class FileSync
     MEMORY_BASE = "/workspace/.hivemind/agents"
-    MAX_LINES = 150 # Stay under SDK's 200-line MEMORY.md limit
     STALE_AFTER = 5.minutes
 
     def self.call(agent:, query: nil, force: false)
@@ -26,7 +25,17 @@ module Memory
       end
 
       FileUtils.mkdir_p(dir)
-      write_memory_index(dir)
+
+      # Use LLM summarizer to produce a clean, deduplicated, prioritized MEMORY.md
+      summarized = Memory::Summarizer.call(agent: @agent)
+
+      if summarized.present?
+        File.write(memory_file, summarized)
+      else
+        # Fallback to raw dump if summarizer fails (no provider, etc.)
+        write_raw_memory(memory_file)
+      end
+
       write_recent_context(dir) if @query.present?
     rescue StandardError => e
       Rails.logger.warn("[Memory::FileSync] Failed for agent #{@agent.id}: #{e.message}")
@@ -34,9 +43,9 @@ module Memory
 
     private
 
-    def write_memory_index(dir)
+    def write_raw_memory(memory_file)
       lines = []
-      lines << "# #{@agent.name} — Memory Index"
+      lines << "# #{@agent.name} — Memory"
       lines << ""
 
       prefs = MemoryEntry.where(agent: @agent).preferences.by_importance.limit(15)
@@ -65,9 +74,7 @@ module Memory
         procedures.each { |p| lines << "- #{p.content}" }
       end
 
-      # Enforce line budget
-      content = lines.first(MAX_LINES).join("\n")
-      File.write(File.join(dir, "MEMORY.md"), content)
+      File.write(memory_file, lines.join("\n"))
     end
 
     def write_recent_context(dir)
