@@ -53,39 +53,22 @@ RSpec.describe Sessions::PostProcessor do
     end
 
     context "memory storage" do
-      it "creates a MemoryEntry for long messages" do
-        expect { result }.to change(MemoryEntry, :count).by(1)
+      it "does not create raw episodic MemoryEntry" do
+        expect { result }.not_to change(MemoryEntry, :count)
       end
 
-      it "sets memory_type to episodic" do
-        result
-        entry = MemoryEntry.last
-        expect(entry.memory_type).to eq("episodic")
-      end
-
-      it "stores truncated content" do
-        result
-        entry = MemoryEntry.last
-        expect(entry.content).to include("User asked:")
-        expect(entry.content).to include("Assistant:")
-      end
-
-      it "enqueues MemoryEmbeddingJob" do
-        expect { result }.to have_enqueued_job(MemoryEmbeddingJob)
-      end
-
-      it "enqueues MemoryExtractionJob" do
+      it "enqueues MemoryExtractionJob for structured extraction" do
         expect { result }.to have_enqueued_job(MemoryExtractionJob).with(agent.id, user_message, assistant_response)
       end
 
-      it "skips memory for short messages" do
+      it "skips extraction for short messages" do
         expect {
           described_class.call(
             agent: agent, session: session,
             user_message: "Hi", assistant_response: "Hello",
             usage: usage
           )
-        }.not_to change(MemoryEntry, :count)
+        }.not_to have_enqueued_job(MemoryExtractionJob)
       end
     end
 
@@ -175,10 +158,10 @@ RSpec.describe Sessions::PostProcessor do
     end
 
     context "independent failure isolation" do
-      it "continues memory storage when usage tracking fails" do
+      it "continues memory extraction when usage tracking fails" do
         allow(UsageRecord).to receive(:create).and_raise(StandardError, "DB error")
 
-        expect { result }.to change(MemoryEntry, :count).by(1)
+        expect { result }.to have_enqueued_job(MemoryExtractionJob)
       end
 
       it "continues summarization when memory storage fails" do

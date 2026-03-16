@@ -58,20 +58,10 @@ module Sessions
     def store_memory
       return if @user_message.length < 50 && @assistant_response.length < 50
 
-      content = "User asked: #{@user_message.truncate(200)}\nAssistant: #{@assistant_response.truncate(500)}"
-
-      entry = MemoryEntry.create(
-        agent: @agent,
-        content:,
-        source: @session,
-        memory_type: "episodic",
-        metadata: { session_id: @session.id, stored_at: Time.current.iso8601 }
-      )
-
-      if entry.persisted?
-        MemoryEmbeddingJob.perform_later(entry.id)
-        MemoryExtractionJob.perform_later(@agent.id, @user_message, @assistant_response)
-      end
+      # Only run extraction — it creates structured semantic/preference/procedural memories.
+      # We no longer store raw "User asked: X / Assistant: Y" episodic entries because they
+      # pollute context with noisy transcript fragments that the model confuses for real memories.
+      MemoryExtractionJob.perform_later(@agent.id, @user_message, @assistant_response)
     rescue StandardError => e
       Rails.logger.warn("[Sessions::PostProcessor] Memory storage failed: #{e.message}")
     end

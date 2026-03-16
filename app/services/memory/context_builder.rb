@@ -43,18 +43,18 @@ module Memory
         all_entries.concat(used)
       end
 
-      # Priority 2: Semantic matches (most relevant to current query)
+      # Priority 2: Semantic/procedural matches (most relevant to current query)
       relevant = relevant_memories.reject { |e| greeting?(e) }
       if relevant.any?
-        section, used = format_section("Relevant Context", relevant)
+        section, used = format_section("Relevant Knowledge", relevant)
         sections << section
         all_entries.concat(used)
       end
 
-      # Priority 3: Recent episodic summaries (what happened recently)
-      recent = recent_episodic.reject { |e| greeting?(e) }
+      # Priority 3: Recent procedural/semantic memories (not raw episodic transcripts)
+      recent = recent_structured.reject { |e| greeting?(e) }
       if recent.any?
-        section, used = format_section("Recent History", recent)
+        section, used = format_section("Recent Context", recent)
         sections << section
         all_entries.concat(used)
       end
@@ -96,20 +96,21 @@ module Memory
         limit: 10
       )
 
-      # Exclude preferences (already included) and low-importance episodic noise
+      # Exclude preferences (already included) and all raw episodic entries.
+      # Only return structured memories (semantic, procedural) that were
+      # extracted by MemoryExtractionJob — these are clean, standalone facts.
       results.reject { |e| e.memory_type == "preference" }
-             .reject { |e| e.memory_type == "episodic" && e.importance < 0.3 }
+             .reject { |e| e.memory_type == "episodic" }
     rescue StandardError => e
       Rails.logger.warn("[Memory::ContextBuilder] Semantic search failed: #{e.message}")
-      # Keyword fallback
       keyword_fallback
     end
 
-    # Recent episodic memories (last few session summaries)
-    def recent_episodic
+    # Recent structured memories (facts, procedures — not raw conversation transcripts)
+    def recent_structured
       MemoryEntry.where(agent: @agent)
-                 .episodic
-                 .where("importance >= ?", 0.4)
+                 .where(memory_type: %w[semantic procedural])
+                 .where("importance >= ?", 0.5)
                  .order(created_at: :desc)
                  .limit(5)
                  .to_a
@@ -123,7 +124,7 @@ module Memory
       values = keywords.map { |kw| "%#{MemoryEntry.sanitize_sql_like(kw)}%" }
 
       MemoryEntry.where(agent: @agent)
-                 .where.not(memory_type: "preference")
+                 .where(memory_type: %w[semantic procedural])
                  .where(conditions.join(" OR "), *values)
                  .order(created_at: :desc)
                  .limit(5)

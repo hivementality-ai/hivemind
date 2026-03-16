@@ -75,12 +75,12 @@ RSpec.describe ChatStreamJob, type: :job do
         expect { described_class.perform_now(session.id, "Hello") }.to change(UsageRecord, :count).by(1)
       end
 
-      it "creates a MemoryEntry for messages >= 50 chars" do
-        expect { described_class.perform_now(session.id, "This is a long enough message to store in memory for the agent") }.to change(MemoryEntry, :count).by(1)
+      it "enqueues MemoryExtractionJob for messages >= 50 chars" do
+        expect { described_class.perform_now(session.id, "This is a long enough message to store in memory for the agent") }.to have_enqueued_job(MemoryExtractionJob)
       end
 
-      it "does not create MemoryEntry for short messages" do
-        expect { described_class.perform_now(session.id, "Hi") }.not_to change(MemoryEntry, :count)
+      it "does not enqueue MemoryExtractionJob for short messages" do
+        expect { described_class.perform_now(session.id, "Hi") }.not_to have_enqueued_job(MemoryExtractionJob)
       end
 
       it "prunes messages via ContextManager" do
