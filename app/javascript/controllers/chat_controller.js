@@ -46,6 +46,11 @@ export default class extends Controller {
     // Close hashtag dropdown when clicking outside
     this._boundOutsideClick = this.handleOutsideClick.bind(this)
     document.addEventListener('click', this._boundOutsideClick)
+
+    // Request notification permission for background alerts
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission()
+    }
   }
 
   disconnect() {
@@ -895,6 +900,9 @@ export default class extends Controller {
   }
 
   finishStream() {
+    // Capture response text before clearing for notification
+    const responseText = this.streamRawText || ""
+
     // Render final markdown from raw streamed text
     if (this.streamBubble && this.streamRawText) {
       this.streamBubble.innerHTML = this.renderMarkdown(this.streamRawText)
@@ -906,13 +914,29 @@ export default class extends Controller {
     this.sendBtnTarget.disabled = false
     this.hideStopButton()
     this.inputTarget.focus()
-    
+
     // Hide all indicators when stream finishes
     this.hideThinking()
     this.hideWorking()
 
     // Post-process: render images in agent responses
     this.renderAgentImages()
+
+    // Browser notification when tab is not focused
+    this.notifyIfHidden(responseText)
+  }
+
+  notifyIfHidden(responseText) {
+    if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+      const body = responseText.length > 0
+        ? responseText.replace(/[#*_`~\[\]]/g, "").substring(0, 120)
+        : "Response ready"
+      new Notification(this.agentNameValue, {
+        body: body,
+        icon: this.agentAvatarValue || undefined,
+        tag: `hivemind-${this.sessionIdValue}`
+      })
+    }
   }
 
   // Convert markdown image syntax and raw image URLs in agent messages to <img> tags
