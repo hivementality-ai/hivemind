@@ -77,7 +77,7 @@ module Tools
       file_id = input["file_id"].to_s.strip
       return ServiceResponse.failure(error: "No file_id provided") if file_id.empty?
 
-      result = gws("drive", "files", "get", file_id)
+      result = gws("drive", "files", "get", "--params", { "fileId" => file_id }.to_json)
       return result if result.is_a?(ServiceResponse) && !result.success?
 
       data = JSON.parse(result) rescue result
@@ -142,9 +142,9 @@ module Tools
 
       mime_type = input["mime_type"].to_s.strip.presence
       if mime_type
-        result = gws("drive", "files", "export", file_id, "--params", { "mimeType" => mime_type }.to_json)
+        result = gws("drive", "files", "export", "--params", { "fileId" => file_id, "mimeType" => mime_type }.to_json)
       else
-        result = gws("drive", "files", "get", file_id, "--params", { "alt" => "media" }.to_json)
+        result = gws("drive", "files", "get", "--params", { "fileId" => file_id, "alt" => "media" }.to_json)
       end
 
       return result if result.is_a?(ServiceResponse) && !result.success?

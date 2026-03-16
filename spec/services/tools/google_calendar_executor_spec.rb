@@ -64,7 +64,7 @@ RSpec.describe Tools::GoogleCalendarExecutor, type: :service do
     it "defaults calendar_id to primary" do
       gws_output = { "items" => [] }.to_json
       expect_any_instance_of(described_class).to receive(:gws) do |_instance, *args|
-        expect(args).to include("primary")
+        expect(args.join(" ")).to include("primary")
         gws_output
       end
 
