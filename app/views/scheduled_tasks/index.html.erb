@@ -1,0 +1,117 @@
+<div class="max-w-5xl mx-auto px-6 py-8">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-white">Scheduled Tasks</h1>
+      <p class="text-text-muted mt-1">Cron jobs created by your agents. Prompt-based and script-based schedules.</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-text-faint text-sm"><%= @tasks.count %> task<%= @tasks.count == 1 ? "" : "s" %></span>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="flex items-center gap-3 mb-6">
+    <%= link_to "All", scheduled_tasks_path,
+        class: "px-3 py-1.5 rounded-lg text-sm font-medium transition #{params[:status].blank? && params[:agent_id].blank? ? 'bg-brand text-white' : 'bg-surface-raised text-text-muted hover:text-white'}" %>
+    <%= link_to "Active", scheduled_tasks_path(status: "active"),
+        class: "px-3 py-1.5 rounded-lg text-sm font-medium transition #{params[:status] == 'active' ? 'bg-green-600 text-white' : 'bg-surface-raised text-text-muted hover:text-white'}" %>
+    <%= link_to "Paused", scheduled_tasks_path(status: "paused"),
+        class: "px-3 py-1.5 rounded-lg text-sm font-medium transition #{params[:status] == 'paused' ? 'bg-yellow-600 text-white' : 'bg-surface-raised text-text-muted hover:text-white'}" %>
+    <%= link_to "Pending", scheduled_tasks_path(status: "pending"),
+        class: "px-3 py-1.5 rounded-lg text-sm font-medium transition #{params[:status] == 'pending' ? 'bg-blue-600 text-white' : 'bg-surface-raised text-text-muted hover:text-white'}" %>
+
+    <% if @agents.count > 1 %>
+      <span class="text-border-default">|</span>
+      <select onchange="if(this.value) { window.location = this.value } else { window.location = '<%= scheduled_tasks_path %>' }"
+              class="px-3 py-1.5 bg-surface-raised border border-border-default rounded-lg text-sm text-text-muted focus:outline-none focus:ring-2 focus:ring-brand">
+        <option value="">All agents</option>
+        <% @agents.each do |agent| %>
+          <option value="<%= scheduled_tasks_path(agent_id: agent.id) %>" <%= 'selected' if params[:agent_id].to_s == agent.id.to_s %>>
+            <%= agent.name %>
+          </option>
+        <% end %>
+      </select>
+    <% end %>
+  </div>
+
+  <% if @tasks.any? %>
+    <div class="space-y-3">
+      <% @tasks.each do |task| %>
+        <div class="bg-surface-card rounded-xl border border-border-default p-5">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <% if task.enabled? && task.confirmation_status == "active" %>
+                  <span class="w-2 h-2 rounded-full bg-green-400 flex-shrink-0"></span>
+                <% elsif task.confirmation_status == "pending" %>
+                  <span class="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0"></span>
+                <% else %>
+                  <span class="w-2 h-2 rounded-full bg-gray-500 flex-shrink-0"></span>
+                <% end %>
+                <h3 class="text-white font-semibold text-sm truncate"><%= task.name %></h3>
+                <span class="px-2 py-0.5 rounded text-xs font-medium
+                  <%= task.job_class == 'ScheduledScriptJob' ? 'bg-purple-900/40 text-purple-300' : 'bg-brand/20 text-brand-light' %>">
+                  <%= task.job_class == "ScheduledScriptJob" ? "Script" : "Prompt" %>
+                </span>
+              </div>
+
+              <div class="flex items-center gap-4 text-xs text-text-muted mb-2">
+                <span>
+                  <%= link_to task.agent.name, agent_path(task.agent), class: "text-brand-light hover:underline" %>
+                </span>
+                <span><code class="text-text-faint"><%= task.schedule %></code></span>
+                <% if task.respond_to?(:human_readable_schedule) && task.human_readable_schedule.present? %>
+                  <span><%= task.human_readable_schedule %></span>
+                <% end %>
+              </div>
+
+              <% if task.description.present? %>
+                <p class="text-text-faint text-xs truncate"><%= task.description %></p>
+              <% elsif task.job_params&.dig("prompt").present? %>
+                <p class="text-text-faint text-xs truncate"><%= task.job_params["prompt"].truncate(120) %></p>
+              <% end %>
+
+              <div class="flex items-center gap-4 mt-2 text-xs text-text-faint">
+                <% case task.last_run_status %>
+                <% when "success" %>
+                  <span class="text-green-400">Last run: <%= time_ago_in_words(task.last_run_at) %> ago</span>
+                <% when "error" %>
+                  <span class="text-red-400">Error: <%= time_ago_in_words(task.last_error_at) %> ago</span>
+                <% when "never_run" %>
+                  <span>Never run</span>
+                <% end %>
+                <% if task.next_run_at.present? %>
+                  <span>Next: <%= task.next_run_at > Time.current ? "in #{time_ago_in_words(task.next_run_at)}" : "overdue" %></span>
+                <% end %>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <%= button_to run_now_scheduled_task_path(task), method: :post,
+                  class: "px-3 py-1.5 text-xs font-medium bg-surface-raised hover:bg-surface-overlay text-text-muted hover:text-white rounded-lg transition",
+                  title: "Run now" do %>
+                Run
+              <% end %>
+              <%= button_to toggle_scheduled_task_path(task), method: :patch,
+                  class: "px-3 py-1.5 text-xs font-medium rounded-lg transition #{task.enabled? ? 'bg-yellow-900/30 text-yellow-300 hover:bg-yellow-900/50' : 'bg-green-900/30 text-green-300 hover:bg-green-900/50'}",
+                  title: task.enabled? ? "Pause" : "Resume" do %>
+                <%= task.enabled? ? "Pause" : "Resume" %>
+              <% end %>
+              <%= button_to scheduled_task_path(task), method: :delete,
+                  class: "px-3 py-1.5 text-xs font-medium bg-red-900/20 text-red-400 hover:bg-red-900/40 rounded-lg transition",
+                  data: { turbo_confirm: "Delete \"#{task.name}\"?" },
+                  title: "Delete" do %>
+                Delete
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="bg-surface-card rounded-xl border border-border-default p-12 text-center">
+      <p class="text-text-muted text-sm mb-2">No scheduled tasks yet.</p>
+      <p class="text-text-faint text-xs">Agents create cron jobs using the <code class="text-text-muted">cron</code> and <code class="text-text-muted">cron_script</code> tools. Ask an agent to schedule something.</p>
+    </div>
+  <% end %>
+</div>
