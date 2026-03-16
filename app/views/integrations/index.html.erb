@@ -233,11 +233,19 @@
     <div class="<%= @gws_connected ? 'mt-4 pt-4 border-t border-border-default' : '' %>">
       <% unless @gws_connected %>
         <div class="bg-surface-base rounded-lg border border-border-default p-4 mb-4">
-          <p class="text-text-muted text-sm mb-2">Authenticate with the Google Workspace CLI, then paste the credentials here.</p>
-          <ol class="text-text-muted text-sm space-y-1 list-decimal list-inside">
+          <p class="text-text-muted text-sm mb-3">Connect Google Workspace so agents can use Drive, Calendar, and Gmail.</p>
+          <ol class="text-text-muted text-sm space-y-2 list-decimal list-inside">
             <li>Install the CLI: <code class="text-amber-300">npm install -g @googleworkspace/cli</code></li>
-            <li>Run: <code class="text-amber-300">gws auth</code> and follow the browser prompts</li>
-            <li>Copy the credentials JSON and paste it below</li>
+            <li>Set up your Google Cloud OAuth client (one-time):
+              <div class="mt-1 ml-4">
+                <p class="text-text-faint text-xs">If you have <code class="text-amber-300">gcloud</code> installed:</p>
+                <code class="text-amber-300 text-xs block mt-1">gws auth setup --login</code>
+                <p class="text-text-faint text-xs mt-2">Or manually: create an OAuth client in <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-brand-light hover:underline">Google Cloud Console</a>, download <code class="text-text-muted">client_secret.json</code>, and save it to <code class="text-text-muted">~/.config/gws/client_secret.json</code></p>
+              </div>
+            </li>
+            <li>Log in: <code class="text-amber-300">gws auth login</code> (opens browser for OAuth consent)</li>
+            <li>Export credentials: <code class="text-amber-300">gws auth export</code></li>
+            <li>Paste the JSON output below</li>
           </ol>
         </div>
       <% end %>
