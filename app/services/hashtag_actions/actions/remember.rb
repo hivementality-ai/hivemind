@@ -10,12 +10,17 @@ module HashtagActions
           agent: agent,
           content: payload,
           source: session,
+          memory_type: "preference",
+          importance: 0.95,
           metadata: {
             source: "hashtag_action",
             stored_at: Time.current.iso8601,
             session_id: session.id
           }
         )
+
+        # Force memory file refresh so the agent picks this up immediately
+        Memory::FileSync.call(agent: agent, force: true)
 
         { response: "Remembered: \"#{payload.truncate(100)}\"", status: "stored" }
       rescue StandardError => e
