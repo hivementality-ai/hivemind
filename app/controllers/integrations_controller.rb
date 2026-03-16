@@ -9,6 +9,7 @@ class IntegrationsController < ApplicationController
     @email_configured = VaultEntry.exists?(namespace: "email", key: "smtp_host")
     @jira_configured = VaultEntry.exists?(namespace: "jira", key: "base_url")
     @trello_configured = VaultEntry.exists?(namespace: "trello", key: "api_key")
+    @gws_oauth_configured = GoogleWorkspace::OAuthClient.new.configured?
     @gws_connected = GoogleWorkspace::CredentialBridge.configured?
     @gws_email = GoogleWorkspace::CredentialBridge.connected_email if @gws_connected
     @search_configured = Search::Resolver.configured?
@@ -72,24 +73,19 @@ class IntegrationsController < ApplicationController
   end
 
   def update_google_workspace
-    json = if params[:gws_credentials_file].present?
-      params[:gws_credentials_file].read
-    else
-      params[:gws_credentials_json].to_s.strip
-    end
+    client_id = params[:google_client_id].to_s.strip
+    client_secret = params[:google_client_secret].to_s.strip
 
-    if json.blank?
-      redirect_to integrations_path, alert: "Paste your credentials JSON or upload the file"
+    if client_id.blank? || client_secret.blank?
+      redirect_to integrations_path, alert: "Both Client ID and Client Secret are required"
       return
     end
 
-    GoogleWorkspace::CredentialBridge.import_credentials(json)
-    email = GoogleWorkspace::CredentialBridge.connected_email
-    redirect_to integrations_path, notice: "Google Workspace connected#{email ? " (#{email})" : ""}"
-  rescue JSON::ParserError
-    redirect_to integrations_path, alert: "Invalid JSON — paste the output from `gws auth` exactly"
-  rescue StandardError => e
-    redirect_to integrations_path, alert: "Failed to import credentials: #{e.message}"
+    store_vault("google_workspace", "client_id", client_id)
+    store_vault("google_workspace", "client_secret", client_secret)
+
+    # Redirect straight to OAuth flow
+    redirect_to oauth_google_authorize_path
   end
 
   def update_embedding_key
