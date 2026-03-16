@@ -86,7 +86,7 @@ async function handleOAuth(_req, res, token, params) {
 
   // Set agent-scoped working directory for memory file access
   if (agent_id) {
-    const memoryDir = `/workspace/.hivemind/agents/${agent_id}`;
+    const memoryDir = `/app/agents-shared/.hivemind/agents/${agent_id}`;
     options.cwd = memoryDir;
   }
 
