@@ -12,7 +12,7 @@ module GoogleWorkspace
       gmail: "https://www.googleapis.com/auth/gmail.modify"
     }.freeze
 
-    DEFAULT_SCOPES = %i[drive calendar].freeze
+    DEFAULT_SCOPES = %i[drive calendar gmail].freeze
 
     VAULT_NAMESPACE = "google_workspace"
 
