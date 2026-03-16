@@ -39,6 +39,7 @@ module Providers
         payload[:agent_id] = options[:agent_id] if options[:agent_id]
         payload[:session_id] = options[:session_id] if options[:session_id]
         payload[:tool_definitions] = options[:tool_definitions] if options[:tool_definitions]
+        payload[:memory_dir] = "/workspace/.hivemind/agents/#{options[:agent_id]}/memory" if options[:agent_id]
 
         payload
       end
