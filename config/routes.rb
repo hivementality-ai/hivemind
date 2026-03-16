@@ -85,7 +85,7 @@ Rails.application.routes.draw do
   post "heartbeat/trigger", to: "heartbeats#trigger", as: :trigger_heartbeat
 
   # Scheduled Tasks
-  resources :scheduled_tasks, only: [ :index, :destroy ] do
+  resources :scheduled_tasks, only: [ :index, :edit, :update, :destroy ] do
     member do
       patch :toggle
       post :run_now

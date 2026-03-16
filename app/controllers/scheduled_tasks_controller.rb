@@ -2,7 +2,7 @@
 
 class ScheduledTasksController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_task, only: %i[toggle destroy run_now]
+  before_action :set_task, only: %i[edit update toggle destroy run_now]
 
   def index
     @tasks = ScheduledTask.includes(:agent).order(created_at: :desc)
@@ -18,6 +18,24 @@ class ScheduledTasksController < ApplicationController
       when "paused" then @tasks = @tasks.where(confirmation_status: "paused").or(@tasks.disabled)
       when "pending" then @tasks = @tasks.pending_confirmation
       end
+    end
+  end
+
+  def edit
+    @agents = Agent.visible.order(:name)
+  end
+
+  def update
+    old_agent = @task.agent
+
+    if @task.update(task_params)
+      # Re-sync sidekiq if agent or schedule changed
+      Agents::ManageCron.new(agent: old_agent).send(:remove_from_sidekiq, @task) if old_agent.id != @task.agent_id
+      Agents::ManageCron.new(agent: @task.agent).send(:sync_to_sidekiq, @task) if @task.enabled?
+      redirect_to scheduled_tasks_path, notice: "#{@task.name} updated"
+    else
+      @agents = Agent.visible.order(:name)
+      render :edit, status: :unprocessable_entity
     end
   end
 
@@ -55,5 +73,13 @@ class ScheduledTasksController < ApplicationController
 
   def set_task
     @task = ScheduledTask.find(params[:id])
+  end
+
+  def task_params
+    permitted = params.require(:scheduled_task).permit(:name, :agent_id, :schedule, :description)
+    if params[:scheduled_task][:prompt].present?
+      permitted[:job_params] = (@task.job_params || {}).merge("prompt" => params[:scheduled_task][:prompt])
+    end
+    permitted
   end
 end
