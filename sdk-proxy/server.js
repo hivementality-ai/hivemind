@@ -2,6 +2,7 @@ import express from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { buildMcpServer } from "./mcp-tool-bridge.js";
+import { existsSync, mkdirSync } from "fs";
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
@@ -87,7 +88,14 @@ async function handleOAuth(_req, res, token, params) {
   // Set agent-scoped working directory for memory file access
   if (agent_id) {
     const memoryDir = `/app/agents-shared/.hivemind/agents/${agent_id}`;
-    options.cwd = memoryDir;
+    try {
+      if (!existsSync(memoryDir)) {
+        mkdirSync(memoryDir, { recursive: true });
+      }
+      options.cwd = memoryDir;
+    } catch (err) {
+      console.warn(`[oauth] Could not set cwd to ${memoryDir}: ${err.message}`);
+    }
   }
 
   // Build MCP server from Hivemind tool definitions (if provided)
