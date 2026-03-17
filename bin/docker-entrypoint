@@ -20,6 +20,9 @@ if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
 
   # Seed on first boot (idempotent — safe to re-run)
   ./bin/rails db:seed
+
+  # Sync any scheduled tasks to Sidekiq Cron (backfill + ensure consistency)
+  ./bin/rails scheduled_tasks:sync
 fi
 
 exec "${@}"

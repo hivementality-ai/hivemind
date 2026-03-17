@@ -195,5 +195,21 @@ RSpec.describe Agents::CronConfirmation do
       task = ScheduledTask.find(result[:task_id])
       expect(task.enabled?).to be true
     end
+
+    it "syncs the task to Sidekiq Cron" do
+      allow(Sidekiq::Cron::Job).to receive(:create).and_return(true)
+
+      result = Agents::CronConfirmation.confirm_and_persist(
+        confirmation_id: "valid_token",
+        agent: agent
+      )
+
+      expect(Sidekiq::Cron::Job).to have_received(:create).with(
+        hash_including(
+          cron: "0 9 * * 1",
+          class: "TestJob"
+        )
+      )
+    end
   end
 end
