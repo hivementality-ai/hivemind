@@ -104,6 +104,15 @@ async function handleOAuth(_req, res, token, params) {
   options.env = { CLAUDE_CODE_OAUTH_TOKEN: token };
   options.stderr = (data) => console.error(`[claude-code stderr] ${data}`);
 
+  // Log what's being sent to the SDK for debugging
+  const systemLines = (systemText || "").split("\n").length;
+  const historyMsgs = conversationMessages.length - 1;
+  console.log(`[oauth-prompt] agent=${agent_id} session=${session_id} model=${model}`);
+  console.log(`[oauth-prompt] systemPrompt: ${systemLines} lines (${(systemText || "").length} chars)`);
+  console.log(`[oauth-prompt] conversation history: ${historyMsgs} messages included`);
+  console.log(`[oauth-prompt] user prompt: "${prompt.substring(0, 200)}${prompt.length > 200 ? "..." : ""}"`);
+  console.log(`[oauth-prompt] tools: ${tool_definitions?.length || 0} MCP tools`);
+
   // Set agent-scoped working directory for memory file access
   if (agent_id) {
     const memoryDir = `/app/agents-shared/.hivemind/agents/${agent_id}`;
