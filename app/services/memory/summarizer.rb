@@ -17,7 +17,9 @@ module Memory
       - **Drop low-value content** — greetings, small talk, anything that wouldn't help the agent do its job better
       - **Preserve #remember entries exactly** — anything the user explicitly asked to remember is highest priority and should not be reworded or dropped
 
-      Output format — produce ONLY the markdown content, no explanation:
+      CRITICAL: Output ONLY the markdown file content. No preamble, no explanation, no summary of what you did, no "Here's the output" or "Consolidation Summary" sections. Start directly with the # heading and end with the last bullet point. Nothing else.
+
+      Output format:
 
       # {Agent Name} — Memory
 
@@ -119,8 +121,13 @@ module Memory
       return nil unless result.success?
 
       content = result.data[:content].to_s.strip
-      # Strip any markdown code fences the model might wrap it in
-      content.gsub(/\A```markdown?\s*\n?/, "").gsub(/\n?```\z/, "")
+      # Strip markdown code fences
+      content = content.gsub(/\A```markdown?\s*\n?/, "").gsub(/\n?```\z/, "")
+      # Strip any preamble before the first heading
+      content = content.sub(/\A.*?(?=^#\s)/m, "")
+      # Strip any postamble after the last bullet or heading (consolidation summaries, explanations)
+      content = content.sub(/\n---\n.*/m, "")
+      content.strip
     end
 
     # Find the cheapest available provider for background work.
