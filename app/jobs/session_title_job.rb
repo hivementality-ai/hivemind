@@ -19,11 +19,9 @@ class SessionTitleJob < ApplicationJob
     transcript = session.transcript || []
     return if transcript.size < MIN_TRANSCRIPT_SIZE
 
-    resolver = Providers::Resolver.call(provider_name: agent.model_provider, agent:)
-    return unless resolver.success?
+    adapter, title_model = resolve_cheap_provider(agent)
+    return unless adapter
 
-    adapter      = resolver.data[:adapter]
-    title_model  = cheapest_model(agent.model_provider)
     conversation = build_conversation_excerpt(transcript)
 
     result = adapter.chat(
@@ -77,12 +75,48 @@ class SessionTitleJob < ApplicationJob
     "Just the title."
   end
 
-  def cheapest_model(provider)
-    case provider
-    when "anthropic" then "claude-haiku-4-5"
-    when "openai"    then "gpt-5.2-nano"
-    else                  "claude-haiku-4-5"
+  # Use the cheapest available provider — don't route through SDK proxy for housekeeping
+  def resolve_cheap_provider(agent)
+    # Try Anthropic with Haiku (API key path, not OAuth)
+    anthropic = ProviderConfig.find_by(adapter_type: "anthropic", enabled: true)
+    if anthropic
+      resolver = Providers::Resolver.call(provider_name: "anthropic")
+      if resolver.success?
+        # Check it's not an OAuth token (which would go through SDK proxy)
+        key = anthropic.api_key
+        unless key&.start_with?("sk-ant-oat")
+          return [ resolver.data[:adapter], "claude-haiku-4-5" ]
+        end
+      end
     end
+
+    # Try OpenAI
+    openai = ProviderConfig.find_by(adapter_type: "openai", enabled: true)
+    if openai
+      resolver = Providers::Resolver.call(provider_name: "openai")
+      return [ resolver.data[:adapter], "gpt-5.2-nano" ] if resolver.success?
+    end
+
+    # Try Ollama
+    ollama = ProviderConfig.find_by(adapter_type: "ollama", enabled: true)
+    if ollama
+      resolver = Providers::Resolver.call(provider_name: "ollama")
+      return [ resolver.data[:adapter], "llama3.2:3b" ] if resolver.success?
+    end
+
+    # Last resort: agent's own provider (may be OAuth, but better than nothing)
+    resolver = Providers::Resolver.call(provider_name: agent.model_provider, agent: agent)
+    if resolver.success?
+      cheap =
+        case agent.model_provider
+        when "anthropic" then "claude-haiku-4-5"
+        when "openai" then "gpt-5.2-nano"
+        else agent.llm_model
+        end
+      return [ resolver.data[:adapter], cheap ]
+    end
+
+    [ nil, nil ]
   end
 
   def track_usage(agent:, session:, model:, usage:)
