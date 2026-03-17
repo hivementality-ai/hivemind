@@ -45,18 +45,18 @@ RSpec.describe Sessions::MessageBuilder do
 
     context "with more messages than RAW_MESSAGES_TO_KEEP" do
       let(:transcript) do
-        6.times.map do |i|
+        25.times.map do |i|
           role = i.even? ? "user" : "assistant"
-          { "role" => role, "content" => "Message #{i}", "timestamp" => (6 - i).minutes.ago.iso8601 }
+          { "role" => role, "content" => "Message #{i}", "timestamp" => (25 - i).minutes.ago.iso8601 }
         end
       end
 
-      it "only includes the last 4 messages" do
+      it "only includes the last 20 messages" do
         messages = result.data[:messages]
-        # 1 system + 4 transcript
-        expect(messages.size).to eq(5)
-        expect(messages[1][:content]).to eq("Message 2")
-        expect(messages.last[:content]).to eq("Message 5")
+        # 1 system + 20 transcript
+        expect(messages.size).to eq(21)
+        expect(messages[1][:content]).to eq("Message 5")
+        expect(messages.last[:content]).to eq("Message 24")
       end
     end
 

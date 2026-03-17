@@ -2,8 +2,8 @@
 
 module Sessions
   class PostProcessor
-    SUMMARIZE_EVERY = 6
-    RAW_MESSAGES_TO_KEEP = 4
+    SUMMARIZE_EVERY = 10
+    RAW_MESSAGES_TO_KEEP = 20
 
     def self.call(...)
       new(...).call
