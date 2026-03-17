@@ -188,11 +188,15 @@ module Agents
     end
 
     def sync_to_sidekiq(task)
-      # Integration point: Sync to Sidekiq cron scheduler
-      # This would typically call Sidekiq::Cron::Job.create or similar
-      # For now, just mark as synced
-      Rails.logger.info("Syncing scheduled task #{task.id} to Sidekiq scheduler")
-      # TODO: Implement actual Sidekiq sync when scheduler is integrated
+      Sidekiq::Cron::Job.create(
+        name: "scheduled_task_#{task.id}",
+        cron: task.schedule,
+        class: task.job_class,
+        args: [ task.id ]
+      )
+      Rails.logger.info("[CronConfirmation] Synced task #{task.id} (#{task.name}) to Sidekiq Cron: #{task.schedule}")
+    rescue StandardError => e
+      Rails.logger.error("[CronConfirmation] Failed to sync task #{task.id} to Sidekiq: #{e.message}")
     end
 
     def log_cron_action(action, task)

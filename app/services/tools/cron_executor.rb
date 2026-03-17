@@ -110,6 +110,7 @@ module Tools
       # Verify ownership
       return ServiceResponse.failure(error: "You do not own this task") unless task.agent_id == agent.id
 
+      Sidekiq::Cron::Job.destroy("scheduled_task_#{task.id}")
       task.destroy!
 
       ServiceResponse.success(data: { output: "Deleted task: #{task.name}", exit_code: 0 })
@@ -164,7 +165,7 @@ module Tools
     end
 
     def create_scheduled_task(name, schedule, job_class, job_params, description)
-      ScheduledTask.create!(
+      task = ScheduledTask.create!(
         agent: agent,
         name: name,
         schedule: schedule,
@@ -174,6 +175,16 @@ module Tools
         confirmation_status: "active",
         enabled: true
       )
+
+      # Sync to Sidekiq Cron so it actually fires
+      Sidekiq::Cron::Job.create(
+        name: "scheduled_task_#{task.id}",
+        cron: task.schedule,
+        class: task.job_class,
+        args: [ task.id ]
+      )
+
+      task
     end
   end
 end
