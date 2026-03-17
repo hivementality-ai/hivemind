@@ -2,7 +2,7 @@
 
 module Sessions
   class MessageBuilder
-    RAW_MESSAGES_TO_KEEP = 4
+    RAW_MESSAGES_TO_KEEP = 20
 
     def self.call(...)
       new(...).call

@@ -78,8 +78,8 @@ RSpec.describe Sessions::PostProcessor do
       end
 
       it "triggers summarization when unsummarized messages exceed threshold" do
-        # SUMMARIZE_EVERY(6) + RAW_MESSAGES_TO_KEEP(4) = 10 messages needed
-        session.update!(transcript: 12.times.map { |i| { "role" => i.even? ? "user" : "assistant", "content" => "msg #{i}" } })
+        # SUMMARIZE_EVERY(10) + RAW_MESSAGES_TO_KEEP(20) = 30 messages needed
+        session.update!(transcript: 32.times.map { |i| { "role" => i.even? ? "user" : "assistant", "content" => "msg #{i}" } })
 
         expect { result }.to have_enqueued_job(ConversationSummaryJob).with(session.id)
       end
@@ -166,7 +166,7 @@ RSpec.describe Sessions::PostProcessor do
 
       it "continues summarization when memory storage fails" do
         allow(MemoryEntry).to receive(:create).and_raise(StandardError, "DB error")
-        session.update!(transcript: 12.times.map { |i| { "role" => i.even? ? "user" : "assistant", "content" => "msg #{i}" } })
+        session.update!(transcript: 32.times.map { |i| { "role" => i.even? ? "user" : "assistant", "content" => "msg #{i}" } })
 
         expect { result }.to have_enqueued_job(ConversationSummaryJob)
       end

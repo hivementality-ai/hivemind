@@ -67,12 +67,31 @@ async function handleOAuth(_req, res, token, params) {
   const { messages, systemPrompt, model, stream, agent_id, session_id, tool_definitions } = params;
 
   // Extract system prompt text for structured passing
-  const systemText = extractSystemPrompt(systemPrompt);
+  let systemText = extractSystemPrompt(systemPrompt);
+
+  // Build conversation transcript for context (SDK spawns fresh process each call)
+  const conversationMessages = (messages || []).filter(m => m.role !== "system");
+  if (conversationMessages.length > 1) {
+    // Include all messages except the last user message (which becomes the prompt)
+    const history = conversationMessages.slice(0, -1);
+    if (history.length > 0) {
+      const transcript = history.map(m => {
+        const role = m.role === "user" ? "User" : "Assistant";
+        const content = typeof m.content === "string" ? m.content : JSON.stringify(m.content);
+        return `${role}: ${content}`;
+      }).join("\n\n");
+
+      systemText = (systemText || "") +
+        "\n\n## Conversation History (this session)\n" +
+        "The following is the conversation so far in this session. Use it to maintain context.\n\n" +
+        transcript;
+    }
+  }
 
   // Extract the last user message as the prompt
-  const lastUserMsg = messages
-    ?.filter(m => m.role === "user")
-    ?.pop();
+  const lastUserMsg = conversationMessages
+    .filter(m => m.role === "user")
+    .pop();
   const prompt = typeof lastUserMsg?.content === "string"
     ? lastUserMsg.content
     : Array.isArray(lastUserMsg?.content)
