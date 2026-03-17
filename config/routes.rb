@@ -203,11 +203,14 @@ Rails.application.routes.draw do
     end
   end
 
-  # Sidekiq Web UI (admin only)
+  # Sidekiq Web UI (admin only, with Cron tab)
   require "sidekiq/web"
-  authenticate :user, ->(user) { user.admin? || user.owner? } do
-    mount Sidekiq::Web => "/sidekiq"
+  require "sidekiq/cron/web"
+  Sidekiq::Web.use Rack::Auth::Basic, "Sidekiq" do |username, password|
+    user = User.find_by(email: username)
+    user&.valid_password?(password) && (user.admin? || user.owner?)
   end
+  mount Sidekiq::Web => "/sidekiq"
 
   # ActionCable
   mount ActionCable.server => "/cable"
