@@ -101,14 +101,28 @@ module Sessions
     end
 
     def recall_memories
-      last_user_msg = @session.transcript.select { |m| m["role"] == "user" }.last
+      transcript = @session.transcript || []
+      user_messages = transcript.select { |m| m["role"] == "user" }
+      last_user_msg = user_messages.last
       return nil unless last_user_msg
 
       query = last_user_msg["content"].to_s
       return nil if query.length < 5
 
-      result = Memory::ContextBuilder.call(agent: @agent, query: query)
-      result[:context]
+      # Hybrid context loading:
+      # - First 3 user turns: full memory search (session start, establishing context)
+      # - After that: only inject preferences (agent has memory_search tool for on-demand recall)
+      if user_messages.size <= 3
+        result = Memory::ContextBuilder.call(agent: @agent, query: query)
+        result[:context]
+      else
+        # Only preferences after initial turns — they're cheap (no embedding search)
+        prefs = MemoryEntry.where(agent: @agent).preferences.by_importance.limit(15)
+        return nil unless prefs.any?
+
+        lines = prefs.map { |p| "- #{p.content}" }
+        "## Your Memories\nUse these naturally in conversation. Don't mention that you're recalling memories.\n\n### User Preferences\n#{lines.join("\n")}"
+      end
     rescue StandardError => e
       Rails.logger.warn("Memory recall failed: #{e.message}")
       nil
