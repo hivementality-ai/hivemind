@@ -9,6 +9,10 @@ app.use(express.json({ limit: "10mb" }));
 
 const PORT = process.env.PORT || 3003;
 
+// Prevent MaxListenersExceededWarning from concurrent query() calls
+// Each query() spawns a subprocess that adds exit listeners
+process.setMaxListeners(50);
+
 // Health check
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "sdk-proxy" });
