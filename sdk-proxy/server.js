@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3003;
 
 // Prevent MaxListenersExceededWarning from concurrent query() calls
 // Each query() spawns a subprocess that adds exit listeners
-process.setMaxListeners(50);
+process.setMaxListeners(30);
 
 // Health check
 app.get("/health", (_req, res) => {
@@ -171,6 +171,8 @@ async function handleOAuth(_req, res, token, params) {
 
     const activeTools = new Set();
     let isThinking = false;
+    // Snapshot listeners before query() so we can clean up after
+    const listenersBefore = process.listeners("exit").length;
     try {
       for await (const message of query({ prompt, options })) {
         console.log(`[query] message type=${message.type}`, JSON.stringify(message).substring(0, 300));
@@ -225,10 +227,17 @@ async function handleOAuth(_req, res, token, params) {
     } finally {
       sendSSE(res, "done", {});
       res.end();
+      // Clean up exit listeners added by query() subprocess
+      const listenersAfter = process.listeners("exit");
+      if (listenersAfter.length > listenersBefore) {
+        const toRemove = listenersAfter.slice(listenersBefore);
+        toRemove.forEach(fn => process.removeListener("exit", fn));
+      }
     }
   } else {
     let fullContent = "";
     let usage = {};
+    const listenersBefore = process.listeners("exit").length;
 
     for await (const message of query({ prompt, options })) {
       if (message.type === "text") {
@@ -243,6 +252,13 @@ async function handleOAuth(_req, res, token, params) {
         fullContent = message.result || fullContent;
         if (message.usage) usage = message.usage;
       }
+    }
+
+    // Clean up exit listeners added by query() subprocess
+    const listenersAfter = process.listeners("exit");
+    if (listenersAfter.length > listenersBefore) {
+      const toRemove = listenersAfter.slice(listenersBefore);
+      toRemove.forEach(fn => process.removeListener("exit", fn));
     }
 
     res.json({ content: fullContent || null, thinking: null, tool_calls: null, usage });
