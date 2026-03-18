@@ -128,9 +128,9 @@ module Tools
     end
 
     def resolve_api_key(provider)
-      # Check vault for OpenAI API key
-      entry = VaultEntry.find_by(namespace: "providers", key: "openai_api_key", agent_id: nil)
-      return entry.value if entry.present?
+      # Check vault for OpenAI API key (use resolve which checks agent-scoped then global)
+      entry = VaultEntry.resolve(namespace: "providers", key: "openai_api_key")
+      return entry.value if entry&.value.present?
 
       # Fallback to environment variable
       ENV["OPENAI_API_KEY"].presence
