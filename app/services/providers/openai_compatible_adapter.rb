@@ -47,7 +47,7 @@ module Providers
         end
         f.response :raise_error
         f.options.open_timeout = 10
-        f.options.timeout = 300
+        f.options.timeout = 600
         f.adapter Faraday.default_adapter
       end
     end
@@ -147,7 +147,7 @@ module Providers
           f.request :authorization, "Bearer", api_key
         end
         f.options.open_timeout = 10
-        f.options.timeout = 300
+        f.options.timeout = 600
         f.adapter Faraday.default_adapter
       end
 
