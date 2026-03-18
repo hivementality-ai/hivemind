@@ -117,17 +117,16 @@ async function handleOAuth(_req, res, token, params) {
   console.log(`[oauth-prompt] user prompt: "${prompt.substring(0, 200)}${prompt.length > 200 ? "..." : ""}"`);
   console.log(`[oauth-prompt] tools: ${tool_definitions?.length || 0} MCP tools`);
 
-  // Set working directory to /workspace so agents can access workspace + shared areas
-  // Memory files are at /app/agents-shared/.hivemind/agents/{id}/memory/ (absolute path)
-  options.cwd = "/workspace";
+  // Set agent-scoped working directory for memory file access
   if (agent_id) {
-    const memoryDir = `/app/agents-shared/.hivemind/agents/${agent_id}/memory`;
+    const memoryDir = `/app/agents-shared/.hivemind/agents/${agent_id}`;
     try {
       if (!existsSync(memoryDir)) {
         mkdirSync(memoryDir, { recursive: true });
       }
+      options.cwd = memoryDir;
     } catch (err) {
-      console.warn(`[oauth] Could not create memory dir ${memoryDir}: ${err.message}`);
+      console.warn(`[oauth] Could not set cwd to ${memoryDir}: ${err.message}`);
     }
   }
 
