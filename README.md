@@ -31,7 +31,7 @@
 - [Features](#features)
   - [Agent Teams](#agent-teams)
   - [Team Chat](#team-chat)
-  - [34 Built-in Tools](#34-built-in-tools)
+  - [45+ Built-in Tools](#45-built-in-tools)
   - [Custom Tools](#custom-tools)
   - [Skills](#skills)
   - [Web Search](#web-search)
@@ -71,7 +71,7 @@ Most AI platforms give you one agent in a chat box. Hivemind gives you a **team*
 
 - **Multiple specialized agents** with different models, roles, and tools
 - **Team chat** with @mentions — agents collaborate and chain-react
-- **34 built-in tools** — shell, files, browser, Jira, email, cloud storage, Gmail, vision, TTS, and more
+- **45+ built-in tools** — shell, files, browser, Jira, email, cloud storage, Gmail, vision, TTS, and more
 - **Skills system** — teach agents new capabilities, import OpenClaw SKILL.md files
 - **5 messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal
 - **Slack multi-bot** — each agent gets its own Slack bot identity with thread routing
@@ -94,7 +94,7 @@ The AI industry is obsessed with building one agent that can "do it all." We thi
 
 **The future is composition, not consolidation.** Complex workflows emerge from simple, reliable components working together—not from increasingly complex monoliths. Each agent in your team becomes highly reliable at what it does. You get clear separation of concerns, the ability to swap agents without breaking everything, and better resource utilization because you're not running frontier models for simple tasks.
 
-**But specialization is just the starting point—agents get smarter over time.** Hivemind agents don't just start optimized for their domain; they continuously improve through memory systems that retain past interactions, context, and learnings. With our mini-RAG system (coming soon), agents build an ever-growing knowledge base from accumulated experience, creating a learning curve advantage that compounds with each interaction.
+**But specialization is just the starting point—agents get smarter over time.** Hivemind agents don't just start optimized for their domain; they continuously improve through memory systems that retain past interactions, context, and learnings. With Hivemind's memory system, agents build an ever-growing knowledge base from accumulated experience, creating a learning curve advantage that compounds with each interaction.
 
 **And here's the key: your agents aren't locked to a single model.** Mix and match specialized agents from any provider—Anthropic's Claude for reasoning, OpenAI's GPT for creativity, local Ollama models for lightweight tasks. They collaborate as a cohesive system despite their diversity, giving you the best tool for each job instead of forcing everything through one model's constraints.
 
@@ -330,22 +330,26 @@ Group agents into teams with shared context. Each agent has its own model, role,
 
 Full group chat where agents collaborate via @mentions. Tag `@AgentName` for a specific agent, `@team` for everyone, or `@god` to reference the human. Agents can chain-react by @mentioning each other in responses. Per-agent colored message bubbles with real-time streaming.
 
-### 34 Built-in Tools
+### 45+ Built-in Tools
 
 | Category | Tools |
 |----------|-------|
-| **File System** | `shell`, `file_read`, `file_write`, `file_edit`, `pdf_read` |
+| **File System** | `shell`, `file_read`, `file_write`, `file_edit`, `glob`, `grep`, `pdf_read` |
 | **Web** | `web_search`, `web_fetch`, `browser` (Playwright), `http_request` |
-| **AI/Media** | `image` (vision), `tts` (text-to-speech), `memory_search` |
+| **AI/Media** | `image` (vision), `tts` (text-to-speech), `memory_search`, `image_generate` (DALL-E 3) |
 | **Cloud** | `cloud_storage` (Drive/S3/Dropbox/OneDrive/B2/SFTP) |
 | **Communication** | `email` (SMTP), `gmail` (IMAP), `message` (5 platforms) |
-| **Integrations** | `jira` (issues, JQL, transitions), `http_request` (any API) |
+| **Google Workspace** | `google_drive`, `google_calendar`, `google_gmail` |
+| **Integrations** | `jira` (issues, JQL, transitions), `trello`, `http_request` (any API) |
 | **Scheduling** | `cron` (prompt-based scheduled agent turns), `cron_script` (script-based scheduled tasks) |
-| **File Delivery** | `file_send` (share files to chat), `image_generate` (DALL-E 3) |
+| **File Delivery** | `file_send` (share files to chat) |
 | **Coding** | `coding_agent` (Claude Code/Codex/Aider), `coding_agent_status` |
 | **Orchestration** | `delegate` (sync), `spawn` (async sub-agent), `spawn_status` |
 | **Sessions** | `sessions_list`, `sessions_send`, `sessions_history`, `session_status` |
-| **Platform** | `agents_list`, `gateway` (status/restart), `heartbeat_write` |
+| **Platform** | `agents_list`, `gateway` (status/restart), `heartbeat_write`, `plan_mode`, `ask_user` |
+| **Research** | `deep_research`, `deep_research_status` |
+| **Canvas** | `canvas` (live collaborative canvas) |
+| **Self-Evolution** | `create_tool`, `create_skill` |
 
 **Per-agent tool assignment:** Assign specific tools to each agent, or leave unassigned for full access to all tools.
 
@@ -386,7 +390,7 @@ Skills teach agents **how** to use tools for specific workflows. Create, edit, a
 - **OpenClaw compatible** — Import SKILL.md files from OpenClaw, export in the same format
 - **Tool auto-assignment** — Skills define required tools; assigning a skill automatically adds its tools to the agent
 - **Smart removal** — Removing a skill removes its tools only if no other skill still needs them
-- **8 bundled skills** — GitHub, Weather, Trello, Notion, Summarize, Google Calendar, Docker, Git
+- **8 bundled skills** — GitHub, Weather, Trello, Notion, Summarize, Google Calendar, Docker, Git (plus agent-created skills via self-evolution)
 
 Skills are injected into the agent's system prompt. They provide the knowledge ("use `gh pr create` to open a PR"), while tools provide the ability (the `shell` executor that runs the command).
 
@@ -471,7 +475,7 @@ Manage MCP servers at **Settings → Integrations → MCP Servers**.
 
 ### OpenAI-Compatible Providers
 
-Connect any server that implements the OpenAI API format — llama.cpp, vLLM, LocalAI, LM Studio, text-generation-webui, or any other compatible endpoint.
+Connect any server that implements the OpenAI API format — vLLM, LocalAI, LM Studio, text-generation-webui, or any other compatible endpoint.
 
 - **Base URL configuration** — point to any `/v1/chat/completions` endpoint
 - **Optional API key** — Bearer token auth for secured endpoints
@@ -494,7 +498,7 @@ Thinking output streams live to the UI in a collapsible block, separate from the
 
 ### Gemini Embeddings
 
-Multimodal embedding support via Google's Gemini model — embed text, images, audio, video, and PDFs for semantic memory search.
+Multimodal embedding support via Google's `gemini-embedding-2-preview` model — embed text, images, audio, video, and PDFs for semantic memory search.
 
 - **Configure from Integrations** — paste your Google AI API key (from [aistudio.google.com](https://aistudio.google.com/apikey))
 - **Zero-downtime migration** — switch embedding providers without losing existing memories. Shadow-write to the new provider, validate accuracy, then cut over.
@@ -548,7 +552,7 @@ Two types of scheduled tasks:
 - **`cron`** — Prompt-based. Agent wakes up in a fresh session with full tool access and follows the prompt instructions. Two-stage confirmation flow for safety.
 - **`cron_script`** — Script-based. Runs a script (`.py`, `.rb`, `.sh`) in the workspace container on schedule. Output and exit code captured to a session for logging.
 
-Use prompt-based cron when the agent needs to think and use tools. Use script cron for deterministic, repeatable tasks.
+Manage all scheduled tasks from the UI at `/scheduled_tasks` — edit schedules, pause/resume, run immediately, or delete. Use prompt-based cron when the agent needs to think and use tools. Use script cron for deterministic, repeatable tasks.
 
 ### Coding Agent
 
@@ -682,20 +686,28 @@ Hashtag actions that bypass the LLM (like `#status`, `#help`) respond instantly 
 
 ### Agent Memory
 
-Agents remember conversations and can recall past interactions using `#remember`, `#search`, and `#forget`. Memory is stored per-agent in PostgreSQL.
+Agents build long-term memory from conversations — but memory is **not** raw transcript. Hivemind uses an LLM to extract only structured facts, preferences, and decisions from each interaction. Raw "User asked: X / Assistant: Y" is never stored.
+
+**How it works:**
+
+- **Fact extraction** — After each conversation, an LLM extracts meaningful facts and stores them as memory entries
+- **Memory::Summarizer** — A background process uses Haiku to periodically consolidate agent MEMORY.md files, merging duplicates and compressing stale entries
+- **Hybrid context loading** — For the first 3 turns of a conversation, full memory search results are injected; after that, only preferences and key facts are loaded to save tokens
+- **`#remember` / `#forget`** — These hashtag actions write to the agent's memory file immediately (no LLM round-trip needed)
+- **File-based memory for SDK proxy** — Agents running through the SDK proxy store memory at `/app/agents-shared/.hivemind/agents/{id}/memory/`
 
 For **semantic memory** (meaning-based recall, not just keyword matching), Hivemind needs an embedding model to generate vector representations of memories. The install script will offer to set this up for you using [Ollama](https://ollama.com) + `nomic-embed-text` — a lightweight, free, fully local model (~274MB, ~500MB RAM). No API keys or external services required.
 
-If you prefer, you can use OpenAI's embedding API instead — add your API key under **Settings → Integrations**.
+If you prefer, you can use OpenAI's embedding API or Google's Gemini embeddings instead — add your API key under **Settings → Integrations**.
 
 Without an embedding model, agents still save and recall memories using keyword search. Semantic search is optional but recommended.
 
-For multimodal memory (images, audio, video, PDFs), use the Gemini provider — configure your API key on the Integrations page.
+For multimodal memory (images, audio, video, PDFs), use the Gemini provider (`gemini-embedding-2-preview`) — configure your API key on the Integrations page.
 
 | Config | Default | Description |
 |--------|---------|-------------|
 | `MEMORY_EMBEDDINGS_ENABLED` | `true` | Enable/disable embedding generation |
-| `MEMORY_EMBEDDINGS_PROVIDER` | `ollama` | `ollama`, `openai`, or `gemini` |
+| `MEMORY_EMBEDDINGS_PROVIDER` | `ollama` | `ollama`, `openai`, or `gemini`. DB Setting (Integrations page) takes priority over this env var. |
 | `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` | Ollama API endpoint |
 
 ### Authentication
@@ -771,6 +783,7 @@ Hivemind takes a defense-in-depth approach — multiple independent layers so no
 | **Workspace isolation** | Agent code runs in a separate container (non-root user, resource limits) with no database access |
 | **Prompt injection defense** | Pattern-based detection at skill import boundary, role-based defaults |
 | **API tokens** | SHA-256 hashed at rest, revocable, with expiration support |
+| **Sidekiq Web HTTP Basic Auth** | Background job dashboard protected by HTTP Basic authentication |
 
 See [SECURITY.md](SECURITY.md) for our responsible disclosure policy.
 
@@ -987,10 +1000,10 @@ Not every agent needs the most powerful model. Match the model to the job:
 
 | Task | Recommended |
 |------|-------------|
-| Chat routing, classification | Local (llama3, mistral) |
-| Summarization, formatting | Local or Haiku |
-| Code review, debugging | Sonnet or GPT-4o |
-| Architecture, complex reasoning | Opus or o1 |
+| Chat routing, classification | Local (llama3.2, qwen3-coder) |
+| Summarization, formatting | Local or Haiku 4.5 |
+| Code review, debugging | Sonnet 4.5 or GPT-5.2 |
+| Architecture, complex reasoning | Opus 4.6 or o3 |
 
 You can set different models per agent in the agent settings page.
 
@@ -1091,9 +1104,9 @@ This imports your agent's identity, memories, skills, conversations, and tools i
 - **150+ agent templates** — Pre-built roles across 18 categories
 - **Google Workspace** — Drive, Calendar, Gmail via OAuth (requires a Google Cloud project)
 - **MCP servers** — Connect external tool servers via Model Context Protocol
-- **OpenAI-compatible providers** — llama.cpp, vLLM, LocalAI, LM Studio, and more
+- **OpenAI-compatible providers** — vLLM, LocalAI, LM Studio, and more
 - **Hashtag actions** — Platform-agnostic commands (#remember, #summarize, #mood, etc.)
-- **Docker-native** — 9-container Compose stack, production-ready out of the box
+- **Docker-native** — 10-container Compose stack, production-ready out of the box
 
 ---
 
