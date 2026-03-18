@@ -30,7 +30,16 @@ module Sessions
       messages = message_result.data[:messages]
 
       # 4. Call the LLM
-      options = { model: agent.llm_model }
+      options = { model: agent.llm_model, agent_id: agent.id, session_id: @session.id }
+
+      # For OAuth/SDK proxy path, pass tool definitions so MCP bridge can be built
+      if adapter.respond_to?(:send, true) && agent.model_provider == "anthropic"
+        api_key = adapter.send(:api_key) rescue nil
+        if api_key&.start_with?("sk-ant-oat")
+          tools = resolve_tools(agent)
+          options[:tool_definitions] = tools.map { |t| t.respond_to?(:to_llm_tool) ? t.to_llm_tool : t } if tools.any?
+        end
+      end
 
       if @stream && @on_chunk
         response = adapter.chat(messages:, options:) do |chunk|
@@ -78,6 +87,16 @@ module Sessions
     # ----- Memory Consolidation -----
     # Different semantics from PostProcessor#maybe_summarize:
     # triggers MemoryConsolidationJob every 20 entries, not ConversationSummaryJob
+
+    def resolve_tools(agent)
+      assigned = agent.agent_tools.includes(:tool).map(&:tool).select(&:enabled?)
+      tools = assigned.any? ? assigned : Tool.enabled.builtin.to_a
+      tools << SystemTool::LOAD_SKILL if agent.skills.enabled.any?
+      tools
+    rescue StandardError => e
+      Rails.logger.warn("[Sessions::Chat] Tool resolution failed: #{e.message}")
+      []
+    end
 
     def maybe_consolidate
       transcript_size = @session.transcript&.size || 0
