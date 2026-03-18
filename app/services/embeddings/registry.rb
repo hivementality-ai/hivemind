@@ -43,7 +43,11 @@ module Embeddings
     def self.configured_provider
       return nil if ENV["MEMORY_EMBEDDINGS_ENABLED"] == "false"
 
-      # Explicit provider from env
+      # Database setting takes priority (set by setup wizard / embedding migration UI)
+      db_provider = Setting.get("memory_embeddings_provider") rescue nil
+      return db_provider if db_provider.present? && ADAPTERS.key?(db_provider)
+
+      # Fall back to env var
       env_provider = ENV["MEMORY_EMBEDDINGS_PROVIDER"]
       return env_provider if env_provider.present? && ADAPTERS.key?(env_provider)
 
