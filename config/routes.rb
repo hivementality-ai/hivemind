@@ -37,7 +37,7 @@ Rails.application.routes.draw do
 
   # Team Chats
   get "team_chats", to: "team_chats#index", as: :team_chats_index
-  resources :teams, only: [ :edit, :update ] do
+  resources :teams do
     resources :team_chats, only: [ :create ], path: "chats"
   end
   resources :team_chats, only: [ :show, :update ] do

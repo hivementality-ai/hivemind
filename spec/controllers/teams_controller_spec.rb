@@ -34,8 +34,8 @@ RSpec.describe TeamsController, type: :controller do
   describe 'PATCH #update' do
     it 'updates the team and redirects' do
       patch :update, params: { id: team.id, team: { name: "New Name", description: "New desc", custom_soul: "Be chill" } }
-      expect(response).to redirect_to(edit_team_path(team))
-      expect(flash[:notice]).to eq("Team updated successfully")
+      expect(response).to redirect_to(teams_path)
+      expect(flash[:notice]).to eq("New Name updated")
       team.reload
       expect(team.name).to eq("New Name")
       expect(team.description).to eq("New desc")

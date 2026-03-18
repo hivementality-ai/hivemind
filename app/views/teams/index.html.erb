@@ -1,0 +1,59 @@
+<div class="max-w-5xl mx-auto px-6 py-8">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-white">Teams</h1>
+      <p class="text-text-muted mt-1">Organize agents into teams with shared context and collaboration.</p>
+    </div>
+    <%= link_to "New Team", new_team_path, class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition" %>
+  </div>
+
+  <% if @teams.any? %>
+    <div class="space-y-4">
+      <% @teams.each do |team| %>
+        <div class="bg-surface-card rounded-xl border border-border-default p-6">
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <div class="flex items-center gap-3 mb-2">
+                <h2 class="text-white font-semibold text-lg"><%= team.name %></h2>
+                <span class="px-2 py-0.5 text-xs rounded-full bg-brand/20 text-brand-light">
+                  <%= team.agents.count %> agent<%= team.agents.count == 1 ? "" : "s" %>
+                </span>
+              </div>
+              <% if team.description.present? %>
+                <p class="text-text-muted text-sm mb-3"><%= team.description %></p>
+              <% end %>
+              <% if team.agents.any? %>
+                <div class="flex flex-wrap gap-2">
+                  <% team.agents.order(:name).each do |agent| %>
+                    <%= link_to agent_path(agent), class: "inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface-raised rounded-lg text-xs text-text-muted hover:text-white transition" do %>
+                      <span class="w-2 h-2 rounded-full <%= agent.enabled? ? 'bg-green-400' : 'bg-gray-500' %>"></span>
+                      <%= agent.name %>
+                      <span class="text-text-faint"><%= agent.role %></span>
+                    <% end %>
+                  <% end %>
+                </div>
+              <% else %>
+                <p class="text-text-faint text-xs">No agents assigned yet</p>
+              <% end %>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0 ml-4">
+              <%= link_to "Edit", edit_team_path(team),
+                  class: "px-3 py-1.5 text-xs font-medium bg-surface-raised hover:bg-surface-overlay text-text-muted hover:text-white rounded-lg transition" %>
+              <%= button_to team_path(team), method: :delete,
+                  class: "px-3 py-1.5 text-xs font-medium bg-red-900/20 text-red-400 hover:bg-red-900/40 rounded-lg transition",
+                  data: { turbo_confirm: "Delete \"#{team.name}\"? This will also remove all agents on this team." } do %>
+                Delete
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="bg-surface-card rounded-xl border border-border-default p-12 text-center">
+      <p class="text-text-muted text-sm mb-2">No teams yet.</p>
+      <p class="text-text-faint text-xs mb-4">Create a team to organize your agents and enable collaboration.</p>
+      <%= link_to "Create First Team", new_team_path, class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition" %>
+    </div>
+  <% end %>
+</div>
