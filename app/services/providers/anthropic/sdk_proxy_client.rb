@@ -49,7 +49,7 @@ module Providers
         uri = URI("#{base_url}/v1/chat")
 
         http = Net::HTTP.new(uri.host, uri.port)
-        http.read_timeout = 300
+        http.read_timeout = 600
         http.open_timeout = 10
 
         request = Net::HTTP::Post.new(uri.path, {
@@ -87,7 +87,7 @@ module Providers
         usage = {}
 
         http = Net::HTTP.new(uri.host, uri.port)
-        http.read_timeout = 300
+        http.read_timeout = 600
         http.open_timeout = 10
 
         request = Net::HTTP::Post.new(uri.path, {
