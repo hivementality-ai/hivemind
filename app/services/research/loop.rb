@@ -229,7 +229,10 @@ module Research
       response = http.request(request)
       return nil unless response.code.to_i < 400
 
-      body = response.body.to_s.truncate(MAX_BODY)
+      body = response.body.to_s
+                .force_encoding("UTF-8")
+                .encode("UTF-8", invalid: :replace, undef: :replace, replace: "\uFFFD")
+                .truncate(MAX_BODY)
 
       if response["content-type"]&.include?("html")
         body = body.gsub(/<script[^>]*>.*?<\/script>/mi, "")
