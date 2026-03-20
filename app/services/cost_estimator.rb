@@ -12,6 +12,11 @@ class CostEstimator
     "claude-haiku-4-5"    => { input: 100,  output: 500 },
 
     # OpenAI GPT
+    "gpt-5.4"             => { input: 250,  output: 1500 },
+    "gpt-5.4-pro"         => { input: 3000, output: 18000 },
+    "gpt-5.4-mini"        => { input: 75,   output: 450 },
+    "gpt-5.4-nano"        => { input: 20,   output: 125 },
+    "gpt-5.3-codex"       => { input: 175,  output: 1400 },
     "gpt-5.2"             => { input: 175,  output: 1400 },
     "gpt-5.1"             => { input: 125,  output: 1000 },
     "gpt-5"               => { input: 125,  output: 1000 },
@@ -24,6 +29,7 @@ class CostEstimator
     "gpt-4o-mini"         => { input: 15,   output: 60 },
 
     # OpenAI Reasoning
+    "o3-pro"              => { input: 2000, output: 8000 },
     "o3"                  => { input: 200,  output: 800 },
     "o4-mini"             => { input: 110,  output: 440 },
     "o3-mini"             => { input: 110,  output: 440 },

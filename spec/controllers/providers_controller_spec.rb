@@ -149,7 +149,7 @@ RSpec.describe ProvidersController, type: :controller do
       it 'assigns OpenAI models' do
         get :edit, params: { id: openai_provider.id }
         available = assigns(:available_models)
-        expect(available.map { |m| m[:id] }).to include('gpt-5.2', 'gpt-5.2-mini', 'o3')
+        expect(available.map { |m| m[:id] }).to include('gpt-5.4', 'gpt-5.4-mini', 'o3')
       end
     end
 
@@ -312,8 +312,8 @@ RSpec.describe ProvidersController, type: :controller do
           provider_config: {
             adapter_type: 'openai',
             api_key: 'sk-test-key-123',
-            models: [ 'gpt-5.2' ],
-            default_model: 'gpt-5.2'
+            models: [ 'gpt-5.4' ],
+            default_model: 'gpt-5.4'
           }
         }
 

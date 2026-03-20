@@ -94,7 +94,7 @@ class SessionTitleJob < ApplicationJob
     openai = ProviderConfig.find_by(adapter_type: "openai", enabled: true)
     if openai
       resolver = Providers::Resolver.call(provider_name: "openai")
-      return [ resolver.data[:adapter], "gpt-5.2-nano" ] if resolver.success?
+      return [ resolver.data[:adapter], "gpt-5.4-nano" ] if resolver.success?
     end
 
     # Try Ollama
@@ -110,7 +110,7 @@ class SessionTitleJob < ApplicationJob
       cheap =
         case agent.model_provider
         when "anthropic" then "claude-haiku-4-5"
-        when "openai" then "gpt-5.2-nano"
+        when "openai" then "gpt-5.4-nano"
         else agent.llm_model
         end
       return [ resolver.data[:adapter], cheap ]

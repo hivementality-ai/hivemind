@@ -81,7 +81,7 @@ module Providers
       end
 
       params = {
-        model: options[:model] || "gpt-5.2",
+        model: options[:model] || "gpt-5.4",
         messages: formatted
       }
 

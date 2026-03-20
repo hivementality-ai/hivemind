@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_14_000002) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_20_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -131,7 +131,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_14_000002) do
     t.integer "heartbeat_interval_minutes", default: 30, null: false
     t.datetime "heartbeat_last_run_at"
     t.text "heartbeat_prompt"
-    t.string "llm_model", default: "gpt-5.2"
+    t.string "llm_model", default: "gpt-5.4"
     t.jsonb "model_config"
     t.string "model_provider", default: "openai"
     t.decimal "monthly_budget_limit", precision: 10, scale: 4, default: "100.0"
@@ -434,6 +434,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_14_000002) do
     t.index ["name"], name: "index_provider_configs_on_name", unique: true
   end
 
+  create_table "push_subscriptions", force: :cascade do |t|
+    t.string "auth", null: false
+    t.datetime "created_at", null: false
+    t.string "endpoint", null: false
+    t.string "p256dh", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["user_id", "endpoint"], name: "index_push_subscriptions_on_user_id_and_endpoint", unique: true
+    t.index ["user_id"], name: "index_push_subscriptions_on_user_id"
+  end
+
   create_table "research_sessions", force: :cascade do |t|
     t.bigint "agent_id", null: false
     t.datetime "completed_at"
@@ -698,6 +709,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_14_000002) do
     t.datetime "created_at", null: false
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false
+    t.jsonb "notification_preferences", default: {"budget_alerts" => true, "agent_responses" => true, "task_completions" => true, "heartbeat_findings" => false}, null: false
     t.datetime "remember_created_at"
     t.datetime "reset_password_sent_at"
     t.string "reset_password_token"
@@ -749,6 +761,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_14_000002) do
   add_foreign_key "inbound_messages", "channels"
   add_foreign_key "memory_entries", "agents"
   add_foreign_key "outbound_messages", "channels"
+  add_foreign_key "push_subscriptions", "users"
   add_foreign_key "research_sessions", "agents"
   add_foreign_key "research_sessions", "sessions"
   add_foreign_key "scheduled_tasks", "agents"

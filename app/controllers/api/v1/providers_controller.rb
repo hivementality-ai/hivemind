@@ -53,9 +53,15 @@ module Api
 
       def fetch_openai_models
         [
+          { id: "gpt-5.4", name: "GPT-5.4" },
+          { id: "gpt-5.4-mini", name: "GPT-5.4 Mini" },
+          { id: "gpt-5.4-nano", name: "GPT-5.4 Nano" },
+          { id: "gpt-5.3-codex", name: "GPT-5.3 Codex" },
+          { id: "o3-pro", name: "o3-pro" },
+          { id: "o3", name: "o3" },
+          { id: "o4-mini", name: "o4-mini" },
           { id: "gpt-5.2", name: "GPT-5.2" },
-          { id: "gpt-5-mini", name: "GPT-5 Mini" },
-          { id: "gpt-5-nano", name: "GPT-5 Nano" }
+          { id: "gpt-4.1", name: "GPT-4.1" }
         ]
       end
 
