@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_20_200004) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_20_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -422,78 +422,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_20_200004) do
     t.index ["sent_at"], name: "index_outbound_messages_on_sent_at"
   end
 
-  create_table "project_events", force: :cascade do |t|
-    t.bigint "agent_id"
-    t.datetime "created_at", null: false
-    t.string "event_type", null: false
-    t.jsonb "metadata", default: {}, null: false
-    t.bigint "project_id", null: false
-    t.bigint "project_milestone_id"
-    t.text "summary", null: false
-    t.bigint "user_id"
-    t.index ["agent_id"], name: "index_project_events_on_agent_id"
-    t.index ["event_type"], name: "index_project_events_on_event_type"
-    t.index ["project_id", "created_at"], name: "index_project_events_on_project_id_and_created_at"
-    t.index ["project_id"], name: "index_project_events_on_project_id"
-    t.index ["project_milestone_id"], name: "index_project_events_on_project_milestone_id"
-    t.index ["user_id"], name: "index_project_events_on_user_id"
-  end
-
-  create_table "project_milestones", force: :cascade do |t|
-    t.text "acceptance_criteria"
-    t.bigint "agent_id"
-    t.text "agent_notes"
-    t.jsonb "checkpoint", default: {}, null: false
-    t.datetime "completed_at"
-    t.datetime "created_at", null: false
-    t.jsonb "deliverables", default: [], null: false
-    t.jsonb "depends_on", default: [], null: false
-    t.text "description"
-    t.datetime "last_ping_at"
-    t.integer "max_retries", default: 3, null: false
-    t.jsonb "metadata", default: {}, null: false
-    t.integer "ping_count", default: 0, null: false
-    t.integer "position", default: 0, null: false
-    t.bigint "project_id", null: false
-    t.boolean "requires_approval", default: true, null: false
-    t.integer "retry_count", default: 0, null: false
-    t.text "review_notes"
-    t.datetime "reviewed_at"
-    t.bigint "session_id"
-    t.datetime "started_at"
-    t.string "status", default: "pending", null: false
-    t.string "title", null: false
-    t.datetime "updated_at", null: false
-    t.index ["agent_id"], name: "index_project_milestones_on_agent_id"
-    t.index ["project_id", "position"], name: "index_project_milestones_on_project_id_and_position"
-    t.index ["project_id", "status"], name: "index_project_milestones_on_project_id_and_status"
-    t.index ["project_id"], name: "index_project_milestones_on_project_id"
-    t.index ["session_id"], name: "index_project_milestones_on_session_id"
-    t.index ["status"], name: "index_project_milestones_on_status"
-  end
-
-  create_table "projects", force: :cascade do |t|
-    t.datetime "completed_at"
-    t.datetime "created_at", null: false
-    t.datetime "deadline"
-    t.text "description"
-    t.bigint "lead_agent_id"
-    t.jsonb "metadata", default: {}, null: false
-    t.jsonb "notification_prefs", default: {}, null: false
-    t.string "priority", default: "normal", null: false
-    t.datetime "started_at"
-    t.string "status", default: "planning", null: false
-    t.bigint "team_id", null: false
-    t.string "title", null: false
-    t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
-    t.index ["lead_agent_id"], name: "index_projects_on_lead_agent_id"
-    t.index ["status"], name: "index_projects_on_status"
-    t.index ["team_id", "status"], name: "index_projects_on_team_id_and_status"
-    t.index ["team_id"], name: "index_projects_on_team_id"
-    t.index ["user_id"], name: "index_projects_on_user_id"
-  end
-
   create_table "provider_configs", force: :cascade do |t|
     t.string "adapter_type", null: false
     t.string "base_url"
@@ -833,16 +761,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_20_200004) do
   add_foreign_key "inbound_messages", "channels"
   add_foreign_key "memory_entries", "agents"
   add_foreign_key "outbound_messages", "channels"
-  add_foreign_key "project_events", "agents"
-  add_foreign_key "project_events", "project_milestones"
-  add_foreign_key "project_events", "projects"
-  add_foreign_key "project_events", "users"
-  add_foreign_key "project_milestones", "agents"
-  add_foreign_key "project_milestones", "projects"
-  add_foreign_key "project_milestones", "sessions"
-  add_foreign_key "projects", "agents", column: "lead_agent_id"
-  add_foreign_key "projects", "teams"
-  add_foreign_key "projects", "users"
   add_foreign_key "push_subscriptions", "users"
   add_foreign_key "research_sessions", "agents"
   add_foreign_key "research_sessions", "sessions"
