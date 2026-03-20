@@ -39,6 +39,7 @@ Rails.application.routes.draw do
     get "activity",     to: "activity#index"              # Recent activity feed
     get "settings",     to: "settings#index"              # Notification prefs, theme, desktop link
     post "settings/push_subscription", to: "settings#push_subscription"
+    patch "settings/preferences", to: "settings#update_preferences"
   end
 
   # Root - Mission Control Dashboard

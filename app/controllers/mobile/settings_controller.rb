@@ -2,13 +2,30 @@
 
 module Mobile
   class SettingsController < BaseController
+    VALID_PREF_KEYS = %w[agent_responses task_completions budget_alerts heartbeat_findings].freeze
+    DEFAULT_PREFS = {
+      "agent_responses" => true,
+      "task_completions" => true,
+      "budget_alerts" => true,
+      "heartbeat_findings" => false
+    }.freeze
+
     def index
-      @notification_preferences = current_user.try(:notification_preferences) || {
-        "agent_responses" => true,
-        "task_completions" => true,
-        "budget_alerts" => true,
-        "heartbeat_findings" => false
-      }
+      @notification_preferences = DEFAULT_PREFS.merge(
+        current_user.try(:notification_preferences) || {}
+      )
+    end
+
+    def update_preferences
+      prefs = {}
+      VALID_PREF_KEYS.each do |key|
+        prefs[key] = params.dig(:preferences, key) == "1"
+      end
+
+      current_user.update!(notification_preferences: prefs)
+      redirect_to mobile_settings_path, notice: "Preferences saved."
+    rescue StandardError => e
+      redirect_to mobile_settings_path, alert: "Failed to save: #{e.message}"
     end
 
     def push_subscription
@@ -24,7 +41,7 @@ module Mobile
       )
 
       render json: { status: "subscribed" }
-    rescue ActiveRecord::RecordNotFound, ActionController::ParameterMissing => e
+    rescue ActiveRecord::RecordInvalid, ActionController::ParameterMissing => e
       render json: { error: e.message }, status: :unprocessable_entity
     end
   end

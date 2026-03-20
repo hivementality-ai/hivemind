@@ -132,7 +132,7 @@
 
     <%# ===== Actions ===== %>
     <div class="space-y-2 pb-6">
-      <a href="/sessions?agent_id=<%= @agent.slug %>" class="flex items-center justify-center w-full px-4 py-3 bg-amber-500 text-white font-medium rounded-xl active:bg-amber-600 transition text-sm" style="min-height: 48px;">
+      <a href="<%= sessions_path(agent_id: @agent.slug) %>" class="flex items-center justify-center w-full px-4 py-3 bg-amber-500 text-white font-medium rounded-xl active:bg-amber-600 transition text-sm" style="min-height: 48px;">
         Chat with <%= @agent.name %>
       </a>
       <a href="<%= desktop_url_for("/agents/#{@agent.slug}/edit") %>" class="flex items-center justify-center w-full px-4 py-3 text-text-muted text-sm underline" style="min-height: 44px;">

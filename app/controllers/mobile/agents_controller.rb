@@ -7,7 +7,9 @@ module Mobile
     end
 
     def show
-      @agent = Agent.by_slug(params[:slug]).first!
+      @agent = Agent.by_slug(params[:slug]).first
+      return redirect_to mobile_agents_path, alert: "Agent not found" unless @agent
+
       @recent_sessions = @agent.sessions.where(status: :active).order(last_activity_at: :desc).limit(5)
       @tools = @agent.tools
       @skills = @agent.skills

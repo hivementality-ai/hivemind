@@ -10,6 +10,8 @@ module Mobile
 
     def show
       @team = @session.team
+      return redirect_to mobile_team_chats_path, alert: "Team not found" unless @team
+
       @agents = @team.agents.enabled.order(:name)
       @messages = @session.recent_messages(limit: 100)
     end
