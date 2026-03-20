@@ -2,6 +2,7 @@
 
 class Team < ApplicationRecord
   has_many :agents, dependent: :destroy
+  has_many :projects, dependent: :destroy
   has_many :usage_records, dependent: :destroy
   has_many :team_messages, dependent: :destroy
   has_many :team_chat_sessions, dependent: :destroy

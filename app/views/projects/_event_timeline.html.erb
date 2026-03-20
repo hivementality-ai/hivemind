@@ -1,0 +1,54 @@
+<%# Locals: events (collection) %>
+<div class="max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-border-default scrollbar-track-transparent">
+  <% if events.any? %>
+    <div class="space-y-3">
+      <% events.each do |event| %>
+        <div class="flex gap-3">
+          <%# Event type indicator %>
+          <%
+            event_bg = case event.event_type
+            when "approved" then "bg-emerald-500/20"
+            when "rejected", "blocked" then "bg-red-500/20"
+            when "project_created" then "bg-blue-500/20"
+            when "status_change" then "bg-amber-500/20"
+            when "milestone_started" then "bg-blue-500/20"
+            when "milestone_completed" then "bg-emerald-500/20"
+            when "checkpoint" then "bg-slate-500/20"
+            else "bg-slate-500/20"
+            end
+
+            event_text = case event.event_type
+            when "approved" then "text-emerald-400"
+            when "rejected", "blocked" then "text-red-400"
+            when "project_created" then "text-blue-400"
+            when "status_change" then "text-amber-400"
+            when "milestone_started" then "text-blue-400"
+            when "milestone_completed" then "text-emerald-400"
+            when "checkpoint" then "text-slate-400"
+            else "text-slate-400"
+            end
+          %>
+          <div class="w-6 h-6 rounded-full <%= event_bg %> flex items-center justify-center shrink-0 mt-0.5">
+            <div class="w-2 h-2 rounded-full <%= event_text.gsub('text-', 'bg-') %>"></div>
+          </div>
+
+          <div class="flex-1 min-w-0">
+            <p class="text-white text-xs leading-relaxed"><%= event.summary %></p>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-text-faint text-xs"><%= time_ago_in_words(event.created_at) %> ago</span>
+              <% if event.agent.present? %>
+                <span class="text-text-faint text-xs">&middot; <%= event.agent.name %></span>
+              <% elsif event.user.present? %>
+                <span class="text-text-faint text-xs">&middot; <%= event.user.email %></span>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="text-center py-8">
+      <p class="text-text-faint text-sm">No activity yet.</p>
+    </div>
+  <% end %>
+</div>

@@ -1,0 +1,138 @@
+<div class="min-h-screen bg-surface-base" data-controller="project-channel" data-project-channel-id-value="<%= @project.id %>">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <%# Header %>
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div class="flex items-center gap-3">
+        <%= link_to projects_path, class: "text-text-muted hover:text-white transition-colors" do %>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        <% end %>
+        <div>
+          <div class="flex items-center gap-3">
+            <h1 class="text-2xl font-bold text-white"><%= @project.title %></h1>
+            <%
+              status_classes = case @project.status
+              when "active" then "bg-amber-500/20 text-amber-400 border-amber-500/30"
+              when "blocked" then "bg-red-500/20 text-red-400 border-red-500/30"
+              when "completed" then "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+              when "planning" then "bg-slate-500/20 text-slate-400 border-slate-500/30"
+              when "paused" then "bg-slate-500/20 text-slate-400 border-slate-500/30"
+              when "cancelled" then "bg-slate-500/20 text-slate-400 border-slate-500/30"
+              else "bg-slate-500/20 text-slate-400 border-slate-500/30"
+              end
+            %>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium border <%= status_classes %>">
+              <%= @project.status.titleize %>
+            </span>
+          </div>
+          <% if @project.description.present? %>
+            <p class="text-text-muted text-sm mt-1"><%= truncate(@project.description, length: 120) %></p>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <%# Progress %>
+        <% total = @milestones.size %>
+        <% completed = @milestones.count { |m| m.status == "completed" } %>
+        <% progress = total > 0 ? (completed.to_f / total * 100).round : 0 %>
+        <div class="flex items-center gap-2">
+          <div class="w-24 h-1.5 bg-surface-base rounded-full overflow-hidden">
+            <div class="h-full bg-amber-500 rounded-full transition-all" style="width: <%= progress %>%"></div>
+          </div>
+          <span class="text-xs text-text-muted font-medium"><%= progress %>%</span>
+        </div>
+
+        <%# Priority badge %>
+        <%
+          priority_classes = case @project.priority
+          when "urgent" then "bg-red-500/20 text-red-400 border-red-500/30"
+          when "high" then "bg-orange-500/20 text-orange-400 border-orange-500/30"
+          when "normal" then "bg-slate-500/20 text-slate-400 border-slate-500/30"
+          when "low" then "bg-slate-500/15 text-text-faint border-slate-500/20"
+          else "bg-slate-500/20 text-slate-400 border-slate-500/30"
+          end
+        %>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border <%= priority_classes %>">
+          <%= @project.priority&.titleize || "Normal" %>
+        </span>
+
+        <%# Action buttons %>
+        <% if @project.status == "active" %>
+          <%= button_to pause_project_path(@project), method: :patch, class: "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-card border border-border-default text-text-muted text-sm hover:text-white hover:border-amber-500/40 transition-all" do %>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Pause
+          <% end %>
+        <% elsif @project.status == "paused" %>
+          <%= button_to resume_project_path(@project), method: :patch, class: "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-400 text-sm hover:bg-amber-500/30 transition-all" do %>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Resume
+          <% end %>
+        <% end %>
+
+        <% unless %w[cancelled completed].include?(@project.status) %>
+          <%= button_to cancel_project_path(@project), method: :patch, data: { turbo_confirm: "Are you sure you want to cancel this project?" }, class: "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-card border border-border-default text-red-400 text-sm hover:bg-red-500/10 hover:border-red-500/30 transition-all" do %>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+            Cancel
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+
+    <%# Two-column layout %>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <%# Left column: Milestones %>
+      <div class="lg:col-span-2">
+        <div class="bg-surface-card border border-border-default rounded-xl p-6">
+          <h2 class="text-white font-semibold text-lg mb-6">Milestones</h2>
+
+          <% if @milestones.any? %>
+            <div class="space-y-0">
+              <% @milestones.each_with_index do |milestone, idx| %>
+                <%= render "projects/milestone_card", milestone: milestone, last: idx == @milestones.size - 1 %>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="text-center py-12">
+              <p class="text-text-faint text-sm">No milestones defined yet.</p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <%# Right column: Activity %>
+      <div class="lg:col-span-1">
+        <div class="bg-surface-card border border-border-default rounded-xl p-6 sticky top-6">
+          <h2 class="text-white font-semibold text-lg mb-4">Activity</h2>
+          <%= render "projects/event_timeline", events: @events %>
+        </div>
+      </div>
+    </div>
+
+    <%# Approval panel %>
+    <% if @pending_milestones.any? %>
+      <div class="mb-8">
+        <%= render "projects/approval_panel", milestones: @pending_milestones %>
+      </div>
+    <% end %>
+
+    <%# Settings: Notification Preferences %>
+    <div class="bg-surface-card border border-border-default rounded-xl p-6">
+      <h2 class="text-white font-semibold text-lg mb-4">Settings</h2>
+      <%= form_with model: @project, url: project_path(@project), method: :patch, class: "space-y-4" do |f| %>
+        <%= render "projects/notification_prefs", form: f, project: @project %>
+        <div class="pt-2">
+          <%= f.submit "Save Settings", class: "px-4 py-2 rounded-lg bg-brand text-black font-medium text-sm hover:bg-amber-400 transition-colors cursor-pointer" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
