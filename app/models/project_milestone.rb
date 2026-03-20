@@ -10,6 +10,7 @@ class ProjectMilestone < ApplicationRecord
   validates :status, inclusion: {
     in: %w[pending in_progress needs_review approved completed blocked skipped]
   }
+  validate :dependencies_within_same_project, if: -> { depends_on.present? }
 
   scope :actionable, -> { where(status: %w[pending in_progress]) }
   scope :awaiting_review, -> { where(status: "needs_review") }
@@ -19,7 +20,9 @@ class ProjectMilestone < ApplicationRecord
   def dependencies_met?
     return true if depends_on.blank?
 
-    ProjectMilestone.where(id: depends_on).all? { |m| m.status == "completed" }
+    # Verify ALL dependency IDs exist and are completed
+    completed_count = ProjectMilestone.where(id: depends_on, status: "completed").count
+    completed_count == depends_on.size
   end
 
   def ready_to_start?
@@ -28,5 +31,14 @@ class ProjectMilestone < ApplicationRecord
 
   def auto_approve?
     !requires_approval
+  end
+
+  private
+
+  def dependencies_within_same_project
+    return if depends_on.blank? || project_id.blank?
+
+    invalid = ProjectMilestone.where(id: depends_on).where.not(project_id: project_id)
+    errors.add(:depends_on, "contains milestones from a different project") if invalid.any?
   end
 end

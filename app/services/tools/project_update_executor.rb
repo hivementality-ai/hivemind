@@ -17,16 +17,18 @@ module Tools
       valid_statuses = %w[in_progress needs_review blocked]
       return ServiceResponse.failure(error: "Invalid status: #{new_status}") unless valid_statuses.include?(new_status)
 
+      session = config[:session]
+
       updates = { status: new_status }
       updates[:agent_notes] = notes if notes.present?
-      updates[:deliverables] = milestone.deliverables + deliverables if deliverables.any?
+      updates[:deliverables] = (milestone.deliverables || []) + deliverables if deliverables.any?
 
       # Save checkpoint data
-      if completed_steps.any? || pending_steps.any?
+      if (completed_steps.any? || pending_steps.any?) && session
         Projects::CheckpointWriter.call(
           milestone: milestone,
-          agent: @agent,
-          session: @session,
+          agent: agent,
+          session: session,
           completed_steps: completed_steps,
           pending_steps: pending_steps,
           notes: notes
@@ -58,7 +60,7 @@ module Tools
       Projects::EventLogger.call(
         project: milestone.project,
         milestone: milestone,
-        agent: @agent,
+        agent: agent,
         event_type: event_type,
         summary: summary
       )
@@ -86,10 +88,10 @@ module Tools
     private
 
     def store_project_memory(milestone, notes)
-      return unless @agent
+      return unless agent
 
       MemoryEntry.create(
-        agent: @agent,
+        agent: agent,
         content: "[Project: #{milestone.project.title}] Completed milestone: #{milestone.title}. #{notes}",
         memory_type: "episodic",
         importance: 0.7,

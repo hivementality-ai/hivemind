@@ -10,10 +10,9 @@ module Tools
 
       return ServiceResponse.failure(error: "Title is required") if title.blank?
 
-      team = @agent&.team
+      team = agent&.team
       return ServiceResponse.failure(error: "Agent must belong to a team") unless team
 
-      # Find a user to own the project (session starter or first admin)
       owner = find_owner
 
       project = Project.create!(
@@ -25,7 +24,6 @@ module Tools
         status: "planning"
       )
 
-      # Create milestones from agent's proposal
       milestones_data.each_with_index do |m_data, idx|
         project.milestones.create!(
           title: m_data["title"],
@@ -40,9 +38,9 @@ module Tools
 
       Projects::EventLogger.call(
         project: project,
-        agent: @agent,
+        agent: agent,
         event_type: "project_created",
-        summary: "Project proposed by #{@agent&.name}: #{title} (#{milestones_data.size} milestones)"
+        summary: "Project proposed by #{agent&.name}: #{title} (#{milestones_data.size} milestones)"
       )
 
       ServiceResponse.success(data: {
@@ -54,7 +52,8 @@ module Tools
     private
 
     def find_owner
-      user_id = @session&.metadata&.dig("started_by")
+      session = config[:session]
+      user_id = session&.metadata&.dig("started_by")
       User.find_by(id: user_id) || User.where(role: [ :admin, :owner ]).first
     end
 

@@ -23,8 +23,8 @@ module Tools
     def find_project(project_id)
       if project_id.present?
         Project.find_by(id: project_id)
-      elsif @session&.metadata&.dig("project_id")
-        Project.find_by(id: @session.metadata["project_id"])
+      elsif config[:session]&.metadata&.dig("project_id")
+        Project.find_by(id: config[:session].metadata["project_id"])
       end
     end
 

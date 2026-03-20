@@ -45,10 +45,12 @@ module Projects
     def update_project_status(project)
       if project.milestones.awaiting_review.any?
         project.update!(status: "blocked") unless project.status == "blocked"
-      elsif project.milestones.where.not(status: %w[completed skipped]).none?
-        project.update!(status: "completed", completed_at: Time.current)
-        Projects::EventLogger.call(project: project, event_type: "project_completed",
-          summary: "All milestones completed!")
+      elsif project.milestones.where.not(status: %w[completed skipped]).none? && project.milestones.any?
+        unless project.status == "completed"
+          project.update!(status: "completed", completed_at: Time.current)
+          Projects::EventLogger.call(project: project, event_type: "project_completed",
+            summary: "All milestones completed!")
+        end
       elsif project.status == "blocked"
         project.update!(status: "active")
       end

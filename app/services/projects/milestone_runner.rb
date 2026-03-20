@@ -16,9 +16,14 @@ module Projects
       return unless agent&.enabled?
 
       session = find_or_create_session(agent)
+
+      # Always update the milestone's session reference
+      updates = { session: session }
       unless @resume
-        @milestone.update!(session: session, status: "in_progress", started_at: Time.current)
+        updates[:status] = "in_progress"
+        updates[:started_at] = Time.current
       end
+      @milestone.update!(updates)
 
       context = Projects::ContextBuilder.call(
         milestone: @milestone,
@@ -42,6 +47,7 @@ module Projects
 
     def find_or_create_session(agent)
       if @resume && @milestone.session&.persisted?
+        # Create new session but carry forward the summary from the stalled one
         Session.create!(
           agent: agent,
           session_key: SecureRandom.uuid,

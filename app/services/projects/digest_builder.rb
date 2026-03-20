@@ -33,7 +33,7 @@ module Projects
     private
 
     def digest_due?(mode)
-      last_digest = @project.metadata["last_digest_at"]&.then { |t| Time.parse(t) }
+      last_digest = parse_time(@project.metadata["last_digest_at"])
       return true unless last_digest
 
       case mode
@@ -44,7 +44,7 @@ module Projects
     end
 
     def collect_events_since_last_digest
-      since = @project.metadata["last_digest_at"]&.then { |t| Time.parse(t) } || 24.hours.ago
+      since = parse_time(@project.metadata["last_digest_at"]) || 24.hours.ago
       @project.events.since(since).recent.limit(50)
     end
 
@@ -59,6 +59,14 @@ module Projects
 
       lines << "Progress: #{@project.progress_percentage}% complete"
       lines.join("\n")
+    end
+
+    def parse_time(value)
+      return nil if value.blank?
+
+      Time.parse(value)
+    rescue ArgumentError, TypeError
+      nil
     end
   end
 end
