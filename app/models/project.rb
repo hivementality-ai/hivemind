@@ -13,6 +13,34 @@ class Project < ApplicationRecord
   scope :active_or_blocked, -> { where(status: %w[active blocked]) }
   scope :for_team, ->(team) { where(team: team) }
 
+  def workspace_path
+    slug = title.parameterize(separator: "_")
+    "/workspace/projects/#{slug}_#{id}"
+  end
+
+  def ensure_workspace!
+    FileUtils.mkdir_p(workspace_path)
+    workspace_path
+  end
+
+  def project_files
+    return [] unless File.directory?(workspace_path)
+
+    Dir.glob(File.join(workspace_path, "**", "*"))
+       .select { |f| File.file?(f) }
+       .sort_by { |f| File.mtime(f) }
+       .reverse
+       .map do |path|
+      {
+        path: path,
+        name: File.basename(path),
+        relative: path.sub("#{workspace_path}/", ""),
+        size: File.size(path),
+        modified: File.mtime(path)
+      }
+    end
+  end
+
   def progress_percentage
     total = milestones.count
     return 0 if total.zero?

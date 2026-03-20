@@ -117,6 +117,54 @@
       </div>
     </div>
 
+    <%# Project Files %>
+    <div class="bg-surface-card border border-border-default rounded-xl p-6 mb-8">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-white font-semibold text-lg">Files</h2>
+        <%= form_with url: upload_files_project_path(@project), method: :post, multipart: true, class: "flex items-center gap-3" do %>
+          <label class="cursor-pointer px-3 py-1.5 rounded-lg bg-surface-base border border-border-default text-text-muted text-sm hover:text-white hover:border-amber-500/40 transition-all flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Upload Files
+            <input type="file" name="files[]" multiple class="hidden" onchange="this.form.requestSubmit()">
+          </label>
+        <% end %>
+      </div>
+
+      <% if @project_files.any? %>
+        <div class="space-y-2">
+          <% @project_files.each do |file| %>
+            <div class="flex items-center gap-3 bg-surface-base rounded-lg px-4 py-2.5 group">
+              <% ext = File.extname(file[:name]).delete(".").upcase %>
+              <span class="flex-shrink-0 w-9 h-9 rounded-lg bg-surface-raised flex items-center justify-center text-xs font-bold text-text-faint"><%= ext.presence || "?" %></span>
+              <div class="flex-1 min-w-0">
+                <p class="text-white text-sm font-medium truncate"><%= file[:name] %></p>
+                <p class="text-text-faint text-xs"><%= number_to_human_size(file[:size]) %> · <%= time_ago_in_words(file[:modified]) %> ago</p>
+              </div>
+              <code class="text-text-faint text-xs hidden lg:block truncate max-w-xs"><%= file[:path] %></code>
+              <%= button_to delete_file_project_path(@project, path: file[:relative]),
+                  method: :delete,
+                  data: { turbo_confirm: "Delete #{file[:name]}?" },
+                  class: "text-text-faint hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all cursor-pointer flex-shrink-0" do %>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="text-center py-8">
+          <svg class="w-10 h-10 mx-auto text-text-faint mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+          </svg>
+          <p class="text-text-faint text-sm">No files yet. Upload PDFs, docs, or any reference materials for your agents.</p>
+          <p class="text-text-faint text-xs mt-1">Files are stored at <code class="text-text-muted"><%= @project.workspace_path %></code></p>
+        </div>
+      <% end %>
+    </div>
+
     <%# Approval panel %>
     <% if @pending_milestones.any? %>
       <div class="mb-8">

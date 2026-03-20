@@ -43,6 +43,16 @@ module Projects
         parts << ""
       end
 
+      # Project files available to the agent
+      project_files = @milestone.project.project_files
+      if project_files.any?
+        parts << "### Project Files (use file_read or pdf_read to access)"
+        project_files.each do |f|
+          parts << "- #{f[:path]} (#{ActionController::Base.helpers.number_to_human_size(f[:size])})"
+        end
+        parts << ""
+      end
+
       memories = recall_project_memories
       if memories.any?
         parts << "### Relevant Memories"
@@ -103,6 +113,16 @@ module Projects
       if @milestone.session&.try(:conversation_summary).present?
         parts << "### Previous Session Summary"
         parts << @milestone.session.conversation_summary
+        parts << ""
+      end
+
+      # Project files
+      project_files = @milestone.project.project_files
+      if project_files.any?
+        parts << "### Project Files (use file_read or pdf_read to access)"
+        project_files.each do |f|
+          parts << "- #{f[:path]} (#{ActionController::Base.helpers.number_to_human_size(f[:size])})"
+        end
         parts << ""
       end
 

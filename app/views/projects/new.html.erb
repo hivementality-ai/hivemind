@@ -10,7 +10,7 @@
       <h1 class="text-2xl font-bold text-white">New Project</h1>
     </div>
 
-    <%= form_with model: @project, url: projects_path, class: "space-y-6", data: { controller: "project-form" } do |f| %>
+    <%= form_with model: @project, url: projects_path, multipart: true, class: "space-y-6", data: { controller: "project-form" } do |f| %>
       <%# Basic info %>
       <div class="bg-surface-card border border-border-default rounded-xl p-6 space-y-5">
         <h2 class="text-white font-semibold text-base">Project Details</h2>
@@ -40,6 +40,20 @@
         <div class="sm:w-1/2">
           <%= f.label :deadline, class: "block text-sm font-medium text-text-muted mb-1.5" %>
           <%= f.date_field :deadline, class: "w-full px-3 py-2 bg-surface-base border border-border-default rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-colors" %>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-text-muted mb-1.5">Reference Files</label>
+          <p class="text-text-faint text-xs mb-2">Upload PDFs, docs, spreadsheets, or any files your agents may need. Stored in the project workspace, not in the database.</p>
+          <label class="flex items-center justify-center w-full px-4 py-6 bg-surface-base border-2 border-dashed border-border-default rounded-lg cursor-pointer hover:border-amber-500/40 transition-colors group">
+            <div class="text-center">
+              <svg class="w-8 h-8 mx-auto text-text-faint group-hover:text-amber-500/60 transition-colors mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+              </svg>
+              <span class="text-text-muted text-sm">Click to choose files</span>
+            </div>
+            <input type="file" name="files[]" multiple class="hidden">
+          </label>
         </div>
       </div>
 
