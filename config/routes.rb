@@ -19,6 +19,28 @@ Rails.application.routes.draw do
   get  "setup/ollama_models", to: "setup#ollama_models", as: :setup_ollama_models
   get  "setup/openai_compatible_models", to: "setup#openai_compatible_models", as: :setup_openai_compatible_models
 
+  # Mobile PWA Interface
+  scope "/m", module: "mobile", as: "mobile" do
+    root "home#index"                                    # Activity feed / quick actions
+    resources :sessions, only: [ :index, :show ] do
+      member do
+        post :message
+        post :interrupt
+      end
+    end
+    resources :team_chats, only: [ :index, :show ] do
+      member do
+        post :message
+        post :interrupt
+      end
+    end
+    get "agents",       to: "agents#index"               # Read-only agent list + status
+    get "agents/:slug", to: "agents#show", as: :agent    # Read-only agent detail
+    get "activity",     to: "activity#index"              # Recent activity feed
+    get "settings",     to: "settings#index"              # Notification prefs, theme, desktop link
+    post "settings/push_subscription", to: "settings#push_subscription"
+  end
+
   # Root - Mission Control Dashboard
   root "dashboard#index"
 

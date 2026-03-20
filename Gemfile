@@ -4,6 +4,7 @@ ruby "3.4.8"
 
 # Core
 gem "rails", "~> 8.1.2"
+gem "web-push"
 gem "propshaft"
 gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"

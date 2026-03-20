@@ -1,0 +1,78 @@
+<div class="px-4 py-4 space-y-6">
+
+  <%# ===== Quick Ask ===== %>
+  <a href="/m/sessions/new" class="flex items-center gap-3 w-full px-4 py-3 rounded-xl bg-surface-card border border-border-default text-text-muted" style="min-height: 48px;">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 flex-shrink-0 text-text-faint" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+    </svg>
+    <span class="text-sm">Ask anything&hellip;</span>
+  </a>
+
+  <%# ===== Recent Sessions ===== %>
+  <section>
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider">Recent Sessions</h2>
+      <a href="/m/sessions" class="text-xs text-amber-400 font-medium" style="min-height: 44px; display: inline-flex; align-items: center;">See all</a>
+    </div>
+
+    <% if @recent_sessions.present? %>
+      <div class="space-y-2">
+        <% @recent_sessions.each do |session| %>
+          <a href="/m/sessions/<%= session.id %>" class="block rounded-xl bg-surface-card border border-border-default p-4 active:opacity-75 transition-opacity" style="min-height: 44px;">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-white truncate">
+                  <%= session.agent&.name || "Session" %>
+                </p>
+                <% if session.respond_to?(:last_message_preview) && session.last_message_preview.present? %>
+                  <p class="mt-1 text-xs text-text-muted line-clamp-2"><%= session.last_message_preview %></p>
+                <% end %>
+              </div>
+              <% if session.last_activity_at.present? %>
+                <time class="flex-shrink-0 text-[11px] text-text-faint whitespace-nowrap" datetime="<%= session.last_activity_at.iso8601 %>">
+                  <%= time_ago_in_words(session.last_activity_at) %> ago
+                </time>
+              <% end %>
+            </div>
+          </a>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="rounded-xl bg-surface-card border border-border-default p-6 text-center">
+        <p class="text-sm text-text-muted">No active sessions yet.</p>
+        <a href="/m/sessions/new" class="mt-2 inline-block text-sm text-amber-400 font-medium" style="min-height: 44px; display: inline-flex; align-items: center;">Start a conversation</a>
+      </div>
+    <% end %>
+  </section>
+
+  <%# ===== Active Agents ===== %>
+  <section>
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider">Agents</h2>
+      <a href="/m/agents" class="text-xs text-amber-400 font-medium" style="min-height: 44px; display: inline-flex; align-items: center;">See all</a>
+    </div>
+
+    <% if @agents.present? %>
+      <div class="grid grid-cols-2 gap-2">
+        <% @agents.limit(6).each do |agent| %>
+          <a href="/m/agents/<%= agent.id %>" class="flex items-center gap-3 rounded-xl bg-surface-card border border-border-default p-3 active:opacity-75 transition-opacity" style="min-height: 44px;">
+            <span class="relative flex-shrink-0">
+              <span class="flex items-center justify-center w-9 h-9 rounded-full bg-amber-400/10 text-amber-400 text-sm font-semibold">
+                <%= agent.name.first.upcase %>
+              </span>
+              <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-surface-card <%= agent.respond_to?(:online?) && agent.online? ? 'bg-emerald-400' : 'bg-text-faint' %>"></span>
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-sm font-medium text-white truncate"><%= agent.name %></span>
+            </span>
+          </a>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="rounded-xl bg-surface-card border border-border-default p-6 text-center">
+        <p class="text-sm text-text-muted">No agents available.</p>
+      </div>
+    <% end %>
+  </section>
+
+</div>

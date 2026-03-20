@@ -1,0 +1,145 @@
+<% colors = %w[bg-brand bg-green-600 bg-yellow-600 bg-pink-600 bg-cyan-600 bg-red-600 bg-indigo-600 bg-orange-600] %>
+<% agent_color = colors[@agent.name.bytes.sum % colors.size] %>
+
+<div class="flex flex-col min-h-[100dvh] bg-surface-base">
+
+  <%# ===== Header ===== %>
+  <div class="flex items-center gap-3 px-4 py-3 border-b border-border-default bg-surface-card flex-shrink-0">
+    <a href="<%= mobile_agents_path %>" class="text-text-muted active:text-white transition p-1" style="min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center;">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+      </svg>
+    </a>
+    <span class="flex items-center justify-center w-9 h-9 rounded-full <%= agent_color %> text-white text-sm font-bold flex-shrink-0">
+      <%= @agent.name.first.upcase %>
+    </span>
+    <div class="min-w-0 flex-1">
+      <h1 class="text-white font-semibold text-sm truncate"><%= @agent.name %></h1>
+      <% status = @agent.respond_to?(:runtime_status) ? @agent.runtime_status : "idle" %>
+      <% status_color = case status.to_s
+        when "thinking" then "text-amber-400"
+        when "executing" then "text-blue-400"
+        when "error" then "text-red-400"
+        else "text-text-faint"
+      end %>
+      <p class="text-xs <%= status_color %>"><%= status %></p>
+    </div>
+  </div>
+
+  <div class="flex-1 overflow-y-auto px-4 py-4 space-y-5">
+
+    <%# ===== System Prompt ===== %>
+    <% if @agent.respond_to?(:system_prompt) && @agent.system_prompt.present? %>
+      <section>
+        <h2 class="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">System Prompt</h2>
+        <div class="rounded-xl bg-surface-card border border-border-default p-3">
+          <details>
+            <summary class="text-sm text-gray-300 cursor-pointer">
+              <%= @agent.system_prompt.truncate(200) %>
+            </summary>
+            <p class="mt-2 text-sm text-gray-300 whitespace-pre-wrap"><%= @agent.system_prompt %></p>
+          </details>
+        </div>
+      </section>
+    <% end %>
+
+    <%# ===== Tools ===== %>
+    <section>
+      <h2 class="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Tools (<%= @tools.count %>)</h2>
+      <% if @tools.any? %>
+        <div class="rounded-xl bg-surface-card border border-border-default divide-y divide-border-default">
+          <% @tools.each do |tool| %>
+            <div class="px-3 py-2.5">
+              <p class="text-sm text-white"><%= tool.respond_to?(:display_name) ? tool.display_name : tool.name %></p>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="rounded-xl bg-surface-card border border-border-default p-3 text-center">
+          <p class="text-xs text-text-faint">No tools assigned</p>
+        </div>
+      <% end %>
+    </section>
+
+    <%# ===== Skills ===== %>
+    <section>
+      <h2 class="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Skills (<%= @skills.count %>)</h2>
+      <% if @skills.any? %>
+        <div class="rounded-xl bg-surface-card border border-border-default divide-y divide-border-default">
+          <% @skills.each do |skill| %>
+            <div class="px-3 py-2.5">
+              <p class="text-sm text-white"><%= skill.respond_to?(:display_name) ? skill.display_name : skill.name %></p>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="rounded-xl bg-surface-card border border-border-default p-3 text-center">
+          <p class="text-xs text-text-faint">No skills assigned</p>
+        </div>
+      <% end %>
+    </section>
+
+    <%# ===== Recent Sessions ===== %>
+    <section>
+      <h2 class="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Recent Sessions</h2>
+      <% if @recent_sessions.any? %>
+        <div class="space-y-2">
+          <% @recent_sessions.each do |session| %>
+            <a href="/m/sessions/<%= session.id %>" class="block rounded-xl bg-surface-card border border-border-default p-3 active:opacity-75 transition-opacity" style="min-height: 44px;">
+              <div class="flex items-center justify-between gap-3">
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm text-white truncate"><%= session.respond_to?(:title) ? session.title : "Session ##{session.id}" %></p>
+                  <% if session.respond_to?(:last_message_preview) && session.last_message_preview.present? %>
+                    <p class="text-xs text-text-muted truncate mt-0.5"><%= session.last_message_preview %></p>
+                  <% end %>
+                </div>
+                <% if session.last_activity_at.present? %>
+                  <time class="text-[10px] text-text-faint whitespace-nowrap flex-shrink-0" datetime="<%= session.last_activity_at.iso8601 %>">
+                    <%= time_ago_in_words(session.last_activity_at) %>
+                  </time>
+                <% end %>
+              </div>
+            </a>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="rounded-xl bg-surface-card border border-border-default p-3 text-center">
+          <p class="text-xs text-text-faint">No recent sessions</p>
+        </div>
+      <% end %>
+    </section>
+
+    <%# ===== Usage Today ===== %>
+    <section>
+      <h2 class="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Usage Today</h2>
+      <div class="rounded-xl bg-surface-card border border-border-default p-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-xs text-text-faint">Tokens</p>
+            <p class="text-lg font-semibold text-white">
+              <%= number_with_delimiter(@usage_today.sum { |u| (u.respond_to?(:total_tokens) ? u.total_tokens : 0) || 0 }) %>
+            </p>
+          </div>
+          <div>
+            <p class="text-xs text-text-faint">Cost</p>
+            <p class="text-lg font-semibold text-white">
+              $<%= ("%.4f" % @usage_today.sum { |u| (u.respond_to?(:cost) ? u.cost : 0) || 0 }) %>
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <%# ===== Actions ===== %>
+    <div class="space-y-2 pb-6">
+      <a href="/sessions?agent_id=<%= @agent.slug %>" class="flex items-center justify-center w-full px-4 py-3 bg-amber-500 text-white font-medium rounded-xl active:bg-amber-600 transition text-sm" style="min-height: 48px;">
+        Chat with <%= @agent.name %>
+      </a>
+      <a href="<%= desktop_url_for("/agents/#{@agent.slug}/edit") %>" class="flex items-center justify-center w-full px-4 py-3 text-text-muted text-sm underline" style="min-height: 44px;">
+        Open full settings on desktop
+      </a>
+    </div>
+
+  </div>
+
+</div>

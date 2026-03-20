@@ -59,6 +59,9 @@ class SubAgentJob < ApplicationJob
 
       persist_to_team_chat(sat, reply) if team_chat_session(sat)
 
+      # Push notification for task completion
+      WebPush::NotificationTriggers.task_completed(task: sat)
+
       callback_to_parent(sat, reply, success: true)
     else
       error_msg = "Sub-agent failed: #{result.error}"
