@@ -204,6 +204,7 @@ class TeamChatJob < ApplicationJob
         )
         full_content = result&.data&.dig(:content).to_s
         thinking_content = result&.data&.dig(:thinking)
+        tool_history = result&.data&.dig(:tool_history)
       else
         full_thinking = +""
         result = adapter.chat(
@@ -226,6 +227,7 @@ class TeamChatJob < ApplicationJob
                 content: chunk[:content],
                 **broadcast_extras
               })
+              check_stream_signal!(@agent_session)
             end
           when "tool_start"
             Plugins::Hooks.trigger("before_tool_call", tool_name: chunk[:tool], input: chunk[:input] || {}, agent: agent, source: :proxy)
@@ -254,6 +256,7 @@ class TeamChatJob < ApplicationJob
       # Save the agent's response to team chat (thinking stored in metadata, not content)
       msg_metadata = { model: agent.llm_model, provider: agent.model_provider }
       msg_metadata[:thinking] = thinking_content if thinking_content.present?
+      msg_metadata[:tool_calls] = tool_history if tool_history.present?
 
       # Strip self-name prefix — LLMs sometimes echo "[Name]: " or "[Name]:" at the start
       full_content = strip_self_name_prefix(full_content, agent)
@@ -521,6 +524,18 @@ class TeamChatJob < ApplicationJob
   rescue StandardError => e
     Rails.logger.warn("[TeamChatJob] Memory recall failed: #{e.message}")
     nil
+  end
+
+  def check_stream_signal!(session)
+    signal = SessionSignal.check(session.id)
+    return unless signal
+
+    case signal[:type]
+    when "cancel"
+      raise AgentInterrupted
+    when "redirect"
+      raise AgentRedirected.new(signal[:message])
+    end
   end
 
   def resolve_tools(agent)

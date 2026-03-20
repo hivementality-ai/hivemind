@@ -97,6 +97,13 @@ class TeamChatsController < ApplicationController
     agent_sessions = @session.agent_sessions.to_a
     agent_sessions.each do |agent_session|
       SessionSignal.set(agent_session.id, type: signal_type, message: message.presence)
+
+      # Propagate to any running sub-agent child sessions
+      if agent_session.respond_to?(:sub_agent_tasks_as_parent)
+        agent_session.sub_agent_tasks_as_parent.where(status: "running").find_each do |sat|
+          SessionSignal.set(sat.child_session.id, type: signal_type, message: message.presence) if sat.child_session
+        end
+      end
     end
 
     # Broadcast immediately for visual feedback

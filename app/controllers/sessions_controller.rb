@@ -128,6 +128,13 @@ class SessionsController < ApplicationController
 
     SessionSignal.set(@session.id, type: signal_type, message: message.presence)
 
+    # Propagate signal to any running sub-agent child sessions
+    if @session.respond_to?(:sub_agent_tasks_as_parent)
+      @session.sub_agent_tasks_as_parent.where(status: "running").find_each do |sat|
+        SessionSignal.set(sat.child_session.id, type: signal_type, message: message.presence) if sat.child_session
+      end
+    end
+
     # Broadcast to UI immediately for visual feedback
     ActionCable.server.broadcast(
       "session_#{@session.id}",
