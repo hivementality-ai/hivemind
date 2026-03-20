@@ -156,7 +156,7 @@ class ProjectsController < ApplicationController
   end
 
   def project_params
-    params.require(:project).permit(:title, :description, :team_id, :priority, :deadline,
+    params.require(:project).permit(:title, :description, :team_id, :lead_agent_id, :priority, :deadline,
       notification_prefs: {})
   end
 

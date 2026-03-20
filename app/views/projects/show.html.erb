@@ -26,9 +26,14 @@
               <%= @project.status.titleize %>
             </span>
           </div>
-          <% if @project.description.present? %>
-            <p class="text-text-muted text-sm mt-1"><%= truncate(@project.description, length: 120) %></p>
-          <% end %>
+          <div class="flex items-center gap-3 mt-1">
+            <% if @project.lead_agent %>
+              <span class="text-text-muted text-sm">Lead: <span class="text-white font-medium"><%= @project.lead_agent.name %></span></span>
+            <% end %>
+            <% if @project.description.present? %>
+              <span class="text-text-faint text-sm"><%= truncate(@project.description, length: 100) %></span>
+            <% end %>
+          </div>
         </div>
       </div>
 

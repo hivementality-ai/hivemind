@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_20_200003) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_20_200004) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -477,6 +477,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_20_200003) do
     t.datetime "created_at", null: false
     t.datetime "deadline"
     t.text "description"
+    t.bigint "lead_agent_id"
     t.jsonb "metadata", default: {}, null: false
     t.jsonb "notification_prefs", default: {}, null: false
     t.string "priority", default: "normal", null: false
@@ -486,6 +487,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_20_200003) do
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.index ["lead_agent_id"], name: "index_projects_on_lead_agent_id"
     t.index ["status"], name: "index_projects_on_status"
     t.index ["team_id", "status"], name: "index_projects_on_team_id_and_status"
     t.index ["team_id"], name: "index_projects_on_team_id"
@@ -838,6 +840,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_20_200003) do
   add_foreign_key "project_milestones", "agents"
   add_foreign_key "project_milestones", "projects"
   add_foreign_key "project_milestones", "sessions"
+  add_foreign_key "projects", "agents", column: "lead_agent_id"
   add_foreign_key "projects", "teams"
   add_foreign_key "projects", "users"
   add_foreign_key "push_subscriptions", "users"

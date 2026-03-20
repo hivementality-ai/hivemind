@@ -37,6 +37,15 @@
           </div>
         </div>
 
+        <div>
+          <%= f.label :lead_agent_id, "Project Lead", class: "block text-sm font-medium text-text-muted mb-1.5" %>
+          <p class="text-text-faint text-xs mb-2">The lead agent drives milestone planning and acts as the default assignee. Pick the agent best suited to coordinate this project.</p>
+          <%= f.select :lead_agent_id,
+              @teams.flat_map { |t| t.agents.enabled.map { |a| ["#{a.name} (#{t.name}) — #{a.role}", a.id] } },
+              { include_blank: "Select a lead agent..." },
+              class: "w-full px-3 py-2 bg-surface-base border border-border-default rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-colors" %>
+        </div>
+
         <div class="sm:w-1/2">
           <%= f.label :deadline, class: "block text-sm font-medium text-text-muted mb-1.5" %>
           <%= f.date_field :deadline, class: "w-full px-3 py-2 bg-surface-base border border-border-default rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-colors" %>

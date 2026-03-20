@@ -49,7 +49,7 @@ module Api
       end
 
       def project_params
-        params.permit(:title, :description, :team_id, :priority, :deadline, :status)
+        params.permit(:title, :description, :team_id, :lead_agent_id, :priority, :deadline, :status)
       end
 
       def serialize_project(project, full: false)
@@ -61,6 +61,8 @@ module Api
           priority: project.priority,
           team_id: project.team_id,
           team_name: project.team.name,
+          lead_agent_id: project.lead_agent_id,
+          lead_agent_name: project.lead_agent&.name,
           progress: project.progress_percentage,
           deadline: project.deadline&.iso8601,
           started_at: project.started_at&.iso8601,

@@ -25,7 +25,7 @@ module Projects
     private
 
     def find_planning_agent
-      @project.team.agents.enabled.first
+      @project.lead_agent || @project.team.agents.enabled.first
     end
 
     def create_milestones_from_plan(plan)
@@ -73,7 +73,7 @@ module Projects
       team_agents.find do |agent|
         agent_tools = agent.tools.pluck(:name)
         (tools_needed & agent_tools).any?
-      end || team_agents.first
+      end || @project.lead_agent || team_agents.first
     end
   end
 end
