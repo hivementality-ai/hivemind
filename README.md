@@ -979,31 +979,11 @@ sudo chown -R $(whoami):staff ~/hivemind-agents-shared
 
 This makes your user the owner so you can inspect agent work anytime.
 
-### Push Notifications (Mobile PWA)
+### Mobile PWA & Push Notifications
 
-Hivemind includes a mobile PWA interface at `/m/` with optional web push notifications. To enable push notifications, generate VAPID keys and add them to your environment:
+Hivemind includes a mobile-optimized PWA interface at `/m/` — mobile users are auto-detected and redirected. Add to your home screen for a native app experience.
 
-```bash
-# Generate VAPID keys (run once)
-docker compose exec app bundle exec ruby -e "
-  require 'web-push'
-  keys = WebPush.generate_key
-  puts \"VAPID_PUBLIC_KEY=#{keys.public_key}\"
-  puts \"VAPID_PRIVATE_KEY=#{keys.private_key}\"
-"
-```
-
-Add the output to your `.env` file:
-
-```env
-VAPID_PUBLIC_KEY=BLxY3...your-public-key...
-VAPID_PRIVATE_KEY=your-private-key
-VAPID_CONTACT=mailto:admin@yourdomain.com
-```
-
-Then restart: `docker compose restart app worker`
-
-Users can enable push notifications from **Mobile Settings** (`/m/settings`). Without VAPID keys, the mobile interface works normally — push notifications are just disabled.
+**Push notifications** work out of the box — VAPID keys are auto-generated on first use and stored encrypted in the vault. No setup needed. Users enable notifications from **Mobile Settings** (`/m/settings`).
 
 ---
 

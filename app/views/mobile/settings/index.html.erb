@@ -7,7 +7,7 @@
     <%# Push Notifications %>
     <section class="bg-surface-card rounded-lg border border-border-default p-4"
              data-controller="push-subscription"
-             data-push-subscription-vapid-public-key-value="<%= ENV['VAPID_PUBLIC_KEY'] %>">
+             data-push-subscription-vapid-public-key-value="<%= WebPush::VapidKeys.public_key %>">
       <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">Push Notifications</h2>
       <div class="flex items-center justify-between">
         <div>

@@ -9,6 +9,10 @@ module WebPush
       subscription = PushSubscription.find_by(id: subscription_id)
       return unless subscription
 
+      public_key = WebPush::VapidKeys.public_key
+      private_key = WebPush::VapidKeys.private_key
+      return unless public_key && private_key
+
       begin
         ::WebPush.payload_send(
           message: payload_json,
@@ -17,13 +21,12 @@ module WebPush
           auth: subscription.auth,
           vapid: {
             subject: "mailto:#{vapid_contact}",
-            public_key: ENV.fetch("VAPID_PUBLIC_KEY"),
-            private_key: ENV.fetch("VAPID_PRIVATE_KEY")
+            public_key: public_key,
+            private_key: private_key
           },
           ttl: 86400
         )
       rescue ::WebPush::ExpiredSubscription, ::WebPush::InvalidSubscription
-        # Subscription is no longer valid, clean it up
         subscription.destroy
       rescue ::WebPush::PayloadTooLarge
         Rails.logger.warn("[WebPush] Payload too large for subscription #{subscription.id}")

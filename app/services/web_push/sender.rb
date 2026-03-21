@@ -49,7 +49,7 @@ module WebPush
     end
 
     def vapid_configured?
-      ENV["VAPID_PUBLIC_KEY"].present? && ENV["VAPID_PRIVATE_KEY"].present?
+      WebPush::VapidKeys.configured?
     end
   end
 end
