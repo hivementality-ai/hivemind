@@ -54,7 +54,10 @@ module Tools
       "create_tool" => Tools::CreateToolExecutor,
       "google_drive" => Tools::GoogleDriveExecutor,
       "google_calendar" => Tools::GoogleCalendarExecutor,
-      "google_gmail" => Tools::GoogleGmailExecutor
+      "google_gmail" => Tools::GoogleGmailExecutor,
+      "project_create" => Tools::ProjectCreateExecutor,
+      "project_update" => Tools::ProjectUpdateExecutor,
+      "project_status" => Tools::ProjectStatusExecutor
     }.freeze
 
     # Backwards compatibility alias
