@@ -1,0 +1,174 @@
+<div class="min-h-screen bg-surface-base">
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <%# Header %>
+    <div class="flex items-center gap-3 mb-8">
+      <%= link_to projects_path, class: "text-text-muted hover:text-white transition-colors" do %>
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+      <% end %>
+      <h1 class="text-2xl font-bold text-white">New Project</h1>
+    </div>
+
+    <%= form_with model: @project, url: projects_path, multipart: true, class: "space-y-6", data: { controller: "project-form" } do |f| %>
+      <%# Basic info %>
+      <div class="bg-surface-card border border-border-default rounded-xl p-6 space-y-5">
+        <h2 class="text-white font-semibold text-base">Project Details</h2>
+
+        <div>
+          <%= f.label :title, class: "block text-sm font-medium text-text-muted mb-1.5" %>
+          <%= f.text_field :title, class: "w-full px-3 py-2 bg-surface-base border border-border-default rounded-lg text-white text-sm placeholder-text-faint focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-colors", placeholder: "e.g., Redesign landing page" %>
+        </div>
+
+        <div>
+          <%= f.label :description, class: "block text-sm font-medium text-text-muted mb-1.5" %>
+          <%= f.text_area :description, rows: 4, class: "w-full px-3 py-2 bg-surface-base border border-border-default rounded-lg text-white text-sm placeholder-text-faint focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-colors resize-none", placeholder: "Describe the project goals, scope, and any important context..." %>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <%= f.label :team_id, "Team", class: "block text-sm font-medium text-text-muted mb-1.5" %>
+            <%= f.select :team_id, @teams.map { |t| [t.name, t.id] }, { include_blank: "Select a team..." }, class: "w-full px-3 py-2 bg-surface-base border border-border-default rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-colors" %>
+          </div>
+
+          <div>
+            <%= f.label :priority, class: "block text-sm font-medium text-text-muted mb-1.5" %>
+            <%= f.select :priority, [["Low", "low"], ["Normal", "normal"], ["High", "high"], ["Urgent", "urgent"]], { selected: "normal" }, class: "w-full px-3 py-2 bg-surface-base border border-border-default rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-colors" %>
+          </div>
+        </div>
+
+        <div>
+          <%= f.label :lead_agent_id, "Project Lead", class: "block text-sm font-medium text-text-muted mb-1.5" %>
+          <p class="text-text-faint text-xs mb-2">The lead agent drives milestone planning and acts as the default assignee. Pick the agent best suited to coordinate this project.</p>
+          <%= f.select :lead_agent_id,
+              @teams.flat_map { |t| t.agents.enabled.map { |a| ["#{a.name} (#{t.name}) — #{a.role}", a.id] } },
+              { include_blank: "Select a lead agent..." },
+              class: "w-full px-3 py-2 bg-surface-base border border-border-default rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-colors" %>
+        </div>
+
+        <div class="sm:w-1/2">
+          <%= f.label :deadline, class: "block text-sm font-medium text-text-muted mb-1.5" %>
+          <%= f.date_field :deadline, class: "w-full px-3 py-2 bg-surface-base border border-border-default rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-colors" %>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-text-muted mb-1.5">Reference Files</label>
+          <p class="text-text-faint text-xs mb-2">Upload PDFs, docs, spreadsheets, or any files your agents may need. Stored in the project workspace, not in the database.</p>
+          <label class="flex items-center justify-center w-full px-4 py-6 bg-surface-base border-2 border-dashed border-border-default rounded-lg cursor-pointer hover:border-amber-500/40 transition-colors group">
+            <div class="text-center">
+              <svg class="w-8 h-8 mx-auto text-text-faint group-hover:text-amber-500/60 transition-colors mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+              </svg>
+              <span class="text-text-muted text-sm">Click to choose files</span>
+            </div>
+            <input type="file" name="files[]" multiple class="hidden">
+          </label>
+        </div>
+      </div>
+
+      <%# Milestone planning mode %>
+      <div class="bg-surface-card border border-border-default rounded-xl p-6 space-y-5">
+        <h2 class="text-white font-semibold text-base">Milestone Planning</h2>
+
+        <div class="flex items-center gap-4">
+          <label class="flex items-center gap-2 cursor-pointer" data-action="click->project-form#setMode" data-project-form-mode-param="ai">
+            <input type="radio" name="planning_mode" value="ai" checked data-project-form-target="modeRadio" class="w-4 h-4 text-amber-500 bg-surface-base border-border-default focus:ring-amber-500/30">
+            <span class="text-sm text-white font-medium">AI-Assisted</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer" data-action="click->project-form#setMode" data-project-form-mode-param="manual">
+            <input type="radio" name="planning_mode" value="manual" data-project-form-target="modeRadio" class="w-4 h-4 text-amber-500 bg-surface-base border-border-default focus:ring-amber-500/30">
+            <span class="text-sm text-white font-medium">Manual</span>
+          </label>
+        </div>
+
+        <%# AI mode %>
+        <div data-project-form-target="aiPanel">
+          <input type="hidden" name="ai_assisted" value="1">
+          <div class="bg-surface-base border border-border-default rounded-lg p-4">
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+              </div>
+              <div>
+                <p class="text-white text-sm font-medium">AI will generate milestones</p>
+                <p class="text-text-faint text-xs mt-1">Based on your project description, the AI will break the work into milestones with acceptance criteria and suggest agent assignments. You can review and edit them after creation.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <%# Manual mode %>
+        <div data-project-form-target="manualPanel" class="hidden space-y-4">
+          <div data-project-form-target="milestoneList" class="space-y-4">
+            <%# Template milestone entry %>
+            <div class="bg-surface-base border border-border-default rounded-lg p-4 space-y-3" data-project-form-target="milestoneEntry">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-text-faint uppercase tracking-wider">Milestone 1</span>
+                <button type="button" data-action="click->project-form#removeMilestone" class="text-text-faint hover:text-red-400 transition-colors">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+
+              <div>
+                <input type="text" name="milestones[][title]" placeholder="Milestone title" class="w-full px-3 py-2 bg-surface-card border border-border-default rounded-lg text-white text-sm placeholder-text-faint focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-colors">
+              </div>
+
+              <div>
+                <textarea name="milestones[][description]" rows="2" placeholder="Description (optional)" class="w-full px-3 py-2 bg-surface-card border border-border-default rounded-lg text-white text-sm placeholder-text-faint focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-colors resize-none"></textarea>
+              </div>
+
+              <div>
+                <textarea name="milestones[][acceptance_criteria]" rows="2" placeholder="Acceptance criteria (what defines done)" class="w-full px-3 py-2 bg-surface-card border border-border-default rounded-lg text-white text-sm placeholder-text-faint focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-colors resize-none"></textarea>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <select name="milestones[][agent_id]" class="w-full px-3 py-2 bg-surface-card border border-border-default rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-colors">
+                    <option value="">Assign agent (optional)</option>
+                    <% @teams.each do |team| %>
+                      <optgroup label="<%= team.name %>">
+                        <% team.agents.each do |agent| %>
+                          <option value="<%= agent.id %>"><%= agent.name %></option>
+                        <% end %>
+                      </optgroup>
+                    <% end %>
+                  </select>
+                </div>
+                <div class="flex items-center">
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="hidden" name="milestones[][requires_approval]" value="0">
+                    <input type="checkbox" name="milestones[][requires_approval]" value="1" checked class="w-4 h-4 rounded bg-surface-card border-border-default text-amber-500 focus:ring-amber-500/30">
+                    <span class="text-sm text-text-muted">Requires approval</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button type="button" data-action="click->project-form#addMilestone" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border-default text-text-muted text-sm hover:border-amber-500/40 hover:text-amber-400 transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Add Milestone
+          </button>
+        </div>
+      </div>
+
+      <%# Notification preferences %>
+      <div class="bg-surface-card border border-border-default rounded-xl p-6 space-y-5">
+        <h2 class="text-white font-semibold text-base">Notification Preferences</h2>
+        <%= render "projects/notification_prefs", form: f, project: @project %>
+      </div>
+
+      <%# Submit %>
+      <div class="flex items-center justify-end gap-3">
+        <%= link_to "Cancel", projects_path, class: "px-4 py-2 rounded-lg border border-border-default text-text-muted text-sm hover:text-white hover:border-amber-500/40 transition-all" %>
+        <%= f.submit "Create Project", class: "px-6 py-2 rounded-lg bg-brand text-black font-medium text-sm hover:bg-amber-400 transition-colors cursor-pointer" %>
+      </div>
+    <% end %>
+  </div>
+</div>

@@ -74,6 +74,24 @@ Rails.application.routes.draw do
     end
   end
 
+  # Projects
+  resources :projects do
+    resources :milestones, controller: "project_milestones" do
+      member do
+        post :approve
+        post :reject
+        post :skip
+      end
+    end
+    member do
+      post :pause
+      post :resume
+      post :cancel
+      post :upload_files
+      delete :delete_file
+    end
+  end
+
   # Agents (use slug for routes)
   resources :agents, param: :slug
 
@@ -226,6 +244,14 @@ Rails.application.routes.draw do
       get "providers/models", to: "providers#models"
       get "hashtag_actions", to: "hashtag_actions#index"
       get "system/version", to: "system#version"
+      resources :projects, only: [ :index, :show, :create, :update ] do
+        resources :milestones, only: [ :index, :show, :update ], controller: "project_milestones" do
+          member do
+            patch :approve
+            patch :reject
+          end
+        end
+      end
     end
   end
 

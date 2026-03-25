@@ -171,6 +171,34 @@ module Agents
 
         { tool_use_id:, tool_name:, result: }
       end
+
+      # Checkpoint project milestone progress periodically
+      save_project_checkpoint if project_milestone_session? && (@tool_history.size % 10).zero? && @tool_history.size > 0
+    end
+
+    def project_milestone_session?
+      @session.metadata&.dig("type") == "project_milestone"
+    end
+
+    def save_project_checkpoint
+      milestone_id = @session.metadata&.dig("milestone_id")
+      return unless milestone_id
+
+      milestone = ProjectMilestone.find_by(id: milestone_id)
+      return unless milestone
+
+      completed_steps = @tool_history.select { |t| t[:success] }.map do |t|
+        "#{t[:tool_name]}: #{t[:output].to_s.truncate(100)}"
+      end
+
+      Projects::CheckpointWriter.call(
+        milestone: milestone,
+        agent: @agent,
+        session: @session,
+        completed_steps: completed_steps
+      )
+    rescue StandardError => e
+      Rails.logger.warn("[ToolLoop] Project checkpoint failed: #{e.message}")
     end
 
     def check_signal!

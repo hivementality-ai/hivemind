@@ -47,6 +47,10 @@
     {
       "fingerprint": "f2105dd5a551f89e6489f6e2d2e8d30f48ce2d184d340ee01b42ea7272b8c24e",
       "note": "False positive: server.command is Shellwords.shellsplit into array args, no shell interpretation"
+    },
+    {
+      "fingerprint": "f0cfac6eb72acdb919a1c91d8966f9f95ccd32aca2c61f99259b3468099c34dc",
+      "note": "Project file delete: guarded by .. rejection, realpath resolution, and starts_with? workspace check"
     }
   ],
   "updated": "2026-02-15",
