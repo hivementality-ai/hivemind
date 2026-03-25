@@ -23,13 +23,23 @@ class Agent < ApplicationRecord
   belongs_to :team, optional: true
 
   has_many :sessions, dependent: :destroy
-  has_many :project_milestones
+  has_many :project_milestones, dependent: :destroy
+  has_many :project_events, dependent: :destroy
   has_many :vault_entries, dependent: :destroy
   has_many :usage_records, dependent: :destroy
   has_many :agent_budgets, dependent: :destroy
   has_many :scheduled_tasks, dependent: :destroy
+  has_many :approval_requests, dependent: :destroy
+  has_many :coding_agent_tasks, dependent: :destroy
+  has_many :memory_entries, dependent: :destroy
+  has_many :research_sessions, dependent: :destroy
+  has_many :delivery_queue_entries, dependent: :destroy
   has_many :sent_team_messages, class_name: "TeamMessage", foreign_key: :from_agent_id, dependent: :destroy, inverse_of: :from_agent
   has_many :received_team_messages, class_name: "TeamMessage", foreign_key: :to_agent_id, dependent: :destroy, inverse_of: :to_agent
+  has_many :parent_sub_agent_tasks, class_name: "SubAgentTask", foreign_key: :parent_agent_id, dependent: :destroy, inverse_of: :parent_agent
+  has_many :child_sub_agent_tasks, class_name: "SubAgentTask", foreign_key: :child_agent_id, dependent: :destroy, inverse_of: :child_agent
+  has_many :targeted_team_chat_messages, class_name: "TeamChatMessage", foreign_key: :target_agent_id, dependent: :nullify, inverse_of: :target_agent
+  has_many :led_projects, class_name: "Project", foreign_key: :lead_agent_id, dependent: :nullify, inverse_of: :lead_agent
   has_many :agent_tools, dependent: :destroy
   has_many :tools, through: :agent_tools
   has_many :agent_skills, dependent: :destroy
