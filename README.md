@@ -979,6 +979,12 @@ sudo chown -R $(whoami):staff ~/hivemind-agents-shared
 
 This makes your user the owner so you can inspect agent work anytime.
 
+### Mobile PWA & Push Notifications
+
+Hivemind includes a mobile-optimized PWA interface at `/m/` — mobile users are auto-detected and redirected. Add to your home screen for a native app experience.
+
+**Push notifications** work out of the box — VAPID keys are auto-generated on first use and stored encrypted in the vault. No setup needed. Users enable notifications from **Mobile Settings** (`/m/settings`).
+
 ---
 
 ## Best Practices

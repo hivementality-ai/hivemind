@@ -198,6 +198,9 @@ class ChatStreamJob < ApplicationJob
 
       ActionCable.server.broadcast(channel, { type: "done", content: full_content })
 
+      # Push notification for mobile users
+      WebPush::NotificationTriggers.agent_response(session: session, content: full_content)
+
     rescue AgentInterrupted
       if full_content.present?
         session.append_transcript({ "role" => "assistant", "content" => full_content + "\n\n_[Cancelled by user]_", "timestamp" => Time.current.iso8601 })
