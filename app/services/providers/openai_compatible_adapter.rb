@@ -128,6 +128,18 @@ module Providers
       }.compact.reject(&:blank?).join("\n\n")
     end
 
+    # Strip <think>...</think> tags from content, returning [clean_content, thinking]
+    def extract_think_tags(text)
+      return [ text, nil ] if text.blank?
+
+      thinking_parts = []
+      clean = text.gsub(/<think>(.*?)<\/think>/m) do
+        thinking_parts << ::Regexp.last_match(1).strip
+        ""
+      end
+      [ clean.strip, thinking_parts.any? ? thinking_parts.join("\n\n") : nil ]
+    end
+
     def stream_chat(params:, &block)
       # Fall back to sync when tools are present
       if params[:tools].present?
@@ -142,6 +154,8 @@ module Providers
       full_content = +""
       full_thinking = +""
       thinking_started = false
+      in_think_tag = false
+      content_buffer = +""
 
       streaming_conn = Faraday.new(url: server_url) do |f|
         f.request :json
@@ -186,13 +200,61 @@ module Providers
                   block.call({ type: "thinking_stop" })
                   thinking_started = false
                 end
-                full_content << delta
-                block.call({ type: "content", content: delta })
+
+                # Buffer content to detect and strip <think> tags
+                content_buffer << delta
+
+                # Process complete <think>...</think> blocks
+                while content_buffer.include?("</think>")
+                  before, _, after = content_buffer.partition(/<think>.*?<\/think>/m)
+                  think_match = content_buffer.match(/<think>(.*?)<\/think>/m)
+                  if think_match
+                    full_thinking << think_match[1]
+                    # Emit any content before the think block
+                    if before.present?
+                      full_content << before
+                      block.call({ type: "content", content: before })
+                    end
+                    content_buffer = after
+                  else
+                    break
+                  end
+                end
+
+                # If we have an open <think> tag, keep buffering
+                if content_buffer.include?("<think>") && !content_buffer.include?("</think>")
+                  in_think_tag = true
+                  before = content_buffer.split("<think>", 2).first
+                  if before.present?
+                    full_content << before
+                    block.call({ type: "content", content: before })
+                    content_buffer = content_buffer.sub(before, "")
+                  end
+                elsif !in_think_tag && !content_buffer.match?(/<?$/) # avoid partial tag
+                  # Safe to flush — no partial tag at end
+                  safe = content_buffer.sub(/<[^>]*\z/, "")
+                  remainder = content_buffer[safe.length..]
+                  if safe.present?
+                    full_content << safe
+                    block.call({ type: "content", content: safe })
+                  end
+                  content_buffer = remainder || +""
+                end
               end
             rescue JSON::ParserError
               next
             end
           end
+        end
+      end
+
+      # Flush any remaining buffered content
+      if content_buffer.present?
+        cleaned, inline_thinking = extract_think_tags(content_buffer)
+        full_thinking << inline_thinking if inline_thinking
+        if cleaned.present?
+          full_content << cleaned
+          block.call({ type: "content", content: cleaned })
         end
       end
 
@@ -211,6 +273,10 @@ module Providers
       choice = body.dig("choices", 0, "message")
       content = choice&.dig("content")
       thinking = choice&.dig("reasoning_content").presence
+
+      # Some models (e.g. Minimax) embed thinking in <think> tags within content
+      content, inline_thinking = extract_think_tags(content)
+      thinking ||= inline_thinking
       raw_tool_calls = choice&.dig("tool_calls")
 
       tool_calls = raw_tool_calls&.map do |tc|
