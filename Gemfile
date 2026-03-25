@@ -17,7 +17,7 @@ gem "tailwindcss-rails"
 
 # Auth
 gem "devise"
-gem "bcrypt", "~> 3.1.7"
+gem "bcrypt", "~> 3.1.22"
 
 # Background Jobs
 gem "connection_pool", "~> 2.4"
