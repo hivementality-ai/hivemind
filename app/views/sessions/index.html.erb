@@ -12,8 +12,8 @@
       <h2 class="text-lg font-semibold text-white mb-4">Agents</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <% agents_by_recent = Agent.enabled.sort_by do |agent|
-             most_recent = Session.where(agent: agent).active_sessions.order(last_activity_at: :desc).first
-             most_recent&.last_activity_at || Time.at(0)
+             most_recent = Session.where(agent: agent).active_sessions.order(Arel.sql("COALESCE(last_activity_at, created_at) DESC")).first
+             most_recent&.last_activity_at || most_recent&.created_at || Time.at(0)
            end.reverse %>
         
         <% agents_by_recent.each do |agent| %>
@@ -73,7 +73,7 @@
     <div>
       <h2 class="text-lg font-semibold text-white mb-4">Recent</h2>
       <div class="bg-surface-card rounded-xl border border-border-default p-6 space-y-3 max-h-screen overflow-y-auto">
-        <% active_sessions = Session.where(status: :active).order(last_activity_at: :desc).limit(20) %>
+        <% active_sessions = Session.where(status: :active).order(Arel.sql("COALESCE(last_activity_at, created_at) DESC")).limit(20) %>
         
         <% if active_sessions.any? %>
           <% active_sessions.each do |session| %>

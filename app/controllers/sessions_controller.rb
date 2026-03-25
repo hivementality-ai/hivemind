@@ -9,7 +9,7 @@ class SessionsController < ApplicationController
   def index
     @sessions = Session.includes(:agent)
                        .where(status: :active)
-                       .order(last_activity_at: :desc)
+                       .order(Arel.sql("COALESCE(last_activity_at, created_at) DESC"))
                        .limit(50)
 
     # If agent_id is passed via GET, auto-create a session and redirect to chat
