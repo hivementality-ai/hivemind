@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0f0f0f">
+
+  <title><%= content_for(:title) || "Hivemind" %></title>
+
+  <%= csrf_meta_tags %>
+  <%= csp_meta_tag %>
+  <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+  <%= javascript_importmap_tags %>
+  <%= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="h-full bg-surface-base text-white overflow-x-hidden">
+  <div class="flex flex-col h-full" style="padding-bottom: env(safe-area-inset-bottom, 0px);">
+
+    <%# ===== Header ===== %>
+    <header class="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-surface-card border-b border-border-default" style="padding-top: env(safe-area-inset-top, 0px);">
+      <span class="text-lg font-bold text-white tracking-tight">Hivemind</span>
+      <div class="flex items-center gap-4">
+        <a href="/m/settings" class="p-2 -m-2 text-text-muted hover:text-white" aria-label="Settings" style="min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center;">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </a>
+        <a href="/" class="text-xs text-text-faint hover:text-text-muted" style="min-height: 44px; display: inline-flex; align-items: center;">Desktop&nbsp;site</a>
+      </div>
+    </header>
+
+    <%# ===== Flash messages ===== %>
+    <% if notice.present? %>
+      <div class="mx-4 mt-3 px-4 py-2 rounded-lg bg-emerald-900/60 text-emerald-300 text-sm">
+        <%= notice %>
+      </div>
+    <% end %>
+    <% if alert.present? %>
+      <div class="mx-4 mt-3 px-4 py-2 rounded-lg bg-red-900/60 text-red-300 text-sm">
+        <%= alert %>
+      </div>
+    <% end %>
+
+    <%# ===== Main scrollable content ===== %>
+    <main class="flex-1 overflow-y-auto">
+      <%= yield %>
+    </main>
+
+    <%# ===== Bottom tab bar ===== %>
+    <nav class="flex-shrink-0 bg-surface-card border-t border-border-default">
+      <div class="flex items-stretch justify-around">
+        <% tabs = [
+          { label: "Chat",     path: "/m/sessions",    icon: :chat },
+          { label: "Teams",    path: "/m/team_chats",  icon: :group },
+          { label: "Agents",   path: "/m/agents",      icon: :robot },
+          { label: "Activity", path: "/m/activity",    icon: :activity },
+        ] %>
+        <% tabs.each do |tab| %>
+          <% active = request.path.start_with?(tab[:path]) %>
+          <a href="<%= tab[:path] %>"
+             class="flex flex-col items-center justify-center gap-1 py-2 px-3 <%= active ? 'text-amber-400' : 'text-text-muted' %>"
+             style="min-width: 64px; min-height: 56px;">
+            <% case tab[:icon] %>
+            <% when :chat %>
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="<%= active ? 2.5 : 1.5 %>">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            <% when :group %>
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="<%= active ? 2.5 : 1.5 %>">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            <% when :robot %>
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="<%= active ? 2.5 : 1.5 %>">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714a2.25 2.25 0 00.659 1.591L19 14.5m-4.75-11.396c.251.023.501.05.75.082M12 6V3m-3 9a3 3 0 106 0M5 14.5v4.25A2.25 2.25 0 007.25 21h9.5A2.25 2.25 0 0019 18.75V14.5" />
+              </svg>
+            <% when :activity %>
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="<%= active ? 2.5 : 1.5 %>">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            <% end %>
+            <span class="text-[10px] font-medium leading-none"><%= tab[:label] %></span>
+          </a>
+        <% end %>
+      </div>
+    </nav>
+  </div>
+</body>
+</html>
