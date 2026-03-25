@@ -1,0 +1,103 @@
+<div class="min-h-screen bg-surface-base">
+  <!-- Pull-to-refresh hint -->
+  <div class="text-center text-text-faint text-xs py-2">Pull down to refresh</div>
+
+  <!-- Session List -->
+  <div class="px-4 pb-24 space-y-3">
+    <% if @sessions.any? %>
+      <% @sessions.each do |session| %>
+        <% agent = session.agent %>
+        <% last_msg = session.transcript&.last %>
+        <% processing = Redis.current.get("session_processing:#{session.id}") == "1" %>
+
+        <%= link_to mobile_session_path(session), class: "block bg-surface-card rounded-xl border border-border-default p-4 active:bg-surface-raised transition" do %>
+          <div class="flex items-center gap-3">
+            <!-- Agent avatar initial -->
+            <%= agent_avatar(agent, size: :sm) %>
+
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <h3 class="text-white font-semibold text-sm truncate">
+                  <% if session.title.present? && session.title != "New Chat" %>
+                    <%= session.title %>
+                  <% else %>
+                    <%= agent.name %>
+                  <% end %>
+                </h3>
+                <% if processing %>
+                  <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0"></span>
+                <% end %>
+              </div>
+              <p class="text-text-muted text-xs truncate mt-0.5">
+                <% if last_msg %>
+                  <%= last_msg["content"]&.truncate(60) %>
+                <% else %>
+                  No messages yet
+                <% end %>
+              </p>
+            </div>
+
+            <div class="flex-shrink-0 text-right">
+              <p class="text-text-faint text-xs"><%= time_ago_in_words(session.last_activity_at || session.created_at) %></p>
+            </div>
+          </div>
+        <% end %>
+      <% end %>
+    <% else %>
+      <!-- Empty state -->
+      <div class="flex flex-col items-center justify-center py-24 text-center">
+        <div class="w-16 h-16 rounded-full bg-surface-card border border-border-default flex items-center justify-center mb-4">
+          <svg class="w-8 h-8 text-text-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        </div>
+        <h2 class="text-white font-semibold text-lg mb-1">Start chatting</h2>
+        <p class="text-text-muted text-sm max-w-xs">Tap the + button below to start a conversation with one of your agents.</p>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- FAB (Floating Action Button) -->
+  <button onclick="document.getElementById('agent-picker').classList.remove('translate-y-full')"
+          class="fixed bottom-20 right-4 w-14 h-14 bg-brand hover:bg-brand-dark rounded-full shadow-lg flex items-center justify-center text-white text-2xl z-40 active:scale-95 transition">
+    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+    </svg>
+  </button>
+
+  <!-- Agent Picker Bottom Sheet -->
+  <div id="agent-picker"
+       class="fixed inset-0 z-50 translate-y-full transition-transform duration-300 ease-out">
+    <!-- Backdrop -->
+    <div class="absolute inset-0 bg-black/60"
+         onclick="document.getElementById('agent-picker').classList.add('translate-y-full')"></div>
+
+    <!-- Sheet -->
+    <div class="absolute bottom-0 left-0 right-0 bg-surface-card rounded-t-2xl border-t border-border-default max-h-[70vh] flex flex-col">
+      <!-- Handle -->
+      <div class="flex justify-center pt-3 pb-2">
+        <div class="w-10 h-1 rounded-full bg-text-faint/30"></div>
+      </div>
+
+      <div class="px-4 pb-2">
+        <h2 class="text-white font-semibold text-lg">New Chat</h2>
+        <p class="text-text-muted text-xs mt-0.5">Choose an agent to start a conversation</p>
+      </div>
+
+      <div class="flex-1 overflow-y-auto px-4 pb-6 space-y-2">
+        <% @agents.each do |agent| %>
+          <%= button_to sessions_path(agent_id: agent.slug), method: :post, class: "w-full text-left bg-surface-raised rounded-xl border border-border-default p-4 active:bg-surface-overlay transition flex items-center gap-3" do %>
+            <%= agent_avatar(agent, size: :sm) %>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-white font-semibold text-sm"><%= agent.name %></h3>
+              <p class="text-text-muted text-xs truncate"><%= agent.role %> · <%= agent.llm_model %></p>
+            </div>
+            <svg class="w-5 h-5 text-text-faint flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

@@ -695,6 +695,67 @@ BUILTIN_TOOLS = [
       },
       "required" => [ "action" ]
     }
+  },
+  # ── Project Layer Tools ──────────────────────────────────────────
+  {
+    name: "project_update",
+    description: "Report progress on a project milestone. Use this to update milestone status, attach deliverables, or mark work for review.",
+    executor_type: "project_update",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "milestone_id" => { "type" => "integer", "description" => "The milestone being updated" },
+        "status" => { "type" => "string", "description" => "New status: in_progress, needs_review, or blocked", "enum" => %w[in_progress needs_review blocked] },
+        "notes" => { "type" => "string", "description" => "Summary of what was accomplished" },
+        "deliverables" => { "type" => "array", "items" => { "type" => "string" }, "description" => "Files, URLs, or summaries to attach" },
+        "blocker" => { "type" => "string", "description" => "Description of what is blocking (when status is blocked)" },
+        "completed_steps" => { "type" => "array", "items" => { "type" => "string" }, "description" => "What has been completed so far" },
+        "pending_steps" => { "type" => "array", "items" => { "type" => "string" }, "description" => "What still needs to be done" }
+      },
+      "required" => %w[milestone_id status]
+    }
+  },
+  {
+    name: "project_status",
+    description: "Check the current state of a project and its milestones. Returns progress, status of each milestone, and recent events.",
+    executor_type: "project_status",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "project_id" => { "type" => "integer", "description" => "Specific project to check (defaults to current milestone's project)" },
+        "detail" => { "type" => "string", "description" => "Level of detail: summary or full", "enum" => %w[summary full] }
+      },
+      "required" => []
+    }
+  },
+  {
+    name: "project_create",
+    description: "Propose a new project with milestones. Creates in planning status awaiting user approval.",
+    executor_type: "project_create",
+    requires_approval: true,
+    parameters_schema: {
+      "properties" => {
+        "title" => { "type" => "string", "description" => "Project name" },
+        "description" => { "type" => "string", "description" => "Goal description" },
+        "milestones" => {
+          "type" => "array",
+          "items" => {
+            "type" => "object",
+            "properties" => {
+              "title" => { "type" => "string" },
+              "description" => { "type" => "string" },
+              "acceptance_criteria" => { "type" => "string" },
+              "agent_name" => { "type" => "string" },
+              "requires_approval" => { "type" => "boolean" }
+            },
+            "required" => %w[title]
+          },
+          "description" => "Proposed milestone tree"
+        },
+        "priority" => { "type" => "string", "description" => "Suggested priority", "enum" => %w[low normal high urgent] }
+      },
+      "required" => %w[title description milestones]
+    }
   }
 ].freeze
 

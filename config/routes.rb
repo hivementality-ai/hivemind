@@ -1,6 +1,9 @@
 Rails.application.routes.draw do
   devise_for :users
 
+  # PWA manifest
+  get "manifest", to: "pwa#manifest", as: :pwa_manifest
+
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
   # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
@@ -18,6 +21,29 @@ Rails.application.routes.draw do
   get  "setup/complete", to: "setup#complete",        as: :setup_complete
   get  "setup/ollama_models", to: "setup#ollama_models", as: :setup_ollama_models
   get  "setup/openai_compatible_models", to: "setup#openai_compatible_models", as: :setup_openai_compatible_models
+
+  # Mobile PWA Interface
+  scope "/m", module: "mobile", as: "mobile" do
+    root "home#index"                                    # Activity feed / quick actions
+    resources :sessions, only: [ :index, :show ] do
+      member do
+        post :message
+        post :interrupt
+      end
+    end
+    resources :team_chats, only: [ :index, :show ] do
+      member do
+        post :message
+        post :interrupt
+      end
+    end
+    get "agents",       to: "agents#index"               # Read-only agent list + status
+    get "agents/:slug", to: "agents#show", as: :agent    # Read-only agent detail
+    get "activity",     to: "activity#index"              # Recent activity feed
+    get "settings",     to: "settings#index"              # Notification prefs, theme, desktop link
+    post "settings/push_subscription", to: "settings#push_subscription"
+    patch "settings/preferences", to: "settings#update_preferences"
+  end
 
   # Root - Mission Control Dashboard
   root "dashboard#index"
@@ -45,6 +71,24 @@ Rails.application.routes.draw do
       post :message
       post :interrupt
       get :export
+    end
+  end
+
+  # Projects
+  resources :projects do
+    resources :milestones, controller: "project_milestones" do
+      member do
+        post :approve
+        post :reject
+        post :skip
+      end
+    end
+    member do
+      post :pause
+      post :resume
+      post :cancel
+      post :upload_files
+      delete :delete_file
     end
   end
 
@@ -200,6 +244,14 @@ Rails.application.routes.draw do
       get "providers/models", to: "providers#models"
       get "hashtag_actions", to: "hashtag_actions#index"
       get "system/version", to: "system#version"
+      resources :projects, only: [ :index, :show, :create, :update ] do
+        resources :milestones, only: [ :index, :show, :update ], controller: "project_milestones" do
+          member do
+            patch :approve
+            patch :reject
+          end
+        end
+      end
     end
   end
 

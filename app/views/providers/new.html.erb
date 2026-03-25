@@ -36,7 +36,7 @@
             <% info = provider_type_options[type] %>
             <label class="provider-type-card relative flex items-center gap-3 p-4 bg-surface-raised rounded-lg cursor-pointer hover:bg-surface-overlay transition border-2 border-transparent"
                    data-type="<%= type %>"
-                   data-needs-key="<%= %w[openai anthropic].include?(type) %>">
+                   data-needs-key="<%= %w[openai anthropic openai_compatible].include?(type) %>">
               <input type="radio" name="provider_config[adapter_type]" value="<%= type %>"
                      class="sr-only provider-type-radio"
                      <%= "checked" if @available_types.length == 1 %>>
@@ -265,14 +265,14 @@
       anthropic: 'Get a key at <a href="https://console.anthropic.com/" target="_blank" class="text-brand-light hover:underline">console.anthropic.com</a>. Standard API keys (<code class="text-text-muted">sk-ant-api*</code>) recommended for production. OAuth tokens (<code class="text-text-muted">sk-ant-oat*</code>) from Pro/Max subscriptions work but may be restricted by Anthropic\'s terms.',
       openai: 'Get a key at <a href="https://platform.openai.com/" target="_blank" class="text-brand-light hover:underline">platform.openai.com</a>',
       ollama: 'Leave blank for local Ollama (no API key needed).',
-      openai_compatible: 'Leave blank for local server (no API key needed).'
+      openai_compatible: 'Required for cloud providers (Minimax, OpenRouter, Together AI). Leave blank for local servers.'
     };
 
     const apiKeyPlaceholders = {
       anthropic: 'sk-ant-...',
       openai: 'sk-...',
       ollama: 'Leave blank for local Ollama',
-      openai_compatible: 'Leave blank for local server'
+      openai_compatible: 'API key (optional for local servers)'
     };
 
     const existingTypes = <%= ProviderConfig.pluck(:adapter_type).to_json.html_safe %>;
@@ -319,8 +319,8 @@
         openaiBaseUrlSection.classList.add('hidden');
       }
 
-      // Toggle API key section
-      const needsKey = ['openai', 'anthropic'].includes(type);
+      // Toggle API key section (show for all types except ollama)
+      const needsKey = ['openai', 'anthropic', 'openai_compatible'].includes(type);
       if (needsKey) {
         apiKeySection.classList.remove('hidden');
       } else {
@@ -418,11 +418,14 @@
     function detectOpenaiCompatibleModels() {
       const urlInput = document.getElementById('openai-compatible-custom-url');
       const url = urlInput ? urlInput.value : 'http://host.docker.internal:8080';
+      const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
       const container = document.getElementById('openai-compatible-models-container');
 
       container.innerHTML = '<p class="text-text-muted text-sm">Detecting models...</p>';
 
-      fetch(`/setup/openai_compatible_models?url=${encodeURIComponent(url)}`)
+      let fetchUrl = `/setup/openai_compatible_models?url=${encodeURIComponent(url)}`;
+      if (apiKey) fetchUrl += `&api_key=${encodeURIComponent(apiKey)}`;
+      fetch(fetchUrl)
         .then(r => r.json())
         .then(data => {
           if (data.status === 'connected' && data.models.length > 0) {

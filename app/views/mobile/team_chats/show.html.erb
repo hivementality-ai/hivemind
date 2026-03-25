@@ -1,0 +1,168 @@
+<% colors = %w[bg-brand bg-green-600 bg-yellow-600 bg-pink-600 bg-cyan-600 bg-red-600 bg-indigo-600 bg-orange-600] %>
+<% agent_colors = {} %>
+<% @agents.each_with_index { |a, i| agent_colors[a.id] = colors[i % colors.size] } %>
+
+<div class="flex flex-col h-[100dvh]"
+     data-controller="mobile-chat"
+     data-mobile-chat-session-id-value="<%= @session.id %>"
+     data-mobile-chat-message-url-value="<%= message_mobile_team_chat_path(@session) %>"
+     data-mobile-chat-interrupt-url-value="<%= interrupt_mobile_team_chat_path(@session) %>"
+     data-mobile-chat-csrf-value="<%= form_authenticity_token %>"
+     data-mobile-chat-processing-value="false"
+     data-mobile-chat-team-chat-value="true"
+     data-mobile-chat-agents-value="<%= @agents.map { |a| { id: a.id, name: a.name, role: a.role, initial: a.name[0].upcase } }.to_json %>">
+
+  <%# ===== Header ===== %>
+  <div class="flex items-center gap-3 px-4 py-3 border-b border-border-default bg-surface-card flex-shrink-0">
+    <a href="<%= mobile_team_chats_path %>" class="text-text-muted active:text-white transition p-1" style="min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center;">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+      </svg>
+    </a>
+    <div class="min-w-0 flex-1">
+      <h1 class="text-white font-semibold text-sm truncate"><%= @team.name %></h1>
+      <p class="text-text-faint text-xs truncate"><%= @session.title %></p>
+    </div>
+    <div class="flex -space-x-1.5 flex-shrink-0">
+      <% @agents.first(5).each_with_index do |agent, i| %>
+        <div class="w-6 h-6 <%= colors[i % colors.size] %> rounded-full flex items-center justify-center text-white font-bold text-[9px] border border-surface-card"
+             title="<%= agent.name %>">
+          <%= agent.name[0].upcase %>
+        </div>
+      <% end %>
+      <% if @agents.size > 5 %>
+        <span class="text-[10px] text-text-faint ml-1">+<%= @agents.size - 5 %></span>
+      <% end %>
+    </div>
+  </div>
+
+  <%# ===== Messages ===== %>
+  <div class="flex-1 overflow-y-auto px-4 py-3 space-y-3" data-mobile-chat-target="messages" id="team-messages">
+    <% if @messages.empty? %>
+      <div class="flex items-center justify-center h-full" data-mobile-chat-target="emptyState">
+        <div class="text-center px-6">
+          <h2 class="text-base font-semibold text-white mb-2"><%= @team.name %> Team Chat</h2>
+          <p class="text-text-muted text-sm">
+            Chat with the whole team or @mention a specific agent.
+          </p>
+          <div class="mt-2 flex flex-wrap justify-center gap-1">
+            <% @agents.first(3).each do |a| %>
+              <code class="text-amber-400 text-xs">@<%= a.name %></code>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <% @messages.each do |msg| %>
+      <% if msg.from_user? %>
+        <%# User message — right-aligned amber bubble %>
+        <div class="flex justify-end">
+          <div class="max-w-[85%]">
+            <% if msg.respond_to?(:target_agent_id) && msg.target_agent_id %>
+              <% target = @agents.find { |a| a.id == msg.target_agent_id } %>
+              <div class="text-[10px] text-text-faint text-right mb-0.5">to @<%= target&.name || "agent" %></div>
+            <% end %>
+            <div class="bg-amber-600 rounded-2xl rounded-br-md px-3 py-2 text-white">
+              <% if msg.respond_to?(:images) && msg.images.attached? %>
+                <div class="flex flex-wrap gap-1 mb-1">
+                  <% msg.images.each do |img| %>
+                    <%= image_tag rails_blob_path(img, only_path: true), class: "max-w-[200px] max-h-40 rounded-lg", loading: "lazy" %>
+                  <% end %>
+                </div>
+              <% end %>
+              <% if msg.respond_to?(:documents) && msg.documents.attached? %>
+                <div class="flex flex-wrap gap-1 mb-1">
+                  <% msg.documents.each do |doc| %>
+                    <span class="inline-flex items-center gap-1 bg-amber-700/50 rounded px-2 py-0.5 text-[10px]">
+                      <span class="font-mono"><%= doc.filename.to_s.split(".").last&.upcase %></span>
+                      <%= doc.filename %>
+                    </span>
+                  <% end %>
+                </div>
+              <% end %>
+              <p class="text-sm whitespace-pre-wrap"><%= msg.content %></p>
+            </div>
+          </div>
+        </div>
+      <% elsif msg.from_agent? %>
+        <%# Agent message — left-aligned with colored avatar %>
+        <% agent = @agents.find { |a| a.id == msg.sender_id } %>
+        <% color = agent_colors[msg.sender_id] || "bg-gray-600" %>
+        <div class="flex justify-start">
+          <div class="max-w-[85%]">
+            <div class="flex items-start gap-2">
+              <div class="w-7 h-7 <%= color %> rounded-full flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0 mt-0.5">
+                <%= agent&.name&.first&.upcase || "?" %>
+              </div>
+              <div class="min-w-0">
+                <div class="text-[10px] text-text-muted mb-0.5"><%= agent&.name || "Agent" %></div>
+                <div class="bg-surface-raised rounded-2xl rounded-bl-md px-3 py-2 text-gray-100">
+                  <div class="text-sm whitespace-pre-wrap chat-content"><%= msg.content %></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+
+  <%# ===== Thinking area ===== %>
+  <div class="px-4" data-mobile-chat-target="thinkingArea"></div>
+
+  <%# ===== @mention buttons ===== %>
+  <div class="px-4 hidden" data-mobile-chat-target="mentionBar">
+    <div class="flex gap-1.5 overflow-x-auto py-1.5 -mx-1 px-1">
+      <% @agents.each_with_index do |agent, i| %>
+        <% btn_color = colors[i % colors.size].sub("bg-", "") %>
+        <button type="button"
+                data-action="click->mobile-chat#insertMention"
+                data-agent-name="<%= agent.name %>"
+                class="flex-shrink-0 px-2.5 py-1 text-xs rounded-full bg-<%= btn_color %>/20 text-white active:opacity-75 transition cursor-pointer"
+                style="min-height: 32px;">
+          @<%= agent.name %>
+        </button>
+      <% end %>
+    </div>
+  </div>
+
+  <%# ===== Input ===== %>
+  <div class="px-4 py-3 border-t border-border-default bg-surface-card flex-shrink-0">
+    <div class="flex gap-2 items-end">
+      <label class="p-2 text-text-muted active:text-white transition cursor-pointer flex-shrink-0" style="min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center;">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+        </svg>
+        <input type="file" accept="image/*,.txt,.md,.csv,.json,.xml,.html,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" multiple class="hidden"
+               data-mobile-chat-target="fileInput"
+               data-action="change->mobile-chat#handleFiles">
+      </label>
+
+      <textarea data-mobile-chat-target="input"
+                data-action="keydown->mobile-chat#handleKeydown input->mobile-chat#handleInput"
+                class="flex-1 px-3 py-2.5 bg-surface-raised border border-border-default rounded-xl text-white placeholder-text-muted text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
+                placeholder="Message the team... @name to target"
+                rows="1"
+                style="max-height: 120px;"></textarea>
+
+      <button data-mobile-chat-target="sendBtn" data-action="click->mobile-chat#send"
+              class="p-2.5 bg-amber-500 active:bg-amber-600 text-white rounded-xl transition cursor-pointer flex-shrink-0 disabled:opacity-50"
+              style="min-width: 44px; min-height: 44px;">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+        </svg>
+      </button>
+
+      <button data-mobile-chat-target="stopBtn" data-action="click->mobile-chat#stopAll"
+              class="hidden p-2.5 bg-red-600 active:bg-red-700 text-white rounded-xl transition cursor-pointer flex-shrink-0"
+              style="min-width: 44px; min-height: 44px;"
+              title="Stop all agents">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <rect x="6" y="6" width="12" height="12" rx="1"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+</div>

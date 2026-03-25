@@ -23,6 +23,7 @@ class Agent < ApplicationRecord
   belongs_to :team, optional: true
 
   has_many :sessions, dependent: :destroy
+  has_many :project_milestones
   has_many :vault_entries, dependent: :destroy
   has_many :usage_records, dependent: :destroy
   has_many :agent_budgets, dependent: :destroy

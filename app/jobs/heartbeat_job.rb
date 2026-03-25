@@ -71,6 +71,9 @@ class HeartbeatJob < ApplicationJob
       "session_#{session.session_key}",
       { type: "heartbeat", content: reply, timestamp: Time.current.iso8601 }
     )
+    # Run project coordination on every heartbeat tick
+    Projects::Coordinator.call if Project.active_or_blocked.any?
+
   rescue StandardError => e
     Rails.logger.error("[Heartbeat] Failed: #{e.message}")
 

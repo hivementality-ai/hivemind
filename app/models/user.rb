@@ -1,10 +1,13 @@
 # frozen_string_literal: true
 
 class User < ApplicationRecord
+  include Notifiable
+
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :validatable
 
   has_many :api_tokens, dependent: :destroy
+  has_many :projects
 
   enum :role, { viewer: 0, operator: 1, admin: 2, owner: 3 }, default: :owner
 
