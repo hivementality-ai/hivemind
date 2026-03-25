@@ -40,7 +40,7 @@ module ProvidersHelper
     when "ollama"
       "Leave blank for local Ollama"
     when "openai_compatible"
-      "Leave blank for local server"
+      "API key (optional for local servers)"
     else
       "Enter API key..."
     end

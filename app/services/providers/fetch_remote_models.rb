@@ -33,14 +33,15 @@ module Providers
       }
     }.freeze
 
-    def self.call(provider, url: nil)
-      new(provider, url:).call
+    def self.call(provider, url: nil, api_key: nil)
+      new(provider, url:, api_key:).call
     end
 
-    def initialize(provider, url: nil)
+    def initialize(provider, url: nil, api_key: nil)
       @provider = provider.to_sym
       @config = CONFIGS[@provider]
       @url = url
+      @api_key = api_key
     end
 
     def call
@@ -58,7 +59,10 @@ module Providers
       http.open_timeout = @config[:timeout]
       http.read_timeout = @config[:timeout]
 
-      response = http.request(Net::HTTP::Get.new(uri))
+      request = Net::HTTP::Get.new(uri)
+      request["Authorization"] = "Bearer #{@api_key}" if @api_key.present?
+
+      response = http.request(request)
       models = @config[:parse].call(response.body).sort_by { |m| m[:name] }
 
       ServiceResponse.success(data: { status: "connected", models: models })
