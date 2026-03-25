@@ -14,7 +14,7 @@ module Tools
 
       return ServiceResponse.failure(error: "No image URL provided") if image_url.empty?
 
-      # Try OpenAI first (gpt-5.2), fall back to Anthropic
+      # Try OpenAI first (gpt-5.4), fall back to Anthropic
       provider = ProviderConfig.find_by(adapter_type: "openai", enabled: true)
       if provider
         analyze_with_openai(image_url, prompt, provider)
@@ -38,7 +38,7 @@ module Tools
 
       uri = URI("https://api.openai.com/v1/chat/completions")
       body = {
-        model: "gpt-5.2",
+        model: "gpt-5.4",
         messages: [ {
           role: "user",
           content: [

@@ -140,16 +140,21 @@ class ProvidersController < ApplicationController
     when "anthropic"
       [
         { id: "claude-opus-4-6", name: "Claude Opus 4.6", desc: "Most capable — complex reasoning & code" },
-        { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5", desc: "Best balance of speed & intelligence" },
+        { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6", desc: "Best balance of speed & intelligence" },
+        { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5", desc: "Previous generation — balanced speed & intelligence" },
         { id: "claude-haiku-4-5", name: "Claude Haiku 4.5", desc: "Fast & affordable for simple tasks" }
       ]
     when "openai"
       [
-        { id: "gpt-5.2", name: "GPT-5.2", desc: "Latest flagship — great for coding & analysis" },
-        { id: "gpt-5.2-mini", name: "GPT-5.2 Mini", desc: "Fast & cheap for everyday tasks" },
-        { id: "gpt-5.2-nano", name: "GPT-5.2 Nano", desc: "Fastest & cheapest for simple tasks" },
+        { id: "gpt-5.4", name: "GPT-5.4", desc: "Latest flagship — complex reasoning & coding" },
+        { id: "gpt-5.4-mini", name: "GPT-5.4 Mini", desc: "Fast & strong for high-volume workloads" },
+        { id: "gpt-5.4-nano", name: "GPT-5.4 Nano", desc: "Cheapest — classification, extraction, sub-agents" },
+        { id: "gpt-5.3-codex", name: "GPT-5.3 Codex", desc: "Best agentic coding model" },
+        { id: "o3-pro", name: "o3-pro", desc: "Extended reasoning — hard problems, more compute" },
         { id: "o3", name: "o3", desc: "Advanced reasoning — math, science, code" },
-        { id: "o4-mini", name: "o4-mini", desc: "Fast reasoning for complex problems" }
+        { id: "o4-mini", name: "o4-mini", desc: "Fast reasoning for complex problems" },
+        { id: "gpt-5.2", name: "GPT-5.2", desc: "Previous flagship — coding & analysis" },
+        { id: "gpt-4.1", name: "GPT-4.1", desc: "Great instruction following, 1M context" }
       ]
     when "ollama"
       # Ollama models should be dynamically fetched, but for now return empty

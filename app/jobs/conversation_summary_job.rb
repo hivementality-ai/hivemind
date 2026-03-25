@@ -111,7 +111,7 @@ class ConversationSummaryJob < ApplicationJob
   def cheapest_model(provider)
     case provider
     when "anthropic" then "claude-haiku-4-5"
-    when "openai" then "gpt-5.2-nano"
+    when "openai" then "gpt-5.4-nano"
     else "claude-haiku-4-5"
     end
   end
