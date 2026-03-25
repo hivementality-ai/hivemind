@@ -103,7 +103,8 @@ module Agents
       ServiceResponse.success(data: {
         content: @full_content,
         thinking: @last_thinking,
-        usage: @total_usage
+        usage: @total_usage,
+        tool_history: @tool_history.map { |th| { tool: th[:tool_name], input: th[:params], output: th[:output].to_s.truncate(500), success: th[:success] } }
       })
     end
 
@@ -115,6 +116,8 @@ module Agents
         tools: llm_tools,
         options: @options
       )
+    rescue AgentInterrupted, AgentRedirected
+      raise
     rescue StandardError => e
       ServiceResponse.failure(error: "LLM call failed: #{e.message}")
     end

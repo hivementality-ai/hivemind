@@ -234,6 +234,12 @@ export default class extends Controller {
       case "coding_agent_complete":
         this.completeCodingAgent(data.message, data.output_summary, data.task_key, data.duration)
         break
+      case "sub_agent_started":
+        this.showSubAgentWorking(data.child_agent, data.task, data.task_key)
+        break
+      case "sub_agent_complete":
+        this.hideSubAgentWorking(data.task_key)
+        break
       case "title_update":
         this.updateTitle(data.title)
         break
@@ -953,6 +959,34 @@ export default class extends Controller {
       </div>`
     this.messagesTarget.insertAdjacentHTML("beforeend", html)
     this.scrollToBottom()
+  }
+
+  showSubAgentWorking(agentName, task, taskKey) {
+    const id = `sub-agent-${taskKey}`
+    if (document.getElementById(id)) return
+    const shortTask = task && task.length > 100 ? task.substring(0, 100) + "..." : (task || "")
+    const html = `
+      <div class="flex justify-start" id="${id}">
+        <div class="max-w-2xl w-full">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 bg-purple-600/30 border border-purple-500/50 rounded-lg flex items-center justify-center text-purple-300 text-xs font-bold flex-shrink-0 mt-1">🔀</div>
+            <div class="bg-purple-900/20 border border-purple-500/30 rounded-xl px-4 py-3 w-full">
+              <div class="flex items-center gap-2 text-purple-400 text-sm font-medium">
+                <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                ${this.esc(agentName || "Sub-agent")} working...
+              </div>
+              <div class="text-purple-300/70 text-xs mt-1">${this.esc(shortTask)}</div>
+            </div>
+          </div>
+        </div>
+      </div>`
+    this.messagesTarget.insertAdjacentHTML("beforeend", html)
+    this.scrollToBottom()
+  }
+
+  hideSubAgentWorking(taskKey) {
+    const el = document.getElementById(`sub-agent-${taskKey}`)
+    if (el) el.remove()
   }
 
   esc(text) {

@@ -15,6 +15,8 @@ module Providers
         result = gem_client.chat(client: ::Anthropic::Client.new(api_key:), params:, &block)
         inject_request_payload(result, params)
       end
+    rescue AgentInterrupted, AgentRedirected
+      raise
     rescue StandardError => e
       ServiceResponse.failure(error: "Anthropic API error: #{e.message}")
     end

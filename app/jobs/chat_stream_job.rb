@@ -139,6 +139,7 @@ class ChatStreamJob < ApplicationJob
         )
         full_content = result&.data&.dig(:content).to_s
         thinking_content = result&.data&.dig(:thinking)
+        tool_history = result&.data&.dig(:tool_history)
       else
         full_content = +""
         full_thinking = +""
@@ -155,6 +156,7 @@ class ChatStreamJob < ApplicationJob
             if chunk[:content]
               full_content << chunk[:content]
               ActionCable.server.broadcast(channel, { type: "token", content: chunk[:content] })
+              check_stream_signal!(session)
             end
           when "tool_start"
             Plugins::Hooks.trigger("before_tool_call", tool_name: chunk[:tool], input: chunk[:input] || {}, agent: agent, source: :proxy)
@@ -185,6 +187,7 @@ class ChatStreamJob < ApplicationJob
       session.reload
       transcript_entry = { "role" => "assistant", "content" => full_content, "timestamp" => Time.current.iso8601 }
       transcript_entry["thinking"] = thinking_content if thinking_content.present?
+      transcript_entry["tool_calls"] = tool_history if tool_history.present?
       session.transcript << transcript_entry
       session.save!
 
@@ -220,6 +223,18 @@ class ChatStreamJob < ApplicationJob
   end
 
   private
+
+  def check_stream_signal!(session)
+    signal = SessionSignal.check(session.id)
+    return unless signal
+
+    case signal[:type]
+    when "cancel"
+      raise AgentInterrupted
+    when "redirect"
+      raise AgentRedirected.new(signal[:message])
+    end
+  end
 
   def set_processing(session_id, active)
     key = "session_processing:#{session_id}"

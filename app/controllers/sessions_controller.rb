@@ -9,7 +9,7 @@ class SessionsController < ApplicationController
   def index
     @sessions = Session.includes(:agent)
                        .where(status: :active)
-                       .order(last_activity_at: :desc)
+                       .order(Arel.sql("COALESCE(last_activity_at, created_at) DESC"))
                        .limit(50)
 
     # If agent_id is passed via GET, auto-create a session and redirect to chat
@@ -127,6 +127,13 @@ class SessionsController < ApplicationController
     end
 
     SessionSignal.set(@session.id, type: signal_type, message: message.presence)
+
+    # Propagate signal to any running sub-agent child sessions
+    if @session.respond_to?(:sub_agent_tasks_as_parent)
+      @session.sub_agent_tasks_as_parent.where(status: "running").find_each do |sat|
+        SessionSignal.set(sat.child_session.id, type: signal_type, message: message.presence) if sat.child_session
+      end
+    end
 
     # Broadcast to UI immediately for visual feedback
     ActionCable.server.broadcast(
