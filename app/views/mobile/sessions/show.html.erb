@@ -1,0 +1,186 @@
+<div class="flex flex-col h-screen bg-surface-base"
+     data-controller="mobile-chat"
+     data-mobile-chat-session-id-value="<%= @session.id %>"
+     data-mobile-chat-agent-name-value="<%= @agent.name %>"
+     data-mobile-chat-message-url-value="<%= message_mobile_session_path(@session) %>"
+     data-mobile-chat-interrupt-url-value="<%= interrupt_mobile_session_path(@session) %>"
+     data-mobile-chat-csrf-value="<%= form_authenticity_token %>"
+     data-mobile-chat-processing-value="<%= @processing %>">
+
+  <!-- Header -->
+  <div class="flex items-center gap-3 px-4 py-3 border-b border-border-default bg-surface-card flex-shrink-0 safe-area-top">
+    <%= link_to mobile_sessions_path, class: "text-text-muted hover:text-white transition p-1" do %>
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+    <% end %>
+    <%= agent_avatar(@agent, size: :sm) %>
+    <div class="flex-1 min-w-0">
+      <h1 class="text-white font-semibold text-sm truncate"><%= @agent.name %></h1>
+      <p class="text-text-muted text-xs truncate"><%= @agent.role %></p>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div class="flex-1 overflow-y-auto px-4 py-4 space-y-4" data-mobile-chat-target="messages" id="messages">
+    <% if @messages.empty? %>
+      <div class="flex items-center justify-center h-full" data-mobile-chat-target="emptyState">
+        <div class="text-center px-6">
+          <%= agent_avatar(@agent, size: :md) %>
+          <h2 class="text-lg font-semibold text-white mt-4 mb-2">Start chatting with <%= @agent.name %></h2>
+          <p class="text-text-muted text-sm max-w-xs mx-auto">
+            <%= @agent.system_prompt&.truncate(150) || "This agent is ready to help." %>
+          </p>
+        </div>
+      </div>
+    <% end %>
+
+    <% @messages.each_with_index do |msg, idx| %>
+      <% if msg["source"] == "sub_agent" %>
+        <!-- Sub-agent message -->
+        <div class="flex justify-start">
+          <div class="max-w-[85%]">
+            <div class="flex items-start gap-2">
+              <div class="w-7 h-7 rounded-full bg-purple-600/30 border border-purple-500/50 flex items-center justify-center text-purple-300 text-xs font-bold flex-shrink-0 mt-1">S</div>
+              <div class="bg-purple-900/20 border border-purple-500/30 rounded-2xl rounded-bl-md px-3 py-2 text-gray-100">
+                <div class="text-xs text-purple-400 font-medium mb-1"><%= msg["agent_name"] || "Sub-agent" %></div>
+                <div class="text-sm chat-content"><%= msg["content"] %></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      <% elsif msg["role"] == "user" %>
+        <!-- User message -->
+        <div class="flex justify-end">
+          <div class="max-w-[85%]">
+            <% if msg["images"].present? %>
+              <div class="flex flex-wrap gap-1 mb-1 justify-end">
+                <% msg["images"].each do |img| %>
+                  <% attachment = @attachments[idx] %>
+                  <% if attachment&.file&.attached? %>
+                    <%= image_tag rails_blob_path(attachment.file, only_path: true),
+                        class: "max-w-[200px] max-h-48 rounded-xl",
+                        loading: "lazy" %>
+                  <% else %>
+                    <div class="bg-brand-dark rounded-lg px-2 py-1 text-xs"><%= img["filename"] %></div>
+                  <% end %>
+                <% end %>
+              </div>
+            <% end %>
+            <% if msg["files"].present? %>
+              <div class="flex flex-wrap gap-1 mb-1 justify-end">
+                <% msg["files"].each do |file| %>
+                  <div class="inline-flex items-center gap-1 bg-amber-700/30 border border-amber-600/40 rounded-lg px-2 py-1 text-xs text-amber-200">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                    <%= file["filename"]&.truncate(25) %>
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
+            <div class="bg-brand rounded-2xl rounded-br-md px-3 py-2 text-white">
+              <p class="text-sm whitespace-pre-wrap"><%= msg["content"] %></p>
+            </div>
+          </div>
+        </div>
+
+      <% elsif msg["role"] == "assistant" %>
+        <!-- Agent message -->
+        <div class="flex justify-start">
+          <div class="max-w-[85%]">
+            <div class="flex items-start gap-2">
+              <%= agent_avatar(@agent, size: :xs) %>
+              <div>
+                <div class="bg-surface-raised rounded-2xl rounded-bl-md px-3 py-2 text-gray-100">
+                  <div class="text-sm chat-content"><%= msg["content"] %></div>
+                </div>
+                <% if msg["tool_calls"].present? %>
+                  <% msg["tool_calls"].each do |tc| %>
+                    <details class="mt-1">
+                      <summary class="text-xs text-text-faint cursor-pointer hover:text-text-muted flex items-center gap-1 px-1">
+                        <span class="<%= tc["success"] ? "text-green-400" : "text-red-400" %>"><%= tc["success"] ? "+" : "x" %></span>
+                        <%= tc["tool"] %>
+                      </summary>
+                      <div class="bg-surface-card border border-border-default rounded-lg px-2 py-1.5 mt-1 text-xs">
+                        <code class="text-text-muted block break-all"><%= tc["output"].to_s.truncate(200) %></code>
+                      </div>
+                    </details>
+                  <% end %>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+
+  <!-- Streaming indicator -->
+  <div class="px-4 hidden" data-mobile-chat-target="thinking">
+    <div class="flex items-start gap-2">
+      <%= agent_avatar(@agent, size: :xs) %>
+      <div class="bg-surface-raised rounded-2xl rounded-bl-md px-3 py-2 text-text-muted">
+        <div class="flex gap-1">
+          <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+          <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+          <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stop/Interrupt button -->
+  <div class="px-4 py-1 hidden" data-mobile-chat-target="stopArea">
+    <button data-action="click->mobile-chat#stopAgent"
+            class="w-full flex items-center justify-center gap-2 py-2 bg-red-600/20 border border-red-500/40 rounded-xl text-red-400 text-sm font-medium active:bg-red-600/30 transition">
+      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+        <rect x="6" y="6" width="12" height="12" rx="1" />
+      </svg>
+      Stop
+    </button>
+  </div>
+
+  <!-- Input area -->
+  <div class="border-t border-border-default bg-surface-card flex-shrink-0"
+       style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom));">
+    <!-- File/image preview area -->
+    <div class="px-3 pt-2 hidden" data-mobile-chat-target="attachPreview">
+      <div class="flex items-center gap-2 bg-surface-raised border border-border-default rounded-lg px-2 py-1.5">
+        <div class="flex gap-1.5 flex-wrap flex-1" data-mobile-chat-target="attachList"></div>
+        <button data-action="click->mobile-chat#clearAttachments" class="text-text-muted hover:text-red-400 p-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="flex items-end gap-2 px-3 pt-2 pb-1">
+      <!-- Camera/file upload -->
+      <label class="p-2 text-text-muted hover:text-white cursor-pointer transition flex-shrink-0">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+        </svg>
+        <input type="file" accept="image/*,.txt,.md,.csv,.json,.xml,.html,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" multiple class="hidden"
+               data-mobile-chat-target="fileInput"
+               data-action="change->mobile-chat#handleFiles">
+      </label>
+
+      <!-- Auto-resizing textarea -->
+      <textarea data-mobile-chat-target="input"
+                data-action="keydown->mobile-chat#handleKeydown input->mobile-chat#autoResize"
+                class="flex-1 px-3 py-2 bg-surface-raised border border-border-default rounded-xl text-white text-sm placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent resize-none max-h-32"
+                placeholder="Message <%= @agent.name %>..."
+                rows="1"></textarea>
+
+      <!-- Send button -->
+      <button data-mobile-chat-target="sendBtn"
+              data-action="click->mobile-chat#send"
+              class="p-2 bg-brand hover:bg-brand-dark text-white rounded-xl transition flex-shrink-0 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19V5m0 0l-7 7m7-7l7 7" />
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>

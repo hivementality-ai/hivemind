@@ -1,0 +1,82 @@
+<div class="px-4 py-4 space-y-4">
+
+  <h1 class="text-lg font-bold text-white">Agents</h1>
+
+  <% colors = %w[bg-brand bg-green-600 bg-yellow-600 bg-pink-600 bg-cyan-600 bg-red-600 bg-indigo-600 bg-orange-600] %>
+
+  <% if @agents.any? %>
+    <div class="space-y-2">
+      <% @agents.each_with_index do |agent, i| %>
+        <div class="rounded-xl bg-surface-card border border-border-default p-4">
+          <a href="<%= mobile_agent_path(slug: agent.slug) %>" class="flex items-center gap-3 active:opacity-75 transition-opacity" style="min-height: 44px;">
+            <%# Avatar with status dot %>
+            <span class="relative flex-shrink-0">
+              <span class="flex items-center justify-center w-10 h-10 rounded-full <%= colors[i % colors.size] %> text-white text-sm font-bold">
+                <%= agent.name.first.upcase %>
+              </span>
+              <% status = agent.respond_to?(:runtime_status) ? agent.runtime_status : "idle" %>
+              <% dot_color = case status.to_s
+                when "thinking" then "bg-amber-400 animate-pulse"
+                when "executing" then "bg-blue-400 animate-pulse"
+                when "error" then "bg-red-400"
+                else "bg-text-faint"
+              end %>
+              <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-surface-card <%= dot_color %>"></span>
+            </span>
+
+            <%# Name, model, badges %>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-white truncate"><%= agent.name %></p>
+              <p class="text-xs text-text-faint truncate">
+                <%= agent.respond_to?(:model_id) ? agent.model_id : "—" %>
+                <% if status.to_s != "idle" %>
+                  <span class="ml-1 text-<%= status.to_s == 'error' ? 'red' : 'amber' %>-400"><%= status %></span>
+                <% end %>
+              </p>
+              <div class="flex items-center gap-2 mt-1">
+                <% tool_count = agent.respond_to?(:tools) ? agent.tools.count : 0 %>
+                <% skill_count = agent.respond_to?(:skills) ? agent.skills.count : 0 %>
+                <% if tool_count > 0 %>
+                  <span class="text-[10px] text-text-faint bg-surface-raised px-1.5 py-0.5 rounded">
+                    <%= tool_count %> tools
+                  </span>
+                <% end %>
+                <% if skill_count > 0 %>
+                  <span class="text-[10px] text-text-faint bg-surface-raised px-1.5 py-0.5 rounded">
+                    <%= skill_count %> skills
+                  </span>
+                <% end %>
+              </div>
+            </div>
+
+            <%# Chevron %>
+            <svg class="w-4 h-4 text-text-faint flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+
+          <%# Chat button %>
+          <div class="mt-3 pt-3 border-t border-border-default/50">
+            <a href="/sessions?agent_id=<%= agent.slug %>" class="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-amber-500/10 text-amber-400 text-sm font-medium rounded-lg active:bg-amber-500/20 transition" style="min-height: 44px;">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
+              </svg>
+              Chat
+            </a>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <div class="text-center pt-2">
+      <a href="<%= desktop_url_for('/agents') %>" class="text-xs text-text-faint underline">Edit on desktop</a>
+    </div>
+  <% else %>
+    <div class="rounded-xl bg-surface-card border border-border-default p-8 text-center">
+      <p class="text-sm text-text-muted mb-2">No agents available.</p>
+      <p class="text-xs text-text-faint">Create agents on the desktop interface to get started.</p>
+    </div>
+  <% end %>
+
+</div>

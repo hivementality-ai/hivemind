@@ -1,0 +1,93 @@
+<div class="min-h-screen bg-surface-base text-white pb-20">
+  <div class="sticky top-0 z-10 bg-surface-base border-b border-border-default px-4 py-3">
+    <h1 class="text-xl font-bold">Settings</h1>
+  </div>
+
+  <div class="px-4 py-4 space-y-6">
+    <%# Push Notifications %>
+    <section class="bg-surface-card rounded-lg border border-border-default p-4"
+             data-controller="push-subscription"
+             data-push-subscription-vapid-public-key-value="<%= WebPush::VapidKeys.public_key %>">
+      <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">Push Notifications</h2>
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="font-medium text-sm">Enable Push Notifications</p>
+          <p class="text-xs text-text-muted mt-0.5">Get notified about agent responses, task completions, and alerts.</p>
+        </div>
+        <button data-push-subscription-target="toggleBtn" data-action="push-subscription#toggle"
+                class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-gray-600 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-surface-base"
+                role="switch" aria-checked="false">
+          <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0"></span>
+        </button>
+      </div>
+      <p data-push-subscription-target="status" class="text-xs text-text-muted mt-2"></p>
+    </section>
+
+    <%# Notification Preferences %>
+    <%= form_with url: mobile_settings_preferences_path, method: :patch, class: "" do %>
+      <section class="bg-surface-card rounded-lg border border-border-default p-4">
+        <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">Notification Preferences</h2>
+        <div class="space-y-3">
+          <% [
+            ["agent_responses", "Agent Responses", "Get notified when agents reply to your messages"],
+            ["task_completions", "Task Completions", "Get notified when sub-agent tasks finish"],
+            ["budget_alerts", "Budget Alerts", "Get notified about spending thresholds"],
+            ["heartbeat_findings", "Heartbeat Findings", "Get notified about heartbeat discoveries"]
+          ].each do |key, label, description| %>
+            <%# Hidden field ensures unchecked sends "0" %>
+            <input type="hidden" name="preferences[<%= key %>]" value="0">
+            <label class="flex items-center justify-between cursor-pointer">
+              <div>
+                <p class="font-medium text-sm"><%= label %></p>
+                <p class="text-xs text-text-muted mt-0.5"><%= description %></p>
+              </div>
+              <div class="relative">
+                <input type="checkbox" class="sr-only peer" name="preferences[<%= key %>]" value="1"
+                       <%= "checked" if @notification_preferences[key] %>>
+                <div class="w-11 h-6 bg-gray-600 rounded-full peer peer-checked:bg-blue-500 transition-colors duration-200"></div>
+                <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transform transition-transform duration-200 peer-checked:translate-x-5"></div>
+              </div>
+            </label>
+          <% end %>
+        </div>
+        <div class="mt-4">
+          <button type="submit" class="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-lg transition-colors">
+            Save Preferences
+          </button>
+        </div>
+      </section>
+    <% end %>
+
+    <%# Appearance %>
+    <section class="bg-surface-card rounded-lg border border-border-default p-4">
+      <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">Appearance</h2>
+      <div class="space-y-3">
+        <a href="/?desktop=1" class="flex items-center justify-between py-1">
+          <span class="font-medium text-sm">Desktop Site</span>
+          <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </a>
+        <div class="flex items-center justify-between py-1">
+          <span class="font-medium text-sm">Version</span>
+          <span class="text-sm text-text-muted"><%= Rails.application.config.try(:app_version) || "1.0.0" %></span>
+        </div>
+      </div>
+    </section>
+
+    <%# Account %>
+    <section class="bg-surface-card rounded-lg border border-border-default p-4">
+      <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">Account</h2>
+      <div class="space-y-3">
+        <div class="flex items-center justify-between py-1">
+          <span class="font-medium text-sm">Email</span>
+          <span class="text-sm text-text-muted truncate ml-4"><%= current_user&.email %></span>
+        </div>
+        <div class="pt-2">
+          <%= button_to "Sign Out", destroy_user_session_path, method: :delete,
+              class: "w-full py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white font-medium text-sm rounded-lg transition-colors" %>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
