@@ -6,4 +6,8 @@ class PwaController < ApplicationController
   def manifest
     render formats: :json
   end
+
+  def service_worker
+    render layout: false, content_type: "application/javascript"
+  end
 end

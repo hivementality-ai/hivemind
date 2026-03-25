@@ -1,8 +1,9 @@
 Rails.application.routes.draw do
   devise_for :users
 
-  # PWA manifest
+  # PWA manifest & service worker
   get "manifest", to: "pwa#manifest", as: :pwa_manifest
+  get "service-worker", to: "pwa#service_worker", as: :pwa_service_worker
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
   # Can be used by load balancers and uptime monitors to verify that the app is live.

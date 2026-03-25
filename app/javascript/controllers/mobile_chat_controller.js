@@ -80,7 +80,7 @@ export default class extends Controller {
         this.handleError(data.content)
         break
       case "user_message":
-        this.appendUserBubble(data.content)
+        // Ignored — the send() method already appends the user bubble locally
         break
       case "processing":
         if (data.active) {

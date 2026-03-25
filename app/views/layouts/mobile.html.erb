@@ -96,5 +96,10 @@
       </div>
     </nav>
   </div>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/service-worker", { scope: "/" })
+    }
+  </script>
 </body>
 </html>
