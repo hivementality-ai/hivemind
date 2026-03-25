@@ -38,7 +38,11 @@ class SetupController < ApplicationController
     errors = []
 
     provider_params.each do |provider, config|
-      next if config[:api_key].blank?
+      # Cloud providers (anthropic, openai) require an API key.
+      # Toggle-based providers (ollama, openai_compatible) use the enabled flag;
+      # API key is optional (e.g. local servers don't need one, but Minimax does).
+      toggle_provider = %w[ollama openai_compatible].include?(provider)
+      next if toggle_provider ? config[:enabled].blank? : config[:api_key].blank?
 
       # Create or update the provider config
       pc = ProviderConfig.find_or_initialize_by(name: provider)
@@ -55,10 +59,12 @@ class SetupController < ApplicationController
       end
 
       if pc.save
-        # Store the key in vault
-        VaultEntry.find_or_initialize_by(namespace: "providers", key: "#{provider}_api_key").tap do |ve|
-          ve.encrypted_value = config[:api_key]
-          errors << ve.errors.full_messages unless ve.save
+        # Store the key in vault (only if an actual API key was provided)
+        if config[:api_key].present?
+          VaultEntry.find_or_initialize_by(namespace: "providers", key: "#{provider}_api_key").tap do |ve|
+            ve.encrypted_value = config[:api_key]
+            errors << ve.errors.full_messages unless ve.save
+          end
         end
 
         # Store default model in settings
@@ -160,7 +166,7 @@ class SetupController < ApplicationController
   private
 
   def render_remote_models(provider)
-    result = Providers::FetchRemoteModels.call(provider, url: params[:url])
+    result = Providers::FetchRemoteModels.call(provider, url: params[:url], api_key: params[:api_key])
     if result.success?
       render json: result.data
     else
@@ -180,8 +186,8 @@ class SetupController < ApplicationController
     params.require(:providers).permit(
       anthropic: [ :api_key, :default_model, models: [] ],
       openai: [ :api_key, :default_model, models: [] ],
-      ollama: [ :api_key, :default_model, :base_url, models: [] ],
-      openai_compatible: [ :api_key, :default_model, :base_url, models: [] ]
+      ollama: [ :api_key, :enabled, :default_model, :base_url, models: [] ],
+      openai_compatible: [ :api_key, :enabled, :default_model, :base_url, models: [] ]
     )
   end
 

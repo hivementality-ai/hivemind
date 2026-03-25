@@ -79,7 +79,7 @@
               <% when "ollama" %>
                 Leave blank for local Ollama (no API key needed). Modify the URL in Advanced Settings if running on another machine.
               <% when "openai_compatible" %>
-                Leave blank for local server (no API key needed). Modify the URL in Advanced Settings if running on another machine.
+                Required for cloud providers (Minimax, OpenRouter, Together AI). Leave blank for local servers.
             <% end %>
           </p>
         </div>
@@ -253,11 +253,15 @@
     function detectOpenaiCompatibleModels() {
       const urlInput = document.getElementById('openai-compatible-custom-url');
       const url = urlInput ? urlInput.value : 'http://host.docker.internal:8080';
+      const apiKeyField = document.querySelector('[name="provider_config[api_key]"]');
+      const apiKey = apiKeyField ? apiKeyField.value.trim() : '';
       const container = document.getElementById('openai-compatible-models-container');
 
       container.innerHTML = '<p class="text-text-muted text-sm">Detecting models...</p>';
 
-      fetch(`/setup/openai_compatible_models?url=${encodeURIComponent(url)}`)
+      let fetchUrl = `/setup/openai_compatible_models?url=${encodeURIComponent(url)}`;
+      if (apiKey) fetchUrl += `&api_key=${encodeURIComponent(apiKey)}`;
+      fetch(fetchUrl)
         .then(r => r.json())
         .then(data => {
           if (data.status === 'connected' && data.models.length > 0) {
