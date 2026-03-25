@@ -167,8 +167,22 @@
           <div class="max-w-2xl">
             <div class="flex items-start gap-3">
               <%= agent_avatar(@agent, size: :sm) %>
-              <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
-                <div class="whitespace-pre-wrap chat-content"><%= msg["content"] %></div>
+              <div>
+                <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
+                  <div class="whitespace-pre-wrap chat-content"><%= msg["content"] %></div>
+                </div>
+                <% if msg["tool_calls"].present? %>
+                  <% msg["tool_calls"].each do |tc| %>
+                    <div data-tool-block="persisted" style="display: none;" class="mt-1">
+                      <div class="bg-surface-card border border-border-default rounded-xl px-3 py-2 text-xs">
+                        <div class="flex items-center gap-2 <%= tc["success"] ? "text-green-400" : "text-red-400" %> font-medium">
+                          <%= tc["success"] ? "✓" : "✗" %> <%= tc["tool"] %>
+                        </div>
+                        <code class="text-text-muted mt-1 block"><%= tc["output"].to_s.truncate(200) %></code>
+                      </div>
+                    </div>
+                  <% end %>
+                <% end %>
               </div>
             </div>
           </div>
