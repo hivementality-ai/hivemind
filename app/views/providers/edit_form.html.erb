@@ -169,13 +169,38 @@
         <% elsif @provider.adapter_type == "openai_compatible" %>
           <!-- OpenAI Compatible Dynamic Model List -->
           <div id="openai-compatible-models-container" class="space-y-2">
-            <p class="text-text-muted text-sm">Click "Check Connection" above to detect loaded models.</p>
+            <% if @selected_models.present? %>
+              <% @selected_models.each do |model| %>
+                <label class="flex items-start gap-3 p-4 bg-surface-raised rounded-lg cursor-pointer hover:bg-surface-overlay transition group border border-border-default/50">
+                  <input type="checkbox" name="provider_config[models][]" value="<%= model["id"] %>" checked
+                         class="mt-1 w-4 h-4 rounded border-gray-500 text-blue-600 focus:ring-blue-500 bg-surface-overlay flex-shrink-0">
+                  <div class="flex-1">
+                    <span class="text-white text-sm font-medium block"><%= model["id"] %></span>
+                  </div>
+                </label>
+              <% end %>
+            <% else %>
+              <p class="text-text-muted text-sm">Click "Check Connection" above to detect loaded models, or add them manually below.</p>
+            <% end %>
           </div>
+          <!-- Manual model entry -->
+          <div class="mt-3 flex gap-2">
+            <input type="text" id="openai-compatible-custom-model"
+                   class="flex-1 px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                   placeholder="Enter model name (e.g. minimax-01)">
+            <button type="button" onclick="addCustomOpenaiCompatibleModel()"
+                    class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition cursor-pointer whitespace-nowrap">
+              Add Model
+            </button>
+          </div>
+          <p class="text-text-faint text-xs mt-1">
+            Manually add models if the server doesn't support the <code class="text-text-muted">/v1/models</code> endpoint.
+          </p>
         <% end %>
       </div>
 
       <!-- Default Model Selection -->
-      <% if @available_models.present? || !%w[ollama openai_compatible].include?(@provider.adapter_type) %>
+      <% if @available_models.present? || !%w[ollama].include?(@provider.adapter_type) %>
         <div class="space-y-2">
           <label class="block text-text-primary font-semibold text-sm">Default Model</label>
           <select name="provider_config[default_model]"
@@ -196,6 +221,10 @@
               <option value="o4-mini" <%= "selected" if @selected_models.any? { |m| m["default"] && m["id"] == "o4-mini" } %>>o4-mini</option>
               <option value="gpt-5.2" <%= "selected" if @selected_models.any? { |m| m["default"] && m["id"] == "gpt-5.2" } %>>GPT-5.2</option>
               <option value="gpt-4.1" <%= "selected" if @selected_models.any? { |m| m["default"] && m["id"] == "gpt-4.1" } %>>GPT-4.1</option>
+            <% elsif @provider.adapter_type == "openai_compatible" %>
+              <% @selected_models.each do |model| %>
+                <option value="<%= model["id"] %>" <%= "selected" if model["default"] %>><%= model["id"] %></option>
+              <% end %>
             <% end %>
           </select>
         </div>
@@ -300,6 +329,37 @@
       container.innerHTML = `
         <p class="text-red-300 text-sm mb-2">⚠ Error: ${msg}</p>
         <p class="text-text-faint text-xs">Make sure your OpenAI-compatible server is running and accessible.</p>`;
+    }
+
+    function addCustomOpenaiCompatibleModel() {
+      const input = document.getElementById('openai-compatible-custom-model');
+      const modelId = input.value.trim();
+      if (!modelId) return;
+
+      const container = document.getElementById('openai-compatible-models-container');
+      const placeholder = container.querySelector('p.text-text-muted');
+      if (placeholder) placeholder.remove();
+
+      const label = document.createElement('label');
+      label.className = 'flex items-start gap-3 p-4 bg-surface-raised rounded-lg cursor-pointer hover:bg-surface-overlay transition group border border-border-default/50';
+      label.innerHTML = `
+        <input type="checkbox" name="provider_config[models][]" value="${modelId}" checked
+               class="mt-1 w-4 h-4 rounded border-gray-500 text-blue-600 focus:ring-blue-500 bg-surface-overlay flex-shrink-0">
+        <div class="flex-1">
+          <span class="text-white text-sm font-medium block">${modelId}</span>
+        </div>`;
+      container.appendChild(label);
+
+      const select = document.querySelector('[name="provider_config[default_model]"]');
+      if (select) {
+        const opt = document.createElement('option');
+        opt.value = modelId;
+        opt.textContent = modelId;
+        if (select.options.length <= 1) opt.selected = true;
+        select.appendChild(opt);
+      }
+
+      input.value = '';
     }
   </script>
 </div>
