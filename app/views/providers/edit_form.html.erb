@@ -124,10 +124,10 @@
                        id="openai-compatible-custom-url"
                        name="provider_config[base_url]"
                        class="w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                       placeholder="http://host.docker.internal:8080"
-                       value="<%= @provider.base_url || 'http://host.docker.internal:8080' %>">
+                       placeholder="https://api.minimax.chat/v1"
+                       value="<%= @provider.base_url %>">
                 <p class="text-text-faint text-xs mt-1">
-                  Point this to your OpenAI-compatible server (e.g. <code class="text-text-muted">http://192.168.1.100:8080</code>)
+                  The API base URL (e.g. <code class="text-text-muted">https://api.minimax.chat/v1</code> or <code class="text-text-muted">http://localhost:8080</code>)
                 </p>
                 <button type="button" onclick="detectOpenaiCompatibleModels()"
                         class="mt-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition cursor-pointer">

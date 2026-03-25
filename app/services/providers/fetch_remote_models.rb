@@ -21,7 +21,7 @@ module Providers
         }
       },
       openai_compatible: {
-        default_url: "http://host.docker.internal:8080",
+        default_url: nil,
         path: "/v1/models",
         timeout: 5,
         parse: ->(body) {

@@ -75,9 +75,9 @@
                  name="provider_config[base_url]"
                  id="openai-base-url-input"
                  class="w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent font-mono text-sm"
-                 placeholder="https://api.openai.com/v1"
+                 placeholder="https://api.example.com/v1"
                  autocomplete="off">
-          <p class="text-text-faint text-xs mt-1">For OpenAI-compatible providers (LocalAI, OpenRouter, etc.), enter the API base URL.</p>
+          <p class="text-text-faint text-xs mt-1">The API base URL for this provider (e.g. <code class="text-text-muted">https://api.minimax.chat/v1</code>).</p>
         </div>
 
         <!-- Security Notice -->
@@ -128,31 +128,12 @@
           </details>
         </div>
 
-        <!-- OpenAI Compatible Advanced Settings -->
+        <!-- OpenAI Compatible — Check Connection button -->
         <div id="openai-compatible-settings" class="hidden">
-          <details class="mt-4">
-            <summary class="text-text-muted text-sm cursor-pointer hover:text-white transition select-none flex items-center gap-2">
-              <span class="text-lg">▶</span> Advanced Settings
-            </summary>
-            <div class="mt-3 p-4 bg-surface-overlay rounded-lg border border-border-default space-y-3">
-              <div>
-                <label class="block text-text-primary font-medium text-sm mb-1">Server URL</label>
-                <input type="text"
-                       id="openai-compatible-custom-url"
-                       name="provider_config[base_url]"
-                       class="w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                       placeholder="http://host.docker.internal:8080"
-                       value="http://host.docker.internal:8080">
-                <p class="text-text-faint text-xs mt-1">
-                  Point this to your OpenAI-compatible server (e.g. <code class="text-text-muted">http://192.168.1.100:8080</code>)
-                </p>
-                <button type="button" onclick="detectOpenaiCompatibleModels()"
-                        class="mt-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition cursor-pointer">
-                  Check Connection
-                </button>
-              </div>
-            </div>
-          </details>
+          <button type="button" onclick="detectOpenaiCompatibleModels()"
+                  class="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition cursor-pointer">
+            Check Connection & Detect Models
+          </button>
         </div>
 
         <!-- Model Selection -->
@@ -328,8 +309,8 @@
         nameInput.value = '';
       }
 
-      // Show base URL for openai-compatible providers (when adding a second one)
-      if (type === 'openai' && isDuplicate) {
+      // Show base URL for openai-compatible providers and duplicate openai
+      if (type === 'openai_compatible' || (type === 'openai' && isDuplicate)) {
         openaiBaseUrlSection.classList.remove('hidden');
       } else {
         openaiBaseUrlSection.classList.add('hidden');
@@ -439,8 +420,9 @@
 
     // OpenAI Compatible model detection
     function detectOpenaiCompatibleModels() {
-      const urlInput = document.getElementById('openai-compatible-custom-url');
-      const url = urlInput ? urlInput.value : 'http://host.docker.internal:8080';
+      const urlInput = document.getElementById('openai-base-url-input');
+      const url = urlInput ? urlInput.value.trim() : '';
+      if (!url) { alert('Enter a Base URL first.'); return; }
       const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
       const container = document.getElementById('openai-compatible-models-container');
 

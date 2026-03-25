@@ -53,7 +53,9 @@ module Providers
     end
 
     def server_url
-      base_url || "http://host.docker.internal:8080"
+      url = base_url.presence
+      raise "OpenAI-compatible provider has no base_url configured" unless url
+      url
     end
 
     def build_chat_params(messages:, tools:, options:)

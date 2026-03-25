@@ -97,10 +97,7 @@ export default class extends Controller {
 
   enableOpenaiCompatible() {
     if (this.hasOpenaiCompatibleUrlTarget) {
-      this.openaiCompatibleUrlTarget.value = OPENAI_COMPATIBLE_DEFAULT_URL
-    }
-    if (this.hasOpenaiCompatibleCustomUrlTarget) {
-      this.openaiCompatibleCustomUrlTarget.value = OPENAI_COMPATIBLE_DEFAULT_URL
+      this.openaiCompatibleUrlTarget.value = "1"
     }
     this.showOpenaiCompatibleSettings()
   }
@@ -115,9 +112,6 @@ export default class extends Controller {
   showOpenaiCompatibleSettings() {
     if (this.hasOpenaiCompatibleEnabledTarget) {
       this.openaiCompatibleEnabledTarget.classList.remove("hidden")
-      if (typeof detectOpenaiCompatibleModels === "function") {
-        detectOpenaiCompatibleModels()
-      }
     }
   }
 

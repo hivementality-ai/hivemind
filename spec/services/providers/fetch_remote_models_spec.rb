@@ -47,14 +47,19 @@ RSpec.describe Providers::FetchRemoteModels, type: :service do
 
     context "with openai_compatible" do
       it "returns models on success" do
-        stub_request(:get, "http://host.docker.internal:8080/v1/models")
+        stub_request(:get, "https://api.example.com/v1/models")
           .to_return(status: 200, body: {
             data: [ { id: "default" } ]
           }.to_json)
 
-        result = described_class.call(:openai_compatible)
+        result = described_class.call(:openai_compatible, url: "https://api.example.com")
         expect(result).to be_success
         expect(result.data[:models].first[:id]).to eq("default")
+      end
+
+      it "returns failure when no URL provided" do
+        result = described_class.call(:openai_compatible)
+        expect(result).not_to be_success
       end
     end
 

@@ -320,38 +320,34 @@
               </p>
             </div>
 
+            <!-- Server URL (primary field) -->
+            <div class="mb-3">
+              <label class="text-text-primary text-xs font-medium block mb-1">Server URL</label>
+              <input type="text"
+                     id="openai-compatible-custom-url"
+                     name="providers[openai_compatible][base_url]"
+                     data-provider-models-target="openaiCompatibleCustomUrl"
+                     data-action="input->provider-models#updateOpenaiCompatibleUrl"
+                     class="w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                     placeholder="https://api.minimax.chat/v1"
+                     autocomplete="off">
+              <p class="text-text-faint text-xs mt-1">
+                The API base URL (e.g. <code class="text-text-muted">https://api.minimax.chat/v1</code> or <code class="text-text-muted">http://localhost:8080</code> for local servers)
+              </p>
+            </div>
+
             <!-- Status indicator -->
-            <div id="openai-compatible-status" class="flex items-center gap-2 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg mb-3">
+            <div id="openai-compatible-status" class="flex items-center gap-2 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg mb-3 hidden">
               <svg class="w-4 h-4 text-blue-400 flex-shrink-0 animate-spin" id="openai-compatible-spinner" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               <p class="text-blue-300 text-sm" id="openai-compatible-status-text">Checking server connection...</p>
             </div>
 
-            <!-- Advanced Settings (collapsed by default) -->
-            <details class="mb-3">
-              <summary class="text-text-muted text-xs cursor-pointer hover:text-white transition select-none">
-                Advanced Settings
-              </summary>
-              <div class="mt-2 p-3 bg-surface-overlay rounded-lg border border-border-default">
-                <label class="text-text-primary text-xs font-medium block mb-1">Server URL</label>
-                <input type="text"
-                       id="openai-compatible-custom-url"
-                       name="providers[openai_compatible][base_url]"
-                       data-provider-models-target="openaiCompatibleCustomUrl"
-                       data-action="input->provider-models#updateOpenaiCompatibleUrl"
-                       class="w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-xs"
-                       placeholder="http://host.docker.internal:8080"
-                       value="http://host.docker.internal:8080">
-                <p class="text-text-faint text-xs mt-1">
-                  Point this to your OpenAI-compatible server (e.g. <code class="text-text-muted">http://192.168.1.100:8080</code>)
-                </p>
-                <button type="button" onclick="detectOpenaiCompatibleModels()"
-                        class="mt-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition cursor-pointer">
-                  Re-check Connection
-                </button>
-              </div>
-            </details>
+            <button type="button" onclick="detectOpenaiCompatibleModels()"
+                    class="mb-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition cursor-pointer">
+              Check Connection & Detect Models
+            </button>
 
             <!-- Dynamic model selection -->
             <div id="openai-compatible-models-container" class="space-y-2" data-provider-models-target="modelList" data-provider="openai_compatible">
@@ -376,7 +372,8 @@
           <script>
             function detectOpenaiCompatibleModels() {
               const urlInput = document.getElementById('openai-compatible-custom-url');
-              const url = urlInput ? urlInput.value : 'http://host.docker.internal:8080';
+              const url = urlInput ? urlInput.value.trim() : '';
+              if (!url) { alert('Enter a Server URL first.'); return; }
               const apiKeyInput = document.getElementById('openai-compatible-api-key');
               const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
               const statusEl = document.getElementById('openai-compatible-status');
@@ -384,6 +381,7 @@
               const spinner = document.getElementById('openai-compatible-spinner');
               const container = document.getElementById('openai-compatible-models-container');
 
+              statusEl.classList.remove('hidden');
               statusText.textContent = 'Checking server connection...';
               spinner.classList.remove('hidden');
               statusEl.className = 'flex items-center gap-2 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg mb-3';
