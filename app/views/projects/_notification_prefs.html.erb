@@ -1,0 +1,71 @@
+<%# Locals: form (form builder), project %>
+<div class="space-y-4">
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <%# Digest mode %>
+    <div>
+      <label class="block text-sm font-medium text-text-muted mb-1.5">Digest Mode</label>
+      <%= form.select "notification_prefs[digest_mode]",
+        [
+          ["Realtime - instant notifications", "realtime"],
+          ["Hourly - batched every hour", "hourly"],
+          ["Daily - once per day summary", "daily"],
+          ["Manual - only when you check", "manual"]
+        ],
+        { selected: project.notification_prefs&.dig("digest_mode") || "realtime" },
+        class: "w-full px-3 py-2 bg-surface-base border border-border-default rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-colors" %>
+      <p class="text-text-faint text-xs mt-1">How often you receive project updates.</p>
+    </div>
+
+    <%# Urgency preset %>
+    <div>
+      <label class="block text-sm font-medium text-text-muted mb-1.5">Urgency Preset</label>
+      <%= form.select "notification_prefs[urgency_preset]",
+        [
+          ["Relaxed - only blockers & approvals", "relaxed"],
+          ["Normal - status changes & milestones", "normal"],
+          ["Urgent - all events including checkpoints", "urgent"]
+        ],
+        { selected: project.notification_prefs&.dig("urgency_preset") || "normal" },
+        class: "w-full px-3 py-2 bg-surface-base border border-border-default rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-colors" %>
+      <p class="text-text-faint text-xs mt-1">What level of events trigger notifications.</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <%# Channel %>
+    <div>
+      <label class="block text-sm font-medium text-text-muted mb-1.5">Notification Channel</label>
+      <%= form.select "notification_prefs[channel]",
+        [
+          ["Email", "email"],
+          ["Slack", "slack"],
+          ["Discord", "discord"]
+        ],
+        { include_blank: "Default (in-app)", selected: project.notification_prefs&.dig("channel") },
+        class: "w-full px-3 py-2 bg-surface-base border border-border-default rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-colors" %>
+      <p class="text-text-faint text-xs mt-1">Where to send notifications (optional).</p>
+    </div>
+
+    <%# Channel target %>
+    <div>
+      <label class="block text-sm font-medium text-text-muted mb-1.5">Channel Target</label>
+      <%= form.text_field "notification_prefs[channel_target]",
+        value: project.notification_prefs&.dig("channel_target"),
+        placeholder: "e.g., #project-updates or team@example.com",
+        class: "w-full px-3 py-2 bg-surface-base border border-border-default rounded-lg text-white text-sm placeholder-text-faint focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-colors" %>
+      <p class="text-text-faint text-xs mt-1">Channel name, webhook URL, or email address.</p>
+    </div>
+  </div>
+
+  <%# Explanation %>
+  <div class="bg-surface-base border border-border-default rounded-lg p-3">
+    <p class="text-text-faint text-xs leading-relaxed">
+      <span class="text-text-muted font-medium">Realtime</span> sends notifications immediately for each event.
+      <span class="text-text-muted font-medium">Hourly</span> and <span class="text-text-muted font-medium">Daily</span> batch events into digest summaries.
+      <span class="text-text-muted font-medium">Manual</span> disables push notifications entirely.
+      The urgency preset filters which events qualify: <span class="text-text-muted font-medium">Relaxed</span> only alerts for blockers and approval requests,
+      <span class="text-text-muted font-medium">Normal</span> includes milestone completions and status changes,
+      and <span class="text-text-muted font-medium">Urgent</span> notifies on every event including agent checkpoints.
+    </p>
+  </div>
+</div>

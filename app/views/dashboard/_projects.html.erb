@@ -1,0 +1,101 @@
+<div class="space-y-8">
+  <!-- Pending Approvals -->
+  <% if @pending_approvals.any? %>
+    <div>
+      <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+        Pending Approvals
+        <span class="px-2 py-0.5 bg-amber-600/20 text-amber-400 text-xs font-bold rounded-full"><%= @pending_approvals.size %></span>
+      </h2>
+      <div class="space-y-3">
+        <% @pending_approvals.each do |milestone| %>
+          <%= link_to project_path(milestone.project), class: "block bg-amber-900/20 border border-amber-600/30 rounded-lg p-4 hover:border-amber-500 transition" do %>
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-white font-medium"><%= milestone.title %></h3>
+                <p class="text-text-muted text-sm mt-1">
+                  <%= milestone.project.title %> · <%= milestone.agent&.name || "Unassigned" %>
+                </p>
+              </div>
+              <span class="px-3 py-1 bg-amber-600 text-white text-xs font-semibold rounded-full">Review</span>
+            </div>
+            <% if milestone.agent_notes.present? %>
+              <p class="text-text-faint text-sm mt-2 line-clamp-2"><%= milestone.agent_notes.truncate(150) %></p>
+            <% end %>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Active Projects -->
+  <div>
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold text-white">Projects</h2>
+      <%= link_to "New Project", new_project_path, class: "px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition" %>
+    </div>
+
+    <% if @projects.any? %>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <% @projects.each do |project| %>
+          <%= link_to project_path(project), class: "block bg-surface-card border border-border-default rounded-xl p-5 hover:border-brand/50 transition" do %>
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-white font-semibold"><%= project.title %></h3>
+              <% status_colors = { "active" => "bg-blue-600", "blocked" => "bg-amber-600", "completed" => "bg-green-600", "planning" => "bg-gray-600", "paused" => "bg-gray-500", "cancelled" => "bg-red-600" } %>
+              <span class="px-2 py-0.5 <%= status_colors[project.status] || 'bg-gray-600' %> text-white text-xs font-semibold rounded-full">
+                <%= project.status.capitalize %>
+              </span>
+            </div>
+
+            <p class="text-text-muted text-sm mb-3"><%= project.team.name %></p>
+
+            <!-- Progress Bar -->
+            <div class="mb-3">
+              <div class="flex items-center justify-between text-xs text-text-faint mb-1">
+                <span><%= project.milestones.where(status: "completed").count %>/<%= project.milestones.count %> milestones</span>
+                <span><%= project.progress_percentage %>%</span>
+              </div>
+              <div class="h-2 bg-surface-raised rounded-full overflow-hidden">
+                <div class="h-full bg-amber-500 rounded-full transition-all" style="width: <%= project.progress_percentage %>%"></div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 text-xs text-text-faint">
+              <% pending = project.milestones.where(status: "needs_review").count %>
+              <% if pending > 0 %>
+                <span class="text-amber-400"><%= pending %> pending review</span>
+              <% end %>
+              <% if project.deadline %>
+                <span>Due <%= project.deadline.strftime("%b %d") %></span>
+              <% end %>
+              <span class="px-1.5 py-0.5 bg-surface-raised rounded text-text-faint"><%= project.priority %></span>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="bg-surface-card rounded-xl border border-border-default p-12 text-center">
+        <p class="text-text-muted mb-4">No projects yet. Create one to start tracking multi-step goals.</p>
+        <%= link_to "Create Project", new_project_path, class: "px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition" %>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Recent Completions -->
+  <% if @recent_completions.any? %>
+    <div>
+      <h2 class="text-lg font-semibold text-white mb-4">Recently Completed</h2>
+      <div class="space-y-2">
+        <% @recent_completions.each do |milestone| %>
+          <div class="bg-surface-card border border-border-default rounded-lg px-4 py-3 flex items-center gap-3">
+            <div class="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+            <div class="flex-1">
+              <span class="text-white text-sm"><%= milestone.title %></span>
+              <span class="text-text-faint text-xs ml-2"><%= milestone.project.title %></span>
+            </div>
+            <span class="text-text-faint text-xs"><%= time_ago_in_words(milestone.completed_at) %> ago</span>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+</div>

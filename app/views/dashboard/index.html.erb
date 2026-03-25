@@ -15,7 +15,7 @@
 
   <!-- Tabs -->
   <div class="flex gap-1 mb-8 border-b border-border-default">
-    <% %w[overview usage health].each do |tab| %>
+    <% %w[overview usage health projects].each do |tab| %>
       <%= link_to dashboard_path(tab: tab),
           class: "px-5 py-3 text-sm font-medium transition border-b-2 -mb-px #{@tab == tab ? 'border-amber-500 text-white' : 'border-transparent text-text-muted hover:text-white hover:border-border-default'}" do %>
         <%= tab.capitalize %>

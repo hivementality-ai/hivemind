@@ -4,7 +4,7 @@ class DashboardController < ApplicationController
   skip_before_action :authenticate_user!, only: [ :index ]
   before_action :check_setup_complete
 
-  ALLOWED_TABS = %w[overview usage health].freeze
+  ALLOWED_TABS = %w[overview usage health projects].freeze
 
   def index
     @tab = ALLOWED_TABS.include?(params[:tab]) ? params[:tab] : "overview"
@@ -16,6 +16,8 @@ class DashboardController < ApplicationController
       load_usage_data
     when "health"
       load_health_data
+    when "projects"
+      load_projects_data
     end
   end
 
@@ -103,6 +105,18 @@ class DashboardController < ApplicationController
     @cost_week = UsageRecord.where(created_at: 1.week.ago..).sum(:cost_cents) / 100.0
     @cost_month = UsageRecord.where(created_at: Time.current.beginning_of_month..).sum(:cost_cents) / 100.0
     @tokens_today = UsageRecord.where(created_at: Time.current.beginning_of_day..).sum("input_tokens + output_tokens")
+  end
+
+  # === Projects Tab ===
+
+  def load_projects_data
+    @projects = Project.includes(:team, :milestones).order(updated_at: :desc).limit(20)
+    @pending_approvals = ProjectMilestone.awaiting_review.includes(:project).limit(10)
+    @recent_completions = ProjectMilestone.where(status: "completed")
+                                          .where("completed_at > ?", 7.days.ago)
+                                          .includes(:project, :agent)
+                                          .order(completed_at: :desc)
+                                          .limit(10)
   end
 
   # === Shared helpers ===
