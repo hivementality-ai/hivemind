@@ -29,17 +29,26 @@ module Api
       private
 
       def fetch_ollama_models
-        config = ProviderConfig.find_by(adapter_type: "ollama") || ProviderConfig.new(adapter_type: "ollama")
+        config = ProviderConfig.find_by(adapter_type: "ollama")
+        return [] unless config
+
+        # Return manually configured models from model_definitions
+        configured = (config.model_definitions || []).map do |m|
+          { id: m["id"], name: format_model_name(m["id"]) }
+        end
+        return configured if configured.any?
+
+        # Fall back to remote detection if no models are configured
         adapter = Providers::OllamaAdapter.new(config: config)
         result = adapter.models
         if result.success?
           result.data[:models].map { |name| { id: name, name: format_model_name(name) } }
         else
-          [ { id: "", name: "Ollama not reachable — is it running?" } ]
+          []
         end
       rescue StandardError => e
         Rails.logger.warn("Ollama model fetch failed: #{e.message}")
-        [ { id: "", name: "Ollama not reachable — is it running?" } ]
+        []
       end
 
       def fetch_anthropic_models
@@ -66,17 +75,26 @@ module Api
       end
 
       def fetch_openai_compatible_models
-        config = ProviderConfig.find_by(adapter_type: "openai_compatible") || ProviderConfig.new(adapter_type: "openai_compatible")
+        config = ProviderConfig.find_by(adapter_type: "openai_compatible")
+        return [] unless config
+
+        # Return manually configured models from model_definitions
+        configured = (config.model_definitions || []).map do |m|
+          { id: m["id"], name: m["id"] }
+        end
+        return configured if configured.any?
+
+        # Fall back to remote detection if no models are configured
         adapter = Providers::OpenaiCompatibleAdapter.new(config: config)
         result = adapter.models
         if result.success?
-          result.data[:models].map { |name| { id: name, name: format_model_name(name) } }
+          result.data[:models].map { |name| { id: name, name: name } }
         else
-          [ { id: "", name: "Server not reachable — is it running?" } ]
+          []
         end
       rescue StandardError => e
         Rails.logger.warn("OpenAI Compatible model fetch failed: #{e.message}")
-        [ { id: "", name: "Server not reachable — is it running?" } ]
+        []
       end
 
       def format_model_name(name)

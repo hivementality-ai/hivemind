@@ -55,7 +55,6 @@ module Providers
     def server_url
       url = base_url.presence
       raise "OpenAI-compatible provider '#{config.name}' (id=#{config.id}) has no base_url configured" unless url
-      Rails.logger.info("[OpenAI-Compatible] Using base_url=#{url} for provider '#{config.name}' (id=#{config.id})")
       url
     end
 
