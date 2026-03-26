@@ -8,8 +8,15 @@ export default class extends Controller {
     this.updateUI()
   }
 
+  async getRegistration() {
+    if (!("serviceWorker" in navigator)) return null
+    // Ensure the service worker is registered, then wait for it to be ready
+    await navigator.serviceWorker.register("/service-worker", { scope: "/" })
+    return navigator.serviceWorker.ready
+  }
+
   async updateUI() {
-    if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+    if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
       this.setStatus("Push notifications are not supported in this browser.")
       this.disableToggle()
       return
@@ -18,7 +25,8 @@ export default class extends Controller {
     const permission = Notification.permission
 
     if (permission === "granted") {
-      const registration = await navigator.serviceWorker.ready
+      const registration = await this.getRegistration()
+      if (!registration) { this.disableToggle(); return }
       const subscription = await registration.pushManager.getSubscription()
       if (subscription) {
         this.setToggleActive(true)
@@ -59,7 +67,11 @@ export default class extends Controller {
 
   async subscribe() {
     try {
-      const registration = await navigator.serviceWorker.ready
+      const registration = await this.getRegistration()
+      if (!registration) {
+        this.setStatus("Service worker not available.")
+        return
+      }
       const applicationServerKey = this.urlBase64ToUint8Array(this.vapidPublicKeyValue)
 
       const subscription = await registration.pushManager.subscribe({
