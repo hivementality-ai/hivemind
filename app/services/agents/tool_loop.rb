@@ -123,7 +123,7 @@ module Agents
     end
 
     def execute_tool_calls(tool_calls)
-      tool_calls.map do |tc|
+      results = tool_calls.map do |tc|
         tool_name = tc["name"]
         tool_input = tc["input"] || {}
         tool_use_id = tc["id"]
@@ -174,6 +174,8 @@ module Agents
 
       # Checkpoint project milestone progress periodically
       save_project_checkpoint if project_milestone_session? && (@tool_history.size % 10).zero? && @tool_history.size > 0
+
+      results
     end
 
     def project_milestone_session?
