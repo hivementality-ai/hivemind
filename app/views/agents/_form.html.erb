@@ -187,20 +187,35 @@
   </div>
 
   <!-- Tools -->
-  <div class="bg-surface-card rounded-xl border border-border-default p-6">
-    <div class="mb-4">
-      <h2 class="text-lg font-semibold text-white">Tools</h2>
-      <p class="text-text-muted text-sm mt-1">Select which tools this agent can use. Leave all unchecked to grant access to every tool.</p>
+  <div class="bg-surface-card rounded-xl border border-border-default p-6" data-controller="tool-select">
+    <div class="mb-4 flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-semibold text-white">Tools</h2>
+        <p class="text-text-muted text-sm mt-1">Select which tools this agent can use. Leave all unchecked to grant access to every tool.</p>
+      </div>
+      <span class="text-text-faint text-sm" data-tool-select-target="counter"></span>
     </div>
 
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-      <% Tool.enabled.order(:name).each do |tool| %>
-        <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-raised/50 hover:bg-surface-raised transition cursor-pointer">
-          <%= check_box_tag "agent[tool_ids][]", tool.id,
-              agent.tool_ids.include?(tool.id),
-              class: "w-4 h-4 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay" %>
-          <span class="text-text-primary text-sm truncate" title="<%= tool.description %>"><%= tool.name %></span>
-        </label>
+    <div class="space-y-4">
+      <% grouped_tools(Tool.enabled.order(:name)).each do |category, tools| %>
+        <div data-tool-select-target="category">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-medium text-text-muted"><%= category %></h3>
+            <button type="button" class="text-xs text-brand hover:text-brand-light transition"
+                    data-action="click->tool-select#toggleCategory">select all</button>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+            <% tools.each do |tool| %>
+              <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-raised/50 hover:bg-surface-raised transition cursor-pointer">
+                <%= check_box_tag "agent[tool_ids][]", tool.id,
+                    agent.tool_ids.include?(tool.id),
+                    class: "w-4 h-4 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay",
+                    data: { action: "change->tool-select#updateCounter" } %>
+                <span class="text-text-primary text-sm truncate" title="<%= tool.description %>"><%= tool.name %></span>
+              </label>
+            <% end %>
+          </div>
+        </div>
       <% end %>
     </div>
 
