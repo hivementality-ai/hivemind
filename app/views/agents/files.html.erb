@@ -8,7 +8,7 @@
       </div>
       <div class="flex gap-3">
         <!-- Upload -->
-        <%= form_with url: upload_files_agent_path(@agent), method: :post, multipart: true, class: "flex items-center" do %>
+        <%= form_with url: upload_files_agent_path(@agent), method: :post, multipart: true, data: { turbo: false }, class: "flex items-center" do %>
           <input type="hidden" name="path" value="<%= @current_path %>">
           <label class="cursor-pointer px-4 py-2 rounded-lg bg-brand hover:bg-brand-dark transition flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
