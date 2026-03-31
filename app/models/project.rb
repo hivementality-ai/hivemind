@@ -8,7 +8,9 @@ class Project < ApplicationRecord
   has_many :events, class_name: "ProjectEvent", dependent: :destroy
 
   validates :title, presence: true
-  validates :status, inclusion: { in: %w[planning active paused blocked completed cancelled] }
+  validates :status, inclusion: { in: %w[planning active paused blocked completed cancelled archived] }
+
+  scope :visible, -> { where.not(status: "archived") }
   validates :priority, inclusion: { in: %w[low normal high urgent] }
 
   scope :active_or_blocked, -> { where(status: %w[active blocked]) }

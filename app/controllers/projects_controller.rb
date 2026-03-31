@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
 class ProjectsController < ApplicationController
-  before_action :set_project, only: [ :show, :edit, :update, :pause, :resume, :cancel, :upload_files, :delete_file ]
+  before_action :set_project, only: [ :show, :edit, :update, :pause, :resume, :cancel, :archive, :destroy, :upload_files, :delete_file ]
 
   def index
-    @projects = Project.includes(:team, :milestones).order(updated_at: :desc)
+    @projects = Project.visible.includes(:team, :milestones).order(updated_at: :desc)
     @pending_approvals = ProjectMilestone.awaiting_review.count
   end
 
@@ -81,6 +81,20 @@ class ProjectsController < ApplicationController
     Projects::EventLogger.call(project: @project, user: current_user,
       event_type: "status_change", summary: "Project cancelled by #{current_user.email}")
     redirect_to projects_path, notice: "Project cancelled."
+  end
+
+  def archive
+    @project.update!(status: "archived")
+    Projects::EventLogger.call(project: @project, user: current_user,
+      event_type: "status_change", summary: "Project archived by #{current_user.email}")
+    redirect_to projects_path, notice: "Project archived."
+  end
+
+  def destroy
+    @project.destroy!
+    redirect_to projects_path, notice: "Project deleted."
+  rescue ActiveRecord::InvalidForeignKey
+    redirect_to project_path(@project), alert: "Unable to delete — archive it instead."
   end
 
   def upload_files

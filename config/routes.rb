@@ -88,6 +88,7 @@ Rails.application.routes.draw do
       post :pause
       post :resume
       post :cancel
+      post :archive
       post :upload_files
       delete :delete_file
     end
