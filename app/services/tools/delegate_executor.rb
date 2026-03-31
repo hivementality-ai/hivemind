@@ -12,6 +12,7 @@ module Tools
 
       target = Agent.visible.enabled.where("LOWER(name) = ?", agent_name.downcase).first
       return ServiceResponse.failure(error: "Agent '#{agent_name}' not found. Available: #{available_agents}") unless target
+      return ServiceResponse.failure(error: "Cannot delegate to yourself — try performing the task directly") if agent&.id == target.id
 
       # Reuse existing heartbeat session if delegated by system assistant,
       # otherwise create/find a standard delegation session

@@ -19,7 +19,7 @@ module Tools
       result = Sessions::Chat.call(session: session, message: message, agent: target_agent)
 
       if result.success?
-        reply = result.data[:reply].to_s.truncate(3000)
+        reply = result.data[:content].to_s.truncate(3000)
         ServiceResponse.success(data: {
           output: "Sent to #{target_agent.name} (session #{session.session_key}).\nReply: #{reply}",
           exit_code: 0
