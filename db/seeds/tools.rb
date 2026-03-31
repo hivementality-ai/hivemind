@@ -766,6 +766,23 @@ BUILTIN_TOOLS = [
       },
       "required" => %w[title description milestones]
     }
+  },
+  # ── Platform Control ───────────────────────────────────────────
+  {
+    name: "platform_control",
+    description: "Manage the Hivemind platform itself. Restart services, update to latest version, check status, view logs.",
+    executor_type: "platform_control",
+    requires_approval: true,
+    parameters_schema: {
+      "properties" => {
+        "action" => { "type" => "string", "description" => "Action to perform", "enum" => %w[restart update status version logs] },
+        "services" => { "type" => "array", "items" => { "type" => "string" }, "description" => "Services to restart (e.g. app, worker, workspace). Omit to restart all. Only for restart action." },
+        "rc" => { "type" => "boolean", "description" => "Include release candidates when updating. Only for update action." },
+        "service" => { "type" => "string", "description" => "Service to fetch logs from (default: app). Only for logs action." },
+        "lines" => { "type" => "integer", "description" => "Number of log lines to fetch (default: 50, max: 200). Only for logs action." }
+      },
+      "required" => %w[action]
+    }
   }
 ].freeze
 
