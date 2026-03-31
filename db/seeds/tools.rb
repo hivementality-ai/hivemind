@@ -699,20 +699,30 @@ BUILTIN_TOOLS = [
   # ── Project Layer Tools ──────────────────────────────────────────
   {
     name: "project_update",
-    description: "Report progress on a project milestone. Use this to update milestone status, attach deliverables, or mark work for review.",
+    description: "Manage projects and milestones. Update milestone status, edit project details, add/remove/edit milestones, and reassign agents.",
     executor_type: "project_update",
     requires_approval: false,
     parameters_schema: {
       "properties" => {
-        "milestone_id" => { "type" => "integer", "description" => "The milestone being updated" },
-        "status" => { "type" => "string", "description" => "New status: in_progress, needs_review, or blocked", "enum" => %w[in_progress needs_review blocked] },
-        "notes" => { "type" => "string", "description" => "Summary of what was accomplished" },
-        "deliverables" => { "type" => "array", "items" => { "type" => "string" }, "description" => "Files, URLs, or summaries to attach" },
-        "blocker" => { "type" => "string", "description" => "Description of what is blocking (when status is blocked)" },
-        "completed_steps" => { "type" => "array", "items" => { "type" => "string" }, "description" => "What has been completed so far" },
-        "pending_steps" => { "type" => "array", "items" => { "type" => "string" }, "description" => "What still needs to be done" }
+        "action" => { "type" => "string", "description" => "Action to perform", "enum" => %w[update_milestone update_project add_milestone remove_milestone edit_milestone assign_agent], "default" => "update_milestone" },
+        "project_id" => { "type" => "integer", "description" => "Project ID (for update_project and add_milestone)" },
+        "milestone_id" => { "type" => "integer", "description" => "Milestone ID (for update_milestone, remove_milestone, edit_milestone, assign_agent)" },
+        "title" => { "type" => "string", "description" => "Title (for update_project, add_milestone, edit_milestone)" },
+        "description" => { "type" => "string", "description" => "Description (for update_project, add_milestone, edit_milestone)" },
+        "acceptance_criteria" => { "type" => "string", "description" => "Acceptance criteria (for add_milestone, edit_milestone)" },
+        "status" => { "type" => "string", "description" => "Milestone status (for update_milestone)", "enum" => %w[in_progress needs_review blocked] },
+        "project_status" => { "type" => "string", "description" => "Project status (for update_project)", "enum" => %w[planning active paused] },
+        "priority" => { "type" => "string", "description" => "Project priority (for update_project)", "enum" => %w[low normal high urgent] },
+        "agent_name" => { "type" => "string", "description" => "Agent name to assign (for add_milestone, edit_milestone, assign_agent). Pass null to unassign." },
+        "lead_agent_name" => { "type" => "string", "description" => "Lead agent name (for update_project)" },
+        "requires_approval" => { "type" => "boolean", "description" => "Whether milestone requires approval (for add_milestone, edit_milestone)" },
+        "notes" => { "type" => "string", "description" => "Summary of what was accomplished (for update_milestone)" },
+        "deliverables" => { "type" => "array", "items" => { "type" => "string" }, "description" => "Files, URLs, or summaries to attach (for update_milestone)" },
+        "blocker" => { "type" => "string", "description" => "Blocker description (for update_milestone when status is blocked)" },
+        "completed_steps" => { "type" => "array", "items" => { "type" => "string" }, "description" => "Completed steps (for update_milestone)" },
+        "pending_steps" => { "type" => "array", "items" => { "type" => "string" }, "description" => "Pending steps (for update_milestone)" }
       },
-      "required" => %w[milestone_id status]
+      "required" => %w[action]
     }
   },
   {
