@@ -1,0 +1,231 @@
+<%
+  status_classes = case @milestone.status
+  when "needs_review" then "bg-amber-500/20 text-amber-400 border-amber-500/30"
+  when "completed" then "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+  when "pending" then "bg-slate-500/20 text-slate-400 border-slate-500/30"
+  when "in_progress" then "bg-blue-500/20 text-blue-400 border-blue-500/30"
+  when "blocked" then "bg-red-500/20 text-red-400 border-red-500/30"
+  when "skipped" then "bg-purple-500/20 text-purple-400 border-purple-500/30"
+  else "bg-slate-500/20 text-slate-400 border-slate-500/30"
+  end
+%>
+
+<div class="min-h-screen bg-surface-base text-white">
+  <!-- Header -->
+  <div class="bg-surface-card border-b border-border-default px-6 py-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <%= link_to "← Back to Project", project_path(@project), class: "text-text-muted hover:text-white transition" %>
+        <h1 class="text-2xl font-bold"><%= @milestone.title %></h1>
+        <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium border <%= status_classes %>">
+          <%= @milestone.status.titleize %>
+        </span>
+      </div>
+      <% if @milestone.status == "needs_review" %>
+        <div class="flex gap-2">
+          <%= button_to "Approve", approve_project_milestone_path(@project, @milestone), method: :post, class: "px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-sm font-medium transition cursor-pointer" %>
+          <%= button_to "Skip", skip_project_milestone_path(@project, @milestone), method: :post, data: { turbo_confirm: "Skip this milestone?" }, class: "px-4 py-2 bg-surface-raised hover:bg-surface-card border border-border-default rounded-lg text-sm transition cursor-pointer" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="container mx-auto px-6 py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Left: Details -->
+      <div class="lg:col-span-2 space-y-6">
+        <!-- Description -->
+        <% if @milestone.description.present? %>
+          <div class="bg-surface-card rounded-lg p-6 border border-border-default">
+            <h2 class="text-lg font-semibold mb-3">Description</h2>
+            <p class="text-text-muted text-sm leading-relaxed whitespace-pre-wrap"><%= @milestone.description %></p>
+          </div>
+        <% end %>
+
+        <!-- Acceptance Criteria -->
+        <% if @milestone.acceptance_criteria.present? %>
+          <div class="bg-surface-card rounded-lg p-6 border border-border-default">
+            <h2 class="text-lg font-semibold mb-3">Acceptance Criteria</h2>
+            <div class="text-text-muted text-sm leading-relaxed whitespace-pre-wrap"><%= @milestone.acceptance_criteria %></div>
+          </div>
+        <% end %>
+
+        <!-- Agent Notes -->
+        <% if @milestone.agent_notes.present? %>
+          <div class="bg-surface-card rounded-lg p-6 border border-border-default">
+            <h2 class="text-lg font-semibold mb-3">Agent Notes</h2>
+            <p class="text-text-muted text-sm leading-relaxed whitespace-pre-wrap"><%= @milestone.agent_notes %></p>
+          </div>
+        <% end %>
+
+        <!-- Deliverables -->
+        <% if @milestone.deliverables.present? %>
+          <div class="bg-surface-card rounded-lg p-6 border border-border-default">
+            <h2 class="text-lg font-semibold mb-3">Deliverables</h2>
+            <ul class="space-y-2">
+              <% Array(@milestone.deliverables).each do |deliverable| %>
+                <li class="flex items-start gap-2 text-sm text-text-muted">
+                  <svg class="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  <span><%= deliverable.is_a?(Hash) ? deliverable["description"] || deliverable["title"] : deliverable %></span>
+                </li>
+              <% end %>
+            </ul>
+          </div>
+        <% end %>
+
+        <!-- Review Notes -->
+        <% if @milestone.review_notes.present? %>
+          <div class="bg-surface-card rounded-lg p-6 border border-border-default">
+            <h2 class="text-lg font-semibold mb-3">Review Notes</h2>
+            <p class="text-text-muted text-sm leading-relaxed whitespace-pre-wrap"><%= @milestone.review_notes %></p>
+          </div>
+        <% end %>
+
+        <!-- Reject with Feedback (for needs_review) -->
+        <% if @milestone.status == "needs_review" %>
+          <div class="bg-surface-card rounded-lg p-6 border border-amber-500/30">
+            <h2 class="text-lg font-semibold mb-3">Reject with Feedback</h2>
+            <%= form_with url: reject_project_milestone_path(@project, @milestone), method: :post, class: "space-y-3" do %>
+              <textarea name="feedback" rows="3" required placeholder="Explain what needs to change..." class="w-full px-3 py-2 bg-surface-base border border-border-default rounded-lg text-white text-sm placeholder-text-faint focus:outline-none focus:border-amber-500/50 resize-none"></textarea>
+              <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-medium transition">
+                Reject & Retry
+              </button>
+            <% end %>
+          </div>
+        <% end %>
+
+        <!-- Activity -->
+        <% if @events.any? %>
+          <div class="bg-surface-card rounded-lg p-6 border border-border-default">
+            <h2 class="text-lg font-semibold mb-4">Activity</h2>
+            <div class="space-y-3">
+              <% @events.each do |event| %>
+                <div class="flex items-start gap-3">
+                  <div class="w-2 h-2 rounded-full bg-text-faint mt-2 shrink-0"></div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm text-text-muted"><%= event.summary %></p>
+                    <span class="text-xs text-text-faint"><%= time_ago_in_words(event.created_at) %> ago</span>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+
+      <!-- Right: Sidebar -->
+      <div class="space-y-6">
+        <!-- Details card -->
+        <div class="bg-surface-card rounded-lg p-6 border border-border-default">
+          <h2 class="text-lg font-semibold mb-4">Details</h2>
+          <dl class="space-y-4">
+            <!-- Assigned Agent -->
+            <div>
+              <dt class="text-xs text-text-faint uppercase tracking-wider mb-1">Assigned Agent</dt>
+              <dd class="text-sm">
+                <% if @milestone.agent.present? %>
+                  <%= link_to @milestone.agent.name, agent_path(@milestone.agent), class: "text-amber-400 hover:text-amber-300 transition" %>
+                  <span class="text-text-faint">— <%= @milestone.agent.role %></span>
+                <% else %>
+                  <span class="text-text-faint">Unassigned</span>
+                <% end %>
+              </dd>
+            </div>
+
+            <!-- Position -->
+            <div>
+              <dt class="text-xs text-text-faint uppercase tracking-wider mb-1">Position</dt>
+              <dd class="text-sm text-text-muted">Step <%= (@milestone.position || 0) + 1 %></dd>
+            </div>
+
+            <!-- Requires Approval -->
+            <div>
+              <dt class="text-xs text-text-faint uppercase tracking-wider mb-1">Requires Approval</dt>
+              <dd class="text-sm text-text-muted"><%= @milestone.requires_approval ? "Yes" : "No (auto-approve)" %></dd>
+            </div>
+
+            <!-- Retries -->
+            <% if @milestone.retry_count > 0 %>
+              <div>
+                <dt class="text-xs text-text-faint uppercase tracking-wider mb-1">Retries</dt>
+                <dd class="text-sm text-orange-400"><%= @milestone.retry_count %> / <%= @milestone.max_retries %></dd>
+              </div>
+            <% end %>
+
+            <!-- Session -->
+            <% if @milestone.session.present? %>
+              <div>
+                <dt class="text-xs text-text-faint uppercase tracking-wider mb-1">Session</dt>
+                <dd class="text-sm">
+                  <%= link_to @milestone.session.session_key.truncate(20), session_path(@milestone.session), class: "text-blue-400 hover:text-blue-300 font-mono text-xs transition" %>
+                </dd>
+              </div>
+            <% end %>
+
+            <!-- Timestamps -->
+            <% if @milestone.started_at.present? %>
+              <div>
+                <dt class="text-xs text-text-faint uppercase tracking-wider mb-1">Started</dt>
+                <dd class="text-sm text-text-muted"><%= @milestone.started_at.strftime("%b %d, %Y %H:%M") %></dd>
+              </div>
+            <% end %>
+
+            <% if @milestone.completed_at.present? %>
+              <div>
+                <dt class="text-xs text-text-faint uppercase tracking-wider mb-1">Completed</dt>
+                <dd class="text-sm text-text-muted"><%= @milestone.completed_at.strftime("%b %d, %Y %H:%M") %></dd>
+              </div>
+            <% end %>
+
+            <% if @milestone.reviewed_at.present? %>
+              <div>
+                <dt class="text-xs text-text-faint uppercase tracking-wider mb-1">Reviewed</dt>
+                <dd class="text-sm text-text-muted"><%= @milestone.reviewed_at.strftime("%b %d, %Y %H:%M") %></dd>
+              </div>
+            <% end %>
+          </dl>
+        </div>
+
+        <!-- Dependencies -->
+        <% if @dependency_milestones.any? %>
+          <div class="bg-surface-card rounded-lg p-6 border border-border-default">
+            <h2 class="text-lg font-semibold mb-3">Dependencies</h2>
+            <div class="space-y-2">
+              <% @dependency_milestones.each do |dep| %>
+                <%= link_to project_milestone_path(@project, dep), class: "block bg-surface-base rounded-lg px-3 py-2 hover:bg-surface-raised transition" do %>
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm text-text-muted"><%= dep.title %></span>
+                    <span class="text-xs <%= dep.status == 'completed' ? 'text-emerald-400' : 'text-text-faint' %>"><%= dep.status.titleize %></span>
+                  </div>
+                <% end %>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+
+        <!-- Metadata -->
+        <% if @milestone.metadata.present? %>
+          <div class="bg-surface-card rounded-lg p-6 border border-border-default">
+            <h2 class="text-lg font-semibold mb-3">Metadata</h2>
+            <dl class="space-y-3">
+              <% @milestone.metadata.each do |key, value| %>
+                <div>
+                  <dt class="text-xs text-text-faint uppercase tracking-wider mb-1"><%= key.titleize %></dt>
+                  <dd class="text-sm text-text-muted">
+                    <% if value.is_a?(Array) %>
+                      <%= value.join(", ") %>
+                    <% else %>
+                      <%= value %>
+                    <% end %>
+                  </dd>
+                </div>
+              <% end %>
+            </dl>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
