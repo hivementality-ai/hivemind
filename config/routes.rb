@@ -94,7 +94,15 @@ Rails.application.routes.draw do
   end
 
   # Agents (use slug for routes)
-  resources :agents, param: :slug
+  resources :agents, param: :slug do
+    member do
+      get :files
+      post :upload_files
+      delete :delete_file
+      post :create_directory
+      get :download_file
+    end
+  end
 
   # Providers (admin interface)
   resources :providers, only: [ :index, :show, :new, :create, :edit, :update ]

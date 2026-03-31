@@ -446,16 +446,26 @@ build_and_start() {
   # Detect version from current tag
   local version
   version="$(git describe --tags --exact-match 2>/dev/null | sed 's/^v//' || git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo 'dev')"
+
+  # Pull prebuilt images from GHCR (all custom images)
   info "Pulling prebuilt images (version: $version)..."
-  if HIVEMIND_VERSION="$version" docker compose pull app workspace connector 2>/dev/null; then
+  local pull_ok=true
+  if ! HIVEMIND_VERSION="$version" docker compose pull app workspace connector sdk-proxy 2>/dev/null; then
+    # Retry with latest tag in case version-specific tag doesn't exist yet
+    if ! HIVEMIND_VERSION="latest" docker compose pull app workspace connector sdk-proxy 2>/dev/null; then
+      pull_ok=false
+    fi
+  fi
+
+  if [ "$pull_ok" = true ]; then
     ok "Prebuilt images pulled successfully"
   else
-    warn "Prebuilt images not available, building from source..."
+    warn "Prebuilt images not available — building from source (this may take a while)..."
     HIVEMIND_VERSION="$version" docker compose build --build-arg HIVEMIND_VERSION="$version"
   fi
 
   info "Starting Hivemind..."
-  docker compose up -d
+  HIVEMIND_VERSION="$version" docker compose up -d
 
   # Wait for Rails to be healthy
   echo -n "Waiting for Hivemind to be ready..."
