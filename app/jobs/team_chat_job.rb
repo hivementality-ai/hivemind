@@ -3,23 +3,21 @@
 class TeamChatJob < ApplicationJob
   queue_as :default
 
-  # Process a message in a team chat — route to targeted agent(s), handle responses,
-  # and trigger any @mentions in agent responses (chain reactions).
-  MAX_CHAIN_DEPTH = 2          # Max @mention chain reactions per user message
+  # Process a message in a team chat — route to targeted agent(s), handle responses.
+  # Agent-to-agent communication is handled via the talk_to_teammate tool.
   AGENT_COOLDOWN_SECONDS = 10  # Min seconds between an agent's responses
 
   def perform(team_chat_session_id, message_id, responding_agent_id: nil, chain_depth: 0, broadcast_agent_ids: [])
     @session = TeamChatSession.find(team_chat_session_id)
     @team = @session.team
     @channel = "team_chat_#{@session.id}"
-    @chain_depth = chain_depth
     message = TeamChatMessage.find(message_id)
     @trigger_message_images = message.images.attached? ? message.images.to_a : []
     @trigger_message_docs = message.documents.attached? ? message.documents.to_a : []
 
     # Determine which agents should respond
     agents_to_respond = if responding_agent_id
-                          # This is a chain reaction — specific agent was @mentioned by another agent
+                          # Specific agent was targeted (e.g. user @mentioned them)
                           [ Agent.find(responding_agent_id) ]
     elsif message.target_agent_id
                           # User @mentioned a specific agent
@@ -37,8 +35,6 @@ class TeamChatJob < ApplicationJob
 
     @current_round_trigger_id = message.id
     @current_round_agent_ids_responded = []
-    # Track all agents in this broadcast so chain reactions don't re-trigger them
-    @broadcast_agent_ids = broadcast_agent_ids.presence || agents_to_respond.map(&:id)
 
     agents_to_respond.each do |agent|
       respond_as_agent(agent:, trigger_message: message)
@@ -200,7 +196,13 @@ class TeamChatJob < ApplicationJob
           tools:,
           channel: @channel,
           options: llm_options,
-          broadcast_extras: broadcast_extras
+          broadcast_extras: broadcast_extras,
+          extra_config: {
+            team_chat_depth: 3,
+            active_agent_ids: [ agent.id ],
+            team_chat_channel: @channel,
+            session: @agent_session
+          }
         )
         full_content = result&.data&.dig(:content).to_s
         thinking_content = result&.data&.dig(:thinking)
@@ -290,18 +292,6 @@ class TeamChatJob < ApplicationJob
         content: full_content,
         message_id: agent_message.id
       })
-
-      # Check if the agent @mentioned another agent — trigger chain reaction (with depth limit)
-      if @chain_depth < MAX_CHAIN_DEPTH
-        mentions = TeamChatMessage.extract_mentions(full_content, @team)
-        # Skip agents who already responded (or will respond) in this broadcast round
-        skip_ids = ((@current_round_agent_ids_responded || []) + @broadcast_agent_ids + [ agent.id ]).uniq
-        mentions[:agents].reject { |a| skip_ids.include?(a.id) }.each do |mentioned_agent|
-          TeamChatJob.perform_later(@session.id, agent_message.id, responding_agent_id: mentioned_agent.id, chain_depth: @chain_depth + 1, broadcast_agent_ids: skip_ids)
-        end
-      else
-        Rails.logger.info("TeamChatJob: chain depth #{@chain_depth} reached max #{MAX_CHAIN_DEPTH}, skipping @mention chains for #{agent.name}")
-      end
 
     rescue AgentInterrupted
       if full_content.present?
@@ -488,9 +478,10 @@ class TeamChatJob < ApplicationJob
     parts << ""
     parts << "How this chat works:"
     parts << "- Messages show as [Name]: message — this is just formatting, never echo it back"
-    parts << "- When you address someone by name, ALWAYS use @Name (e.g. @#{teammates.first || 'Bobby'}, @#{human_name}) — never use [Name]: format"
-    parts << "- @team = everyone, @god or @#{human_name} = the human"
-    parts << "- You don't have to @mention in every message — just when it's natural"
+    parts << "- To talk directly to a specific teammate, use the talk_to_teammate tool"
+    parts << "- You'll send them a message, they'll respond, and you'll get their answer"
+    parts << "- Only use the tool when you need a specific teammate's input — for general discussion, just speak naturally"
+    parts << "- @god or @#{human_name} = the human"
     parts << "- Never start your response with [Name]: — just speak directly"
     parts << ""
     parts << "Be a teammate, not a bot. Respond when it's relevant to you. Keep it short."
@@ -544,6 +535,10 @@ class TeamChatJob < ApplicationJob
 
     # Inject system tools
     tools << SystemTool::LOAD_SKILL if agent.skills.enabled.any?
+
+    # Inject talk_to_teammate when teammates exist
+    teammates = @team.agents.enabled.where.not(id: agent.id)
+    tools << SystemTool::TALK_TO_TEAMMATE if teammates.any?
 
     tools
   end
