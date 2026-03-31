@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/brand/logo.png" width="80" alt="Hivemind">
+  <img src="public/brand/logo.svg" alt="Hivemind" width="200" />
 </p>
 
 <h1 align="center">Hivemind</h1>
@@ -18,11 +18,110 @@
 </p>
 
 <p align="center">
+  <a href="#quick-start">Quickstart</a> ·
+  <a href="https://hivementality.ai">Website</a> ·
+  <a href="https://discord.gg/ckyVareyvk">Discord</a> ·
+  <a href="https://github.com/hivementality-ai/hivemind">GitHub</a>
+</p>
+
+<p align="center">
   <img src="https://github.com/hivementality-ai/hivemind/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" />
   <img src="https://img.shields.io/badge/License-AGPLv3-blue?style=flat" alt="License" />
   <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=flat&logo=docker" alt="Docker" />
-  <img src="https://img.shields.io/discord/000000000?label=discord" alt="Discord" />
+  <a href="https://discord.gg/ckyVareyvk">
+    <img src="https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat&logo=discord&logoColor=white" alt="Discord">
+  </a> 
 </p>
+
+---
+
+## Your AI team is one command away
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hivementality-ai/hivemind/main/install.sh | bash
+```
+
+Open `http://localhost:8080`. Setup wizard walks you through everything. First agent team live in under 5 minutes.
+
+---
+
+## The problem
+
+| Without Hivemind | With Hivemind |
+|---|---|
+| :x: You have 20 AI agent tabs open and can't track what any of them are doing. On reboot, everything's gone. | :white_check_mark: Agents live in persistent workspaces with team chat, memory, and state that survives restarts. |
+| :x: Your agents can chat but can't *do* anything — no shell, no browser, no email, no Jira, no file system. | :white_check_mark: 40+ built-in tools from day one. Shell, browser, Jira, email, Gmail, MCP client, Live Canvas, cloud storage, coding agent delegation, and more. |
+| :x: You manually copy context between agents because they can't talk to each other. | :white_check_mark: Team chat with @mentions. Agents collaborate, chain-react, and hand off work naturally. |
+| :x: Your agents live in a dashboard. Your team lives in Slack/Discord/WhatsApp. They never meet. | :white_check_mark: 5 fully integrated messaging channels. Each agent gets its own bot identity. Your AI team works where your human team works. |
+| :x: API keys in .env files, credentials in plaintext, no audit trail, no isolation. | :white_check_mark: Fully sandboxed — zero access to your host machine. Vault-encrypted credentials, workspace isolation, append-only audit log, network egress controls. |
+| :x: Your agents never get better. Same capabilities day one as day 100. | :white_check_mark: Agent self-evolution — agents create their own tools and skills at runtime. They improve the more they work. |
+| :x: You need a coding task done but your agent edits files one line at a time. | :white_check_mark: Delegate to Claude Code, Codex, or Aider. Multi-file tasks with live progress streaming to chat. |
+| :x: You're locked to one AI provider. | :white_check_mark: Any model — Anthropic, OpenAI, Google Gemini, Ollama, any OpenAI-compatible provider. Native thinking/reasoning support. |
+
+---
+
+## How it works
+
+| Step | What happens | What you see |
+|------|-------------|--------------|
+| **01** | Install and create your account | Setup wizard — no config files, no CLI |
+| **02** | Build your team | Pick from 150+ templates across 18 categories, assign tools and skills, connect a channel |
+| **03** | Let them work | Agents collaborate in team chat, use 40+ tools, connect to your messaging channels, evolve their own capabilities, and run on autopilot via heartbeat scheduling |
+
+---
+
+## Why Hivemind?
+
+Every multi-agent AI tool we tried had the same problem: **your agent runs with your permissions, on your filesystem, with your credentials in plaintext.**
+
+We wanted multiple AI agent teams — specialized agents that collaborate on real work. But we also wanted to sleep at night. One bad prompt injection or runaway loop and an agent is reading your SSH keys, nuking your home directory, or burning through $500 in API credits at 3 AM.
+
+The tipping point was when Anthropic announced they were blocking OAuth keys except through the SDK. The tools we were using were about to break. Instead of patching someone else's architecture, we built what we actually wanted to use: **a platform where agents can do real work inside a fully sandboxed environment with zero access to your host machine.**
+
+Sandboxing isn't a limitation — it's the feature. Every tool, every skill, every integration runs inside the container with only the permissions you explicitly grant. Credentials are vault-encrypted. Agent code runs in a separate container with no database access. Network egress is controlled per-agent. An append-only audit log traces every tool call and decision.
+
+**And inside that sandbox, agents can do serious work:**
+
+- **40+ built-in tools** — shell, files, browser (Playwright), Jira, email, Gmail, cloud storage (Drive/S3/Dropbox/OneDrive/B2/SFTP), MCP client, Live Canvas, web search, vision, TTS, coding agent delegation, and more. Agents are productive on first boot.
+- **150+ agent templates** across 18 categories — researcher, engineer, writer, analyst, and more. Not starting from a blank prompt.
+- **Team chat** with @mentions — agents collaborate and chain-react in real group conversation. Not tickets. Not pipelines. Conversation.
+- **5 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal. Each agent gets its own Slack bot identity with thread routing.
+- **Any AI model** — Anthropic, OpenAI, Google Gemini, Ollama, any OpenAI-compatible provider. Native extended thinking/reasoning support across all adapters. **Already paying for Anthropic Pro or Max? Use your existing subscription directly via the SDK — no separate API billing, no usage charges.** Hivemind auto-detects OAuth tokens and adds the required headers automatically.
+- **Agent self-evolution** — agents create their own tools and skills at runtime. They get smarter the more they work.
+- **Coding agent delegation** — hand off multi-file tasks to Claude Code, Codex, or Aider with live progress streaming.
+- **Plugin system** — hooks, custom tools, and channel adapters via plugins directory. Extend without forking.
+- **Team analytics** — per-team dashboards with agent drilldown and budget enforcement.
+- **Security-first** — fully sandboxed (zero host access), vault-encrypted credentials (AES-256-GCM), workspace isolation (separate container, no DB access), network egress controls, skill security scanner, append-only audit log.
+- **Skills system** — teach agents new capabilities. OpenClaw SKILL.md compatible. In-app editor.
+- **One command install** — `docker compose up` and you're live.
+
+---
+
+## Hivemind vs Paperclip
+
+Both are open-source multi-agent platforms. Different strengths.
+
+**Paperclip** is the org chart — models companies with goal hierarchies, budget governance, and delegation flows.
+
+**Hivemind** is the office — gives agents 40+ real tools, 5 messaging channels, agent self-evolution, and full sandbox security so they can actually do the work.
+
+| | Hivemind | Paperclip |
+|---|---|---|
+| Built-in tools | 40+ | Bring your own |
+| Agent templates | 150+ across 18 categories | Agent configs with role/goal |
+| Messaging channels | 5 fully integrated (per-agent bot identity) | Dashboard only |
+| Team chat | Full group chat with @mentions | Ticket-based |
+| Model support | Anthropic, OpenAI, Gemini, Ollama, any OpenAI-compatible | Anthropic, OpenAI, Ollama, HTTP |
+| Agent self-evolution | Creates own tools/skills at runtime | Not available |
+| Coding agent | Claude Code / Codex / Aider built-in | Via external agent |
+| MCP support | Built-in MCP client | Not specified |
+| Credential security | Fully sandboxed, vault-encrypted (AES-256-GCM) | Agent-managed |
+| Anthropic Pro/Max | Use your existing subscription via SDK — no separate API billing | API keys only |
+| Stack | Rails + Docker Compose | Node.js + React |
+
+**Different philosophies.** Paperclip models how agents relate to each other. Hivemind is where agents actually do the work — with real tools, real channels, and real security. If you want an org chart, use Paperclip. If you want agents that ship, use Hivemind.
+
+> **Coming from OpenClaw?** One-command migration: `hivemind import ~/.openclaw/workspace`
 
 ---
 
