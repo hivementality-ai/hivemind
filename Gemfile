@@ -3,7 +3,7 @@ source "https://rubygems.org"
 ruby "3.4.8"
 
 # Core
-gem "rails", "~> 8.1.2"
+gem "rails", "~> 8.1.3"
 gem "web-push"
 gem "propshaft"
 gem "pg", "~> 1.1"

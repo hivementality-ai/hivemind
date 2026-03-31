@@ -41,6 +41,25 @@ class SystemTool
     klass == Tool ? true : super
   end
 
+  TALK_TO_TEAMMATE = SystemTool.new(
+    name: "talk_to_teammate",
+    description: "Send a message to a specific teammate and get their response. Use this when you need input from a particular team member. You'll send them a message, they'll process it and respond, and you'll receive their answer.",
+    executor_type: "talk_to_teammate",
+    parameters_schema: {
+      "properties" => {
+        "teammate" => {
+          "type" => "string",
+          "description" => "Name of the teammate to talk to"
+        },
+        "message" => {
+          "type" => "string",
+          "description" => "The message to send to the teammate"
+        }
+      },
+      "required" => [ "teammate", "message" ]
+    }
+  ).freeze
+
   LOAD_SKILL = SystemTool.new(
     name: "load_skill",
     description: "Load full instructions for one of your assigned skills. Call this when you need detailed guidance for a specific skill.",

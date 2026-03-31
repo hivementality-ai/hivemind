@@ -2,11 +2,11 @@
 
 module Agents
   class ToolLoop
-    def self.call(adapter:, agent:, session:, messages:, tools:, channel:, options: {}, broadcast_extras: {})
-      new(adapter:, agent:, session:, messages:, tools:, channel:, options:, broadcast_extras:).call
+    def self.call(adapter:, agent:, session:, messages:, tools:, channel:, options: {}, broadcast_extras: {}, extra_config: {})
+      new(adapter:, agent:, session:, messages:, tools:, channel:, options:, broadcast_extras:, extra_config:).call
     end
 
-    def initialize(adapter:, agent:, session:, messages:, tools:, channel:, options: {}, broadcast_extras: {})
+    def initialize(adapter:, agent:, session:, messages:, tools:, channel:, options: {}, broadcast_extras: {}, extra_config: {})
       @adapter = adapter
       @agent = agent
       @session = session
@@ -15,6 +15,7 @@ module Agents
       @channel = channel
       @options = options
       @broadcast_extras = broadcast_extras
+      @extra_config = extra_config
       @full_content = +""
       @last_thinking = nil
       @total_usage = { input_tokens: 0, output_tokens: 0 }
@@ -156,7 +157,8 @@ module Agents
           tool:,
           input: tool_input,
           agent: @agent,
-          session: @session
+          session: @session,
+          extra_config: @extra_config
         )
 
         if exec_result.success?
