@@ -3,7 +3,7 @@
 class WorkspaceFilesController < ApplicationController
   ROOTS = {
     "workspace" => { path: "/workspace", label: "Workspace", icon: "folder" },
-    "shared" => { path: Rails.root.join("agents-shared").to_s, label: "Shared Space", icon: "share" }
+    "shared" => { path: "/app/agents-shared", label: "Shared Space", icon: "share" }
   }.freeze
 
   before_action :set_root
