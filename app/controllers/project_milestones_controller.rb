@@ -2,7 +2,12 @@
 
 class ProjectMilestonesController < ApplicationController
   before_action :set_project
-  before_action :set_milestone, only: [ :approve, :reject, :skip ]
+  before_action :set_milestone, only: [ :show, :approve, :reject, :skip ]
+
+  def show
+    @dependency_milestones = @milestone.depends_on.present? ? @project.milestones.where(id: @milestone.depends_on) : []
+    @events = @project.events.where(project_milestone: @milestone).order(created_at: :desc).limit(30)
+  end
 
   def approve
     feedback = params[:feedback].to_s.strip
