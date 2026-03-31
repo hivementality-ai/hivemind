@@ -96,6 +96,16 @@ Rails.application.routes.draw do
   # Agents (use slug for routes)
   resources :agents, param: :slug
 
+  # Workspace File Browser
+  resources :workspace_files, only: [ :index ], path: "files" do
+    collection do
+      post :upload
+      delete :delete
+      post :create_directory
+      get :download
+    end
+  end
+
   # Providers (admin interface)
   resources :providers, only: [ :index, :show, :new, :create, :edit, :update ]
 
