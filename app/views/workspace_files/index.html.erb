@@ -1,0 +1,112 @@
+<div class="min-h-screen bg-surface-base text-white">
+  <!-- Header -->
+  <div class="bg-surface-card border-b border-border-default px-6 py-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <h1 class="text-2xl font-bold">Files</h1>
+      </div>
+      <div class="flex gap-3">
+        <%= form_with url: upload_workspace_files_path(root: @root), method: :post, multipart: true, data: { turbo: false }, class: "flex items-center" do %>
+          <input type="hidden" name="path" value="<%= @current_path %>">
+          <label class="cursor-pointer px-4 py-2 rounded-lg bg-brand hover:bg-brand-dark transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Upload Files
+            <input type="file" name="files[]" multiple class="hidden" onchange="this.form.requestSubmit()">
+          </label>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Root tabs + Breadcrumbs -->
+    <div class="flex items-center gap-4 mt-3">
+      <!-- Root tabs -->
+      <div class="flex gap-2">
+        <% WorkspaceFilesController::ROOTS.each do |key, config| %>
+          <%= link_to workspace_files_path(root: key),
+              class: "px-3 py-1.5 rounded-lg text-sm font-medium transition #{@root == key ? 'bg-brand text-black' : 'bg-surface-raised text-text-muted hover:text-white'}" do %>
+            <%= config[:label] %>
+          <% end %>
+        <% end %>
+      </div>
+
+      <!-- Breadcrumbs -->
+      <div class="flex items-center gap-2 text-sm">
+        <span class="text-text-faint">/</span>
+        <%= link_to "root", workspace_files_path(root: @root), class: "text-text-muted hover:text-white transition" %>
+        <% @breadcrumbs.each do |crumb| %>
+          <span class="text-text-faint">/</span>
+          <%= link_to crumb[:name], workspace_files_path(root: @root, path: crumb[:path]), class: "text-text-muted hover:text-white transition" %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <div class="container mx-auto px-6 py-8">
+    <!-- New Folder -->
+    <div class="mb-6">
+      <details class="group">
+        <summary class="cursor-pointer text-sm text-text-muted hover:text-white transition inline-flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          New Folder
+        </summary>
+        <%= form_with url: create_directory_workspace_files_path(root: @root), method: :post, class: "mt-3 flex items-center gap-3" do %>
+          <input type="hidden" name="path" value="<%= @current_path %>">
+          <input type="text" name="name" placeholder="Folder name" required
+                 class="px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:border-brand text-sm">
+          <button type="submit" class="px-4 py-2 bg-surface-raised hover:bg-surface-card border border-border-default rounded-lg text-sm transition">
+            Create
+          </button>
+        <% end %>
+      </details>
+    </div>
+
+    <% if @directories.any? || @files.any? %>
+      <div class="space-y-2">
+        <!-- Directories -->
+        <% @directories.each do |entry| %>
+          <div class="flex items-center gap-3 bg-surface-base rounded-lg px-4 py-2.5 group">
+            <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+            </svg>
+            <% sub_path = @current_path.present? ? "#{@current_path}/#{entry[:name]}" : entry[:name] %>
+            <%= link_to entry[:name], workspace_files_path(root: @root, path: sub_path), class: "flex-1 text-white hover:text-amber-400 transition font-medium" %>
+            <span class="text-xs text-text-faint"><%= entry[:modified].strftime("%b %d, %Y %H:%M") %></span>
+            <div class="opacity-0 group-hover:opacity-100 transition">
+              <%= link_to delete_workspace_files_path(root: @root, path: sub_path), data: { turbo_method: :delete, turbo_confirm: "Delete this empty directory?" }, class: "text-red-400 hover:text-red-300 text-sm" do %>
+                Delete
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+
+        <!-- Files -->
+        <% @files.each do |entry| %>
+          <div class="flex items-center gap-3 bg-surface-base rounded-lg px-4 py-2.5 group">
+            <% ext = File.extname(entry[:name]).delete(".").upcase %>
+            <span class="px-2 py-0.5 text-xs font-mono rounded bg-surface-raised text-text-muted shrink-0"><%= ext.present? ? ext : "FILE" %></span>
+            <span class="flex-1 text-white font-medium truncate"><%= entry[:name] %></span>
+            <span class="text-xs text-text-faint"><%= number_to_human_size(entry[:size]) %></span>
+            <span class="text-xs text-text-faint"><%= entry[:modified].strftime("%b %d, %Y %H:%M") %></span>
+            <div class="opacity-0 group-hover:opacity-100 transition flex items-center gap-3">
+              <% file_path = @current_path.present? ? "#{@current_path}/#{entry[:name]}" : entry[:name] %>
+              <%= link_to "Download", download_workspace_files_path(root: @root, path: file_path), class: "text-blue-400 hover:text-blue-300 text-sm" %>
+              <%= link_to "Delete", delete_workspace_files_path(root: @root, path: file_path), data: { turbo_method: :delete, turbo_confirm: "Delete #{entry[:name]}?" }, class: "text-red-400 hover:text-red-300 text-sm" %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="text-center py-16">
+        <svg class="w-16 h-16 mx-auto text-text-faint mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+        </svg>
+        <p class="text-text-muted text-lg mb-2">This directory is empty</p>
+        <p class="text-text-faint text-sm">Upload files or create a folder to get started.</p>
+      </div>
+    <% end %>
+  </div>
+</div>
