@@ -240,6 +240,12 @@ export default class extends Controller {
       case "sub_agent_complete":
         this.hideSubAgentWorking(data.task_key)
         break
+      case "agent_to_agent":
+        this.appendAgentToAgentMessage(data.from_agent_id, data.from_agent_name, data.to_agent_id, data.to_agent_name, data.content)
+        break
+      case "agent_to_agent_response":
+        this.appendAgentToAgentMessage(data.from_agent_id, data.from_agent_name, data.to_agent_id, data.to_agent_name, data.content)
+        break
       case "title_update":
         this.updateTitle(data.title)
         break
@@ -539,6 +545,34 @@ export default class extends Controller {
     }
     delete this.streamBubbles[agentId]
     delete this.streamRawTexts[agentId]
+  }
+
+  appendAgentToAgentMessage(fromId, fromName, toId, toName, content) {
+    const fromColor = this.agentColors[fromId] || "gray"
+    const fromInitial = fromName ? fromName[0].toUpperCase() : "?"
+
+    const html = `
+      <div class="flex justify-start" data-agent-bubble="${fromId}">
+        <div class="max-w-2xl">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 bg-${fromColor}-600 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
+              ${fromInitial}
+            </div>
+            <div>
+              <div class="text-xs text-text-muted mb-1 flex items-center gap-1">
+                <span>${this.esc(fromName)}</span>
+                <svg class="w-3 h-3 text-text-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+                <span>${this.esc(toName)}</span>
+              </div>
+              <div class="bg-surface-card border border-border-default rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
+                <div class="whitespace-pre-wrap chat-content">${this.renderMarkdown(content)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`
+    this.messagesTarget.insertAdjacentHTML("beforeend", html)
+    this.scrollToBottom()
   }
 
   notifyIfHidden(agentName, responseText) {

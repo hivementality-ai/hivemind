@@ -57,15 +57,16 @@ module Tools
       "google_gmail" => Tools::GoogleGmailExecutor,
       "project_create" => Tools::ProjectCreateExecutor,
       "project_update" => Tools::ProjectUpdateExecutor,
-      "project_status" => Tools::ProjectStatusExecutor
+      "project_status" => Tools::ProjectStatusExecutor,
+      "talk_to_teammate" => Tools::TalkToTeammateExecutor
     }.freeze
 
     # Backwards compatibility alias
     EXECUTORS = BUILTIN_EXECUTORS
 
     class << self
-      def call(tool:, input:, agent:, session:)
-        new(tool:, input:, agent:, session:).call
+      def call(tool:, input:, agent:, session:, extra_config: {})
+        new(tool:, input:, agent:, session:, extra_config:).call
       end
 
       # Registers a plugin-provided executor type at runtime.
@@ -106,11 +107,12 @@ module Tools
       end
     end
 
-    def initialize(tool:, input:, agent:, session:)
+    def initialize(tool:, input:, agent:, session:, extra_config: {})
       @tool = tool
       @input = input
       @agent = agent
       @session = session
+      @extra_config = extra_config
     end
 
     def call
@@ -192,7 +194,8 @@ module Tools
     end
 
     def execute_system_tool(executor_class)
-      result = executor_class.new(input: @input, config: {}, agent: @agent).call
+      system_config = { session: @session }.merge(@extra_config || {})
+      result = executor_class.new(input: @input, config: system_config, agent: @agent).call
       if result.success?
         ServiceResponse.success(data: { output: result.data[:output].to_s.truncate(50_000) })
       else
