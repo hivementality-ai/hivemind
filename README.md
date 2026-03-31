@@ -18,13 +18,6 @@
 </p>
 
 <p align="center">
-  <a href="#quick-start">Quickstart</a> ·
-  <a href="https://hivementality.ai">Website</a> ·
-  <a href="https://discord.gg/ckyVareyvk">Discord</a> ·
-  <a href="https://github.com/hivementality-ai/hivemind">GitHub</a>
-</p>
-
-<p align="center">
   <img src="https://github.com/hivementality-ai/hivemind/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" />
   <img src="https://img.shields.io/badge/License-AGPLv3-blue?style=flat" alt="License" />
   <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=flat&logo=docker" alt="Docker" />
