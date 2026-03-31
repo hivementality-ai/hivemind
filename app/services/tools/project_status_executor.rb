@@ -30,14 +30,14 @@ module Tools
 
     def build_summary(project)
       lines = []
-      lines << "Project: #{project.title} [#{project.status}] — #{project.progress_percentage}% complete"
+      lines << "Project [ID:#{project.id}]: #{project.title} [#{project.status}] — #{project.progress_percentage}% complete"
       lines << "Priority: #{project.priority}"
       lines << "Deadline: #{project.deadline&.strftime('%Y-%m-%d') || 'none'}"
       lines << ""
       lines << "Milestones:"
       project.milestones.ordered.each do |m|
         agent_name = m.agent&.name || "unassigned"
-        lines << "  #{m.position + 1}. #{m.title} [#{m.status}] — #{agent_name}"
+        lines << "  #{m.position + 1}. [ID:#{m.id}] #{m.title} [#{m.status}] — #{agent_name}"
       end
       lines.join("\n")
     end
@@ -46,7 +46,7 @@ module Tools
       lines = [ build_summary(project), "" ]
 
       project.milestones.ordered.each do |m|
-        lines << "--- Milestone: #{m.title} ---"
+        lines << "--- Milestone [ID:#{m.id}]: #{m.title} ---"
         lines << "Status: #{m.status}"
         lines << "Agent: #{m.agent&.name || 'unassigned'}"
         lines << "Description: #{m.description}" if m.description.present?
