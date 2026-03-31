@@ -126,7 +126,7 @@
     <div class="bg-surface-card border border-border-default rounded-xl p-6 mb-8">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-white font-semibold text-lg">Files</h2>
-        <%= form_with url: upload_files_project_path(@project), method: :post, multipart: true, class: "flex items-center gap-3" do %>
+        <%= form_with url: upload_files_project_path(@project), method: :post, multipart: true, data: { turbo: false }, class: "flex items-center gap-3" do %>
           <label class="cursor-pointer px-3 py-1.5 rounded-lg bg-surface-base border border-border-default text-text-muted text-sm hover:text-white hover:border-amber-500/40 transition-all flex items-center gap-1.5">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>

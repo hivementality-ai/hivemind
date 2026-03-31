@@ -199,6 +199,13 @@ class Agent < ApplicationRecord
     }
   end
 
+  def ensure_workspace!
+    path = workspace_path.presence || Rails.root.join("storage", "workspaces", id.to_s).to_s
+    FileUtils.mkdir_p(path)
+    update_column(:workspace_path, path) if workspace_path.blank?
+    path
+  end
+
   def usage_today
     today_start = Time.current.beginning_of_day
     usage = usage_records.where("created_at >= ?", today_start)

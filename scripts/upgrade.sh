@@ -217,8 +217,13 @@ pull_and_build() {
     git pull origin main --quiet
   fi
 
-  info "Building containers (version: $LATEST_VERSION)..."
-  HIVEMIND_VERSION="$LATEST_VERSION" docker compose build --build-arg HIVEMIND_VERSION="$LATEST_VERSION" --quiet
+  info "Pulling prebuilt images (version: $LATEST_VERSION)..."
+  if HIVEMIND_VERSION="$LATEST_VERSION" docker compose pull app workspace connector sdk-proxy 2>/dev/null; then
+    ok "Prebuilt images pulled"
+  else
+    warn "Prebuilt images not available — building from source (this may take a while)..."
+    HIVEMIND_VERSION="$LATEST_VERSION" docker compose build --build-arg HIVEMIND_VERSION="$LATEST_VERSION" --quiet
+  fi
   ok "Build complete"
 }
 
