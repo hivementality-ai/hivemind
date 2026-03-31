@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/brand/logo.svg" alt="Hivemind" width="200" />
+  <img src="public/brand/logo.png" width="80" alt="Hivemind">
 </p>
 
 <h1 align="center">Hivemind</h1>
@@ -1230,7 +1230,7 @@ This imports your agent's identity, memories, skills, conversations, and tools i
 ---
 
 <p align="center">
-  <img src="public/brand/logo.svg" width="32" alt="Hivemind">
+  <img src="public/brand/logo.png" width="32" alt="Hivemind">
   <br>
   <strong>Deploy your AI team in minutes, not months.</strong>
 </p>
