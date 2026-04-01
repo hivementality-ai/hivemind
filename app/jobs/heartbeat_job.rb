@@ -124,6 +124,20 @@ class HeartbeatJob < ApplicationJob
 
     parts << "\n#{custom}" if custom.present?
 
+    # Include open task board context so agents can act on pending work
+    open_tasks = Task.open.by_priority.includes(:assigned_to_agent).limit(20)
+    if open_tasks.any?
+      parts << "\nOpen tasks on the team board (use task_manager tool to update):"
+      open_tasks.each { |t| parts << "  - #{t.to_summary}" }
+    end
+
+    # Highlight overdue tasks
+    overdue = open_tasks.select(&:overdue?)
+    if overdue.any?
+      parts << "\nOverdue tasks requiring attention:"
+      overdue.each { |t| parts << "  - #{t.to_summary}" }
+    end
+
     # Tell it who's available to delegate to
     teammates = Agent.visible.enabled.pluck(:name, :role)
     if teammates.any?
