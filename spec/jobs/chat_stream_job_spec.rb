@@ -89,6 +89,35 @@ RSpec.describe ChatStreamJob, type: :job do
       end
     end
 
+    context "done broadcast always includes content for UI fallback" do
+      it "includes full content in done broadcast after streaming" do
+        allow(adapter).to receive(:chat) do |**_opts, &block|
+          block.call(type: "content", content: "Hello!")
+          double(success?: true, data: { content: "Hello!", usage: { input_tokens: 10, output_tokens: 5 } })
+        end
+
+        described_class.perform_now(session.id, "Hello")
+
+        expect(ActionCable.server).to have_received(:broadcast).with(
+          channel, hash_including(type: "done", content: "Hello!")
+        )
+      end
+
+      it "includes full content in done broadcast via hashtag bypass" do
+        allow(HashtagActions::Processor).to receive(:call).and_return(
+          HashtagActions::Processor::ProcessResult.new(
+            bypass_llm: true, response: "Help info", clean_message: "", prompt_addons: [], side_effects: []
+          )
+        )
+
+        described_class.perform_now(session.id, "#help")
+
+        expect(ActionCable.server).to have_received(:broadcast).with(
+          channel, hash_including(type: "done", content: "Help info")
+        )
+      end
+    end
+
     context "with tool-equipped agent" do
       let(:tool) { create(:tool, enabled: true, builtin: true) }
       let(:tool_result) { double(data: { content: "Tool result", thinking: nil, usage: {} }) }
