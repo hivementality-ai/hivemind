@@ -592,7 +592,7 @@ templates = [
       "cloud_storage",
       "tts",
       "coding_agent", "coding_agent_status",
-      "delegate", "spawn", "spawn_status",
+      "delegate", "delegation_status",
       "sessions_list", "sessions_send", "sessions_history", "session_status", "agents_list",
       "ask_user",
       "trello", "jira"
@@ -8657,7 +8657,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "delegate", "spawn" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "delegate", "delegation_status" ]
     },
     skills_config: {
       enabled: [ "github" ]
@@ -8760,7 +8760,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "delegate", "spawn" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "delegate", "delegation_status" ]
     },
     skills_config: {
       enabled: [ "github" ]
@@ -8865,7 +8865,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "delegate", "spawn" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "delegate", "delegation_status" ]
     },
     skills_config: {
       enabled: [ "github" ]
@@ -8968,7 +8968,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "delegate", "spawn" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "delegate", "delegation_status" ]
     },
     skills_config: {
       enabled: [ "github" ]
@@ -9040,7 +9040,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "delegate", "spawn" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "delegate", "delegation_status" ]
     },
     skills_config: {
       enabled: [ "github" ]
@@ -9135,7 +9135,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "delegate", "spawn" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "delegate", "delegation_status" ]
     },
     skills_config: {
       enabled: [ "github" ]
