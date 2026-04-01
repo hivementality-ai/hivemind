@@ -291,7 +291,7 @@ export default class extends Controller {
         this.handlePlanMessage(data)
         break
       case "done":
-        this.finishStream()
+        this.finishStream(data.content)
         break
       case "cancelled":
         this.appendSystemNotice("⏹ Agent stopped")
@@ -550,23 +550,27 @@ export default class extends Controller {
     this.scrollToBottom()
   }
 
-  appendToken(content) {
-    if (!this.streamBubble) {
-      this.streamId = (this.streamId || 0) + 1
-      const id = `stream-${this.streamId}`
-      const html = `
-        <div class="flex justify-start">
-          <div class="max-w-2xl">
-            <div class="flex items-start gap-3">
-              ${this.agentAvatarHtml}
-              <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
-                <div class="whitespace-pre-wrap chat-content" id="${id}"></div>
-              </div>
+  createStreamBubble() {
+    this.streamId = (this.streamId || 0) + 1
+    const id = `stream-${this.streamId}`
+    const html = `
+      <div class="flex justify-start" data-stream-bubble>
+        <div class="max-w-2xl">
+          <div class="flex items-start gap-3">
+            ${this.agentAvatarHtml}
+            <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
+              <div class="whitespace-pre-wrap chat-content" id="${id}"></div>
             </div>
           </div>
-        </div>`
-      this.messagesTarget.insertAdjacentHTML("beforeend", html)
-      this.streamBubble = document.getElementById(id)
+        </div>
+      </div>`
+    this.messagesTarget.insertAdjacentHTML("beforeend", html)
+    this.streamBubble = document.getElementById(id)
+  }
+
+  appendToken(content) {
+    if (!this.streamBubble) {
+      this.createStreamBubble()
     }
 
     this.streamRawText += content
@@ -928,18 +932,33 @@ export default class extends Controller {
   finishStreamBubble() {
     if (this.streamBubble && this.streamRawText) {
       this.streamBubble.innerHTML = this.renderMarkdown(this.streamRawText)
+    } else if (this.streamBubble && !this.streamRawText) {
+      // Remove empty bubble so it doesn't show as blank
+      const wrapper = this.streamBubble.closest('[data-stream-bubble]')
+      if (wrapper) wrapper.remove()
     }
     this.streamBubble = null
     this.streamRawText = ""
   }
 
-  finishStream() {
+  finishStream(fallbackContent = null) {
+    const text = this.streamRawText || fallbackContent
     // Capture response text before clearing for notification
-    const responseText = this.streamRawText || ""
+    const responseText = text || ""
 
-    // Render final markdown from raw streamed text
-    if (this.streamBubble && this.streamRawText) {
-      this.streamBubble.innerHTML = this.renderMarkdown(this.streamRawText)
+    // Render final markdown from raw streamed text or fallback content
+    if (this.streamBubble && text) {
+      this.streamBubble.innerHTML = this.renderMarkdown(text)
+    } else if (this.streamBubble && !text) {
+      // Remove empty bubble so it doesn't show as blank
+      const wrapper = this.streamBubble.closest('[data-stream-bubble]')
+      if (wrapper) wrapper.remove()
+    } else if (!this.streamBubble && text) {
+      // No bubble was created (tokens never streamed) — create one now
+      this.createStreamBubble()
+      if (this.streamBubble) {
+        this.streamBubble.innerHTML = this.renderMarkdown(text)
+      }
     }
 
     this.streaming = false
