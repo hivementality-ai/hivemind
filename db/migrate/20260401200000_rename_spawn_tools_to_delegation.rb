@@ -4,7 +4,9 @@ class RenameSpawnToolsToDelegation < ActiveRecord::Migration[8.1]
   def up
     # Remove spawn tool (delegate now handles async delegation)
     execute <<~SQL
+      DELETE FROM skill_tools WHERE tool_id IN (SELECT id FROM tools WHERE name = 'spawn');
       DELETE FROM agent_tools WHERE tool_id IN (SELECT id FROM tools WHERE name = 'spawn');
+      DELETE FROM tool_executions WHERE tool_id IN (SELECT id FROM tools WHERE name = 'spawn');
       DELETE FROM tools WHERE name = 'spawn';
     SQL
 
