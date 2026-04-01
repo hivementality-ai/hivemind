@@ -783,7 +783,7 @@ BUILTIN_TOOLS = [
       },
       "required" => %w[action]
     }
-  }
+  },
   # ── Chat Attachments ──────────────────────────────────────────
   {
     name: "chat_attachments",
