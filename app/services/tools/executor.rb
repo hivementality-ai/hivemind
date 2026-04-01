@@ -59,7 +59,9 @@ module Tools
       "project_status" => Tools::ProjectStatusExecutor,
       "talk_to_teammate" => Tools::TalkToTeammateExecutor,
       "platform_control" => Tools::PlatformControlExecutor,
-      "chat_attachments" => Tools::ChatAttachmentsExecutor
+      "chat_attachments" => Tools::ChatAttachmentsExecutor,
+      "grep" => Tools::GrepExecutor,
+      "mcp" => Tools::McpExecutor
     }.freeze
 
     # Backwards compatibility alias
