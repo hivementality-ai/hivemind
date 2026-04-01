@@ -10,7 +10,7 @@ class Tool < ApplicationRecord
   validates :name, presence: true, uniqueness: true
   validates :description, presence: true
   validates :executor_type, presence: true, inclusion: {
-    in: %w[shell file_read file_write file_send file_edit web_search web_fetch http_request browser memory_search image image_generate cron cron_script message heartbeat_write delegate delegation_status sessions_list sessions_send sessions_history session_status agents_list gateway tts stt canvas gmail drive cloud_storage pdf_read jira trello email custom_script coding_agent coding_agent_status deep_research deep_research_status vault voice_call places_search ask_user plan_mode glob grep mcp create_skill create_tool google_drive google_calendar google_gmail project_create project_update project_status platform_control]
+    in: -> { Tools::Executor.all_executors.keys }
   }
   validates :script_template, presence: true, if: -> { executor_type == "custom_script" }
 
