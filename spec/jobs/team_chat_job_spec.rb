@@ -318,6 +318,115 @@ RSpec.describe TeamChatJob, type: :job do
     end
   end
 
+  describe "agent_done broadcast includes content for UI fallback" do
+    let!(:agent) { create(:agent, team: team, model_provider: "anthropic", llm_model: "claude-3-5-sonnet") }
+    let(:channel) { "team_chat_#{session.id}" }
+
+    context "via hashtag bypass path" do
+      it "broadcasts agent_done with full content" do
+        message = session.team_chat_messages.create!(
+          sender_type: "user", sender_id: user.id, content: "#status"
+        )
+
+        allow(HashtagActions::Processor).to receive(:call).and_return(
+          HashtagActions::Processor::ProcessResult.new(
+            bypass_llm: true,
+            response: "Agent is operational",
+            clean_message: "",
+            prompt_addons: [],
+            side_effects: []
+          )
+        )
+
+        TeamChatJob.perform_now(session.id, message.id)
+
+        expect(ActionCable.server).to have_received(:broadcast).with(
+          channel,
+          hash_including(type: "agent_done", agent_id: agent.id, content: "Agent is operational")
+        )
+      end
+    end
+
+    context "via ToolLoop path" do
+      let(:message) do
+        session.team_chat_messages.create!(
+          sender_type: "user", sender_id: user.id, content: "Hello"
+        )
+      end
+
+      before do
+        allow(HashtagActions::Processor).to receive(:call).and_return(
+          HashtagActions::Processor::ProcessResult.new(
+            bypass_llm: false, response: nil, clean_message: "Hello",
+            prompt_addons: [], side_effects: []
+          )
+        )
+        allow(Memory::ContextBuilder).to receive(:call).and_return({ context: nil, entries: [] })
+        allow(CostEstimator).to receive(:estimate).and_return(0)
+
+        adapter = double("adapter")
+        allow(adapter).to receive(:is_a?).with(Providers::AnthropicAdapter).and_return(false)
+        allow(adapter).to receive(:chat) do |**_opts, &block|
+          block.call(type: "content", content: "Hello back!")
+          double(success?: true, data: { content: "Hello back!", thinking: nil, usage: {} })
+        end
+        allow(Providers::Resolver).to receive(:call).and_return(
+          double(success?: true, data: { adapter: adapter })
+        )
+      end
+
+      it "broadcasts agent_done with full content after streaming" do
+        TeamChatJob.perform_now(session.id, message.id)
+
+        expect(ActionCable.server).to have_received(:broadcast).with(
+          channel,
+          hash_including(type: "agent_done", agent_id: agent.id, content: "Hello back!")
+        )
+      end
+    end
+
+    context "via OAuth MCP path" do
+      let!(:tool) { create(:tool, enabled: true, builtin: true) }
+      let(:message) do
+        session.team_chat_messages.create!(
+          sender_type: "user", sender_id: user.id, content: "Hello"
+        )
+      end
+
+      before do
+        allow(HashtagActions::Processor).to receive(:call).and_return(
+          HashtagActions::Processor::ProcessResult.new(
+            bypass_llm: false, response: nil, clean_message: "Hello",
+            prompt_addons: [], side_effects: []
+          )
+        )
+        allow(Memory::ContextBuilder).to receive(:call).and_return({ context: nil, entries: [] })
+        allow(CostEstimator).to receive(:estimate).and_return(0)
+        allow(Tool).to receive_message_chain(:enabled, :builtin, :to_a).and_return([ tool ])
+
+        adapter = double("AnthropicAdapter", is_a?: false)
+        allow(adapter).to receive(:is_a?).with(Providers::AnthropicAdapter).and_return(true)
+        allow(adapter).to receive(:oauth_token?).and_return(true)
+        allow(adapter).to receive(:chat) do |**_opts, &block|
+          block.call(type: "content", content: "OAuth response")
+          double(success?: true, data: { content: "OAuth response", usage: {} })
+        end
+        allow(Providers::Resolver).to receive(:call).and_return(
+          double(success?: true, data: { adapter: adapter })
+        )
+      end
+
+      it "broadcasts agent_done with full content" do
+        TeamChatJob.perform_now(session.id, message.id)
+
+        expect(ActionCable.server).to have_received(:broadcast).with(
+          channel,
+          hash_including(type: "agent_done", agent_id: agent.id, content: "OAuth response")
+        )
+      end
+    end
+  end
+
   describe "interrupt handling" do
     let!(:agent) { create(:agent, team: team) }
     let!(:message) do
