@@ -9,6 +9,8 @@ RSpec.describe TeamChatJob, type: :job do
 
   before do
     allow(ActionCable.server).to receive(:broadcast)
+    allow(Memory::ContextBuilder).to receive(:call).and_return({ context: nil, entries: [] })
+    allow(CostEstimator).to receive(:estimate).and_return(0)
   end
 
   describe "hashtag action processing" do
@@ -447,6 +449,8 @@ RSpec.describe TeamChatJob, type: :job do
           side_effects: []
         )
       )
+      allow(Memory::ContextBuilder).to receive(:call).and_return({ context: nil, entries: [] })
+      allow(CostEstimator).to receive(:estimate).and_return(0)
       @adapter = double("adapter")
       allow(@adapter).to receive(:is_a?).and_return(false)
       allow(Providers::Resolver).to receive(:call).and_return(
