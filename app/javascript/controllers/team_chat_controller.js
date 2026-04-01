@@ -192,11 +192,11 @@ export default class extends Controller {
         this.appendAgentToken(data.agent_id, data.agent_name, data.content)
         break
       case "agent_done":
-        this.notifyIfHidden(data.agent_name, this.streamRawTexts[data.agent_id] || "")
+        this.notifyIfHidden(data.agent_name, this.streamRawTexts[data.agent_id] || data.content || "")
         this.activeAgents.delete(data.agent_id)
         if (this.activeAgents.size === 0) this.hideStopBtn()
         this.hideThinking(data.agent_id)
-        this.finalizeAgentMessage(data.agent_id)
+        this.finalizeAgentMessage(data.agent_id, data.content)
         break
       case "cancelled":
         this.activeAgents.delete(data.agent_id)
@@ -503,33 +503,37 @@ export default class extends Controller {
     if (content) content.classList.add("hidden")
   }
 
-  appendAgentToken(agentId, agentName, content) {
-    if (!this.streamBubbles[agentId]) {
-      const color = this.agentColors[agentId] || "gray"
-      const initial = agentName ? agentName[0].toUpperCase() : "?"
-      const bubbleId = `team-stream-${agentId}-${Date.now()}`
+  createAgentBubble(agentId, agentName) {
+    const color = this.agentColors[agentId] || "gray"
+    const initial = agentName ? agentName[0].toUpperCase() : "?"
+    const bubbleId = `team-stream-${agentId}-${Date.now()}`
 
-      const agent = this.agentsValue.find(a => a.id === agentId)
-      const role = agent ? agent.role : ""
+    const agent = this.agentsValue.find(a => a.id === agentId)
+    const role = agent ? agent.role : ""
 
-      const html = `
-        <div class="flex justify-start" data-agent-bubble="${agentId}">
-          <div class="max-w-2xl">
-            <div class="flex items-start gap-3">
-              <div class="w-8 h-8 bg-${color}-600 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
-                ${initial}
-              </div>
-              <div>
-                <div class="text-xs text-text-muted mb-1">${this.esc(agentName)} <span class="text-gray-600">· ${this.esc(role)}</span></div>
-                <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
-                  <div class="whitespace-pre-wrap chat-content" id="${bubbleId}"></div>
-                </div>
+    const html = `
+      <div class="flex justify-start" data-agent-bubble="${agentId}">
+        <div class="max-w-2xl">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 bg-${color}-600 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
+              ${initial}
+            </div>
+            <div>
+              <div class="text-xs text-text-muted mb-1">${this.esc(agentName)} <span class="text-gray-600">· ${this.esc(role)}</span></div>
+              <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
+                <div class="whitespace-pre-wrap chat-content" id="${bubbleId}"></div>
               </div>
             </div>
           </div>
-        </div>`
-      this.messagesTarget.insertAdjacentHTML("beforeend", html)
-      this.streamBubbles[agentId] = document.getElementById(bubbleId)
+        </div>
+      </div>`
+    this.messagesTarget.insertAdjacentHTML("beforeend", html)
+    this.streamBubbles[agentId] = document.getElementById(bubbleId)
+  }
+
+  appendAgentToken(agentId, agentName, content) {
+    if (!this.streamBubbles[agentId]) {
+      this.createAgentBubble(agentId, agentName)
     }
 
     if (!this.streamRawTexts[agentId]) this.streamRawTexts[agentId] = ""
@@ -538,10 +542,22 @@ export default class extends Controller {
     this.scrollToBottom()
   }
 
-  finalizeAgentMessage(agentId) {
-    // Render final markdown
-    if (this.streamBubbles[agentId] && this.streamRawTexts[agentId]) {
-      this.streamBubbles[agentId].innerHTML = this.renderMarkdown(this.streamRawTexts[agentId])
+  finalizeAgentMessage(agentId, fallbackContent = null) {
+    const text = this.streamRawTexts[agentId] || fallbackContent
+    if (this.streamBubbles[agentId] && text) {
+      this.streamBubbles[agentId].innerHTML = this.renderMarkdown(text)
+    } else if (this.streamBubbles[agentId] && !text) {
+      // Bubble exists but has no content — remove it so it doesn't show as blank
+      const wrapper = this.streamBubbles[agentId].closest('[data-agent-bubble]')
+      if (wrapper) wrapper.remove()
+    } else if (!this.streamBubbles[agentId] && text) {
+      // No bubble was created (tokens never streamed) — create one now
+      const agent = this.agentsValue.find(a => a.id === agentId)
+      const agentName = agent ? agent.name : "Agent"
+      this.createAgentBubble(agentId, agentName)
+      if (this.streamBubbles[agentId]) {
+        this.streamBubbles[agentId].innerHTML = this.renderMarkdown(text)
+      }
     }
     delete this.streamBubbles[agentId]
     delete this.streamRawTexts[agentId]
