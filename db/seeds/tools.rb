@@ -604,6 +604,31 @@ BUILTIN_TOOLS = [
       },
       "required" => [ "action" ]
     }
+  },
+  {
+    name: "task_manager",
+    description: "Manage tasks on the shared team task board. Create, update, move, assign, list, comment on, and close tasks. Use this to track work items, assign tasks to teammates, and check your own open tasks.",
+    executor_type: "task_manager",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "action" => {
+          "type" => "string",
+          "description" => "Action to perform",
+          "enum" => %w[create update move assign list my_tasks add_comment close]
+        },
+        "task_id" => { "type" => "integer", "description" => "Task ID (required for update, move, assign, add_comment, close)" },
+        "title" => { "type" => "string", "description" => "Task title (required for create)" },
+        "description" => { "type" => "string", "description" => "Task description" },
+        "status" => { "type" => "string", "description" => "Task status", "enum" => %w[backlog todo in_progress review done] },
+        "priority" => { "type" => "string", "description" => "Task priority", "enum" => %w[low medium high urgent] },
+        "assign_to" => { "type" => "string", "description" => "Agent name or ID to assign the task to" },
+        "due_at" => { "type" => "string", "description" => "Due date/time (ISO 8601 or natural language)" },
+        "text" => { "type" => "string", "description" => "Comment text (required for add_comment)" },
+        "limit" => { "type" => "integer", "description" => "Max results to return (default: 20, max: 50)" }
+      },
+      "required" => [ "action" ]
+    }
   }
 ].freeze
 
