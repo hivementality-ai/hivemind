@@ -121,7 +121,7 @@ class SubAgentJob < ApplicationJob
 
       #{reply.truncate(2000)}
 
-      (Task ID: #{sat.task_key} | Use spawn_status for full output if truncated)
+      (Task ID: #{sat.task_key} | Use delegation_status for full output if truncated)
     MSG
 
     # Fire ChatStreamJob on the parent session so the parent agent processes the result
