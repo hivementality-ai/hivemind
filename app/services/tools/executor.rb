@@ -61,7 +61,8 @@ module Tools
       "platform_control" => Tools::PlatformControlExecutor,
       "chat_attachments" => Tools::ChatAttachmentsExecutor,
       "grep" => Tools::GrepExecutor,
-      "mcp" => Tools::McpExecutor
+      "mcp" => Tools::McpExecutor,
+      "task_manager" => Tools::TaskManagerExecutor
     }.freeze
 
     # Backwards compatibility alias
