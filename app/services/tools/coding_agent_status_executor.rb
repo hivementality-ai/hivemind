@@ -63,7 +63,7 @@ module Tools
           output << "(Still starting...)"
         end
         output << ""
-        output << "💡 The coding agent is still running. Check again in a few moments for updates."
+        output << "⏳ The coding agent is still running. Do NOT check again for at least 30 seconds. Work on something else and come back later."
       end
 
       ServiceResponse.success(data: { output: output.join("\n"), exit_code: 0 })
