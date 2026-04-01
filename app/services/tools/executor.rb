@@ -59,7 +59,8 @@ module Tools
       "project_update" => Tools::ProjectUpdateExecutor,
       "project_status" => Tools::ProjectStatusExecutor,
       "talk_to_teammate" => Tools::TalkToTeammateExecutor,
-      "platform_control" => Tools::PlatformControlExecutor
+      "platform_control" => Tools::PlatformControlExecutor,
+      "chat_attachments" => Tools::ChatAttachmentsExecutor
     }.freeze
 
     # Backwards compatibility alias
