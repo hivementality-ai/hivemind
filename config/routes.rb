@@ -93,6 +93,9 @@ Rails.application.routes.draw do
     end
   end
 
+  # Tasks (kanban board)
+  resources :tasks
+
   # Agents (use slug for routes)
   resources :agents, param: :slug do
     member do
@@ -271,6 +274,7 @@ Rails.application.routes.draw do
           end
         end
       end
+      resources :tasks, only: [ :index, :show, :create, :update, :destroy ]
     end
   end
 

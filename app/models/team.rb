@@ -6,6 +6,7 @@ class Team < ApplicationRecord
   has_many :usage_records, dependent: :destroy
   has_many :team_messages, dependent: :destroy
   has_many :team_chat_sessions, dependent: :destroy
+  has_many :tasks, dependent: :destroy
 
   validates :name, presence: true, uniqueness: true
 

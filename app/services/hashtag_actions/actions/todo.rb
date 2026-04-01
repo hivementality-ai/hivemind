@@ -5,36 +5,32 @@ module HashtagActions
     class Todo < Base
       def execute
         return { response: "Add what? Use: #todo <task>", status: "no_payload" } if payload.blank?
+        return { response: "Agent has no team — can't create task.", status: "no_team" } unless agent.team
 
-        # Store as a memory with todo metadata for retrieval
-        MemoryEntry.create!(
+        task = Task.create!(
+          title: payload,
+          status: :todo,
+          priority: :medium,
           agent: agent,
-          content: "TODO: #{payload}",
-          source: session,
-          metadata: {
-            source: "hashtag_action",
-            type: "todo",
-            status: "pending",
-            stored_at: Time.current.iso8601,
-            session_id: session.id
-          }
+          team: agent.team,
+          session: session,
+          created_by: "hashtag"
         )
 
-        # Also write to heartbeat checklist if the system assistant exists
-        if (assistant = Agent.find_by(system_agent: true))
-          checklist = Setting.get("heartbeat_checklist") || []
-          checklist << {
-            "task" => payload,
-            "from_agent" => agent.name,
-            "created_at" => Time.current.iso8601,
-            "status" => "pending"
-          }
-          Setting.set("heartbeat_checklist", checklist)
-        end
+        # Backward compat: keep writing to heartbeat checklist during transition
+        checklist = Setting.get("heartbeat_checklist") || []
+        checklist << {
+          "task" => payload,
+          "task_id" => task.id,
+          "from_agent" => agent.name,
+          "created_at" => Time.current.iso8601,
+          "status" => "pending"
+        }
+        Setting.set("heartbeat_checklist", checklist)
 
-        { response: "Added to-do: \"#{payload.truncate(100)}\"", status: "created" }
+        { response: "Created task ##{task.id}: \"#{payload.truncate(100)}\"", status: "created" }
       rescue StandardError => e
-        { response: "Failed to create to-do: #{e.message}", status: "error" }
+        { response: "Failed to create task: #{e.message}", status: "error" }
       end
     end
   end

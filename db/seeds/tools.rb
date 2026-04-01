@@ -756,6 +756,39 @@ BUILTIN_TOOLS = [
       },
       "required" => %w[title description milestones]
     }
+  },
+  {
+    name: "task_management",
+    description: "Create, list, update, and close tasks. Use to track structured work items for the team.",
+    executor_type: "task_management",
+    parameters_schema: {
+      "properties" => {
+        "action" => {
+          "type" => "string",
+          "description" => "Action to perform: create, list, update, close",
+          "enum" => %w[create list update close]
+        },
+        "title" => { "type" => "string", "description" => "Task title (for create/update)" },
+        "description" => { "type" => "string", "description" => "Task description (for create/update)" },
+        "status" => {
+          "type" => "string",
+          "description" => "Task status: backlog, todo, in_progress, review, done"
+        },
+        "priority" => {
+          "type" => "string",
+          "description" => "Task priority: low, medium, high, urgent"
+        },
+        "assignee" => {
+          "type" => "string",
+          "description" => "Agent name or slug to assign the task to (use 'me' for self)"
+        },
+        "task_id" => { "type" => "integer", "description" => "Task ID (required for update/close)" },
+        "mine" => { "type" => "boolean", "description" => "Only list tasks assigned to me (for list)" },
+        "active" => { "type" => "boolean", "description" => "Only list active/non-done tasks (for list, default true)" },
+        "limit" => { "type" => "integer", "description" => "Maximum number of tasks to return (for list, default 20)" }
+      },
+      "required" => %w[action]
+    }
   }
 ].freeze
 

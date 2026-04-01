@@ -1,0 +1,45 @@
+<%
+  priority_badge = {
+    "urgent" => "bg-red-900/60 text-red-300 border-red-700/50",
+    "high"   => "bg-orange-900/60 text-orange-300 border-orange-700/50",
+    "medium" => "bg-blue-900/60 text-blue-300 border-blue-700/50",
+    "low"    => "bg-surface-overlay text-text-muted border-border-default"
+  }
+  badge_class = priority_badge[task.priority] || priority_badge["medium"]
+  overdue = task.due_date.present? && task.due_date < Time.current && !task.done?
+%>
+<div class="task-card bg-surface-raised border border-border-default rounded-lg p-3 hover:border-gray-500 transition cursor-pointer group"
+     data-task-id="<%= task.id %>"
+     data-task-status="<%= task.status %>"
+     data-task-priority="<%= task.priority %>">
+  <%= link_to task_path(task), class: "block" do %>
+    <!-- Title -->
+    <p class="text-text-primary text-sm font-medium line-clamp-2 mb-2 group-hover:text-white transition"><%= task.title %></p>
+
+    <!-- Footer row -->
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+      <!-- Priority badge -->
+      <span class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border <%= badge_class %>">
+        <%= task.priority %>
+      </span>
+
+      <div class="flex items-center gap-2 ml-auto">
+        <!-- Due date -->
+        <% if task.due_date.present? %>
+          <span class="text-[10px] <%= overdue ? 'text-red-400 font-semibold' : 'text-text-faint' %>">
+            <%= overdue ? "⚠ " : "" %><%= task.due_date.strftime("%-m/%-d") %>
+          </span>
+        <% end %>
+
+        <!-- Assigned agent -->
+        <% if task.agent %>
+          <span class="text-[10px] text-text-muted bg-surface-card px-1.5 py-0.5 rounded truncate max-w-[80px]" title="<%= task.agent.name %>">
+            <%= task.agent.name %>
+          </span>
+        <% else %>
+          <span class="text-[10px] text-text-faint">Unassigned</span>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+</div>

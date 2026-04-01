@@ -131,6 +131,13 @@ class HeartbeatJob < ApplicationJob
       teammates.each { |name, role| parts << "- #{name} (#{role})" }
     end
 
+    # Include active tasks assigned to visible agents
+    active_agent_tasks = load_active_agent_tasks
+    if active_agent_tasks.any?
+      parts << "\nActive tasks assigned to agents:"
+      active_agent_tasks.each { |line| parts << line }
+    end
+
     parts << "\nIf nothing needs attention, reply with exactly: HEARTBEAT_OK"
 
     parts.join("\n")
@@ -158,6 +165,23 @@ class HeartbeatJob < ApplicationJob
     return [] unless raw
     JSON.parse(raw)
   rescue JSON::ParserError
+    []
+  end
+
+  def load_active_agent_tasks
+    lines = []
+    Agent.visible.enabled.each do |a|
+      tasks = Task.where(agent: a, status: [ :todo, :in_progress ])
+                  .order(priority: :desc)
+                  .limit(10)
+      next if tasks.empty?
+
+      tasks.each do |t|
+        lines << "- [#{a.name}] [#{t.priority}] #{t.title} (#{t.status})"
+      end
+    end
+    lines
+  rescue StandardError
     []
   end
 end

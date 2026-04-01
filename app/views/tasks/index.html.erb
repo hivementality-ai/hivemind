@@ -1,0 +1,82 @@
+<div class="min-h-screen bg-surface-base p-6" data-controller="task-board" data-task-board-team-id-value="<%= @selected_team_id %>">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-white">Tasks</h1>
+      <p class="text-text-muted mt-1">Kanban board — track work across the team</p>
+    </div>
+    <%= link_to new_task_path(team_id: @selected_team_id), class: "flex items-center gap-2 px-4 py-2 bg-brand hover:bg-brand-dark rounded-lg text-white transition" do %>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+      New Task
+    <% end %>
+  </div>
+
+  <!-- Filters -->
+  <div class="flex items-center gap-4 mb-6">
+    <%= form_with url: tasks_path, method: :get, data: { turbo: false }, class: "flex items-center gap-3" do |f| %>
+      <div>
+        <%= f.select :team_id,
+              options_from_collection_for_select(@teams, :id, :name, @selected_team_id),
+              { prompt: "All Teams" },
+              class: "bg-surface-card border border-border-default rounded-lg px-3 py-2 text-text-primary text-sm focus:border-brand focus:ring-1 focus:ring-brand" %>
+      </div>
+      <div>
+        <%= f.select :agent_slug,
+              options_from_collection_for_select(@agents, :slug, :name, @selected_agent_slug),
+              { prompt: "All Agents" },
+              class: "bg-surface-card border border-border-default rounded-lg px-3 py-2 text-text-primary text-sm focus:border-brand focus:ring-1 focus:ring-brand" %>
+      </div>
+      <%= f.submit "Filter", class: "px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-text-primary text-sm hover:border-gray-500 transition cursor-pointer" %>
+    <% end %>
+  </div>
+
+  <!-- Kanban Board -->
+  <div class="flex gap-4 overflow-x-auto pb-4">
+    <% Task.statuses.each_key do |status_key| %>
+      <%
+        column_labels = {
+          "backlog"     => "Backlog",
+          "todo"        => "To Do",
+          "in_progress" => "In Progress",
+          "review"      => "Review",
+          "done"        => "Done"
+        }
+        column_colors = {
+          "backlog"     => "text-text-faint",
+          "todo"        => "text-blue-400",
+          "in_progress" => "text-yellow-400",
+          "review"      => "text-purple-400",
+          "done"        => "text-green-400"
+        }
+        tasks_in_col = @tasks_by_status[status_key]
+        label = column_labels[status_key]
+        color = column_colors[status_key]
+      %>
+      <div class="flex-shrink-0 w-72">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold <%= color %>"><%= label %></span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-surface-raised text-text-muted"><%= tasks_in_col.count %></span>
+          </div>
+        </div>
+
+        <!-- Column drop target -->
+        <div class="task-column min-h-24 space-y-3 rounded-xl bg-surface-card border border-border-default p-3"
+             data-status="<%= status_key %>"
+             data-task-board-target="column">
+          <% if tasks_in_col.any? %>
+            <% tasks_in_col.each do |task| %>
+              <%= render "task_card", task: task %>
+            <% end %>
+          <% else %>
+            <div class="py-8 text-center text-text-faint text-xs empty-state">
+              No tasks
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

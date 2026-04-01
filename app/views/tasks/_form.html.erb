@@ -1,0 +1,79 @@
+<%= form_with(model: task, class: "space-y-5") do |f| %>
+  <% if task.errors.any? %>
+    <div class="bg-red-900/50 border border-red-700 rounded-lg p-4">
+      <ul class="text-red-300 text-sm space-y-1">
+        <% task.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <!-- Title -->
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Title <span class="text-red-400">*</span></label>
+    <%= f.text_field :title,
+          placeholder: "What needs to be done?",
+          class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white placeholder-text-faint focus:border-brand focus:ring-1 focus:ring-brand" %>
+  </div>
+
+  <!-- Description -->
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Description</label>
+    <%= f.text_area :description,
+          rows: 3,
+          placeholder: "Optional details...",
+          class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white placeholder-text-faint focus:border-brand focus:ring-1 focus:ring-brand" %>
+  </div>
+
+  <!-- Status + Priority row -->
+  <div class="grid grid-cols-2 gap-4">
+    <div>
+      <label class="block text-sm font-medium text-text-primary mb-1">Status</label>
+      <%= f.select :status,
+            Task.statuses.keys.map { |s| [s.humanize.gsub("_", " ").titleize, s] },
+            {},
+            class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white focus:border-brand focus:ring-1 focus:ring-brand" %>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-text-primary mb-1">Priority</label>
+      <%= f.select :priority,
+            Task.priorities.keys.map { |p| [p.capitalize, p] },
+            {},
+            class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white focus:border-brand focus:ring-1 focus:ring-brand" %>
+    </div>
+  </div>
+
+  <!-- Team + Assignee row -->
+  <div class="grid grid-cols-2 gap-4">
+    <div>
+      <label class="block text-sm font-medium text-text-primary mb-1">Team <span class="text-red-400">*</span></label>
+      <%= f.select :team_id,
+            options_from_collection_for_select(@teams, :id, :name, task.team_id),
+            { prompt: "Select team..." },
+            class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white focus:border-brand focus:ring-1 focus:ring-brand" %>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-text-primary mb-1">Assign To</label>
+      <%= f.select :agent_id,
+            options_from_collection_for_select(@agents, :id, :name, task.agent_id),
+            { prompt: "Unassigned" },
+            class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white focus:border-brand focus:ring-1 focus:ring-brand" %>
+    </div>
+  </div>
+
+  <!-- Due date -->
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Due Date</label>
+    <%= f.datetime_local_field :due_date,
+          value: task.due_date&.strftime("%Y-%m-%dT%H:%M"),
+          class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white focus:border-brand focus:ring-1 focus:ring-brand" %>
+  </div>
+
+  <!-- Submit -->
+  <div class="flex items-center gap-3 pt-2">
+    <%= f.submit task.persisted? ? "Update Task" : "Create Task",
+          class: "px-5 py-2 bg-brand hover:bg-brand-dark rounded-lg text-white font-medium transition cursor-pointer" %>
+    <%= link_to "Cancel", tasks_path, class: "px-4 py-2 text-text-muted hover:text-text-primary transition" %>
+  </div>
+<% end %>

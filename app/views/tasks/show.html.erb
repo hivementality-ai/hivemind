@@ -1,0 +1,116 @@
+<%
+  priority_badge = {
+    "urgent" => "bg-red-900/60 text-red-300 border-red-700/50",
+    "high"   => "bg-orange-900/60 text-orange-300 border-orange-700/50",
+    "medium" => "bg-blue-900/60 text-blue-300 border-blue-700/50",
+    "low"    => "bg-surface-overlay text-text-muted border-border-default"
+  }
+  status_badge = {
+    "backlog"     => "bg-surface-overlay text-text-faint border-border-default",
+    "todo"        => "bg-blue-900/60 text-blue-300 border-blue-700/50",
+    "in_progress" => "bg-yellow-900/60 text-yellow-300 border-yellow-700/50",
+    "review"      => "bg-purple-900/60 text-purple-300 border-purple-700/50",
+    "done"        => "bg-green-900/60 text-green-300 border-green-700/50"
+  }
+  overdue = @task.due_date.present? && @task.due_date < Time.current && !@task.done?
+%>
+
+<div class="min-h-screen bg-surface-base p-6">
+  <div class="max-w-3xl mx-auto">
+    <!-- Breadcrumb -->
+    <div class="mb-6">
+      <%= link_to "← Tasks", tasks_path(team_id: @task.team_id), class: "text-text-muted hover:text-text-primary transition text-sm" %>
+    </div>
+
+    <!-- Main card -->
+    <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-4">
+      <!-- Header row -->
+      <div class="flex items-start justify-between gap-4 mb-4">
+        <div class="flex-1">
+          <div class="flex items-center gap-2 mb-2 flex-wrap">
+            <span class="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded border <%= status_badge[@task.status] %>">
+              <%= @task.status.humanize.gsub("_", " ") %>
+            </span>
+            <span class="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded border <%= priority_badge[@task.priority] %>">
+              <%= @task.priority %> priority
+            </span>
+          </div>
+          <h1 class="text-xl font-bold text-white"><%= @task.title %></h1>
+        </div>
+
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <%= link_to "Edit", edit_task_path(@task), class: "px-3 py-1.5 bg-surface-raised border border-border-default rounded-lg text-text-primary text-sm hover:border-gray-500 transition" %>
+          <%= button_to "Delete", task_path(@task), method: :delete,
+                data: { turbo_confirm: "Delete this task?" },
+                class: "px-3 py-1.5 bg-red-900/40 border border-red-700/50 rounded-lg text-red-300 text-sm hover:bg-red-900/60 transition cursor-pointer" %>
+        </div>
+      </div>
+
+      <!-- Description -->
+      <% if @task.description.present? %>
+        <p class="text-text-muted text-sm leading-relaxed mb-4"><%= @task.description %></p>
+      <% end %>
+
+      <!-- Metadata grid -->
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4 pt-4 border-t border-border-default">
+        <div>
+          <p class="text-text-faint text-xs uppercase tracking-wider mb-1">Team</p>
+          <p class="text-text-primary text-sm"><%= @task.team.name %></p>
+        </div>
+        <div>
+          <p class="text-text-faint text-xs uppercase tracking-wider mb-1">Assigned To</p>
+          <% if @agent %>
+            <p class="text-text-primary text-sm">
+              <%= link_to @agent.name, agent_path(@agent), class: "text-brand-light hover:underline" %>
+            </p>
+          <% else %>
+            <p class="text-text-muted text-sm">Unassigned</p>
+          <% end %>
+        </div>
+        <div>
+          <p class="text-text-faint text-xs uppercase tracking-wider mb-1">Due Date</p>
+          <% if @task.due_date.present? %>
+            <p class="text-sm <%= overdue ? 'text-red-400 font-semibold' : 'text-text-primary' %>">
+              <%= overdue ? "⚠ " : "" %><%= @task.due_date.strftime("%b %-d, %Y %H:%M") %>
+            </p>
+          <% else %>
+            <p class="text-text-muted text-sm">No due date</p>
+          <% end %>
+        </div>
+        <div>
+          <p class="text-text-faint text-xs uppercase tracking-wider mb-1">Created By</p>
+          <p class="text-text-primary text-sm"><%= @task.created_by || "—" %></p>
+        </div>
+        <div>
+          <p class="text-text-faint text-xs uppercase tracking-wider mb-1">Created</p>
+          <p class="text-text-primary text-sm"><%= @task.created_at.strftime("%b %-d, %Y") %></p>
+        </div>
+        <% if @task.completed_at.present? %>
+          <div>
+            <p class="text-text-faint text-xs uppercase tracking-wider mb-1">Completed</p>
+            <p class="text-green-400 text-sm"><%= @task.completed_at.strftime("%b %-d, %Y") %></p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Linked Session -->
+    <% if @linked_session %>
+      <div class="bg-surface-card rounded-xl border border-border-default p-5">
+        <h2 class="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
+          <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+          Linked Conversation
+        </h2>
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-text-primary text-sm font-medium"><%= @linked_session.title.presence || "Session ##{@linked_session.id}" %></p>
+            <p class="text-text-faint text-xs mt-0.5"><%= @linked_session.agent.name %> · <%= @linked_session.created_at.strftime("%b %-d, %Y") %></p>
+          </div>
+          <%= link_to "Open conversation →", session_path(@linked_session), class: "text-brand-light text-sm hover:underline" %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

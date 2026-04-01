@@ -58,7 +58,8 @@ module Tools
       "project_create" => Tools::ProjectCreateExecutor,
       "project_update" => Tools::ProjectUpdateExecutor,
       "project_status" => Tools::ProjectStatusExecutor,
-      "talk_to_teammate" => Tools::TalkToTeammateExecutor
+      "talk_to_teammate" => Tools::TalkToTeammateExecutor,
+      "task_management" => Tools::TaskManagementExecutor
     }.freeze
 
     # Backwards compatibility alias

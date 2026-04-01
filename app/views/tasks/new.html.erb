@@ -1,0 +1,12 @@
+<div class="min-h-screen bg-surface-base p-6">
+  <div class="max-w-2xl mx-auto">
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-white">New Task</h1>
+      <p class="text-text-muted mt-1"><%= link_to "← Tasks", tasks_path, class: "hover:text-text-primary transition" %></p>
+    </div>
+
+    <div class="bg-surface-card rounded-xl border border-border-default p-6">
+      <%= render "form", task: @task %>
+    </div>
+  </div>
+</div>

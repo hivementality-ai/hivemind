@@ -14,6 +14,7 @@ class Session < ApplicationRecord
   has_many :heartbeat_runs, dependent: :nullify
   has_many :sub_agent_tasks_as_parent, class_name: "SubAgentTask", foreign_key: :parent_session_id, dependent: :nullify, inverse_of: :parent_session
   has_many :sub_agent_tasks_as_child, class_name: "SubAgentTask", foreign_key: :child_session_id, dependent: :nullify, inverse_of: :child_session
+  has_many :tasks, dependent: :nullify
 
   enum :status, { active: 0, completed: 1, archived: 2, expired: 3 }, default: :active
 

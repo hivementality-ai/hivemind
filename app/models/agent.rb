@@ -51,6 +51,7 @@ class Agent < ApplicationRecord
   has_many :heartbeat_runs, dependent: :destroy
   has_many :agent_mcp_servers, dependent: :destroy
   has_many :mcp_servers, through: :agent_mcp_servers
+  has_many :tasks, dependent: :nullify
 
   enum :status, { idle: 0, thinking: 1, executing: 2, waiting: 3, error: 4 }, default: :idle
 
