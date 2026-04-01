@@ -8,6 +8,7 @@ class User < ApplicationRecord
 
   has_many :api_tokens, dependent: :destroy
   has_many :projects
+  has_many :tasks, dependent: :nullify
 
   enum :role, { viewer: 0, operator: 1, admin: 2, owner: 3 }, default: :owner
 

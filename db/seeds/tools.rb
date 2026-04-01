@@ -759,33 +759,30 @@ BUILTIN_TOOLS = [
   },
   {
     name: "task_management",
-    description: "Create, list, update, and close tasks. Use to track structured work items for the team.",
+    description: "Interact with the team task board. Create, update, move, assign, list, comment on, and close tasks. Agents use this to track their work, check their workload, and collaborate on shared tasks.",
     executor_type: "task_management",
+    requires_approval: false,
     parameters_schema: {
       "properties" => {
         "action" => {
           "type" => "string",
-          "description" => "Action to perform: create, list, update, close",
-          "enum" => %w[create list update close]
+          "description" => "Action: create_task, update_task, move_task, assign_task, list_tasks, my_tasks, add_comment, close_task",
+          "enum" => %w[create_task update_task move_task assign_task list_tasks my_tasks add_comment close_task]
         },
-        "title" => { "type" => "string", "description" => "Task title (for create/update)" },
-        "description" => { "type" => "string", "description" => "Task description (for create/update)" },
-        "status" => {
-          "type" => "string",
-          "description" => "Task status: backlog, todo, in_progress, review, done"
-        },
-        "priority" => {
-          "type" => "string",
-          "description" => "Task priority: low, medium, high, urgent"
-        },
-        "assignee" => {
-          "type" => "string",
-          "description" => "Agent name or slug to assign the task to (use 'me' for self)"
-        },
-        "task_id" => { "type" => "integer", "description" => "Task ID (required for update/close)" },
-        "mine" => { "type" => "boolean", "description" => "Only list tasks assigned to me (for list)" },
-        "active" => { "type" => "boolean", "description" => "Only list active/non-done tasks (for list, default true)" },
-        "limit" => { "type" => "integer", "description" => "Maximum number of tasks to return (for list, default 20)" }
+        "task_id"              => { "type" => "integer", "description" => "Task ID (required for update_task, move_task, assign_task, add_comment, close_task)" },
+        "title"                => { "type" => "string",  "description" => "Task title (create_task, update_task)" },
+        "description"          => { "type" => "string",  "description" => "Task description (create_task, update_task)" },
+        "status"               => { "type" => "string",  "description" => "Status for move_task or list_tasks filter: backlog, todo, in_progress, review, done, cancelled" },
+        "priority"             => { "type" => "string",  "description" => "Priority: low, medium, high, urgent" },
+        "assign_to"            => { "type" => "string",  "description" => "Agent name to assign (use 'me' for self, 'unassign' to remove). For create_task and assign_task." },
+        "agent_name"           => { "type" => "string",  "description" => "Agent name for assign_task (alias for assign_to)" },
+        "agent"                => { "type" => "string",  "description" => "Filter by agent name for list_tasks" },
+        "due_date"             => { "type" => "string",  "description" => "Due date in ISO 8601 format (e.g. 2026-04-15T10:00:00Z)" },
+        "project_id"           => { "type" => "integer", "description" => "Link task to a project (create_task or filter in list_tasks)" },
+        "project_milestone_id" => { "type" => "integer", "description" => "Link task to a milestone (create_task or filter in list_tasks)" },
+        "comment"              => { "type" => "string",  "description" => "Comment text for add_comment" },
+        "resolution_note"      => { "type" => "string",  "description" => "Optional closing note for close_task" },
+        "limit"                => { "type" => "integer", "description" => "Max tasks to return in list_tasks (default 50, max 100)" }
       },
       "required" => %w[action]
     }
