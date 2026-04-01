@@ -25,9 +25,7 @@ RSpec.describe Tool, type: :model do
     it { should validate_presence_of(:description) }
     it { should validate_presence_of(:executor_type) }
 
-    it 'validates executor_type inclusion' do
-      valid_types = %w[shell file_read file_write file_edit web_search web_fetch http_request browser
-                       memory_search image cron message heartbeat_write delegate delegation_status]
+    it 'validates executor_type inclusion from executor registry' do
       tool = build(:tool, executor_type: 'shell')
       expect(tool).to be_valid
 
@@ -145,14 +143,11 @@ RSpec.describe Tool, type: :model do
   end
 
   describe 'executor_type values' do
-    let(:valid_executor_types) do
-      %w[shell file_read file_write file_edit web_search web_fetch http_request browser
-         memory_search image cron message heartbeat_write delegate delegation_status]
-    end
-
-    it 'accepts all valid executor types' do
-      valid_executor_types.each do |executor_type|
-        tool = build(:tool, executor_type: executor_type)
+    it 'accepts all registered executor types' do
+      Tools::Executor.all_executors.keys.each do |executor_type|
+        attrs = { executor_type: executor_type }
+        attrs[:script_template] = "echo hello" if executor_type == "custom_script"
+        tool = build(:tool, **attrs)
         expect(tool).to be_valid, "#{executor_type} should be valid"
       end
     end
