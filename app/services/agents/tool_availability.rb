@@ -122,8 +122,11 @@ module Agents
 
     def known_tool_type?
       Tool.validators_on(:executor_type).any? do |v|
-        v.is_a?(ActiveModel::Validations::InclusionValidator) &&
-          v.options[:in]&.include?(@tool_name)
+        next unless v.is_a?(ActiveModel::Validations::InclusionValidator)
+
+        allowed = v.options[:in]
+        allowed = allowed.call if allowed.is_a?(Proc)
+        allowed.respond_to?(:include?) && allowed.include?(@tool_name)
       end
     end
 
