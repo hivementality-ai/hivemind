@@ -1,0 +1,65 @@
+<div class="max-w-full mx-auto px-6 py-8" data-controller="kanban">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-3xl font-bold text-white">Tasks</h1>
+      <p class="text-text-muted mt-1">
+        <%= @total_open %> open &middot; <%= @total_done %> done
+      </p>
+    </div>
+    <%= link_to new_task_path, class: "flex items-center gap-2 px-4 py-2 bg-brand hover:bg-brand/80 text-white rounded-lg font-medium transition" do %>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+      New Task
+    <% end %>
+  </div>
+
+  <!-- Kanban Board -->
+  <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 overflow-x-auto">
+    <% Task::STATUSES.each do |status| %>
+      <%
+        column_label = status.humanize.gsub("_", " ")
+        color_class = case status
+          when "backlog"     then "bg-surface-card border-border-default"
+          when "todo"        then "bg-surface-card border-blue-700/40"
+          when "in_progress" then "bg-surface-card border-yellow-600/40"
+          when "review"      then "bg-surface-card border-purple-600/40"
+          when "done"        then "bg-surface-card border-green-700/40"
+          else "bg-surface-card border-border-default"
+        end
+        header_color = case status
+          when "backlog"     then "text-text-muted"
+          when "todo"        then "text-blue-400"
+          when "in_progress" then "text-yellow-400"
+          when "review"      then "text-purple-400"
+          when "done"        then "text-green-400"
+          else "text-text-muted"
+        end
+        tasks = @tasks_by_status[status]
+      %>
+      <div class="flex flex-col min-h-64 rounded-xl border <%= color_class %> p-3"
+           data-kanban-target="column"
+           data-status="<%= status %>">
+
+        <!-- Column Header -->
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-sm font-semibold uppercase tracking-wider <%= header_color %>">
+            <%= column_label %>
+          </span>
+          <span class="text-xs bg-surface-raised text-text-muted px-2 py-0.5 rounded-full">
+            <%= tasks.size %>
+          </span>
+        </div>
+
+        <!-- Task Cards -->
+        <div class="flex flex-col gap-2 flex-1"
+             data-kanban-target="cards"
+             data-status="<%= status %>">
+          <% tasks.each do |task| %>
+            <%= render "task_card", task: task %>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

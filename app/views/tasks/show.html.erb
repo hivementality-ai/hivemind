@@ -1,0 +1,141 @@
+<div class="max-w-3xl mx-auto px-6 py-8">
+  <div class="flex items-center gap-3 mb-6">
+    <%= link_to tasks_path, class: "text-text-muted hover:text-white transition" do %>
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+      </svg>
+    <% end %>
+    <h1 class="text-2xl font-bold text-white"><%= @task.title %></h1>
+    <span class="ml-auto text-text-faint text-sm">#<%= @task.id %></span>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Main -->
+    <div class="lg:col-span-2 space-y-6">
+      <!-- Description -->
+      <div class="bg-surface-card rounded-xl border border-border-default p-6">
+        <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Description</h2>
+        <% if @task.description.present? %>
+          <p class="text-text-primary whitespace-pre-wrap"><%= @task.description %></p>
+        <% else %>
+          <p class="text-text-faint italic">No description.</p>
+        <% end %>
+      </div>
+
+      <!-- Comments -->
+      <div class="bg-surface-card rounded-xl border border-border-default p-6">
+        <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-4">
+          Comments (<%= @task.comments.size %>)
+        </h2>
+
+        <% if @task.comments.any? %>
+          <div class="space-y-4 mb-6">
+            <% @task.comments.each do |comment| %>
+              <div class="flex gap-3">
+                <div class="w-7 h-7 rounded-full bg-brand/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span class="text-xs font-bold text-brand"><%= comment["author"][0]&.upcase %></span>
+                </div>
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-sm font-medium text-white"><%= comment["author"] %></span>
+                    <span class="text-xs text-text-faint"><%= Time.zone.parse(comment["created_at"])&.strftime("%b %-d, %H:%M") rescue comment["created_at"] %></span>
+                  </div>
+                  <p class="text-text-primary text-sm whitespace-pre-wrap"><%= comment["body"] %></p>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+
+        <!-- Add comment form -->
+        <%= form_with url: task_path(@task), method: :patch, local: true do |f| %>
+          <div class="space-y-3">
+            <%= f.hidden_field :status, value: @task.status %>
+            <div>
+              <label class="block text-xs font-medium text-text-muted mb-1">Add a comment</label>
+              <%= f.text_area :_comment_body, rows: 3,
+                    placeholder: "Write a comment...",
+                    class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-text-primary text-sm placeholder-text-faint focus:outline-none focus:border-brand/50 resize-none" %>
+            </div>
+            <%= f.submit "Add Comment", class: "px-4 py-2 bg-brand hover:bg-brand/80 text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-4">
+      <!-- Status & Priority -->
+      <div class="bg-surface-card rounded-xl border border-border-default p-4">
+        <h2 class="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Details</h2>
+        <dl class="space-y-3">
+          <div>
+            <dt class="text-xs text-text-faint mb-1">Status</dt>
+            <dd>
+              <span class="text-sm font-medium text-white"><%= @task.status.humanize %></span>
+            </dd>
+          </div>
+          <div>
+            <dt class="text-xs text-text-faint mb-1">Priority</dt>
+            <dd>
+              <%
+                badge = case @task.priority
+                  when "urgent" then "bg-red-900/40 text-red-300"
+                  when "high"   then "bg-orange-900/40 text-orange-300"
+                  when "medium" then "bg-yellow-900/40 text-yellow-300"
+                  else               "bg-slate-700/40 text-slate-400"
+                end
+              %>
+              <span class="text-xs font-semibold uppercase px-2 py-0.5 rounded <%= badge %>">
+                <%= @task.priority %>
+              </span>
+            </dd>
+          </div>
+          <% if @task.assigned_to_agent %>
+            <div>
+              <dt class="text-xs text-text-faint mb-1">Assigned to</dt>
+              <dd class="text-sm text-white"><%= @task.assigned_to_agent.name %></dd>
+            </div>
+          <% end %>
+          <% if @task.created_by_agent %>
+            <div>
+              <dt class="text-xs text-text-faint mb-1">Created by</dt>
+              <dd class="text-sm text-white"><%= @task.created_by_agent.name %></dd>
+            </div>
+          <% end %>
+          <% if @task.due_at %>
+            <div>
+              <dt class="text-xs text-text-faint mb-1">Due</dt>
+              <dd class="text-sm <%= @task.overdue? ? 'text-red-400' : 'text-white' %>">
+                <%= @task.due_at.strftime("%b %-d, %Y") %>
+                <%= " (overdue)" if @task.overdue? %>
+              </dd>
+            </div>
+          <% end %>
+          <div>
+            <dt class="text-xs text-text-faint mb-1">Created</dt>
+            <dd class="text-sm text-text-muted"><%= @task.created_at.strftime("%b %-d, %Y") %></dd>
+          </div>
+        </dl>
+      </div>
+
+      <!-- Actions -->
+      <div class="bg-surface-card rounded-xl border border-border-default p-4 space-y-2">
+        <%= link_to edit_task_path(@task), class: "flex items-center gap-2 w-full px-3 py-2 text-sm text-text-primary hover:bg-surface-raised rounded-lg transition" do %>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          Edit task
+        <% end %>
+        <%= button_to task_path(@task), method: :delete,
+              data: { turbo_confirm: "Delete this task?" },
+              class: "flex items-center gap-2 w-full px-3 py-2 text-sm text-red-400 hover:bg-red-900/20 rounded-lg transition text-left" do %>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          Delete task
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

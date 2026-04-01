@@ -71,6 +71,13 @@ Rails.application.routes.draw do
     end
   end
 
+  # Tasks (kanban board)
+  resources :tasks do
+    member do
+      patch :move
+    end
+  end
+
   # Budgets
   get "budgets", to: "budgets#index", as: :budgets
   patch "budgets/:agent_id", to: "budgets#update", as: :update_budget
