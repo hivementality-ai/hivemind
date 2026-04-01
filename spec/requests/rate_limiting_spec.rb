@@ -46,24 +46,28 @@ RSpec.describe "Rate limiting", type: :request do
 
   describe "chat message throttle (30 req/min per IP+session)" do
     let(:user) { create(:user, :owner) }
+    let(:agent) { create(:agent) }
+    let(:session) { create(:session, agent: agent) }
+    let(:team) { create(:team) }
+    let(:team_chat_session) { create(:team_chat_session, team: team, user: user) }
 
     before { sign_in user }
 
     it "returns 429 after 30 messages to the same session" do
       30.times do
-        post "/sessions/1/message", params: { message: "hello" }
+        post "/sessions/#{session.id}/message", params: { message: "hello" }
       end
 
-      post "/sessions/1/message", params: { message: "hello" }
+      post "/sessions/#{session.id}/message", params: { message: "hello" }
       expect(response).to have_http_status(:too_many_requests)
     end
 
     it "returns 429 after 30 messages to the same team chat" do
       30.times do
-        post "/team_chats/1/message", params: { message: "hello" }
+        post "/team_chats/#{team_chat_session.id}/message", params: { message: "hello" }
       end
 
-      post "/team_chats/1/message", params: { message: "hello" }
+      post "/team_chats/#{team_chat_session.id}/message", params: { message: "hello" }
       expect(response).to have_http_status(:too_many_requests)
     end
   end

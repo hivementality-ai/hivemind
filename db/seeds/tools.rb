@@ -770,6 +770,18 @@ BUILTIN_TOOLS = [
       },
       "required" => %w[action]
     }
+  },
+  # ── Chat Attachments ──────────────────────────────────────────
+  {
+    name: "chat_attachments",
+    description: "List and download files that were uploaded to this chat session. Use 'list' to see all attachments, or 'download' to save one to the workspace for processing.",
+    executor_type: "chat_attachments",
+    parameters_schema: {
+      "properties" => {
+        "action" => { "type" => "string", "description" => "Action to perform", "enum" => %w[list download], "default" => "list" },
+        "attachment_id" => { "type" => "integer", "description" => "ID of the attachment to download (required for download action)" }
+      }
+    }
   }
 ].freeze
 
