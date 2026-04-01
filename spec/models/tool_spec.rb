@@ -27,7 +27,7 @@ RSpec.describe Tool, type: :model do
 
     it 'validates executor_type inclusion' do
       valid_types = %w[shell file_read file_write file_edit web_search web_fetch http_request browser
-                       memory_search image cron message heartbeat_write delegate spawn spawn_status]
+                       memory_search image cron message heartbeat_write delegate delegation_status]
       tool = build(:tool, executor_type: 'shell')
       expect(tool).to be_valid
 
@@ -147,7 +147,7 @@ RSpec.describe Tool, type: :model do
   describe 'executor_type values' do
     let(:valid_executor_types) do
       %w[shell file_read file_write file_edit web_search web_fetch http_request browser
-         memory_search image cron message heartbeat_write delegate spawn spawn_status]
+         memory_search image cron message heartbeat_write delegate delegation_status]
     end
 
     it 'accepts all valid executor types' do

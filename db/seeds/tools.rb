@@ -212,7 +212,7 @@ BUILTIN_TOOLS = [
   },
   {
     name: "delegate",
-    description: "Delegate a task to another agent by name. The agent will process the task and return their response. Use to orchestrate work across teammates.",
+    description: "Delegate a task to another agent. They work independently in their own session and report back when done. Use delegation_status to check progress. Best for tasks that take time (research, coding, projects).",
     executor_type: "delegate",
     requires_approval: false,
     parameters_schema: {
@@ -224,27 +224,14 @@ BUILTIN_TOOLS = [
     }
   },
   {
-    name: "spawn",
-    description: "Spawn a sub-agent to handle a task in the background. Returns immediately with a task ID — you can keep working while the sub-agent runs. Use spawn_status to check on it later.",
-    executor_type: "spawn",
-    requires_approval: false,
-    parameters_schema: {
-      "properties" => {
-        "agent" => { "type" => "string", "description" => "Name of the agent to spawn" },
-        "task" => { "type" => "string", "description" => "Task description for the sub-agent" }
-      },
-      "required" => %w[agent task]
-    }
-  },
-  {
-    name: "spawn_status",
-    description: "Check the status of a spawned sub-agent task, or list recent sub-agent tasks.",
-    executor_type: "spawn_status",
+    name: "delegation_status",
+    description: "Check the status of a delegated task, or list recent delegations.",
+    executor_type: "delegation_status",
     requires_approval: false,
     parameters_schema: {
       "properties" => {
         "action" => { "type" => "string", "description" => "Action: status (check one task) or list (show recent tasks)", "enum" => %w[status list] },
-        "task_key" => { "type" => "string", "description" => "Task ID from spawn (for status action)" }
+        "task_key" => { "type" => "string", "description" => "Task ID from delegate (for status action)" }
       },
       "required" => [ "action" ]
     }
