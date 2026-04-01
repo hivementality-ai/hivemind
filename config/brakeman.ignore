@@ -51,8 +51,44 @@
     {
       "fingerprint": "f0cfac6eb72acdb919a1c91d8966f9f95ccd32aca2c61f99259b3468099c34dc",
       "note": "Project file delete: guarded by .. rejection, realpath resolution, and starts_with? workspace check"
+    },
+    {
+      "fingerprint": "00ea9587653198991ee41c3b2b850718e19c0a320c1b0689c92e0b6397be97d0",
+      "note": "agents_controller: resolve_agent_path blocks traversal via .., realpath, and starts_with? check"
+    },
+    {
+      "fingerprint": "0d656c30a1d1d46b35231569283dae94ee2106090ed162648ec9958f7bac09c5",
+      "note": "agents_controller: resolve_agent_path blocks traversal via .., realpath, and starts_with? check"
+    },
+    {
+      "fingerprint": "9df707c6434897dbb27e370980dbb8dcc5f026a8bfb2e4fd15404ce22655719e",
+      "note": "agents_controller: mkdir_p uses resolve_agent_path + sanitized name (gsub non-alphanum)"
+    },
+    {
+      "fingerprint": "611dc4ccdfd49f8fa858c0434d403475b63d371d12c7f46427910fc09d1729e3",
+      "note": "agents_controller: send_file via resolve_agent_path which blocks traversal"
+    },
+    {
+      "fingerprint": "23a19eb6edf87669ddefb40352c8a38405e99d9bab2a7e729cc2adfaced02830",
+      "note": "workspace_files_controller: resolve_path blocks traversal via .., realpath, and starts_with? check"
+    },
+    {
+      "fingerprint": "ce2e677dd062297a6f48a0a25f8ffb30db2076d87db06bc6a6fc00bba1ccbb02",
+      "note": "workspace_files_controller: resolve_path blocks traversal via .., realpath, and starts_with? check"
+    },
+    {
+      "fingerprint": "cdd3a91b7c1c4f3c625f5edf9b6c4824e24ee976b991be70db0549c41669d537",
+      "note": "workspace_files_controller: mkdir_p uses resolve_path + sanitized name (gsub non-alphanum)"
+    },
+    {
+      "fingerprint": "15012eef342ebf846843839f12e3709b69b68e9cb643897909a6a6d38a520295",
+      "note": "workspace_files_controller: send_file via resolve_path which blocks traversal"
+    },
+    {
+      "fingerprint": "c2a25b4040db81c8028aa376fd53908747f2f09f6b12822ccbf773fecf752f66",
+      "note": "workspace_files_controller: set_root mkdir_p uses allowlisted ROOTS config, not user input"
     }
   ],
-  "updated": "2026-02-15",
-  "brakeman_version": "8.0.2"
+  "updated": "2026-04-01",
+  "brakeman_version": "8.0.4"
 }
