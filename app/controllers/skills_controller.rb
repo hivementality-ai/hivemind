@@ -65,20 +65,24 @@ class SkillsController < ApplicationController
     if scan_result.success? && scan_result.data[:status] == "clean"
       save_imported_skill(skill, scan_result.data)
     else
-      session[:pending_skill_import] = {
+      # Store in cache instead of session to avoid CookieOverflow on large skills
+      import_key = "skill_import_#{current_user.id}_#{SecureRandom.hex(8)}"
+      Rails.cache.write(import_key, {
         name: skill.name,
         description: skill.description,
         summary: skill.summary,
         content: skill.content,
         category: skill.category,
         scan_result: scan_result.success? ? scan_result.data : { status: "error", error: scan_result.error }
-      }
+      }, expires_in: 30.minutes)
+      session[:pending_skill_import_key] = import_key
       redirect_to review_import_skills_path
     end
   end
 
   def review_import
-    @pending = session[:pending_skill_import]
+    import_key = session[:pending_skill_import_key]
+    @pending = import_key ? Rails.cache.read(import_key) : nil
     unless @pending
       redirect_to skills_path, alert: "No pending import to review"
       return
@@ -88,13 +92,13 @@ class SkillsController < ApplicationController
   end
 
   def confirm_import
-    pending = session[:pending_skill_import]
+    import_key = session[:pending_skill_import_key]
+    pending = import_key ? Rails.cache.read(import_key) : nil
     unless pending
       redirect_to skills_path, alert: "No pending import to confirm"
       return
     end
 
-    # Symbolize keys from session (stored as strings)
     pending = pending.deep_symbolize_keys
     scan_result = pending[:scan_result]
 
@@ -116,7 +120,8 @@ class SkillsController < ApplicationController
     scan_result[:approved_at] = Time.current.iso8601
 
     save_imported_skill(skill, scan_result, approved: true)
-    session.delete(:pending_skill_import)
+    Rails.cache.delete(import_key)
+    session.delete(:pending_skill_import_key)
   end
 
   def export

@@ -27,7 +27,7 @@ class Skill < ApplicationRecord
     new(
       name: frontmatter["name"],
       description: frontmatter["description"],
-      summary: frontmatter["summary"] || frontmatter["description"].to_s.truncate(200),
+      summary: (frontmatter["summary"] || frontmatter["description"].to_s).truncate(150),
       content: body.strip,
       category: frontmatter.dig("metadata", "openclaw", "category") || frontmatter["category"]
     )
