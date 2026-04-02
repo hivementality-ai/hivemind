@@ -4,43 +4,29 @@ FactoryBot.define do
   factory :sub_agent_task do
     association :parent_agent, factory: :agent
     association :child_agent, factory: :agent
-
-    sequence(:task_key) { |n| "task-#{n}-#{SecureRandom.hex(4)}" }
-    task { "Complete data analysis and report" }
-    status { "pending" }
-    started_at { nil }
-    completed_at { nil }
-    parent_session { nil }
-    child_session { nil }
-
-    trait :pending do
-      status { "pending" }
-      started_at { nil }
-    end
+    association :parent_session, factory: :session
+    association :child_session, factory: :session
+    task { 'Summarize the latest quarterly report' }
+    sequence(:task_key) { |n| "task_#{SecureRandom.hex(8)}_#{n}" }
+    status { 'pending' }
 
     trait :running do
-      status { "running" }
-      started_at { 5.minutes.ago }
+      status { 'running' }
+      started_at { Time.current }
     end
 
     trait :completed do
-      status { "completed" }
-      started_at { 10.minutes.ago }
-      completed_at { 5.minutes.ago }
+      status { 'completed' }
+      started_at { 1.minute.ago }
+      completed_at { Time.current }
+      result { 'Task completed successfully' }
     end
 
     trait :failed do
-      status { "failed" }
-      started_at { 10.minutes.ago }
-      completed_at { 5.minutes.ago }
-    end
-
-    trait :with_parent_session do
-      association :parent_session, factory: :session
-    end
-
-    trait :with_child_session do
-      association :child_session, factory: :session
+      status { 'failed' }
+      started_at { 1.minute.ago }
+      completed_at { Time.current }
+      result { 'Task failed with error' }
     end
   end
 end
