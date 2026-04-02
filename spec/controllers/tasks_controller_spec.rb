@@ -31,6 +31,16 @@ RSpec.describe TasksController, type: :controller do
       expect(assigns(:total_done)).to eq(1)
     end
 
+    it "assigns all visible enabled agents" do
+      get :index
+      expect(assigns(:agents)).to be_present
+    end
+
+    it "covers every STATUSES column in the grouped hash" do
+      get :index
+      expect(assigns(:tasks_by_status).keys).to match_array(Task::STATUSES)
+    end
+
     context "when not authenticated" do
       before { sign_out user }
 
@@ -140,6 +150,16 @@ RSpec.describe TasksController, type: :controller do
         expect(response).to have_http_status(:ok)
         body = JSON.parse(response.body)
         expect(body["status"]).to eq("ok")
+        expect(body["task"]["title"]).to eq("JSON title")
+      end
+    end
+
+    context "with invalid params (JSON)" do
+      it "returns 422 with error messages" do
+        patch :update, params: { id: task.id, task: { title: "" } }, format: :json
+        expect(response).to have_http_status(:unprocessable_entity)
+        body = JSON.parse(response.body)
+        expect(body["errors"]).to be_present
       end
     end
 
@@ -150,6 +170,20 @@ RSpec.describe TasksController, type: :controller do
         expect(task.comments.size).to eq(1)
         expect(task.comments.first["body"]).to eq("Nice work")
         expect(response).to redirect_to(task_path(task))
+      end
+
+      it "does not trigger a regular update when _comment_body is present" do
+        original_title = task.title
+        patch :update, params: { id: task.id, task: { title: "Sneaky change", _comment_body: "A comment" } }
+        expect(task.reload.title).to eq(original_title)
+      end
+    end
+
+    context "when task does not exist" do
+      it "raises not found" do
+        expect {
+          patch :update, params: { id: 999999, task: { title: "x" } }
+        }.to raise_error(ActiveRecord::RecordNotFound)
       end
     end
   end
@@ -172,9 +206,39 @@ RSpec.describe TasksController, type: :controller do
       expect(body["task"]["status"]).to eq("done")
     end
 
+    it "returns the full task JSON payload" do
+      patch :move, params: { id: task.id, status: "todo" }, format: :json
+      body = JSON.parse(response.body)
+      expect(body["task"].keys).to include("id", "title", "status", "priority")
+    end
+
     it "returns 422 for invalid status" do
       patch :move, params: { id: task.id, status: "nonexistent" }, format: :json
       expect(response).to have_http_status(:unprocessable_entity)
+      body = JSON.parse(response.body)
+      expect(body["error"]).to eq("Invalid status")
+    end
+
+    it "does not change status when given an invalid value" do
+      patch :move, params: { id: task.id, status: "nonexistent" }, format: :json
+      expect(task.reload.status).to eq("backlog")
+    end
+
+    context "when task does not exist" do
+      it "raises not found" do
+        expect {
+          patch :move, params: { id: 999999, status: "todo" }, format: :json
+        }.to raise_error(ActiveRecord::RecordNotFound)
+      end
+    end
+
+    context "when not authenticated" do
+      before { sign_out user }
+
+      it "returns a redirect or 401" do
+        patch :move, params: { id: task.id, status: "todo" }, format: :json
+        expect(response.status).to be_in([302, 401])
+      end
     end
   end
 
@@ -190,6 +254,19 @@ RSpec.describe TasksController, type: :controller do
     it "redirects to tasks index" do
       delete :destroy, params: { id: task.id }
       expect(response).to redirect_to(tasks_path)
+    end
+
+    it "sets a notice" do
+      delete :destroy, params: { id: task.id }
+      expect(flash[:notice]).to eq("Task deleted.")
+    end
+
+    context "when task does not exist" do
+      it "raises not found" do
+        expect {
+          delete :destroy, params: { id: 999999 }
+        }.to raise_error(ActiveRecord::RecordNotFound)
+      end
     end
   end
 end

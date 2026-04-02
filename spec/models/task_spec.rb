@@ -57,6 +57,30 @@ RSpec.describe Task, type: :model do
         expect(Task.by_status("todo")).not_to include(done_task)
       end
     end
+
+    describe ".by_priority" do
+      it "orders urgent before high before medium before low" do
+        low    = create(:task, priority: "low")
+        medium = create(:task, priority: "medium")
+        high   = create(:task, priority: "high")
+        urgent = create(:task, :urgent)
+
+        ordered = Task.by_priority.where(id: [low.id, medium.id, high.id, urgent.id])
+        expect(ordered.map(&:priority)).to eq(%w[urgent high medium low])
+      end
+    end
+  end
+
+  describe "#assigned?" do
+    it "returns false when no agent is assigned" do
+      task = build(:task, assigned_to_agent: nil)
+      expect(task.assigned?).to be false
+    end
+
+    it "returns true when an agent is assigned" do
+      task = build(:task, :with_agent)
+      expect(task.assigned?).to be true
+    end
   end
 
   describe "#add_comment" do
@@ -77,6 +101,13 @@ RSpec.describe Task, type: :model do
       task.reload
       expect(task.comments.size).to eq(2)
     end
+
+    it "returns the newly added comment hash" do
+      result = task.add_comment(author_name: "Mando", body: "Details here")
+      expect(result["author"]).to eq("Mando")
+      expect(result["body"]).to eq("Details here")
+      expect(result["created_at"]).to be_present
+    end
   end
 
   describe "#overdue?" do
@@ -94,6 +125,11 @@ RSpec.describe Task, type: :model do
       task = build(:task, due_at: nil)
       expect(task.overdue?).to be false
     end
+
+    it "returns false when due_at is in the future" do
+      task = build(:task, due_at: 2.days.from_now, status: "todo")
+      expect(task.overdue?).to be false
+    end
   end
 
   describe "#to_summary" do
@@ -104,6 +140,30 @@ RSpec.describe Task, type: :model do
       expect(summary).to include("Fix the bug")
       expect(summary).to include("in_progress")
       expect(summary).to include("high")
+    end
+
+    it "includes assignee name when assigned" do
+      agent = create(:agent, name: "Grogu")
+      task  = create(:task, assigned_to_agent: agent)
+      expect(task.to_summary).to include("Grogu")
+    end
+
+    it "includes formatted due date when present" do
+      task = create(:task, due_at: Time.zone.parse("2025-12-31"))
+      expect(task.to_summary).to include("2025-12-31")
+    end
+
+    it "omits assignment and due date when absent" do
+      task = create(:task, assigned_to_agent: nil, due_at: nil)
+      summary = task.to_summary
+      expect(summary).not_to include("Assigned:")
+      expect(summary).not_to include("Due:")
+    end
+
+    it "truncates long descriptions" do
+      task = create(:task, description: "x" * 200)
+      expect(task.to_summary).to include("Description:")
+      expect(task.to_summary.length).to be < 400
     end
   end
 
@@ -119,6 +179,20 @@ RSpec.describe Task, type: :model do
       task = create(:task, :done)
       task.update!(status: "todo")
       expect(task.completed_at).to be_nil
+    end
+
+    it "sets completed_at when task is created directly as done" do
+      task = create(:task, status: "done")
+      expect(task.completed_at).to be_present
+    end
+
+    it "does not overwrite an existing completed_at if already done" do
+      task = create(:task, status: "done")
+      original_time = task.completed_at
+      travel 1.minute do
+        task.update!(title: "Retitled but still done")
+        expect(task.completed_at).to be_within(1.second).of(original_time)
+      end
     end
   end
 end
