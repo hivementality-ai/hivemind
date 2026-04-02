@@ -41,7 +41,7 @@ class SubAgentJob < ApplicationJob
     )
 
     if result.success?
-      reply = result.data[:reply].to_s
+      reply = result.data[:content].to_s
       sat.update!(
         status: "completed",
         result: reply,

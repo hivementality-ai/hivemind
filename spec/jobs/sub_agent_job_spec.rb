@@ -23,7 +23,7 @@ RSpec.describe SubAgentJob, type: :job do
     context "success" do
       before do
         allow(Sessions::Chat).to receive(:call).and_return(
-          double(success?: true, data: { reply: "Analysis complete" })
+          double(success?: true, data: { content: "Analysis complete" })
         )
       end
 
@@ -132,7 +132,7 @@ RSpec.describe SubAgentJob, type: :job do
 
       before do
         allow(Sessions::Chat).to receive(:call).and_return(
-          double(success?: true, data: { reply: "Done" })
+          double(success?: true, data: { content: "Done" })
         )
       end
 
@@ -145,7 +145,7 @@ RSpec.describe SubAgentJob, type: :job do
     context "recursion depth limit" do
       it "stops callbacks at MAX_CALLBACK_DEPTH" do
         allow(Sessions::Chat).to receive(:call).and_return(
-          double(success?: true, data: { reply: "Done" })
+          double(success?: true, data: { content: "Done" })
         )
 
         # Create a chain of sub-agent sessions to simulate depth

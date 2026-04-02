@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe HeartbeatJob, type: :job do
   let(:agent) { create(:agent, name: "System Assistant", llm_model: "claude-3-5-sonnet", system_agent: true) }
   let(:config) { { "enabled" => true, "interval_minutes" => 30 }.to_json }
-  let(:chat_result) { double(success?: true, data: { reply: "Everything looks good" }) }
+  let(:chat_result) { double(success?: true, data: { content: "Everything looks good" }) }
 
   before do
     allow(ActionCable.server).to receive(:broadcast)
@@ -45,7 +45,7 @@ RSpec.describe HeartbeatJob, type: :job do
     end
 
     it "suppresses HEARTBEAT_OK responses" do
-      allow(Sessions::Chat).to receive(:call).and_return(double(success?: true, data: { reply: "HEARTBEAT_OK" }))
+      allow(Sessions::Chat).to receive(:call).and_return(double(success?: true, data: { content: "HEARTBEAT_OK" }))
       described_class.perform_now
       expect(ActionCable.server).not_to have_received(:broadcast)
     end

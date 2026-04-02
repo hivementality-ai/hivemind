@@ -107,8 +107,8 @@ class InboundMessageJob < ApplicationJob
     effective_message = hashtag_result.clean_message.presence || message
     result = Sessions::Chat.call(session: session, message: effective_message, agent: agent)
 
-    if result.success? && result.data[:reply] || result.data[:content].present?
-      reply = result.data[:reply] || result.data[:content]
+    if result.success? && result.data[:content].present?
+      reply = result.data[:content]
       # Prepend hashtag response if any
       reply = "#{hashtag_result.response}\n\n#{reply}" if hashtag_result.response.present?
 
@@ -252,9 +252,9 @@ class InboundMessageJob < ApplicationJob
       agent: agent
     )
 
-    return unless result.success? && result.data[:reply] || result.data[:content].present?
+    return unless result.success? && result.data[:content].present?
 
-    reply = result.data[:reply] || result.data[:content]
+    reply = result.data[:content]
 
     # Store agent response
     TeamChatMessage.create!(
@@ -320,7 +320,7 @@ class InboundMessageJob < ApplicationJob
     effective_message = hashtag_result.clean_message.presence || message
     result = Sessions::Chat.call(session: session, message: effective_message, agent: agent)
 
-    reply = result.data[:reply] || result.data[:content] if result.success?
+    reply = result.data[:content] if result.success?
 
     if reply.present?
       reply = "#{hashtag_result.response}\n\n#{reply}" if hashtag_result.response.present?

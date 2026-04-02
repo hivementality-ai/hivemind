@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe InboundMessageJob, type: :job do
   let(:agent) { create(:agent, name: "TestBot", enabled: true) }
   let(:adapter) { double("ChannelAdapter", send_message: true) }
-  let(:chat_result) { double(success?: true, data: { reply: "Hello back!" }) }
+  let(:chat_result) { double(success?: true, data: { content: "Hello back!" }) }
   let(:hashtag_no_bypass) do
     HashtagActions::Processor::ProcessResult.new(
       bypass_llm: false, response: nil, clean_message: "Hello", prompt_addons: [], side_effects: []

@@ -49,7 +49,7 @@ class HeartbeatJob < ApplicationJob
     end
 
     usage = result&.data&.dig(:usage) || {}
-    reply = result&.success? ? result.data[:reply].to_s.strip : nil
+    reply = result&.success? ? result.data[:content].to_s.strip : nil
     is_ok = reply.blank? || reply.match?(/\AHEARTBEAT_OK\z/i)
 
     # Track the run
