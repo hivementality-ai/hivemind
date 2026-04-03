@@ -40,5 +40,13 @@ FactoryBot.define do
     trait :disabled do
       enabled { false }
     end
+
+    trait :with_manager do
+      association :manager, factory: :agent
+    end
+
+    trait :with_title do
+      title { "Senior Engineer" }
+    end
   end
 end
