@@ -21,6 +21,9 @@ class Agent < ApplicationRecord
   has_one_attached :avatar
 
   belongs_to :team, optional: true
+  belongs_to :manager, class_name: "Agent", foreign_key: :reports_to_id, optional: true, inverse_of: :direct_reports
+
+  has_many :direct_reports, class_name: "Agent", foreign_key: :reports_to_id, dependent: :nullify, inverse_of: :manager
 
   has_many :sessions, dependent: :destroy
   has_many :project_milestones, dependent: :destroy
@@ -60,6 +63,8 @@ class Agent < ApplicationRecord
   validates :thinking_visibility, inclusion: { in: %w[hidden debug] }, allow_nil: true
   validates :thinking_budget_tokens, numericality: { greater_than: 0, less_than_or_equal_to: 128_000 }, if: :thinking_enabled?
   validate :validate_egress_policy
+  validate :validate_no_self_reporting
+  validate :validate_no_reporting_cycle
 
   attr_accessor :egress_policy_mode, :egress_policy_rules, :egress_policy_log_blocked
 
@@ -103,6 +108,56 @@ class Agent < ApplicationRecord
     slug
   end
 
+  # Returns agents with the same manager (excluding self). Returns empty if no manager set.
+  def peers
+    return Agent.none unless reports_to_id.present?
+
+    Agent.where(reports_to_id: reports_to_id).where.not(id: id)
+  end
+
+  # Returns the ordered chain of managers from immediate manager up to the root.
+  def chain_of_command
+    chain = []
+    current = manager
+    visited = Set.new([id])
+
+    while current.present?
+      break if visited.include?(current.id)
+
+      chain << current
+      visited.add(current.id)
+      current = current.manager
+    end
+
+    chain
+  end
+
+  # Returns all agents in this agent's subtree (direct reports and their descendants).
+  def org_subtree
+    descendants = []
+    queue = direct_reports.to_a
+    visited = Set.new([id])
+
+    while queue.any?
+      node = queue.shift
+      next if visited.include?(node.id)
+
+      descendants << node
+      visited.add(node.id)
+      queue.concat(node.direct_reports.to_a)
+    end
+
+    descendants
+  end
+
+  def root?
+    reports_to_id.nil?
+  end
+
+  def leaf?
+    direct_reports.none?
+  end
+
   private
 
   def generate_slug
@@ -111,6 +166,29 @@ class Agent < ApplicationRecord
 
   def rebuild_team_soul
     Teams::BuildSoul.call(team: team) if team
+  end
+
+  def validate_no_self_reporting
+    return unless reports_to_id.present? && id.present?
+
+    errors.add(:reports_to_id, "cannot report to self") if reports_to_id == id
+  end
+
+  def validate_no_reporting_cycle
+    return unless reports_to_id.present? && id.present?
+
+    current = reports_to_id
+    visited = Set.new([id])
+
+    while current.present?
+      if visited.include?(current)
+        errors.add(:reports_to_id, "would create a reporting cycle")
+        return
+      end
+
+      visited.add(current)
+      current = Agent.where(id: current).pick(:reports_to_id)
+    end
   end
 
   def compose_egress_policy_from_virtual_attrs

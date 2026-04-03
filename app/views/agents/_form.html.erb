@@ -53,6 +53,24 @@
             { class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand" } %>
       </div>
       <div>
+        <%= form.label :title, "Title", class: "block text-sm font-medium text-text-primary mb-1" %>
+        <%= form.text_field :title, placeholder: "e.g. Head of Research",
+            class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
+      </div>
+      <div>
+        <%= form.label :reports_to_id, "Reports To", class: "block text-sm font-medium text-text-primary mb-1" %>
+        <%
+          manager_candidates = if agent.team_id.present?
+            Agent.where(team_id: agent.team_id).where.not(id: [agent.id] + agent.org_subtree.map(&:id)).order(:name)
+          else
+            Agent.where.not(id: agent.id).order(:name)
+          end
+        %>
+        <%= form.collection_select :reports_to_id, manager_candidates, :id, :name,
+            { include_blank: "— No manager —" },
+            { class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand" } %>
+      </div>
+      <div>
         <%= form.label :enabled, class: "block text-sm font-medium text-text-primary mb-1" %>
         <div class="flex items-center gap-3 mt-2">
           <%= form.check_box :enabled, class: "w-5 h-5 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay" %>

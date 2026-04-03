@@ -5,7 +5,7 @@ class TeamsController < ApplicationController
   before_action :set_team, only: %i[edit update destroy]
 
   def index
-    @teams = Team.includes(:agents).order(:name)
+    @teams = Team.includes(agents: :direct_reports).order(:name)
   end
 
   def new

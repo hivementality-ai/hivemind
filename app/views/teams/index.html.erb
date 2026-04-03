@@ -23,7 +23,7 @@
                 <p class="text-text-muted text-sm mb-3"><%= team.description %></p>
               <% end %>
               <% if team.agents.any? %>
-                <div class="flex flex-wrap gap-2">
+                <div class="flex flex-wrap gap-2 mb-4">
                   <% team.agents.order(:name).each do |agent| %>
                     <%= link_to agent_path(agent), class: "inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface-raised rounded-lg text-xs text-text-muted hover:text-white transition" do %>
                       <span class="w-2 h-2 rounded-full <%= agent.enabled? ? 'bg-green-400' : 'bg-gray-500' %>"></span>
@@ -32,6 +32,18 @@
                     <% end %>
                   <% end %>
                 </div>
+
+                <details class="group">
+                  <summary class="text-xs text-text-muted hover:text-white cursor-pointer select-none list-none flex items-center gap-1 mb-3">
+                    <svg class="w-3 h-3 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                    Org Chart
+                  </summary>
+                  <div class="border-t border-border-default pt-4 mt-1">
+                    <%= render "teams/org_chart", team: team %>
+                  </div>
+                </details>
               <% else %>
                 <p class="text-text-faint text-xs">No agents assigned yet</p>
               <% end %>
