@@ -12,6 +12,26 @@ module Mobile
       @agents = Agent.enabled.order(:name)
     end
 
+    def create
+      agent = Agent.by_slug(params[:agent_id]).first || Agent.find_by(id: params[:agent_id])
+      unless agent
+        redirect_to mobile_sessions_path, alert: 'Agent not found'
+        return
+      end
+
+      session = Session.create!(
+        agent: agent,
+        session_key: SecureRandom.uuid,
+        status: :active,
+        transcript: [],
+        metadata: { started_by: current_user.id },
+        last_activity_at: Time.current
+      )
+      Plugins::Hooks.trigger('session_created', session: session)
+
+      redirect_to mobile_session_path(session)
+    end
+
     def show
       @agent = @session.agent
       @messages = @session.transcript || []
