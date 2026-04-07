@@ -27,7 +27,7 @@ module WebPush
 
         user.notify(
           title: "Task Complete",
-          body: "#{task.child_session&.agent&.name} finished: #{task.task_description.to_s.truncate(80)}",
+          body: "#{task.child_session&.agent&.name} finished: #{task.task.to_s.truncate(80)}",
           url: "/m/sessions/#{session.id}",
           tag: "task-complete-#{task.id}"
         )
