@@ -26,7 +26,7 @@ Rails.application.routes.draw do
   # Mobile PWA Interface
   scope "/m", module: "mobile", as: "mobile" do
     root "home#index"                                    # Activity feed / quick actions
-    resources :sessions, only: [ :index, :show ] do
+    resources :sessions, only: [ :index, :show, :create ] do
       member do
         post :message
         post :interrupt

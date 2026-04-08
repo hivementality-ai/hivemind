@@ -28,15 +28,16 @@ export default class extends Controller {
     this.touchStartY = 0
 
     this.subscribeToChannel()
-    this.scrollToBottom()
+    this.scrollToBottom(true)
 
     if (this.processingValue) {
       this.showThinking()
     }
 
-    // Keyboard awareness
+    // Keyboard awareness — iOS needs extra delay for keyboard animation
     this.inputTarget.addEventListener("focus", () => {
-      setTimeout(() => this.scrollToBottom(), 300)
+      setTimeout(() => this.scrollToBottom(), 350)
+      setTimeout(() => this.scrollToBottom(), 600)
     })
 
     // Touch gestures for swipe-back
@@ -369,15 +370,18 @@ export default class extends Controller {
     }
   }
 
-  scrollToBottom() {
-    if (this.hasMessagesTarget) {
+  scrollToBottom(instant = false) {
+    if (!this.hasMessagesTarget) return
+
+    const el = this.messagesTarget
+    const behavior = instant ? "instant" : "smooth"
+
+    // Double-rAF ensures the DOM has fully painted (images, markdown, etc.)
+    requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        this.messagesTarget.scrollTo({
-          top: this.messagesTarget.scrollHeight,
-          behavior: "smooth"
-        })
+        el.scrollTo({ top: el.scrollHeight, behavior })
       })
-    }
+    })
   }
 
   renderMarkdown(text) {

@@ -22,7 +22,11 @@
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-white truncate">
-                  <%= session.agent&.name || "Session" %>
+                  <% if session.title.present? && session.title != "New Chat" %>
+                    <%= session.title %>
+                  <% else %>
+                    <%= session.agent&.name || "Session" %>
+                  <% end %>
                 </p>
                 <% if session.respond_to?(:last_message_preview) && session.last_message_preview.present? %>
                   <p class="mt-1 text-xs text-text-muted line-clamp-2"><%= session.last_message_preview %></p>

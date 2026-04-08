@@ -28,5 +28,17 @@ FactoryBot.define do
       completed_at { Time.current }
       result { 'Task failed with error' }
     end
+
+    trait :pending do
+      status { 'pending' }
+    end
+
+    trait :with_parent_session do
+      association :parent_session, factory: :session
+    end
+
+    trait :with_child_session do
+      association :child_session, factory: :session
+    end
   end
 end

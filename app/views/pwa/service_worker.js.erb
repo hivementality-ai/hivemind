@@ -10,12 +10,15 @@ const APP_SHELL_RESOURCES = [
 
 // Install: cache app shell
 self.addEventListener("install", (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(APP_SHELL_CACHE).then((cache) => {
-      return cache.addAll(APP_SHELL_RESOURCES);
+      return cache.addAll(APP_SHELL_RESOURCES).catch(() => {
+        // Silently continue if resources aren't available yet
+        console.log("Some app shell resources not available during install");
+      });
     })
   );
-  self.skipWaiting();
 });
 
 // Activate: clean old caches
@@ -144,21 +147,29 @@ async function staleWhileRevalidate(request, cacheName) {
 }
 
 // Push notification handler
-self.addEventListener("push", async (event) => {
+self.addEventListener("push", (event) => {
   if (!event.data) return;
 
-  const data = event.data.json();
+  let data;
+  try {
+    data = event.data.json();
+  } catch (e) {
+    data = { title: "Hivemind", body: event.data.text() };
+  }
+
   const title = data.title || "Hivemind";
   const options = {
     body: data.body || "",
     icon: "/icon.png",
     badge: "/icon.png",
     data: { url: data.url || "/m/" },
-    tag: data.tag || "hivemind-notification",
+    tag: data.tag || `hivemind-${Date.now()}`,
     renotify: true,
-    requireInteraction: data.requireInteraction || false
+    requireInteraction: data.requireInteraction || false,
+    vibrate: [100, 50, 100]
   };
 
+  // Always show the notification — even in standalone PWA mode
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
@@ -166,20 +177,21 @@ self.addEventListener("push", async (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const url = event.notification.data?.url || "/m/";
+  const targetUrl = event.notification.data?.url || "/m/";
 
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      // Focus existing window if open
+      // Focus any existing Hivemind window and navigate it
       for (const client of clientList) {
-        const clientUrl = new URL(client.url);
-        if (clientUrl.pathname === url && "focus" in client) {
-          return client.focus();
+        if ("focus" in client) {
+          client.focus();
+          client.navigate(targetUrl);
+          return;
         }
       }
-      // Open new window
+      // No existing window — open a new one
       if (clients.openWindow) {
-        return clients.openWindow(url);
+        return clients.openWindow(targetUrl);
       }
     })
   );
