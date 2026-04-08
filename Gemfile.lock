@@ -77,7 +77,7 @@ GEM
       uri (>= 0.13.1)
     addressable (2.8.9)
       public_suffix (>= 2.0.2, < 8.0)
-    anthropic (1.25.0)
+    anthropic (1.28.0)
       cgi
       connection_pool
     ast (2.4.3)
@@ -501,7 +501,7 @@ PLATFORMS
   x86_64-linux-musl
 
 DEPENDENCIES
-  anthropic (~> 1.25)
+  anthropic (~> 1.28)
   bcrypt (~> 3.1.22)
   bootsnap
   brakeman
