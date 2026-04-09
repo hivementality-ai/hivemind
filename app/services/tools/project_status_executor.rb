@@ -7,7 +7,7 @@ module Tools
       detail = input["detail"] || "summary"
 
       project = find_project(project_id)
-      return ServiceResponse.failure(error: "Project not found") unless project
+      return ServiceResponse.failure(error: "No project found. Use the project_list tool to see your team's projects.") unless project
 
       output = if detail == "full"
                  build_full_status(project)

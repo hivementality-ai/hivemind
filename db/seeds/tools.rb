@@ -713,13 +713,25 @@ BUILTIN_TOOLS = [
     }
   },
   {
+    name: "project_list",
+    description: "List all projects for your team. Use this to discover existing projects before creating new ones or to find a project ID.",
+    executor_type: "project_list",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "status" => { "type" => "string", "description" => "Filter by status", "enum" => %w[planning active paused blocked completed] }
+      },
+      "required" => []
+    }
+  },
+  {
     name: "project_status",
-    description: "Check the current state of a project and its milestones. Returns progress, status of each milestone, and recent events.",
+    description: "Check the current state of a project and its milestones. Returns progress, status of each milestone, and recent events. Use project_list first if you don't know the project ID.",
     executor_type: "project_status",
     requires_approval: false,
     parameters_schema: {
       "properties" => {
-        "project_id" => { "type" => "integer", "description" => "Specific project to check (defaults to current milestone's project)" },
+        "project_id" => { "type" => "integer", "description" => "Project ID to check (use project_list to find IDs)" },
         "detail" => { "type" => "string", "description" => "Level of detail: summary or full", "enum" => %w[summary full] }
       },
       "required" => []

@@ -609,4 +609,57 @@ RSpec.describe TeamChatJob, type: :job do
       end
     end
   end
+
+  describe "resolve_tools excludes delegate in team chats" do
+    let!(:delegate_tool) { create(:tool, name: "delegate", executor_type: "delegate", enabled: true) }
+    let!(:delegation_status_tool) { create(:tool, name: "delegation_status", executor_type: "delegation_status", enabled: true) }
+    let!(:shell_tool) { create(:tool, name: "shell", executor_type: "shell", enabled: true) }
+    let!(:agent) do
+      a = create(:agent, team: team, model_provider: "anthropic", llm_model: "claude-3-5-sonnet", enabled: true)
+      a.agent_tools.create!(tool: delegate_tool)
+      a.agent_tools.create!(tool: delegation_status_tool)
+      a.agent_tools.create!(tool: shell_tool)
+      a
+    end
+    let!(:teammate) { create(:agent, team: team, model_provider: "anthropic", llm_model: "claude-3-5-sonnet", enabled: true) }
+
+    let(:message) do
+      session.team_chat_messages.create!(
+        sender_type: "user", sender_id: user.id, content: "Hello team",
+        target_agent_id: agent.id
+      )
+    end
+
+    before do
+      allow(HashtagActions::Processor).to receive(:call).and_return(
+        HashtagActions::Processor::ProcessResult.new(
+          bypass_llm: false, response: nil, clean_message: "Hello team",
+          prompt_addons: [], side_effects: []
+        )
+      )
+      allow(Memory::ContextBuilder).to receive(:call).and_return({ context: nil, entries: [] })
+    end
+
+    it "strips delegate and delegation_status tools but keeps other tools" do
+      adapter = double("adapter")
+      allow(adapter).to receive(:is_a?).with(Providers::AnthropicAdapter).and_return(false)
+      allow(Providers::Resolver).to receive(:call).and_return(
+        double(success?: true, data: { adapter: adapter })
+      )
+
+      tool_names_seen = nil
+      allow(Agents::ToolLoop).to receive(:call) do |**opts|
+        tool_names_seen = opts[:tools].map(&:name)
+        double(success?: true, data: { content: "Hi!", thinking: nil, usage: {} })
+      end
+
+      TeamChatJob.perform_now(session.id, message.id)
+
+      expect(tool_names_seen).not_to be_nil, "ToolLoop was never called — tools not captured"
+      expect(tool_names_seen).to include("shell")
+      expect(tool_names_seen).to include("talk_to_teammate")
+      expect(tool_names_seen).not_to include("delegate")
+      expect(tool_names_seen).not_to include("delegation_status")
+    end
+  end
 end
