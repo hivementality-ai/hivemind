@@ -208,6 +208,10 @@ module Tools
       assigned = target.agent_tools.includes(:tool).map(&:tool).select(&:enabled?)
       tools = assigned.any? ? assigned : Tool.enabled.builtin.to_a
 
+      # Remove delegate/delegation_status — these spawn separate sessions and lose
+      # team chat context. talk_to_teammate is the correct tool here.
+      tools = tools.reject { |t| t.respond_to?(:executor_type) && %w[delegate delegation_status].include?(t.executor_type) }
+
       # Inject system tools
       tools << SystemTool::LOAD_SKILL if target.skills.enabled.any?
 

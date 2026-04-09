@@ -478,9 +478,10 @@ class TeamChatJob < ApplicationJob
     parts << ""
     parts << "How this chat works:"
     parts << "- Messages show as [Name]: message — this is just formatting, never echo it back"
-    parts << "- To talk directly to a specific teammate, use the talk_to_teammate tool"
+    parts << "- To talk directly to a specific teammate, use the talk_to_teammate tool — this is the ONLY way to communicate with teammates"
     parts << "- You'll send them a message, they'll respond, and you'll get their answer"
     parts << "- Only use the tool when you need a specific teammate's input — for general discussion, just speak naturally"
+    parts << "- Do NOT use @mentions to address teammates — the human uses @ to talk to you, but you must use the talk_to_teammate tool to talk to each other"
     parts << "- @god or @#{human_name} = the human"
     parts << "- Never start your response with [Name]: — just speak directly"
     parts << ""
@@ -532,6 +533,11 @@ class TeamChatJob < ApplicationJob
   def resolve_tools(agent)
     assigned = agent.agent_tools.includes(:tool).map(&:tool).select(&:enabled?)
     tools = assigned.any? ? assigned : Tool.enabled.builtin.to_a
+
+    # Remove delegate/delegation_status — these spawn separate sessions and lose
+    # team chat context. talk_to_teammate is the correct tool for agent-to-agent
+    # communication within a team chat.
+    tools = tools.reject { |t| t.respond_to?(:executor_type) && %w[delegate delegation_status].include?(t.executor_type) }
 
     # Inject system tools
     tools << SystemTool::LOAD_SKILL if agent.skills.enabled.any?
