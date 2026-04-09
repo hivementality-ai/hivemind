@@ -173,11 +173,12 @@ module Tools
 
       team_context = [
         "You are #{target.name} — a team member in a group chat.",
-        "Your teammates: #{teammates.map { |n| "@#{n}" }.join(", ")}.",
-        "The human: @#{human_name}.",
+        "Your teammates: #{teammates.join(", ")}.",
+        "The human: #{human_name}.",
         "",
         "#{agent&.name} is asking you a direct question via the talk_to_teammate tool.",
-        "Respond concisely and helpfully. Your response will be sent back to #{agent&.name}."
+        "Respond concisely and helpfully. Your response will be sent back to #{agent&.name}.",
+        "Never use @mentions in your responses — just use names naturally."
       ].join("\n")
 
       system_blocks << { type: "text", text: team_context }
