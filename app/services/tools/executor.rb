@@ -57,6 +57,7 @@ module Tools
       "project_create" => Tools::ProjectCreateExecutor,
       "project_update" => Tools::ProjectUpdateExecutor,
       "project_status" => Tools::ProjectStatusExecutor,
+      "project_list" => Tools::ProjectListExecutor,
       "talk_to_teammate" => Tools::TalkToTeammateExecutor,
       "platform_control" => Tools::PlatformControlExecutor,
       "chat_attachments" => Tools::ChatAttachmentsExecutor,

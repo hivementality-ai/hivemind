@@ -8,38 +8,6 @@ RSpec.describe Tools::ProjectStatusExecutor do
     let(:user) { create(:user) }
     let(:agent) { create(:agent, team: team) }
 
-    context "when no project_id is given and no session metadata" do
-      let(:executor) { described_class.new(input: {}, agent: agent) }
-
-      it "lists all visible team projects" do
-        project = create(:project, team: team, user: user, title: "Content Campaign")
-
-        result = executor.call
-
-        expect(result).to be_success
-        expect(result.data[:output]).to include("Content Campaign")
-        expect(result.data[:output]).to include("[ID:#{project.id}]")
-      end
-
-      it "returns failure when team has no projects" do
-        result = executor.call
-
-        expect(result).not_to be_success
-        expect(result.error).to include("No projects found")
-      end
-
-      it "excludes archived projects" do
-        create(:project, team: team, user: user, title: "Old Project", status: "archived")
-        active = create(:project, :active, team: team, user: user, title: "Active Project")
-
-        result = executor.call
-
-        expect(result).to be_success
-        expect(result.data[:output]).to include("Active Project")
-        expect(result.data[:output]).not_to include("Old Project")
-      end
-    end
-
     context "when project_id is given" do
       it "returns the specific project" do
         project = create(:project, team: team, user: user, title: "My Project")
@@ -57,7 +25,18 @@ RSpec.describe Tools::ProjectStatusExecutor do
         result = executor.call
 
         expect(result).not_to be_success
-        expect(result.error).to eq("Project not found")
+        expect(result.error).to include("project_list")
+      end
+    end
+
+    context "when no project_id is given and no session metadata" do
+      it "returns failure pointing to project_list" do
+        executor = described_class.new(input: {}, agent: agent)
+
+        result = executor.call
+
+        expect(result).not_to be_success
+        expect(result.error).to include("project_list")
       end
     end
   end
