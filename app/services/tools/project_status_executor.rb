@@ -7,7 +7,12 @@ module Tools
       detail = input["detail"] || "summary"
 
       project = find_project(project_id)
-      return ServiceResponse.failure(error: "Project not found") unless project
+
+      # No specific project resolved — list all team projects so the agent can discover them
+      unless project
+        return list_team_projects if project_id.blank? && agent&.team
+        return ServiceResponse.failure(error: "Project not found")
+      end
 
       output = if detail == "full"
                  build_full_status(project)
@@ -26,6 +31,17 @@ module Tools
       elsif config[:session]&.metadata&.dig("project_id")
         Project.find_by(id: config[:session].metadata["project_id"])
       end
+    end
+
+    def list_team_projects
+      projects = Project.for_team(agent.team).visible.order(updated_at: :desc)
+      return ServiceResponse.failure(error: "No projects found for your team. Use project_create to start one.") if projects.empty?
+
+      lines = [ "Your team has #{projects.size} project(s). Use project_status with a project_id for details:", "" ]
+      projects.each do |p|
+        lines << "  [ID:#{p.id}] #{p.title} [#{p.status}] — #{p.progress_percentage}% complete"
+      end
+      ServiceResponse.success(data: { output: lines.join("\n") })
     end
 
     def build_summary(project)
