@@ -93,8 +93,8 @@ export default class extends Controller {
       <div class="px-3 py-2 hover:bg-surface-raised cursor-pointer transition flex items-start gap-2"
            data-action="click->team-chat#insertHashtag"
            data-hashtag="${action.name}">
-        <code class="text-purple-400 font-mono text-sm">#${this.escapeHtml(action.name)}</code>
-        <span class="text-text-muted text-xs flex-1">${this.escapeHtml(action.description)}</span>
+        <code class="text-purple-400 font-mono text-sm">#${this.esc(action.name)}</code>
+        <span class="text-text-muted text-xs flex-1">${this.esc(action.description)}</span>
       </div>
     `).join('')
 
@@ -265,7 +265,8 @@ export default class extends Controller {
 
     // If agents are actively streaming, treat this as a redirect
     if (this.activeAgents.size > 0 && message) {
-      this.inputTarget.value = ""
+      const prefix = this.pinnedAgents.map(n => `@${n}`).join(" ")
+      this.inputTarget.value = prefix ? `${prefix} ` : ""
       this.inputTarget.style.height = "auto"
       await this.sendInterrupt("redirect", message)
       return
@@ -334,8 +335,14 @@ export default class extends Controller {
       }
     }
 
-    // Sync pinned agents — if user deletes an @Name from the text, unpin it
+    // Sync pinned agents with text — auto-pin typed @Names, unpin removed ones
     const val = input.value
+    const agentNames = this.agentsValue.map(a => a.name)
+    agentNames.forEach(name => {
+      if (val.includes(`@${name}`) && !this.pinnedAgents.includes(name)) {
+        this.pinnedAgents.push(name)
+      }
+    })
     this.pinnedAgents = this.pinnedAgents.filter(name => val.includes(`@${name}`))
     
     // Check for hashtag input
@@ -722,7 +729,7 @@ export default class extends Controller {
       <div class="flex justify-start" id="coding-agent-${taskKey}">
         <div class="max-w-2xl w-full">
           <div class="bg-surface-raised rounded-2xl px-4 py-3 w-full">
-            <div class="text-text-primary text-sm font-medium mb-1">⚡ ${this.escapeHtml(message)}</div>
+            <div class="text-text-primary text-sm font-medium mb-1">⚡ ${this.esc(message)}</div>
             <pre class="coding-agent-output text-xs text-text-muted bg-surface-base rounded p-2 max-h-48 overflow-y-auto whitespace-pre-wrap hidden"></pre>
           </div>
         </div>
