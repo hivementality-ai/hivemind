@@ -1,0 +1,65 @@
+<div class="max-w-3xl mx-auto px-6 py-8">
+  <div class="flex items-center gap-3 mb-6">
+    <%= link_to task_templates_path, class: "text-text-muted hover:text-white transition" do %>
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+      </svg>
+    <% end %>
+    <h1 class="text-2xl font-bold text-white"><%= @template.name %></h1>
+  </div>
+
+  <div class="space-y-6">
+    <!-- Details -->
+    <div class="bg-surface-card rounded-xl border border-border-default p-6">
+      <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Details</h2>
+      <% if @template.description.present? %>
+        <p class="text-text-primary mb-3"><%= @template.description %></p>
+      <% end %>
+      <div class="flex items-center gap-4 text-sm">
+        <span class="text-text-faint">Default priority:</span>
+        <span class="text-white font-medium"><%= @template.default_priority.humanize %></span>
+        <span class="text-text-faint ml-4">Tasks using this template:</span>
+        <span class="text-white font-medium"><%= @template.tasks.count %></span>
+      </div>
+    </div>
+
+    <!-- Hooks -->
+    <div class="bg-surface-card rounded-xl border border-border-default p-6">
+      <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-4">Hooks (<%= @hooks.size %>)</h2>
+
+      <% if @hooks.any? %>
+        <div class="space-y-3 mb-6">
+          <% @hooks.each do |hook| %>
+            <div class="flex items-center gap-3 text-sm bg-surface-raised rounded-lg px-3 py-2">
+              <span class="px-2 py-0.5 rounded text-xs font-semibold uppercase <%= hook.trigger == 'pre' ? 'bg-blue-900/40 text-blue-300' : 'bg-purple-900/40 text-purple-300' %>">
+                <%= hook.trigger %>
+              </span>
+              <span class="text-text-muted">on</span>
+              <span class="text-white font-medium"><%= hook.on_status %></span>
+              <span class="text-text-faint">→</span>
+              <span class="text-brand"><%= hook.skill.name %></span>
+              <span class="text-text-faint text-xs ml-auto">pos: <%= hook.position %></span>
+              <% unless hook.enabled? %>
+                <span class="text-xs text-text-faint">(disabled)</span>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-text-faint text-sm mb-4">No hooks configured. Add hooks to automate task transitions.</p>
+      <% end %>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center gap-3">
+      <%= link_to edit_task_template_path(@template), class: "px-4 py-2 bg-brand hover:bg-brand/80 text-white font-medium rounded-lg transition" do %>
+        Edit Template
+      <% end %>
+      <%= button_to task_template_path(@template), method: :delete,
+            data: { turbo_confirm: "Delete this template? Tasks using it will be unaffected." },
+            class: "px-4 py-2 text-red-400 hover:bg-red-900/20 rounded-lg transition" do %>
+        Delete
+      <% end %>
+    </div>
+  </div>
+</div>

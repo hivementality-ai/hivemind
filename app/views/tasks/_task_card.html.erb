@@ -1,0 +1,80 @@
+<%
+  priority_color = case task.priority
+    when "urgent" then "border-l-red-500 border-l-2"
+    when "high"   then "border-l-orange-500 border-l-2"
+    when "medium" then "border-l-yellow-500 border-l-2"
+    else               "border-l-slate-600 border-l-2"
+  end
+  priority_badge = case task.priority
+    when "urgent" then "bg-red-900/40 text-red-300"
+    when "high"   then "bg-orange-900/40 text-orange-300"
+    when "medium" then "bg-yellow-900/40 text-yellow-300"
+    else               "bg-slate-700/40 text-slate-400"
+  end
+%>
+<div class="bg-surface-raised rounded-lg p-3 cursor-grab active:cursor-grabbing hover:bg-surface-raised/80 transition <%= priority_color %>"
+     draggable="true"
+     data-kanban-target="card"
+     data-task-id="<%= task.id %>"
+     data-current-status="<%= task.status %>"
+     data-action="dragstart->kanban#dragStart dragend->kanban#dragEnd">
+
+  <!-- Title -->
+  <div class="flex items-start justify-between gap-2 mb-2">
+    <%= link_to task_path(task), class: "text-sm font-medium text-white hover:text-brand leading-snug flex-1" do %>
+      <%= task.title.truncate(80) %>
+    <% end %>
+  </div>
+
+  <!-- Priority + ID + Indicators -->
+  <div class="flex items-center gap-2 mb-2">
+    <span class="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded <%= priority_badge %>">
+      <%= task.priority %>
+    </span>
+    <span class="text-text-faint text-xs">#<%= task.id %></span>
+    <% if task.blocked_by_dependencies? %>
+      <span class="text-[10px] font-semibold text-yellow-400" title="Blocked by dependencies">
+        <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      </span>
+    <% end %>
+    <% if task.overdue? %>
+      <span class="text-[10px] font-semibold text-red-400 ml-auto">Overdue</span>
+    <% end %>
+  </div>
+
+  <!-- Checklist progress -->
+  <% if task.checklist.present? %>
+    <div class="flex items-center gap-1.5 mb-1.5">
+      <svg class="w-3 h-3 text-text-faint flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+      </svg>
+      <% checked = task.checklist.count { |i| i["checked"] } %>
+      <span class="text-text-faint text-xs"><%= checked %>/<%= task.checklist.size %></span>
+      <div class="flex-1 h-1 bg-surface-card rounded-full overflow-hidden">
+        <div class="h-full bg-brand rounded-full" style="width: <%= task.checklist.any? ? (checked * 100 / task.checklist.size) : 0 %>%"></div>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Assigned agent -->
+  <% if task.assigned_to_agent %>
+    <div class="flex items-center gap-1.5 mt-2">
+      <div class="w-4 h-4 rounded-full bg-brand/30 flex items-center justify-center flex-shrink-0">
+        <span class="text-[9px] font-bold text-brand"><%= task.assigned_to_agent.name[0].upcase %></span>
+      </div>
+      <span class="text-text-muted text-xs truncate"><%= task.assigned_to_agent.name %></span>
+    </div>
+  <% end %>
+
+  <!-- Due date -->
+  <% if task.due_at %>
+    <div class="flex items-center gap-1 mt-1.5">
+      <svg class="w-3 h-3 text-text-faint flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+      <span class="text-text-faint text-xs"><%= task.due_at.strftime("%b %-d") %></span>
+    </div>
+  <% end %>
+</div>

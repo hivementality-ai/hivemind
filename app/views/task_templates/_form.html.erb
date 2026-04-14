@@ -1,0 +1,39 @@
+<%= form_with model: template, local: true, class: "space-y-5" do |f| %>
+  <% if template.errors.any? %>
+    <div class="bg-red-900/40 border border-red-600 rounded-lg px-4 py-3">
+      <ul class="text-red-300 text-sm list-disc list-inside space-y-1">
+        <% template.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <%= f.label :name, class: "block text-sm font-medium text-text-muted mb-1" %>
+    <%= f.text_field :name,
+          placeholder: "Template name",
+          class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white placeholder-text-faint focus:outline-none focus:border-brand/50" %>
+  </div>
+
+  <div>
+    <%= f.label :description, class: "block text-sm font-medium text-text-muted mb-1" %>
+    <%= f.text_area :description,
+          rows: 3,
+          placeholder: "What is this template for?",
+          class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white placeholder-text-faint focus:outline-none focus:border-brand/50 resize-none" %>
+  </div>
+
+  <div>
+    <%= f.label :default_priority, class: "block text-sm font-medium text-text-muted mb-1" %>
+    <%= f.select :default_priority, Task::PRIORITIES.map { |p| [p.humanize, p] },
+          {},
+          class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white focus:outline-none focus:border-brand/50" %>
+  </div>
+
+  <div class="flex items-center gap-3 pt-2">
+    <%= f.submit template.persisted? ? "Save changes" : "Create template",
+          class: "px-5 py-2 bg-brand hover:bg-brand/80 text-white font-medium rounded-lg transition cursor-pointer" %>
+    <%= link_to "Cancel", task_templates_path, class: "px-5 py-2 text-text-muted hover:text-white rounded-lg transition" %>
+  </div>
+<% end %>

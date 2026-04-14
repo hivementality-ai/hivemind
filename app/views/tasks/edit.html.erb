@@ -1,0 +1,14 @@
+<div class="max-w-2xl mx-auto px-6 py-8">
+  <div class="flex items-center gap-3 mb-6">
+    <%= link_to task_path(@task), class: "text-text-muted hover:text-white transition" do %>
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+      </svg>
+    <% end %>
+    <h1 class="text-2xl font-bold text-white">Edit Task <span class="text-text-faint font-normal">#<%= @task.id %></span></h1>
+  </div>
+
+  <div class="bg-surface-card rounded-xl border border-border-default p-6">
+    <%= render "form", task: @task, agents: @agents %>
+  </div>
+</div>
