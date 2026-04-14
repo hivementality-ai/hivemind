@@ -1,0 +1,55 @@
+<%#
+  Recursive node for the org chart.
+  Locals:
+    agent           - Agent record
+    team_agent_ids  - Set of agent IDs on this team (for scoping children)
+%>
+<% children = agent.direct_reports.select { |dr| team_agent_ids.include?(dr.id) }.sort_by(&:name) %>
+
+<li class="org-branch">
+  <%# Node card %>
+  <%= link_to agent_path(agent), class: "org-node-link group" do %>
+    <div class="flex flex-col items-center gap-1 p-3 bg-surface-card border border-border-default rounded-xl w-36 hover:border-brand hover:bg-surface-raised transition-colors">
+      <%# Avatar %>
+      <div class="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden bg-brand">
+        <% if agent.avatar.attached? %>
+          <%= image_tag rails_blob_path(agent.avatar, only_path: true), class: "w-10 h-10 object-cover rounded-full" %>
+        <% else %>
+          <span class="text-white font-bold text-lg leading-none"><%= agent.name[0].upcase %></span>
+        <% end %>
+      </div>
+
+      <%# Status indicator + name %>
+      <div class="text-center w-full">
+        <div class="flex items-center justify-center gap-1.5">
+          <span class="w-2 h-2 rounded-full flex-shrink-0 <%= agent.enabled? ? 'bg-green-400' : 'bg-gray-500' %>"></span>
+          <span class="text-white text-xs font-semibold truncate"><%= agent.name %></span>
+        </div>
+
+        <% if agent.title.present? %>
+          <p class="text-brand-light text-xs truncate mt-0.5"><%= agent.title %></p>
+        <% end %>
+
+        <p class="text-text-faint text-xs truncate"><%= agent.role %></p>
+      </div>
+    </div>
+  <% end %>
+
+  <%# Children %>
+  <% if children.any? %>
+    <div class="org-branch-children-wrap">
+      <div class="org-connector-v"></div>
+
+      <div class="org-connector-h-wrap">
+        <% children.each do |child| %>
+          <div class="org-child-branch">
+            <div class="org-child-branch-connector"></div>
+            <ul class="org-tree">
+              <%= render "teams/org_chart_node", agent: child, team_agent_ids: team_agent_ids %>
+            </ul>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+</li>

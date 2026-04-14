@@ -1,0 +1,100 @@
+<%#
+  Renders a CSS-only flexbox org chart for a team.
+  Expects local: team (Team record)
+  Roots = agents on this team whose manager is nil OR whose manager is on a different team.
+%>
+<% team_agent_ids = team.agents.pluck(:id).to_set %>
+<% roots = team.agents.includes(:direct_reports).select { |a| a.reports_to_id.nil? || !team_agent_ids.include?(a.reports_to_id) }.sort_by(&:name) %>
+
+<% if roots.empty? %>
+  <p class="text-text-faint text-sm italic">No agents on this team yet.</p>
+<% else %>
+  <div class="overflow-x-auto pb-4">
+    <style>
+      .org-tree,
+      .org-tree ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .org-tree {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        gap: 0;
+      }
+
+      .org-branch {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0 0.5rem;
+      }
+
+      /* Vertical line from node down to children bar */
+      .org-branch-children-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-top: 0;
+      }
+
+      .org-connector-v {
+        width: 2px;
+        height: 1.25rem;
+        background: #374151;
+        flex-shrink: 0;
+      }
+
+      .org-connector-h-wrap {
+        position: relative;
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+      }
+
+      /* Horizontal line spanning all children, drawn as a top border on the wrap */
+      .org-connector-h-wrap::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: calc(50% / var(--child-count, 1));
+        right: calc(50% / var(--child-count, 1));
+        height: 2px;
+        background: #374151;
+      }
+
+      /* Short vertical drop to each child */
+      .org-child-branch {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0 0.5rem;
+      }
+
+      .org-child-branch-connector {
+        width: 2px;
+        height: 1rem;
+        background: #374151;
+      }
+
+      .org-node-link {
+        display: block;
+        text-decoration: none;
+        border-radius: 0.75rem;
+      }
+
+      .org-node-link:focus-visible {
+        outline: 2px solid #6366f1;
+        outline-offset: 2px;
+      }
+    </style>
+
+    <ul class="org-tree">
+      <% roots.each do |root| %>
+        <%= render "teams/org_chart_node", agent: root, team_agent_ids: team_agent_ids %>
+      <% end %>
+    </ul>
+  </div>
+<% end %>
