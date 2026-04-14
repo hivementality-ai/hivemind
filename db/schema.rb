@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_20_200004) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_01_200000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -655,6 +655,80 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_20_200004) do
     t.index ["task_key"], name: "index_sub_agent_tasks_on_task_key", unique: true
   end
 
+  create_table "task_dependencies", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "depends_on_id", null: false
+    t.bigint "task_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["depends_on_id"], name: "index_task_dependencies_on_depends_on_id"
+    t.index ["task_id", "depends_on_id"], name: "index_task_dependencies_on_task_id_and_depends_on_id", unique: true
+    t.index ["task_id"], name: "index_task_dependencies_on_task_id"
+  end
+
+  create_table "task_events", force: :cascade do |t|
+    t.bigint "agent_id"
+    t.datetime "created_at", null: false
+    t.string "event_type", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.text "summary", null: false
+    t.bigint "task_id", null: false
+    t.index ["agent_id"], name: "index_task_events_on_agent_id"
+    t.index ["task_id", "created_at"], name: "index_task_events_on_task_id_and_created_at"
+    t.index ["task_id"], name: "index_task_events_on_task_id"
+  end
+
+  create_table "task_hooks", force: :cascade do |t|
+    t.jsonb "config", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.boolean "enabled", default: true, null: false
+    t.string "on_status", null: false
+    t.integer "position", default: 0, null: false
+    t.bigint "skill_id", null: false
+    t.bigint "task_id"
+    t.bigint "task_template_id"
+    t.string "trigger", null: false
+    t.datetime "updated_at", null: false
+    t.index ["skill_id"], name: "index_task_hooks_on_skill_id"
+    t.index ["task_id", "trigger", "on_status"], name: "index_task_hooks_on_task_id_and_trigger_and_on_status"
+    t.index ["task_id"], name: "index_task_hooks_on_task_id"
+    t.index ["task_template_id", "trigger", "on_status"], name: "index_task_hooks_on_task_template_id_and_trigger_and_on_status"
+    t.index ["task_template_id"], name: "index_task_hooks_on_task_template_id"
+  end
+
+  create_table "task_templates", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.jsonb "default_metadata", default: {}, null: false
+    t.string "default_priority", default: "medium", null: false
+    t.text "description"
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_task_templates_on_name", unique: true
+  end
+
+  create_table "tasks", force: :cascade do |t|
+    t.bigint "assigned_to_agent_id"
+    t.jsonb "checklist", default: [], null: false
+    t.jsonb "comments", default: [], null: false
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.bigint "created_by_agent_id"
+    t.text "description"
+    t.datetime "due_at"
+    t.jsonb "metadata", default: {}, null: false
+    t.string "priority", default: "medium", null: false
+    t.string "status", default: "backlog", null: false
+    t.bigint "task_template_id"
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["assigned_to_agent_id", "status"], name: "index_tasks_on_assigned_to_agent_id_and_status"
+    t.index ["assigned_to_agent_id"], name: "index_tasks_on_assigned_to_agent_id"
+    t.index ["created_at"], name: "index_tasks_on_created_at"
+    t.index ["created_by_agent_id"], name: "index_tasks_on_created_by_agent_id"
+    t.index ["priority"], name: "index_tasks_on_priority"
+    t.index ["status"], name: "index_tasks_on_status"
+    t.index ["task_template_id"], name: "index_tasks_on_task_template_id"
+  end
+
   create_table "team_chat_messages", force: :cascade do |t|
     t.text "content", null: false
     t.datetime "created_at", null: false
@@ -855,6 +929,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_20_200004) do
   add_foreign_key "sub_agent_tasks", "agents", column: "parent_agent_id"
   add_foreign_key "sub_agent_tasks", "sessions", column: "child_session_id"
   add_foreign_key "sub_agent_tasks", "sessions", column: "parent_session_id"
+  add_foreign_key "task_dependencies", "tasks"
+  add_foreign_key "task_dependencies", "tasks", column: "depends_on_id"
+  add_foreign_key "task_events", "agents"
+  add_foreign_key "task_events", "tasks"
+  add_foreign_key "task_hooks", "skills"
+  add_foreign_key "task_hooks", "task_templates"
+  add_foreign_key "task_hooks", "tasks"
+  add_foreign_key "tasks", "agents", column: "assigned_to_agent_id"
+  add_foreign_key "tasks", "agents", column: "created_by_agent_id"
+  add_foreign_key "tasks", "task_templates"
   add_foreign_key "team_chat_messages", "team_chat_sessions"
   add_foreign_key "team_chat_sessions", "teams"
   add_foreign_key "team_chat_sessions", "users"

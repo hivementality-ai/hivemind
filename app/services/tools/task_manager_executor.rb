@@ -9,17 +9,22 @@ module Tools
       action = input["action"].to_s.strip
 
       case action
-      when "create"     then create_task
-      when "update"     then update_task
-      when "move"       then move_task
-      when "assign"     then assign_task
-      when "list"       then list_tasks
-      when "my_tasks"   then my_tasks
-      when "add_comment" then add_comment
-      when "close"      then close_task
+      when "create"           then create_task
+      when "update"           then update_task
+      when "move"             then move_task
+      when "assign"           then assign_task
+      when "list"             then list_tasks
+      when "my_tasks"         then my_tasks
+      when "add_comment"      then add_comment
+      when "close"            then close_task
+      when "add_dependency"   then add_dependency
+      when "remove_dependency" then remove_dependency
+      when "update_checklist" then update_checklist
+      when "add_hook"         then add_hook
+      when "remove_hook"      then remove_hook
       else
         ServiceResponse.failure(
-          error: "Unknown action: #{action}. Supported: create, update, move, assign, list, my_tasks, add_comment, close"
+          error: "Unknown action: #{action}. Supported: create, update, move, assign, list, my_tasks, add_comment, close, add_dependency, remove_dependency, update_checklist, add_hook, remove_hook"
         )
       end
     rescue StandardError => e
@@ -46,7 +51,26 @@ module Tools
         task.assigned_to_agent = find_agent(input["assign_to"])
       end
 
+      # Apply template if specified
+      if input["template"].present?
+        template = TaskTemplate.find_by!(name: input["template"])
+        task.apply_template!(template)
+      end
+
+      # Add checklist items if provided
+      if input["checklist"].is_a?(Array)
+        task.checklist = input["checklist"].map { |item| { "title" => item.to_s, "checked" => false } }
+      end
+
       task.save!
+
+      Tasks::EventLogger.call(
+        task: task,
+        agent: agent,
+        event_type: "created",
+        summary: "Task created: #{task.title}"
+      )
+
       ServiceResponse.success(data: { output: "Created task ##{task.id}: #{task.title} (#{task.status}/#{task.priority})" })
     end
 
@@ -70,10 +94,10 @@ module Tools
         return ServiceResponse.failure(error: "Invalid status '#{status}'. Valid: #{Task::STATUSES.join(', ')}")
       end
 
-      old_status = task.status
-      task.update!(status: status)
+      result = Tasks::TransitionService.call(task: task, new_status: status, agent: agent)
+      return ServiceResponse.failure(error: result.error) unless result.success?
 
-      ServiceResponse.success(data: { output: "Moved task ##{task.id} from '#{old_status}' to '#{status}'" })
+      ServiceResponse.success(data: { output: "Moved task ##{task.id} from '#{result.data[:old_status]}' to '#{status}'" })
     end
 
     def assign_task
@@ -81,6 +105,14 @@ module Tools
       assignee = find_agent(require_param!("assign_to"))
 
       task.update!(assigned_to_agent: assignee)
+
+      Tasks::EventLogger.call(
+        task: task,
+        agent: agent,
+        event_type: "assigned",
+        summary: "Assigned to #{assignee.name}"
+      )
+
       ServiceResponse.success(data: { output: "Assigned task ##{task.id} to #{assignee.name}" })
     end
 
@@ -126,13 +158,130 @@ module Tools
       author = agent&.name || "Unknown"
       task.add_comment(author_name: author, body: body)
 
+      Tasks::EventLogger.call(
+        task: task,
+        agent: agent,
+        event_type: "comment_added",
+        summary: "Comment added by #{author}"
+      )
+
       ServiceResponse.success(data: { output: "Comment added to task ##{task.id}" })
     end
 
     def close_task
       task = find_task!
-      task.update!(status: "done")
+
+      result = Tasks::TransitionService.call(task: task, new_status: "done", agent: agent)
+      return ServiceResponse.failure(error: result.error) unless result.success?
+
       ServiceResponse.success(data: { output: "Closed task ##{task.id}: #{task.title}" })
+    end
+
+    def add_dependency
+      task = find_task!
+      depends_on_id = require_param!("depends_on_task_id")
+      depends_on = Task.find(depends_on_id)
+
+      dep = TaskDependency.create!(task: task, depends_on: depends_on)
+
+      Tasks::EventLogger.call(
+        task: task,
+        agent: agent,
+        event_type: "dependency_added",
+        summary: "Now blocked by task ##{depends_on.id}: #{depends_on.title}"
+      )
+
+      ServiceResponse.success(data: { output: "Task ##{task.id} now depends on task ##{depends_on.id}" })
+    rescue ActiveRecord::RecordNotFound
+      ServiceResponse.failure(error: "Task ##{depends_on_id} not found")
+    end
+
+    def remove_dependency
+      task = find_task!
+      depends_on_id = require_param!("depends_on_task_id")
+
+      dep = task.task_dependencies.find_by!(depends_on_id: depends_on_id)
+      dep.destroy!
+
+      Tasks::EventLogger.call(
+        task: task,
+        agent: agent,
+        event_type: "dependency_removed",
+        summary: "No longer blocked by task ##{depends_on_id}"
+      )
+
+      ServiceResponse.success(data: { output: "Removed dependency on task ##{depends_on_id}" })
+    rescue ActiveRecord::RecordNotFound
+      ServiceResponse.failure(error: "Dependency not found")
+    end
+
+    def update_checklist
+      task = find_task!
+      sub_action = input["checklist_action"].to_s.strip
+
+      case sub_action
+      when "add"
+        item_title = require_param!("item_title")
+        task.add_checklist_item(item_title)
+
+        Tasks::EventLogger.call(
+          task: task, agent: agent, event_type: "checklist_updated",
+          summary: "Checklist item added: #{item_title}"
+        )
+
+        ServiceResponse.success(data: { output: "Added checklist item to task ##{task.id}: #{item_title}" })
+      when "toggle"
+        index = input["item_index"].to_i
+        if task.toggle_checklist_item(index)
+          item = task.checklist[index]
+          state = item["checked"] ? "checked" : "unchecked"
+
+          Tasks::EventLogger.call(
+            task: task, agent: agent, event_type: "checklist_updated",
+            summary: "Checklist item #{state}: #{item['title']}"
+          )
+
+          ServiceResponse.success(data: { output: "Toggled checklist item #{index}: #{item['title']} (#{state})" })
+        else
+          ServiceResponse.failure(error: "Invalid checklist item index: #{index}")
+        end
+      else
+        ServiceResponse.failure(error: "Unknown checklist_action: '#{sub_action}'. Use 'add' or 'toggle'")
+      end
+    end
+
+    def add_hook
+      task = find_task!
+      skill_name = require_param!("skill_name")
+      trigger = require_param!("hook_trigger")
+      on_status = require_param!("hook_on_status")
+
+      skill = Skill.enabled.find_by!(name: skill_name)
+
+      hook = TaskHook.create!(
+        task: task,
+        skill: skill,
+        trigger: trigger,
+        on_status: on_status,
+        config: input["hook_config"] || {},
+        position: task.task_hooks.count
+      )
+
+      ServiceResponse.success(data: { output: "Added #{trigger}-hook on '#{on_status}' using skill '#{skill.name}' to task ##{task.id}" })
+    rescue ActiveRecord::RecordNotFound
+      ServiceResponse.failure(error: "Skill '#{skill_name}' not found")
+    end
+
+    def remove_hook
+      task = find_task!
+      hook_id = require_param!("hook_id")
+
+      hook = task.task_hooks.find(hook_id)
+      hook.destroy!
+
+      ServiceResponse.success(data: { output: "Removed hook ##{hook_id} from task ##{task.id}" })
+    rescue ActiveRecord::RecordNotFound
+      ServiceResponse.failure(error: "Hook ##{hook_id} not found on this task")
     end
 
     # ─── Helpers ───────────────────────────────────────────────────

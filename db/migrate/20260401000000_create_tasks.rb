@@ -10,6 +10,7 @@ class CreateTasks < ActiveRecord::Migration[8.0]
       t.references :created_by_agent, foreign_key: { to_table: :agents }
       t.references :assigned_to_agent, foreign_key: { to_table: :agents }
       t.jsonb :comments, null: false, default: []
+      t.jsonb :checklist, null: false, default: []
       t.jsonb :metadata, null: false, default: {}
       t.datetime :due_at
       t.datetime :completed_at

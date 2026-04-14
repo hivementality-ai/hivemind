@@ -6,6 +6,11 @@ RSpec.describe Task, type: :model do
   describe "associations" do
     it { should belong_to(:created_by_agent).class_name("Agent").optional }
     it { should belong_to(:assigned_to_agent).class_name("Agent").optional }
+    it { should belong_to(:task_template).optional }
+    it { should have_many(:task_hooks).dependent(:destroy) }
+    it { should have_many(:task_events).dependent(:destroy) }
+    it { should have_many(:task_dependencies).dependent(:destroy) }
+    it { should have_many(:blocking_tasks).through(:task_dependencies) }
   end
 
   describe "validations" do
@@ -78,7 +83,7 @@ RSpec.describe Task, type: :model do
     end
 
     it "returns true when an agent is assigned" do
-      task = build(:task, :with_agent)
+      task = build(:task, assigned_to_agent: create(:agent))
       expect(task.assigned?).to be true
     end
   end
@@ -189,10 +194,135 @@ RSpec.describe Task, type: :model do
     it "does not overwrite an existing completed_at if already done" do
       task = create(:task, status: "done")
       original_time = task.completed_at
-      travel 1.minute do
-        task.update!(title: "Retitled but still done")
-        expect(task.completed_at).to be_within(1.second).of(original_time)
+      task.update!(title: "Retitled but still done")
+      expect(task.completed_at).to be_within(1.second).of(original_time)
+    end
+  end
+
+  describe "#dependencies_met?" do
+    it "returns true when no dependencies" do
+      task = create(:task)
+      expect(task.dependencies_met?).to be true
+    end
+
+    it "returns false when blocking task is not done" do
+      task_a = create(:task, status: "todo")
+      task_b = create(:task, status: "in_progress")
+      create(:task_dependency, task: task_b, depends_on: task_a)
+
+      expect(task_b.dependencies_met?).to be false
+    end
+
+    it "returns true when all blocking tasks are done" do
+      task_a = create(:task, :done)
+      task_b = create(:task, status: "todo")
+      create(:task_dependency, task: task_b, depends_on: task_a)
+
+      expect(task_b.dependencies_met?).to be true
+    end
+  end
+
+  describe "#blocked_by_dependencies?" do
+    it "returns false with no dependencies" do
+      task = create(:task)
+      expect(task.blocked_by_dependencies?).to be false
+    end
+
+    it "returns true when blocked" do
+      blocker = create(:task, status: "todo")
+      task = create(:task)
+      create(:task_dependency, task: task, depends_on: blocker)
+
+      expect(task.blocked_by_dependencies?).to be true
+    end
+  end
+
+  describe "checklist" do
+    let(:task) { create(:task) }
+
+    describe "#add_checklist_item" do
+      it "adds an unchecked item" do
+        task.add_checklist_item("Write tests")
+        task.reload
+        expect(task.checklist.size).to eq(1)
+        expect(task.checklist.first["title"]).to eq("Write tests")
+        expect(task.checklist.first["checked"]).to be false
       end
+    end
+
+    describe "#toggle_checklist_item" do
+      before { task.add_checklist_item("Write tests") }
+
+      it "toggles a checklist item" do
+        task.toggle_checklist_item(0)
+        task.reload
+        expect(task.checklist[0]["checked"]).to be true
+      end
+
+      it "returns false for invalid index" do
+        expect(task.toggle_checklist_item(99)).to be false
+      end
+    end
+
+    describe "#checklist_complete?" do
+      it "returns true when empty" do
+        expect(task.checklist_complete?).to be true
+      end
+
+      it "returns false when items are unchecked" do
+        task.add_checklist_item("Item 1")
+        expect(task.checklist_complete?).to be false
+      end
+
+      it "returns true when all items are checked" do
+        task.add_checklist_item("Item 1")
+        task.toggle_checklist_item(0)
+        expect(task.checklist_complete?).to be true
+      end
+    end
+  end
+
+  describe "#effective_hooks_for" do
+    let(:task) { create(:task) }
+    let(:skill) { create(:skill) }
+
+    it "returns task-level hooks" do
+      hook = create(:task_hook, task: task, skill: skill, trigger: "post", on_status: "done")
+      expect(task.effective_hooks_for("done", "post")).to include(hook)
+    end
+
+    it "falls back to template hooks when no task-level hooks" do
+      template = create(:task_template)
+      template_hook = create(:task_hook, task_template: template, skill: skill, trigger: "post", on_status: "done")
+      task.update!(task_template: template)
+
+      expect(task.effective_hooks_for("done", "post")).to include(template_hook)
+    end
+
+    it "prefers task hooks over template hooks" do
+      template = create(:task_template)
+      create(:task_hook, task_template: template, skill: skill, trigger: "post", on_status: "done")
+      task_hook = create(:task_hook, task: task, skill: skill, trigger: "post", on_status: "done")
+      task.update!(task_template: template)
+
+      hooks = task.effective_hooks_for("done", "post")
+      expect(hooks).to include(task_hook)
+      expect(hooks.size).to eq(1)
+    end
+
+    it "returns empty when no hooks match" do
+      expect(task.effective_hooks_for("done", "pre")).to be_empty
+    end
+  end
+
+  describe "#apply_template!" do
+    it "sets template and priority" do
+      template = create(:task_template, default_priority: "high")
+      task = build(:task)
+      task.apply_template!(template)
+
+      expect(task.task_template).to eq(template)
+      expect(task.priority).to eq("high")
     end
   end
 end

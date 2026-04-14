@@ -22,6 +22,104 @@
         <% end %>
       </div>
 
+      <!-- Checklist -->
+      <% if @task.checklist.present? %>
+        <div class="bg-surface-card rounded-xl border border-border-default p-6">
+          <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">
+            Checklist (<%= @task.checklist.count { |i| i["checked"] } %>/<%= @task.checklist.size %>)
+          </h2>
+          <div class="space-y-2">
+            <% @task.checklist.each_with_index do |item, idx| %>
+              <div class="flex items-center gap-3">
+                <%= button_to toggle_checklist_task_path(@task, index: idx), method: :patch,
+                      class: "flex items-center gap-3 w-full text-left hover:bg-surface-raised rounded-lg px-2 py-1.5 transition" do %>
+                  <div class="w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 <%= item['checked'] ? 'bg-brand border-brand' : 'border-border-default' %>">
+                    <% if item["checked"] %>
+                      <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                      </svg>
+                    <% end %>
+                  </div>
+                  <span class="text-sm <%= item['checked'] ? 'text-text-faint line-through' : 'text-text-primary' %>">
+                    <%= item["title"] %>
+                  </span>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+
+      <!-- Dependencies -->
+      <% if @task.blocking_tasks.any? || @task.dependent_tasks.any? %>
+        <div class="bg-surface-card rounded-xl border border-border-default p-6">
+          <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Dependencies</h2>
+          <% if @task.blocking_tasks.any? %>
+            <p class="text-xs text-text-faint mb-2">Blocked by:</p>
+            <div class="space-y-1.5 mb-4">
+              <% @task.blocking_tasks.each do |blocker| %>
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full flex-shrink-0 <%= blocker.status == 'done' ? 'bg-green-500' : 'bg-yellow-500' %>"></span>
+                  <%= link_to task_path(blocker), class: "text-sm text-text-primary hover:text-brand" do %>
+                    #<%= blocker.id %> <%= blocker.title %> (<%= blocker.status %>)
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+          <% if @task.dependent_tasks.any? %>
+            <p class="text-xs text-text-faint mb-2">Blocking:</p>
+            <div class="space-y-1.5">
+              <% @task.dependent_tasks.each do |dep| %>
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full flex-shrink-0 bg-orange-500"></span>
+                  <%= link_to task_path(dep), class: "text-sm text-text-primary hover:text-brand" do %>
+                    #<%= dep.id %> <%= dep.title %>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <!-- Hooks -->
+      <% hooks = @task.task_hooks.includes(:skill).ordered %>
+      <% template_hooks = @task.task_template&.task_hooks&.includes(:skill)&.ordered || [] %>
+      <% if hooks.any? || template_hooks.any? %>
+        <div class="bg-surface-card rounded-xl border border-border-default p-6">
+          <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Hooks</h2>
+          <div class="space-y-2">
+            <% hooks.each do |hook| %>
+              <div class="flex items-center gap-3 text-sm">
+                <span class="px-2 py-0.5 rounded text-xs font-semibold uppercase <%= hook.trigger == 'pre' ? 'bg-blue-900/40 text-blue-300' : 'bg-purple-900/40 text-purple-300' %>">
+                  <%= hook.trigger %>
+                </span>
+                <span class="text-text-muted">on</span>
+                <span class="text-white font-medium"><%= hook.on_status %></span>
+                <span class="text-text-faint">→</span>
+                <span class="text-brand"><%= hook.skill.name %></span>
+                <% unless hook.enabled? %>
+                  <span class="text-xs text-text-faint">(disabled)</span>
+                <% end %>
+              </div>
+            <% end %>
+            <% template_hooks.each do |hook| %>
+              <div class="flex items-center gap-3 text-sm opacity-60">
+                <span class="px-2 py-0.5 rounded text-xs font-semibold uppercase <%= hook.trigger == 'pre' ? 'bg-blue-900/40 text-blue-300' : 'bg-purple-900/40 text-purple-300' %>">
+                  <%= hook.trigger %>
+                </span>
+                <span class="text-text-muted">on</span>
+                <span class="text-white font-medium"><%= hook.on_status %></span>
+                <span class="text-text-faint">→</span>
+                <span class="text-brand"><%= hook.skill.name %></span>
+                <span class="text-xs text-text-faint">(from template)</span>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+
       <!-- Comments -->
       <div class="bg-surface-card rounded-xl border border-border-default p-6">
         <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-4">
@@ -61,6 +159,27 @@
           </div>
         <% end %>
       </div>
+
+      <!-- Activity Log -->
+      <% if @events.any? %>
+        <div class="bg-surface-card rounded-xl border border-border-default p-6">
+          <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-4">Activity</h2>
+          <div class="space-y-3">
+            <% @events.each do |event| %>
+              <div class="flex items-start gap-3">
+                <div class="w-1.5 h-1.5 rounded-full bg-text-faint mt-2 flex-shrink-0"></div>
+                <div class="flex-1">
+                  <p class="text-sm text-text-primary"><%= event.summary %></p>
+                  <p class="text-xs text-text-faint mt-0.5">
+                    <%= event.created_at.strftime("%b %-d, %H:%M") %>
+                    <% if event.agent %> &middot; <%= event.agent.name %><% end %>
+                  </p>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
     </div>
 
     <!-- Sidebar -->
@@ -73,6 +192,9 @@
             <dt class="text-xs text-text-faint mb-1">Status</dt>
             <dd>
               <span class="text-sm font-medium text-white"><%= @task.status.humanize %></span>
+              <% if @task.blocked_by_dependencies? %>
+                <span class="text-xs text-yellow-400 ml-1">(blocked)</span>
+              <% end %>
             </dd>
           </div>
           <div>
@@ -101,6 +223,14 @@
             <div>
               <dt class="text-xs text-text-faint mb-1">Created by</dt>
               <dd class="text-sm text-white"><%= @task.created_by_agent.name %></dd>
+            </div>
+          <% end %>
+          <% if @task.task_template %>
+            <div>
+              <dt class="text-xs text-text-faint mb-1">Template</dt>
+              <dd class="text-sm text-brand">
+                <%= link_to @task.task_template.name, task_template_path(@task.task_template), class: "hover:underline" %>
+              </dd>
             </div>
           <% end %>
           <% if @task.due_at %>

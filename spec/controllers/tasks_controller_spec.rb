@@ -32,6 +32,7 @@ RSpec.describe TasksController, type: :controller do
     end
 
     it "assigns all visible enabled agents" do
+      create(:agent, system_agent: false, enabled: true)
       get :index
       expect(assigns(:agents)).to be_present
     end

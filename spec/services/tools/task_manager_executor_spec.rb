@@ -263,8 +263,8 @@ RSpec.describe Tools::TaskManagerExecutor do
     # ─── assign ───────────────────────────────────────────────────
 
     context "action: assign" do
-      let(:assignee) { create(:agent, name: "Grogu") }
-      let!(:task)    { create(:task) }
+      let!(:assignee) { create(:agent, name: "Grogu") }
+      let!(:task)     { create(:task) }
       let(:input)    { { "action" => "assign", "task_id" => task.id.to_s, "assign_to" => "Grogu" } }
 
       it "assigns the task to the named agent" do
@@ -487,11 +487,11 @@ RSpec.describe Tools::TaskManagerExecutor do
         expect(task.reload.completed_at).to be_present
       end
 
-      it "is idempotent — closing an already-done task succeeds" do
+      it "returns error when task is already done" do
         task.update!(status: "done")
         result = subject.call
-        expect(result).to be_success
-        expect(task.reload.status).to eq("done")
+        expect(result).not_to be_success
+        expect(result.error).to include("already")
       end
 
       context "when task_id is missing" do
@@ -512,6 +512,172 @@ RSpec.describe Tools::TaskManagerExecutor do
           expect(result).not_to be_success
           expect(result.error).to include("not found")
         end
+      end
+    end
+
+    # ─── add_dependency ──────────────────────────────────────────
+
+    context "action: add_dependency" do
+      let!(:task_a) { create(:task, title: "Task A") }
+      let!(:task_b) { create(:task, title: "Task B") }
+      let(:input) { { "action" => "add_dependency", "task_id" => task_b.id.to_s, "depends_on_task_id" => task_a.id.to_s } }
+
+      it "creates a dependency" do
+        expect { subject.call }.to change(TaskDependency, :count).by(1)
+      end
+
+      it "returns success" do
+        result = subject.call
+        expect(result).to be_success
+        expect(result.data[:output]).to include(task_a.id.to_s)
+      end
+
+      it "logs an event" do
+        expect { subject.call }.to change(TaskEvent, :count).by(1)
+      end
+    end
+
+    # ─── remove_dependency ───────────────────────────────────────
+
+    context "action: remove_dependency" do
+      let!(:task_a) { create(:task) }
+      let!(:task_b) { create(:task) }
+      let!(:dep)    { create(:task_dependency, task: task_b, depends_on: task_a) }
+      let(:input)   { { "action" => "remove_dependency", "task_id" => task_b.id.to_s, "depends_on_task_id" => task_a.id.to_s } }
+
+      it "removes the dependency" do
+        expect { subject.call }.to change(TaskDependency, :count).by(-1)
+      end
+
+      it "returns success" do
+        result = subject.call
+        expect(result).to be_success
+      end
+    end
+
+    # ─── update_checklist ────────────────────────────────────────
+
+    context "action: update_checklist" do
+      let!(:task) { create(:task) }
+
+      context "add item" do
+        let(:input) { { "action" => "update_checklist", "task_id" => task.id.to_s, "checklist_action" => "add", "item_title" => "Write tests" } }
+
+        it "adds a checklist item" do
+          subject.call
+          task.reload
+          expect(task.checklist.size).to eq(1)
+          expect(task.checklist.first["title"]).to eq("Write tests")
+        end
+
+        it "returns success" do
+          result = subject.call
+          expect(result).to be_success
+        end
+      end
+
+      context "toggle item" do
+        before { task.add_checklist_item("Write tests") }
+
+        let(:input) { { "action" => "update_checklist", "task_id" => task.id.to_s, "checklist_action" => "toggle", "item_index" => "0" } }
+
+        it "toggles the checklist item" do
+          subject.call
+          task.reload
+          expect(task.checklist[0]["checked"]).to be true
+        end
+      end
+
+      context "invalid sub-action" do
+        let(:input) { { "action" => "update_checklist", "task_id" => task.id.to_s, "checklist_action" => "delete" } }
+
+        it "returns failure" do
+          result = subject.call
+          expect(result).not_to be_success
+          expect(result.error).to include("Unknown checklist_action")
+        end
+      end
+    end
+
+    # ─── add_hook ────────────────────────────────────────────────
+
+    context "action: add_hook" do
+      let!(:task)  { create(:task) }
+      let!(:skill) { create(:skill, name: "review_skill") }
+      let(:input) do
+        {
+          "action" => "add_hook",
+          "task_id" => task.id.to_s,
+          "skill_name" => "review_skill",
+          "hook_trigger" => "post",
+          "hook_on_status" => "done"
+        }
+      end
+
+      it "creates a hook on the task" do
+        expect { subject.call }.to change(TaskHook, :count).by(1)
+      end
+
+      it "returns success" do
+        result = subject.call
+        expect(result).to be_success
+        expect(result.data[:output]).to include("review_skill")
+      end
+
+      context "when skill not found" do
+        let(:input) { { "action" => "add_hook", "task_id" => task.id.to_s, "skill_name" => "nope", "hook_trigger" => "post", "hook_on_status" => "done" } }
+
+        it "returns failure" do
+          result = subject.call
+          expect(result).not_to be_success
+          expect(result.error).to include("not found")
+        end
+      end
+    end
+
+    # ─── remove_hook ─────────────────────────────────────────────
+
+    context "action: remove_hook" do
+      let!(:task)  { create(:task) }
+      let!(:skill) { create(:skill) }
+      let!(:hook)  { create(:task_hook, task: task, skill: skill, trigger: "post", on_status: "done") }
+      let(:input)  { { "action" => "remove_hook", "task_id" => task.id.to_s, "hook_id" => hook.id.to_s } }
+
+      it "removes the hook" do
+        expect { subject.call }.to change(TaskHook, :count).by(-1)
+      end
+
+      it "returns success" do
+        result = subject.call
+        expect(result).to be_success
+      end
+    end
+
+    # ─── create with template ────────────────────────────────────
+
+    context "action: create with template" do
+      let!(:template) { create(:task_template, name: "bug_report", default_priority: "high") }
+      let(:input) { { "action" => "create", "title" => "Fix login bug", "template" => "bug_report" } }
+
+      it "applies the template to the task" do
+        subject.call
+        task = Task.last
+        expect(task.task_template).to eq(template)
+        expect(task.priority).to eq("high")
+      end
+    end
+
+    # ─── create with checklist ───────────────────────────────────
+
+    context "action: create with checklist" do
+      let(:input) { { "action" => "create", "title" => "Deploy app", "checklist" => [ "Build image", "Run migrations", "Verify health" ] } }
+
+      it "creates task with checklist items" do
+        subject.call
+        task = Task.last
+        expect(task.checklist.size).to eq(3)
+        expect(task.checklist.map { |i| i["title"] }).to eq([ "Build image", "Run migrations", "Verify health" ])
+        expect(task.checklist.all? { |i| i["checked"] == false }).to be true
       end
     end
   end

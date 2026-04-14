@@ -40,12 +40,24 @@
     </div>
   </div>
 
-  <div>
-    <%= f.label :assigned_to_agent_id, "Assign to", class: "block text-sm font-medium text-text-muted mb-1" %>
-    <%= f.select :assigned_to_agent_id,
-          agents.map { |a| [a.name, a.id] },
-          { include_blank: "— Unassigned —" },
-          class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white focus:outline-none focus:border-brand/50" %>
+  <div class="grid grid-cols-2 gap-4">
+    <div>
+      <%= f.label :assigned_to_agent_id, "Assign to", class: "block text-sm font-medium text-text-muted mb-1" %>
+      <%= f.select :assigned_to_agent_id,
+            agents.map { |a| [a.name, a.id] },
+            { include_blank: "— Unassigned —" },
+            class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white focus:outline-none focus:border-brand/50" %>
+    </div>
+
+    <% if defined?(templates) && templates&.any? %>
+      <div>
+        <%= f.label :task_template_id, "Template", class: "block text-sm font-medium text-text-muted mb-1" %>
+        <%= f.select :task_template_id,
+              templates.map { |t| [t.name, t.id] },
+              { include_blank: "— No template —" },
+              class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white focus:outline-none focus:border-brand/50" %>
+      </div>
+    <% end %>
   </div>
 
   <div>

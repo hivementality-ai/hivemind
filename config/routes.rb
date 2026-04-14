@@ -143,8 +143,12 @@ Rails.application.routes.draw do
   resources :tasks do
     member do
       patch :move
+      patch :toggle_checklist
     end
   end
+
+  # Task Templates
+  resources :task_templates
 
   # Budgets
   get "budgets", to: "budgets#index", as: :budgets
