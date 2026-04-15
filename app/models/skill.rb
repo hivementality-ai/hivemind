@@ -20,6 +20,12 @@ class Skill < ApplicationRecord
 
   CATEGORIES = %w[coding productivity automation messaging lifestyle utilities integrations].freeze
 
+  # Find an existing ClawHub skill by source_url, falling back to name.
+  # Used by ClawhubController#confirm and ClawHub::SkillInstaller to avoid duplicates.
+  def self.find_clawhub(source_url:, name:)
+    find_by(source: "clawhub", source_url: source_url) || find_by(name: name)
+  end
+
   # Parse OpenClaw-compatible SKILL.md content
   def self.from_skill_md(text)
     frontmatter, body = parse_frontmatter(text)

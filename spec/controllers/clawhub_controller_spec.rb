@@ -11,6 +11,15 @@ RSpec.describe ClawhubController, type: :controller do
     allow(ClawHub::Client).to receive(:new).and_return(client)
   end
 
+  # Writes pending install data directly into Rails.cache using the same key
+  # the controller derives from session.id, so tests don't depend on cookie storage.
+  def set_pending_install(data)
+    # Trigger a request so the session gets an ID assigned, then derive the key.
+    request.session # ensure session exists
+    session_id = request.session.id || request.session_options[:id]
+    Rails.cache.write("clawhub:pending_install:#{session_id}", data)
+  end
+
   describe "GET #index" do
     it "lists trending skills by default" do
       allow(client).to receive(:list_skills)
@@ -114,10 +123,16 @@ RSpec.describe ClawhubController, type: :controller do
         )
       end
 
-      it "stores pending install in session and redirects to review" do
+      it "stores pending install in cache and redirects to review" do
         post :install, params: { slug: "test-skill" }
         expect(response).to redirect_to(review_clawhub_index_path)
-        expect(session[:pending_clawhub_install]).to be_present
+
+        # Verify data landed in Rails.cache, not the cookie session
+        cache_key = "clawhub:pending_install:#{request.session.id}"
+        cached = Rails.cache.read(cache_key)
+        expect(cached).to be_present
+        expect(cached[:slug]).to eq("test-skill")
+        expect(session[:pending_clawhub_install]).to be_nil
       end
     end
 
@@ -152,11 +167,11 @@ RSpec.describe ClawhubController, type: :controller do
 
   describe "GET #review" do
     it "renders review page when pending install exists" do
-      session[:pending_clawhub_install] = {
+      set_pending_install(
         slug: "test-skill",
         scan_result: { status: "flagged", findings: [] },
         pending_attributes: { name: "Test Skill", summary: "A test" }
-      }
+      )
 
       get :review
       expect(response).to have_http_status(:ok)
@@ -172,7 +187,7 @@ RSpec.describe ClawhubController, type: :controller do
   describe "POST #confirm" do
     context "with pending install" do
       before do
-        session[:pending_clawhub_install] = {
+        set_pending_install(
           slug: "test-skill",
           scan_result: { status: "flagged", findings: [] },
           pending_attributes: {
@@ -184,12 +199,14 @@ RSpec.describe ClawhubController, type: :controller do
             source: "clawhub",
             source_url: "https://clawhub.ai/skills/test-skill"
           }
-        }
+        )
       end
 
-      it "creates the skill and clears session" do
+      it "creates the skill and clears cache" do
         expect { post :confirm, params: { slug: "test-skill" } }.to change(Skill, :count).by(1)
-        expect(session[:pending_clawhub_install]).to be_nil
+
+        cache_key = "clawhub:pending_install:#{request.session.id}"
+        expect(Rails.cache.read(cache_key)).to be_nil
         expect(response).to redirect_to(skill_path(Skill.last))
         expect(Skill.last.source).to eq("clawhub")
         expect(Skill.last.approved_by).to eq(user.id)
@@ -206,11 +223,11 @@ RSpec.describe ClawhubController, type: :controller do
 
     context "with blocked scan result" do
       before do
-        session[:pending_clawhub_install] = {
+        set_pending_install(
           slug: "test-skill",
           scan_result: { status: "blocked" },
           pending_attributes: { name: "Bad Skill" }
-        }
+        )
       end
 
       it "rejects blocked skills" do

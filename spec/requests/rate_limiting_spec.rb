@@ -111,6 +111,27 @@ RSpec.describe "Rate limiting", type: :request do
     end
   end
 
+
+  describe "ClawHub install throttle (5 req/min per IP)" do
+    let(:user) { create(:user, :owner) }
+
+    before { sign_in user }
+
+    it "returns 429 after 5 install requests from the same IP" do
+      allow(ClawHub::SkillInstaller).to receive(:call).and_return(
+        ServiceResponse.success(data: { skill: nil, scan_result: {}, status: "blocked" })
+      )
+
+      5.times do
+        post "/clawhub/some-skill/install"
+        expect(response.status).to be < 500
+      end
+
+      post "/clawhub/some-skill/install"
+      expect(response).to have_http_status(:too_many_requests)
+    end
+  end
+
   describe "blocklisted IP" do
     it "returns 403 for a banned IP" do
       # Allow2Ban bans after 20 failed login attempts within 1 minute

@@ -71,8 +71,7 @@ module ClawHub
     end
 
     def save_skill(skill, scan_data)
-      existing = Skill.find_by(source: "clawhub", source_url: skill.source_url)
-      existing ||= Skill.find_by(name: skill.name)
+      existing = Skill.find_clawhub(source_url: skill.source_url, name: skill.name)
 
       attrs = {
         description: skill.description,

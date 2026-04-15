@@ -48,6 +48,13 @@ class Rack::Attack
     end
   end
 
+  # Throttle ClawHub skill installs (5 per minute per user IP) to prevent API hammering
+  throttle("clawhub/install", limit: 5, period: 60.seconds) do |req|
+    if req.post? && req.path.match?(%r{^/clawhub/[^/]+/install$})
+      req.ip
+    end
+  end
+
   # Block IPs that have been banned
   blocklist("block/banned") do |req|
     Rack::Attack::Allow2Ban.filter(req.ip, maxretry: 20, findtime: 1.minute, bantime: 1.hour) do

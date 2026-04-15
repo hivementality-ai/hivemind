@@ -3,6 +3,8 @@
 class ClawhubController < ApplicationController
   before_action :authenticate_user!
 
+  PENDING_INSTALL_TTL = 30.minutes
+
   def index
     @sort = params[:sort].presence || "trending"
     @query = params[:q].presence
@@ -47,11 +49,15 @@ class ClawhubController < ApplicationController
     when "installed"
       redirect_to skill_path(result.data[:skill]), notice: "#{result.data[:skill].name} installed from ClawHub"
     when "pending_review"
-      session[:pending_clawhub_install] = {
-        slug: slug,
-        scan_result: result.data[:scan_result],
-        pending_attributes: result.data[:pending_attributes]
-      }
+      Rails.cache.write(
+        pending_install_cache_key,
+        {
+          slug: slug,
+          scan_result: result.data[:scan_result],
+          pending_attributes: result.data[:pending_attributes]
+        },
+        expires_in: PENDING_INSTALL_TTL
+      )
       redirect_to review_clawhub_index_path
     when "blocked"
       redirect_to clawhub_path(slug: slug), alert: "This skill has been blocked by the security scanner"
@@ -59,33 +65,31 @@ class ClawhubController < ApplicationController
   end
 
   def review
-    @pending = session[:pending_clawhub_install]
+    @pending = pending_install
     unless @pending
       redirect_to clawhub_index_path, alert: "No pending install to review"
       return
     end
-    @scan_result = @pending["scan_result"] || @pending[:scan_result]
-    @pending_attributes = @pending["pending_attributes"] || @pending[:pending_attributes]
+    @scan_result = @pending[:scan_result]
+    @pending_attributes = @pending[:pending_attributes]
   end
 
   def confirm
-    pending = session[:pending_clawhub_install]
+    pending = pending_install
     unless pending
       redirect_to clawhub_index_path, alert: "No pending install to confirm"
       return
     end
 
-    pending = pending.deep_symbolize_keys
-    scan_result = pending[:scan_result]
+    scan_result = pending[:scan_result].deep_symbolize_keys
 
     if scan_result[:status] == "blocked"
       redirect_to clawhub_index_path, alert: "Blocked skills cannot be installed"
       return
     end
 
-    attrs = pending[:pending_attributes]
-    skill = Skill.from_skill_md("")
-    skill.assign_attributes(
+    attrs = pending[:pending_attributes].deep_symbolize_keys
+    skill = Skill.new(
       name: attrs[:name],
       description: attrs[:description],
       summary: attrs[:summary],
@@ -101,15 +105,14 @@ class ClawhubController < ApplicationController
       approved_at: Time.current
     )
 
-    existing = Skill.find_by(source: "clawhub", source_url: attrs[:source_url])
-    existing ||= Skill.find_by(name: attrs[:name])
+    existing = Skill.find_clawhub(source_url: attrs[:source_url], name: attrs[:name])
 
     if existing
       existing.update!(skill.attributes.except("id", "created_at", "updated_at"))
-      session.delete(:pending_clawhub_install)
+      clear_pending_install
       redirect_to skill_path(existing), notice: "#{existing.name} installed from ClawHub"
     elsif skill.save
-      session.delete(:pending_clawhub_install)
+      clear_pending_install
       redirect_to skill_path(skill), notice: "#{skill.name} installed from ClawHub"
     else
       redirect_to clawhub_index_path, alert: "Install failed: #{skill.errors.full_messages.join(', ')}"
@@ -120,5 +123,17 @@ class ClawhubController < ApplicationController
 
   def client
     @client ||= ClawHub::Client.new
+  end
+
+  def pending_install_cache_key
+    "clawhub:pending_install:#{session.id}"
+  end
+
+  def pending_install
+    Rails.cache.read(pending_install_cache_key)
+  end
+
+  def clear_pending_install
+    Rails.cache.delete(pending_install_cache_key)
   end
 end
