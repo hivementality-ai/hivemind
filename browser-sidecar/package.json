@@ -1,0 +1,19 @@
+{
+  "name": "hivemind-browser-sidecar",
+  "version": "1.0.0",
+  "description": "Browser automation sidecar for Hivemind — native Playwright HTTP service",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --forceExit"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "playwright": "^1.52.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4"
+  }
+}
