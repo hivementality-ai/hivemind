@@ -20,10 +20,13 @@ class HeartbeatJob < ApplicationJob
     # Use the hidden system assistant
     agent = Agent.system_assistant
 
-    # Override model if user picked one
+    # Override model and provider if user picked one
     original_model = agent.llm_model
+    original_provider = agent.model_provider
     if config["model"].present?
       agent.update_column(:llm_model, config["model"])
+      provider = config["provider"].presence || provider_for_model(config["model"])
+      agent.update_column(:model_provider, provider) if provider.present?
     end
 
     session = Session.find_or_create_by!(
@@ -37,15 +40,16 @@ class HeartbeatJob < ApplicationJob
 
     prompt = build_prompt(config)
 
-    Rails.logger.info("[Heartbeat] Running with model #{agent.llm_model}")
+    Rails.logger.info("[Heartbeat] Running with model #{agent.llm_model} via #{agent.model_provider}")
 
     started_at = Time.current
     result = Sessions::Chat.call(session: session, message: prompt, agent: agent)
     duration_ms = ((Time.current - started_at) * 1000).to_i
 
-    # Restore model
+    # Restore original model and provider
     if config["model"].present? && config["model"] != original_model
       agent.update_column(:llm_model, original_model)
+      agent.update_column(:model_provider, original_provider) if original_provider.present?
     end
 
     usage = result&.data&.dig(:usage) || {}
@@ -95,6 +99,14 @@ class HeartbeatJob < ApplicationJob
     JSON.parse(raw)
   rescue JSON::ParserError
     {}
+  end
+
+  # Derive the adapter_type (provider) for a given model ID by checking which
+  # enabled ProviderConfig has that model in its model_definitions.
+  def provider_for_model(model_id)
+    ProviderConfig.enabled_providers.find do |pc|
+      (pc.model_definitions || []).any? { |m| m["id"] == model_id }
+    end&.adapter_type
   end
 
   def build_prompt(config)

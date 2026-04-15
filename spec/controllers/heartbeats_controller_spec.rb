@@ -20,6 +20,38 @@ RSpec.describe HeartbeatsController, type: :controller do
       expect(assigns(:config)['enabled']).to be true
     end
 
+    it 'assigns @provider_models from enabled providers with model_definitions' do
+      create(:provider_config,
+             name: "Anthropic",
+             adapter_type: "anthropic",
+             enabled: true,
+             model_definitions: [ { "id" => "claude-haiku-4-5" } ])
+      create(:provider_config,
+             name: "Empty Provider",
+             adapter_type: "openai",
+             enabled: true,
+             model_definitions: [])
+
+      get :index
+
+      groups = assigns(:provider_models)
+      expect(groups.map { |g| g[:adapter_type] }).to include("anthropic")
+      expect(groups.map { |g| g[:adapter_type] }).not_to include("openai")
+    end
+
+    it 'excludes disabled providers from @provider_models' do
+      create(:provider_config,
+             name: "Disabled Anthropic",
+             adapter_type: "anthropic",
+             enabled: false,
+             model_definitions: [ { "id" => "claude-haiku-4-5" } ])
+
+      get :index
+
+      groups = assigns(:provider_models)
+      expect(groups).to be_empty
+    end
+
     context 'when not authenticated' do
       before { sign_out user }
 
@@ -39,6 +71,19 @@ RSpec.describe HeartbeatsController, type: :controller do
       config = JSON.parse(Setting.get('heartbeat'))
       expect(config['enabled']).to be true
       expect(config['interval_minutes']).to eq(60)
+    end
+
+    it 'saves provider alongside model' do
+      patch :update, params: { enabled: '1', model: 'claude-haiku-4-5', provider: 'anthropic', interval_minutes: '30' }
+      config = JSON.parse(Setting.get('heartbeat'))
+      expect(config['model']).to eq('claude-haiku-4-5')
+      expect(config['provider']).to eq('anthropic')
+    end
+
+    it 'stores nil provider when not submitted' do
+      patch :update, params: { enabled: '1', model: 'gpt-4', interval_minutes: '30' }
+      config = JSON.parse(Setting.get('heartbeat'))
+      expect(config['provider']).to be_nil
     end
 
     it 'clamps interval to valid range' do

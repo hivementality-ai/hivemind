@@ -3,7 +3,7 @@
 require "rails_helper"
 
 RSpec.describe HeartbeatJob, type: :job do
-  let(:agent) { create(:agent, name: "System Assistant", llm_model: "claude-3-5-sonnet", system_agent: true) }
+  let(:agent) { create(:agent, name: "System Assistant", llm_model: "claude-3-5-sonnet", model_provider: "anthropic", system_agent: true) }
   let(:config) { { "enabled" => true, "interval_minutes" => 30 }.to_json }
   let(:chat_result) { double(success?: true, data: { content: "Everything looks good" }) }
 
@@ -57,6 +57,76 @@ RSpec.describe HeartbeatJob, type: :job do
       described_class.perform_now
 
       expect(agent.reload.llm_model).to eq("claude-3-5-sonnet")
+    end
+
+    it "restores original model_provider after override" do
+      config_with_model = { "enabled" => true, "interval_minutes" => 30, "model" => "gpt-4", "provider" => "openai" }.to_json
+      allow(Setting).to receive(:get).with("heartbeat").and_return(config_with_model)
+
+      described_class.perform_now
+
+      expect(agent.reload.model_provider).to eq("anthropic")
+    end
+
+    # ─── provider override ────────────────────────────────────────
+
+    context "with provider stored explicitly in config" do
+      let(:heartbeat_config) do
+        { "enabled" => true, "interval_minutes" => 30, "model" => "claude-haiku-4-5", "provider" => "anthropic" }.to_json
+      end
+
+      before { allow(Setting).to receive(:get).with("heartbeat").and_return(heartbeat_config) }
+
+      it "sets model_provider on the agent before calling Sessions::Chat" do
+        captured_provider = nil
+        allow(Sessions::Chat).to receive(:call) do |args|
+          captured_provider = args[:agent].model_provider
+          chat_result
+        end
+
+        described_class.perform_now
+
+        expect(captured_provider).to eq("anthropic")
+      end
+    end
+
+    context "without provider in config — derives from ProviderConfig" do
+      let!(:anthropic_config) do
+        create(:provider_config,
+               name: "Anthropic",
+               adapter_type: "anthropic",
+               enabled: true,
+               model_definitions: [ { "id" => "claude-haiku-4-5" } ])
+      end
+
+      let(:heartbeat_config) do
+        { "enabled" => true, "interval_minutes" => 30, "model" => "claude-haiku-4-5" }.to_json
+      end
+
+      before { allow(Setting).to receive(:get).with("heartbeat").and_return(heartbeat_config) }
+
+      it "derives provider from ProviderConfig model_definitions" do
+        captured_provider = nil
+        allow(Sessions::Chat).to receive(:call) do |args|
+          captured_provider = args[:agent].model_provider
+          chat_result
+        end
+
+        described_class.perform_now
+
+        expect(captured_provider).to eq("anthropic")
+      end
+
+      it "does not set provider when no ProviderConfig has the model" do
+        agent.update_column(:model_provider, "anthropic")
+        unknown_config = { "enabled" => true, "interval_minutes" => 30, "model" => "unknown-model-xyz" }.to_json
+        allow(Setting).to receive(:get).with("heartbeat").and_return(unknown_config)
+
+        described_class.perform_now
+
+        # provider is not changed — original stays (we didn't update_column with nil)
+        expect(agent.reload.model_provider).to eq("anthropic")
+      end
     end
 
     it "builds prompt with checklist tasks" do
