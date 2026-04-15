@@ -84,7 +84,7 @@ GEM
     base64 (0.3.0)
     bcrypt (3.1.22)
     bcrypt_pbkdf (1.1.2)
-    bigdecimal (4.1.0)
+    bigdecimal (4.1.1)
     bindex (0.8.1)
     bootsnap (1.23.0)
       msgpack (~> 1.2)
@@ -214,14 +214,14 @@ GEM
     mini_magick (5.3.1)
       logger
     mini_mime (1.1.5)
-    minitest (6.0.2)
+    minitest (6.0.3)
       drb (~> 2.0)
       prism (~> 1.5)
     msgpack (1.8.0)
     multipart-post (2.4.1)
     mutex_m (0.3.0)
-    neighbor (0.6.0)
-      activerecord (>= 7.1)
+    neighbor (1.0.0)
+      activerecord (>= 7.2)
     net-http (0.9.1)
       uri (>= 0.11.1)
     net-imap (0.6.3)
@@ -450,7 +450,7 @@ GEM
     thruster (0.1.20-aarch64-linux)
     thruster (0.1.20-arm64-darwin)
     thruster (0.1.20-x86_64-linux)
-    timeout (0.6.0)
+    timeout (0.6.1)
     tsort (0.2.0)
     turbo-rails (2.0.23)
       actionpack (>= 7.1.0)
@@ -520,7 +520,7 @@ DEPENDENCIES
   image_processing (~> 1.2)
   importmap-rails
   kamal
-  neighbor (~> 0.4)
+  neighbor (~> 1.0)
   oj
   pg (~> 1.1)
   propshaft
