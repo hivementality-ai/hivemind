@@ -41,6 +41,7 @@ services:
       - MEMORY_EMBEDDINGS_ENABLED=${MEMORY_EMBEDDINGS_ENABLED:-true}
       - MEMORY_EMBEDDINGS_PROVIDER=${MEMORY_EMBEDDINGS_PROVIDER:-ollama}
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      - BROWSER_SIDECAR_URL=http://browser-sidecar:3004
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -73,6 +74,7 @@ services:
       - MEMORY_EMBEDDINGS_ENABLED=${MEMORY_EMBEDDINGS_ENABLED:-true}
       - MEMORY_EMBEDDINGS_PROVIDER=${MEMORY_EMBEDDINGS_PROVIDER:-ollama}
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      - BROWSER_SIDECAR_URL=http://browser-sidecar:3004
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -107,17 +109,21 @@ services:
     networks:
       - internal
 
-  browser:
-    image: mcr.microsoft.com/playwright:v1.52.0-noble
-    command: npx playwright run-server --port 3001
+  browser-sidecar:
+    image: ghcr.io/hivementality-ai/hivemind/browser-sidecar:${HIVEMIND_VERSION:-latest}
+    build:
+      context: ./browser-sidecar
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3004
+    networks:
+      - internal
+    restart: unless-stopped
     deploy:
       resources:
         limits:
           memory: 2g
           cpus: "1.0"
-    networks:
-      - internal
-      - web
 
   workspace:
     image: ghcr.io/hivementality-ai/hivemind/workspace:${HIVEMIND_VERSION:-latest}

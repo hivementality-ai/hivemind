@@ -6,17 +6,20 @@ require "json"
 
 module Tools
   class BrowserExecutor < BaseExecutor
-    # Supports: navigate, screenshot, content, click, type, evaluate
+    SIDECAR_URL = ENV.fetch("BROWSER_SIDECAR_URL", "http://browser-sidecar:3004")
+    REQUEST_TIMEOUT = 35
+
+    # Supported actions: navigate (default), screenshot
     def call
       action = input["action"].to_s.strip
-      url = input["url"].to_s.strip
+      url    = input["url"].to_s.strip
+
+      return ServiceResponse.failure(error: "No URL provided") if url.empty?
 
       case action
       when "navigate", "get", ""
-        return ServiceResponse.failure(error: "No URL provided") if url.empty?
-        navigate_and_extract(url)
+        navigate(url)
       when "screenshot"
-        return ServiceResponse.failure(error: "No URL provided") if url.empty?
         screenshot(url)
       else
         ServiceResponse.failure(error: "Unknown browser action: #{action}. Supported: navigate, screenshot")
@@ -27,88 +30,48 @@ module Tools
 
     private
 
-    def navigate_and_extract(url)
-      # Use the Playwright server via CDP or fall back to a simple HTTP fetch with JS rendering
-      script = build_script(url, extract: true)
-      result = run_in_browser(script)
+    def navigate(url)
+      result = post_to_sidecar("/navigate", { url: url })
+      return ServiceResponse.failure(error: result[:error]) unless result[:success]
 
-      if result[:success]
-        output = []
-        output << "Title: #{result[:title]}" if result[:title]
-        output << "URL: #{result[:url]}" if result[:url]
-        output << ""
-        output << result[:content].to_s.truncate(30_000)
-        ServiceResponse.success(data: { output: output.join("\n"), exit_code: 0 })
-      else
-        ServiceResponse.failure(error: result[:error])
-      end
+      lines = []
+      lines << "Title: #{result[:title]}" if result[:title].present?
+      lines << "URL: #{result[:url]}"     if result[:url].present?
+      lines << ""
+      lines << result[:content].to_s
+
+      ServiceResponse.success(data: { output: lines.join("\n"), exit_code: 0 })
     end
 
     def screenshot(url)
-      script = build_script(url, screenshot: true)
-      result = run_in_browser(script)
+      result = post_to_sidecar("/screenshot", { url: url })
+      return ServiceResponse.failure(error: result[:error]) unless result[:success]
 
-      if result[:success]
-        ServiceResponse.success(data: {
-          output: "Screenshot saved: #{result[:path]}\nTitle: #{result[:title]}",
-          exit_code: 0
-        })
-      else
-        ServiceResponse.failure(error: result[:error])
-      end
+      ServiceResponse.success(data: {
+        output: "Screenshot saved: #{result[:path]}\nTitle: #{result[:title]}",
+        exit_code: 0
+      })
     end
 
-    def build_script(url, extract: false, screenshot: false)
-      <<~JS
-        const { chromium } = require('playwright');
-        (async () => {
-          const browser = await chromium.launch({ headless: true });
-          const page = await browser.newPage();
-          try {
-            await page.goto('#{url.gsub("'", "\\\\'")}', { waitUntil: 'domcontentloaded', timeout: 30000 });
-            const title = await page.title();
-            const url = page.url();
-            #{extract ? "const content = await page.evaluate(() => document.body.innerText);" : ""}
-            #{screenshot ? "await page.screenshot({ path: '/tmp/screenshot.png', fullPage: false });" : ""}
-            console.log(JSON.stringify({
-              success: true,
-              title,
-              url,
-              #{extract ? "content," : ""}
-              #{screenshot ? "path: '/tmp/screenshot.png'," : ""}
-            }));
-          } catch (e) {
-            console.log(JSON.stringify({ success: false, error: e.message }));
-          } finally {
-            await browser.close();
-          }
-        })();
-      JS
-    end
+    def post_to_sidecar(path, payload)
+      uri = URI("#{SIDECAR_URL}#{path}")
 
-    def run_in_browser(script)
-      # Write script to a temp file and execute in the browser container
-      script_path = "/tmp/browser_script_#{SecureRandom.hex(8)}.js"
-      File.write(script_path, script)
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.open_timeout = 10
+      http.read_timeout = REQUEST_TIMEOUT
 
-      # Execute via docker exec (browser container has Node + Playwright)
-      stdout, stderr, status = Open3.capture3(
-        "docker", "exec", "-i", "hivemind-browser-1",
-        "node", "-e", script,
-        timeout: 35
-      )
+      request = Net::HTTP::Post.new(uri.path, { "Content-Type" => "application/json" })
+      request.body = payload.to_json
 
-      if status.success? && stdout.present?
-        JSON.parse(stdout.strip.lines.last).symbolize_keys
-      else
-        { success: false, error: stderr.presence || "Browser execution failed" }
+      response = http.request(request)
+
+      unless response.is_a?(Net::HTTPSuccess)
+        return { success: false, error: "Browser sidecar error (#{response.code}): #{response.body}" }
       end
-    rescue JSON::ParserError => e
-      { success: false, error: "Failed to parse browser output: #{stdout&.truncate(200)}" }
-    rescue StandardError => e
-      { success: false, error: e.message }
-    ensure
-      FileUtils.rm_f(script_path) if script_path
+
+      JSON.parse(response.body, symbolize_names: true)
+    rescue JSON::ParserError
+      { success: false, error: "Invalid response from browser sidecar" }
     end
   end
 end
