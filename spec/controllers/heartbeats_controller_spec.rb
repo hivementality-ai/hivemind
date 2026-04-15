@@ -50,6 +50,25 @@ RSpec.describe HeartbeatsController, type: :controller do
       config = JSON.parse(Setting.get('heartbeat'))
       expect(config['interval_minutes']).to eq(1440)
     end
+
+    it 'saves light_context when enabled' do
+      patch :update, params: { enabled: '1', model: 'gpt-4', interval_minutes: '30', light_context: '1' }
+      config = JSON.parse(Setting.get('heartbeat'))
+      expect(config['light_context']).to be true
+    end
+
+    it 'saves light_context as false when not submitted' do
+      patch :update, params: { enabled: '1', model: 'gpt-4', interval_minutes: '30' }
+      config = JSON.parse(Setting.get('heartbeat'))
+      expect(config['light_context']).to be false
+    end
+
+    it 'disables heartbeat when enabled param is absent' do
+      Setting.set('heartbeat', { 'enabled' => true }.to_json)
+      patch :update, params: { model: 'gpt-4', interval_minutes: '30' }
+      config = JSON.parse(Setting.get('heartbeat'))
+      expect(config['enabled']).to be false
+    end
   end
 
   describe 'POST #trigger' do
