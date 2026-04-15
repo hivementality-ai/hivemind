@@ -20,25 +20,37 @@
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <!-- Model -->
+        <!-- Model — dynamic, built from enabled ProviderConfig records -->
         <div>
           <label class="block text-text-primary text-sm font-medium mb-2">Model</label>
-          <p class="text-text-faint text-xs mb-2">Use a cheap or local model to save costs.</p>
-          <select name="model"
-                  class="w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand">
-            <optgroup label="Local (Free)">
-              <option value="llama3.2:3b" <%= 'selected' if @config["model"] == "llama3.2:3b" %>>Llama 3.2 3B (Ollama)</option>
-            </optgroup>
-            <optgroup label="Anthropic">
-              <option value="claude-haiku-4-5" <%= 'selected' if @config["model"] == "claude-haiku-4-5" %>>Claude Haiku 4.5</option>
-              <option value="claude-sonnet-4-5" <%= 'selected' if @config["model"] == "claude-sonnet-4-5" %>>Claude Sonnet 4.5</option>
-            </optgroup>
-            <optgroup label="OpenAI">
-              <option value="gpt-5.4-nano" <%= 'selected' if @config["model"] == "gpt-5.4-nano" %>>GPT-5.4 Nano</option>
-              <option value="gpt-5.4-mini" <%= 'selected' if @config["model"] == "gpt-5.4-mini" %>>GPT-5.4 Mini</option>
-              <option value="gpt-5.4" <%= 'selected' if @config["model"] == "gpt-5.4" %>>GPT-5.4</option>
-            </optgroup>
-          </select>
+          <p class="text-text-faint text-xs mb-2">Only models from enabled providers are shown.</p>
+
+          <%# Hidden field carries the provider; updated by the onchange handler below %>
+          <input type="hidden" name="provider" id="heartbeat_provider" value="<%= @config["provider"] %>">
+
+          <% if @provider_models.any? %>
+            <select name="model"
+                    id="heartbeat_model"
+                    onchange="document.getElementById('heartbeat_provider').value = this.selectedOptions[0].dataset.provider"
+                    class="w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand">
+              <% @provider_models.each do |group| %>
+                <optgroup label="<%= group[:provider_name] %>">
+                  <% group[:models].each do |model| %>
+                    <option value="<%= model[:id] %>"
+                            data-provider="<%= group[:adapter_type] %>"
+                            <%= 'selected' if @config["model"] == model[:id] %>>
+                      <%= model[:name] %>
+                    </option>
+                  <% end %>
+                </optgroup>
+              <% end %>
+            </select>
+          <% else %>
+            <p class="text-text-faint text-sm py-3">
+              No providers configured.
+              <%= link_to "Add a provider →", providers_path, class: "text-brand-light hover:underline" %>
+            </p>
+          <% end %>
         </div>
 
         <!-- Interval -->
