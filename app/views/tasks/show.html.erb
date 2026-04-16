@@ -233,6 +233,28 @@
               </dd>
             </div>
           <% end %>
+          <% if @task.project %>
+            <div>
+              <dt class="text-xs text-text-faint mb-1">Project</dt>
+              <dd class="text-sm text-brand">
+                <%= link_to @task.project.title, project_path(@task.project), class: "hover:underline" %>
+              </dd>
+            </div>
+          <% end %>
+          <% if @task.project_milestone %>
+            <div>
+              <dt class="text-xs text-text-faint mb-1">Milestone</dt>
+              <dd class="text-sm text-text-primary"><%= @task.project_milestone.title %></dd>
+            </div>
+          <% end %>
+          <% if @task.session %>
+            <div>
+              <dt class="text-xs text-text-faint mb-1">Session</dt>
+              <dd class="text-sm text-brand">
+                <%= link_to @task.session.title.truncate(40), session_path(@task.session), class: "hover:underline" %>
+              </dd>
+            </div>
+          <% end %>
           <% if @task.due_at %>
             <div>
               <dt class="text-xs text-text-faint mb-1">Due</dt>

@@ -7,6 +7,9 @@ class Task < ApplicationRecord
   belongs_to :created_by_agent, class_name: "Agent", optional: true
   belongs_to :assigned_to_agent, class_name: "Agent", optional: true
   belongs_to :task_template, optional: true
+  belongs_to :project, optional: true
+  belongs_to :project_milestone, optional: true
+  belongs_to :session, optional: true
 
   has_many :task_hooks, dependent: :destroy
   has_many :task_events, dependent: :destroy
@@ -98,6 +101,8 @@ class Task < ApplicationRecord
     parts = [ "[##{id}] #{title} (#{status}/#{priority})" ]
     parts << "Assigned: #{assigned_to_agent.name}" if assigned_to_agent
     parts << "Due: #{due_at.strftime('%Y-%m-%d')}" if due_at
+    parts << "Project: #{project.title}" if project
+    parts << "Milestone: #{project_milestone.title}" if project_milestone
     parts << "Blocked" if blocked_by_dependencies?
     parts << "Checklist: #{checklist.count { |i| i['checked'] }}/#{checklist.size}" if checklist.present?
     parts << "Description: #{description.truncate(120)}" if description.present?

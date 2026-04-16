@@ -12,7 +12,7 @@ RSpec.describe HashtagActions::Actions::Todo do
 
   # ─── Happy path ───────────────────────────────────────────────
 
-  context "with a valid payload" do
+  context "with a plain payload (no priority, no assignee)" do
     let(:payload) { "Write release notes for v2" }
 
     it "creates a Task record" do
@@ -40,6 +40,11 @@ RSpec.describe HashtagActions::Actions::Todo do
       expect(Task.last.created_by_agent).to eq(agent)
     end
 
+    it "links the task to the session" do
+      action.execute
+      expect(Task.last.session).to eq(session)
+    end
+
     it "stores source metadata on the task" do
       action.execute
       expect(Task.last.metadata["source"]).to eq("hashtag_action")
@@ -58,21 +63,14 @@ RSpec.describe HashtagActions::Actions::Todo do
       expect(memory.metadata["task_id"]).to eq(task.id)
     end
 
-    it "records the session_id in memory metadata" do
-      action.execute
-      expect(MemoryEntry.last.metadata["session_id"]).to eq(session.id)
-    end
-
     it "returns a created status" do
       result = action.execute
       expect(result[:status]).to eq("created")
     end
 
-    it "returns a response mentioning the task id" do
+    it "includes the task id in the response" do
       action.execute
       result = action.execute
-      task_id = Task.order(created_at: :desc).second.id
-      # The first execute creates task N, second creates N+1; just check format
       expect(result[:response]).to match(/Created task #\d+/)
     end
 
@@ -82,7 +80,100 @@ RSpec.describe HashtagActions::Actions::Todo do
     end
   end
 
-  # ─── Edge cases ───────────────────────────────────────────────
+  # ─── Priority parsing ─────────────────────────────────────────
+
+  context "with a priority bracket in the payload" do
+    let(:payload) { "[high] Deploy auth flow" }
+
+    it "extracts the priority" do
+      action.execute
+      expect(Task.last.priority).to eq("high")
+    end
+
+    it "strips the bracket from the title" do
+      action.execute
+      expect(Task.last.title).to eq("Deploy auth flow")
+    end
+
+    it "mentions the priority in the response" do
+      result = action.execute
+      expect(result[:response]).to include("[high]")
+    end
+  end
+
+  context "with an uppercase priority bracket" do
+    let(:payload) { "[URGENT] Fix production crash" }
+
+    it "normalises priority to lowercase" do
+      action.execute
+      expect(Task.last.priority).to eq("urgent")
+    end
+  end
+
+  context "with an unrecognised bracket" do
+    let(:payload) { "[critical] Ship it" }
+
+    it "defaults priority to medium" do
+      action.execute
+      expect(Task.last.priority).to eq("medium")
+    end
+
+    it "does not strip the bracket text from the title (not a recognised priority)" do
+      action.execute
+      expect(Task.last.title).to include("[critical]")
+    end
+  end
+
+  # ─── Assignee parsing ─────────────────────────────────────────
+
+  context "with a @mention of a known agent" do
+    let(:assignee) { create(:agent, name: "Devon") }
+    let(:payload)  { "[high] Deploy auth flow @#{assignee.name.downcase}" }
+
+    it "assigns the task to that agent" do
+      action.execute
+      expect(Task.last.assigned_to_agent).to eq(assignee)
+    end
+
+    it "strips the @mention from the title" do
+      action.execute
+      expect(Task.last.title).not_to include("@#{assignee.name.downcase}")
+    end
+
+    it "mentions the assignee in the response" do
+      result = action.execute
+      expect(result[:response]).to include("Devon")
+    end
+  end
+
+  context "with a @mention of an unknown agent" do
+    let(:payload) { "Do something @nobody" }
+
+    it "still creates the task (assignee silently ignored)" do
+      expect { action.execute }.to change(Task, :count).by(1)
+    end
+
+    it "leaves assigned_to_agent nil" do
+      action.execute
+      expect(Task.last.assigned_to_agent).to be_nil
+    end
+  end
+
+  # ─── Title-only result after stripping ───────────────────────
+
+  context "when stripping leaves a blank title" do
+    let(:payload) { "[high] @someagent" }
+
+    it "does not create a task" do
+      expect { action.execute }.not_to change(Task, :count)
+    end
+
+    it "returns no_payload status" do
+      expect(action.execute[:status]).to eq("no_payload")
+    end
+  end
+
+  # ─── Long payload ─────────────────────────────────────────────
 
   context "with a payload exactly at the truncation boundary (255 chars)" do
     let(:payload) { "x" * 255 }
@@ -100,13 +191,13 @@ RSpec.describe HashtagActions::Actions::Todo do
       expect(Task.last.title.length).to be <= 255
     end
 
-    it "still creates the memory entry with the full content prefix" do
+    it "still creates the memory entry" do
       action.execute
       expect(MemoryEntry.last.content).to start_with("TODO:")
     end
   end
 
-  # ─── Sad path: blank payload ──────────────────────────────────
+  # ─── Blank / nil payload ──────────────────────────────────────
 
   context "with a blank payload" do
     let(:payload) { "" }
@@ -144,11 +235,11 @@ RSpec.describe HashtagActions::Actions::Todo do
 
   # ─── Error handling ───────────────────────────────────────────
 
-  context "when Task.create! raises" do
+  context "when Task.new raises on save" do
     let(:payload) { "Valid payload" }
 
     before do
-      allow(Task).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(Task.new))
+      allow_any_instance_of(Task).to receive(:save!).and_raise(ActiveRecord::RecordInvalid.new(Task.new))
     end
 
     it "does not raise" do
