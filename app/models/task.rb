@@ -96,40 +96,11 @@ class Task < ApplicationRecord
   # ─── Artifacts ───────────────────────────────────────────────────
   ARTIFACT_TYPES = %w[code document report data image link other].freeze
 
-  def add_artifact(title:, content: nil, artifact_type: "other", metadata: {}, created_by: nil)
+  def add_artifact(title:, content: nil, type: "document", metadata: {}, created_by: nil)
+    artifact_type = ARTIFACT_TYPES.include?(type) ? type : "document"
     entry = {
       "id"         => SecureRandom.uuid,
-      "title"      => title,
-      "type"       => ARTIFACT_TYPES.include?(artifact_type) ? artifact_type : "other",
-      "content"    => content,
-      "metadata"   => metadata,
-      "created_by" => created_by,
-      "created_at" => Time.current.iso8601
-    }
-    self.artifacts = (artifacts || []) + [ entry ]
-    save!
-    entry
-  end
-
-  def remove_artifact(artifact_id)
-    return false if artifacts.blank?
-
-    original_size = artifacts.size
-    self.artifacts = artifacts.reject { |a| a["id"] == artifact_id }
-    return false if artifacts.size == original_size
-
-    save!
-    true
-  end
-
-  # ─── Artifacts ──────────────────────────────────────────────────
-
-  ARTIFACT_TYPES = %w[code document report data image link].freeze
-
-  def add_artifact(type:, title:, content: nil, metadata: {}, created_by: nil)
-    entry = {
-      "id"         => SecureRandom.uuid,
-      "type"       => ARTIFACT_TYPES.include?(type) ? type : "document",
+      "type"       => artifact_type,
       "title"      => title,
       "content"    => content,
       "metadata"   => metadata,

@@ -6,8 +6,9 @@ class TaskHooksController < ApplicationController
   before_action :set_hook, only: %i[edit update destroy toggle]
 
   def index
-    @hooks = @team.task_hooks.includes(:skill).ordered
+    @hooks = @team.task_hooks.includes(:skill, :agent).ordered
     @skills = Skill.enabled.order(:name)
+    @agents = @team.agents.enabled.order(:name)
   end
 
   def create
@@ -17,14 +18,16 @@ class TaskHooksController < ApplicationController
     if @hook.save
       redirect_to team_task_hooks_path(@team), notice: "Hook added."
     else
-      @hooks = @team.task_hooks.includes(:skill).ordered
+      @hooks = @team.task_hooks.includes(:skill, :agent).ordered
       @skills = Skill.enabled.order(:name)
+      @agents = @team.agents.enabled.order(:name)
       render :index, status: :unprocessable_entity
     end
   end
 
   def edit
     @skills = Skill.enabled.order(:name)
+    @agents = @team.agents.enabled.order(:name)
   end
 
   def update
@@ -32,6 +35,7 @@ class TaskHooksController < ApplicationController
       redirect_to team_task_hooks_path(@team), notice: "Hook updated."
     else
       @skills = Skill.enabled.order(:name)
+      @agents = @team.agents.enabled.order(:name)
       render :edit, status: :unprocessable_entity
     end
   end
@@ -58,6 +62,6 @@ class TaskHooksController < ApplicationController
   end
 
   def hook_params
-    params.require(:task_hook).permit(:trigger, :on_status, :skill_id, :enabled)
+    params.require(:task_hook).permit(:trigger, :on_status, :skill_id, :agent_id, :enabled)
   end
 end

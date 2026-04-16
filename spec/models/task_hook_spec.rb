@@ -8,6 +8,7 @@ RSpec.describe TaskHook, type: :model do
     it { should belong_to(:task_template).optional }
     it { should belong_to(:team).optional }
     it { should belong_to(:skill).optional }
+    it { should belong_to(:agent).optional }
   end
 
   describe "validations" do
@@ -46,6 +47,19 @@ RSpec.describe TaskHook, type: :model do
     it "is valid without a skill (uses default behavior)" do
       hook = build(:task_hook, :for_team, :without_skill)
       expect(hook).to be_valid
+    end
+  end
+
+  describe "#agent_label" do
+    it "returns the agent name when an agent is assigned" do
+      agent = create(:agent, name: "Armorer")
+      hook = build(:task_hook, :for_team, :without_skill, agent: agent)
+      expect(hook.agent_label).to eq("Armorer")
+    end
+
+    it "returns 'No auto-assign' when no agent" do
+      hook = build(:task_hook, :for_team, :without_skill, agent: nil)
+      expect(hook.agent_label).to eq("No auto-assign")
     end
   end
 

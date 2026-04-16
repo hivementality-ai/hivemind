@@ -32,5 +32,9 @@ FactoryBot.define do
     trait :without_skill do
       skill { nil }
     end
+
+    trait :with_agent do
+      association :agent
+    end
   end
 end

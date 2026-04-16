@@ -9,6 +9,8 @@ class TaskHookJob < ApplicationJob
     context = JSON.parse(context_json)
 
     task.effective_hooks_for(status, trigger).each do |hook|
+      # The hook's own agent takes priority inside HookExecutor,
+      # but we still pass the transitioning agent as fallback context.
       Tasks::HookExecutor.call(hook: hook, task: task, agent: agent, context: context)
     end
   rescue ActiveRecord::RecordNotFound => e
