@@ -127,5 +127,26 @@ RSpec.describe Tasks::HookExecutor do
 
       described_class.call(hook: hook, task: task, agent: agent)
     end
+
+    context "with a skillless hook (default behavior)" do
+      let(:team) { agent.team || create(:team) }
+      let(:skillless_hook) { create(:task_hook, team: team, skill: nil, trigger: "post", on_status: "in_progress") }
+
+      it "uses default task instructions instead of skill content" do
+        expect(ChatStreamJob).to receive(:perform_later) do |_session_id, prompt, _files|
+          expect(prompt).to include("### Instructions")
+          expect(prompt).to include("git worktree")
+          expect(prompt).not_to include("### Skill Instructions")
+        end
+
+        described_class.call(hook: skillless_hook, task: task, agent: agent)
+      end
+
+      it "successfully creates a session" do
+        result = described_class.call(hook: skillless_hook, task: task, agent: agent)
+        expect(result).to be_success
+        expect(result.data[:session_id]).to be_present
+      end
+    end
   end
 end

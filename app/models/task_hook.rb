@@ -5,12 +5,12 @@ class TaskHook < ApplicationRecord
 
   belongs_to :task, optional: true
   belongs_to :task_template, optional: true
-  belongs_to :skill
+  belongs_to :team, optional: true
+  belongs_to :skill, optional: true
 
   validates :trigger, inclusion: { in: TRIGGERS }
   validates :on_status, inclusion: { in: Task::STATUSES }
-  validates :skill_id, presence: true
-  validate :task_or_template_present
+  validate :exactly_one_owner
 
   scope :enabled, -> { where(enabled: true) }
   scope :pre_hooks, -> { where(trigger: "pre") }
@@ -20,12 +20,12 @@ class TaskHook < ApplicationRecord
 
   private
 
-  def task_or_template_present
-    if task_id.blank? && task_template_id.blank?
-      errors.add(:base, "must belong to a task or a task template")
-    end
-    if task_id.present? && task_template_id.present?
-      errors.add(:base, "cannot belong to both a task and a task template")
+  def exactly_one_owner
+    owners = [ task_id, task_template_id, team_id ].compact
+    if owners.empty?
+      errors.add(:base, "must belong to a task, task template, or team")
+    elsif owners.size > 1
+      errors.add(:base, "can only belong to one of: task, task template, or team")
     end
   end
 end

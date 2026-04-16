@@ -36,13 +36,25 @@ class Task < ApplicationRecord
   scope :recent,     -> { order(created_at: :desc) }
 
   # Returns hooks for a given status transition and trigger direction.
-  # Task-level hooks take precedence; falls back to template hooks.
+  # Precedence: task-level > template-level > team-level (defaults).
   def effective_hooks_for(status, trigger)
     direct = task_hooks.enabled.for_status(status).where(trigger: trigger).ordered
     return direct if direct.any?
-    return TaskHook.none unless task_template
 
-    task_template.task_hooks.enabled.for_status(status).where(trigger: trigger).ordered
+    if task_template
+      template_hooks = task_template.task_hooks.enabled.for_status(status).where(trigger: trigger).ordered
+      return template_hooks if template_hooks.any?
+    end
+
+    team = resolved_team
+    return TaskHook.none unless team
+
+    team.task_hooks.enabled.for_status(status).where(trigger: trigger).ordered
+  end
+
+  # Resolve team through agent associations.
+  def resolved_team
+    (assigned_to_agent || created_by_agent)&.team
   end
 
   # Are all blocking dependencies completed?

@@ -6,25 +6,26 @@ RSpec.describe TaskHook, type: :model do
   describe "associations" do
     it { should belong_to(:task).optional }
     it { should belong_to(:task_template).optional }
-    it { should belong_to(:skill) }
+    it { should belong_to(:team).optional }
+    it { should belong_to(:skill).optional }
   end
 
   describe "validations" do
     it { should validate_inclusion_of(:trigger).in_array(TaskHook::TRIGGERS) }
     it { should validate_inclusion_of(:on_status).in_array(Task::STATUSES) }
 
-    it "requires task or task_template" do
-      hook = build(:task_hook, task: nil, task_template: nil)
+    it "requires exactly one owner" do
+      hook = build(:task_hook, task: nil, task_template: nil, team: nil)
       expect(hook).not_to be_valid
-      expect(hook.errors[:base]).to include("must belong to a task or a task template")
+      expect(hook.errors[:base]).to include("must belong to a task, task template, or team")
     end
 
-    it "disallows both task and task_template" do
+    it "disallows multiple owners" do
       task = create(:task)
       template = create(:task_template)
       hook = build(:task_hook, task: task, task_template: template)
       expect(hook).not_to be_valid
-      expect(hook.errors[:base]).to include("cannot belong to both a task and a task template")
+      expect(hook.errors[:base]).to include("can only belong to one of: task, task template, or team")
     end
 
     it "is valid with just a task" do
@@ -34,6 +35,16 @@ RSpec.describe TaskHook, type: :model do
 
     it "is valid with just a template" do
       hook = build(:task_hook, task_template: create(:task_template), skill: create(:skill))
+      expect(hook).to be_valid
+    end
+
+    it "is valid with just a team" do
+      hook = build(:task_hook, :for_team, skill: create(:skill))
+      expect(hook).to be_valid
+    end
+
+    it "is valid without a skill (uses default behavior)" do
+      hook = build(:task_hook, :for_team, :without_skill)
       expect(hook).to be_valid
     end
   end

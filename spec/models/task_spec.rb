@@ -335,6 +335,42 @@ RSpec.describe Task, type: :model do
     it "returns empty when no hooks match" do
       expect(task.effective_hooks_for("done", "pre")).to be_empty
     end
+
+    context "with team-level hooks" do
+      let(:team) { create(:team) }
+      let(:agent) { create(:agent, team: team) }
+      let(:task) { create(:task, assigned_to_agent: agent) }
+
+      it "falls back to team hooks when no task or template hooks" do
+        team_hook = create(:task_hook, team: team, skill: skill, trigger: "post", on_status: "in_progress")
+        expect(task.effective_hooks_for("in_progress", "post")).to include(team_hook)
+      end
+
+      it "prefers task hooks over team hooks" do
+        create(:task_hook, team: team, skill: skill, trigger: "post", on_status: "done")
+        task_hook = create(:task_hook, task: task, skill: skill, trigger: "post", on_status: "done")
+
+        hooks = task.effective_hooks_for("done", "post")
+        expect(hooks).to include(task_hook)
+        expect(hooks.size).to eq(1)
+      end
+
+      it "prefers template hooks over team hooks" do
+        template = create(:task_template)
+        template_hook = create(:task_hook, task_template: template, skill: skill, trigger: "post", on_status: "done")
+        create(:task_hook, team: team, skill: skill, trigger: "post", on_status: "done")
+        task.update!(task_template: template)
+
+        hooks = task.effective_hooks_for("done", "post")
+        expect(hooks).to include(template_hook)
+        expect(hooks.size).to eq(1)
+      end
+
+      it "works with skillless team hooks (default behavior)" do
+        team_hook = create(:task_hook, team: team, skill: nil, trigger: "post", on_status: "in_progress")
+        expect(task.effective_hooks_for("in_progress", "post")).to include(team_hook)
+      end
+    end
   end
 
   describe "#apply_template!" do

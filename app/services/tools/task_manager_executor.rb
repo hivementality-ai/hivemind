@@ -260,25 +260,47 @@ module Tools
     end
 
     def add_hook
-      task = find_task!
-      skill_name = require_param!("skill_name")
       trigger = require_param!("hook_trigger")
       on_status = require_param!("hook_on_status")
 
-      skill = Skill.enabled.find_by!(name: skill_name)
+      skill = nil
+      skill_name = input["skill_name"].to_s.strip.presence
+      if skill_name
+        skill = Skill.enabled.find_by(name: skill_name)
+        return ServiceResponse.failure(error: "Skill '#{skill_name}' not found") unless skill
+      end
 
-      hook = TaskHook.create!(
-        task: task,
-        skill: skill,
-        trigger: trigger,
-        on_status: on_status,
-        config: input["hook_config"] || {},
-        position: task.task_hooks.count
-      )
+      task_id = input["task_id"]
+      if task_id.present?
+        task = Task.find(task_id)
+        hook = TaskHook.create!(
+          task: task,
+          skill: skill,
+          trigger: trigger,
+          on_status: on_status,
+          config: input["hook_config"] || {},
+          position: task.task_hooks.count
+        )
+        label = skill ? "skill '#{skill.name}'" : "default behavior"
+        ServiceResponse.success(data: { output: "Added #{trigger}-hook on '#{on_status}' (#{label}) to task ##{task.id}" })
+      else
+        # Team-level default hook
+        team = @agent&.team
+        return ServiceResponse.failure(error: "No team found for this agent") unless team
 
-      ServiceResponse.success(data: { output: "Added #{trigger}-hook on '#{on_status}' using skill '#{skill.name}' to task ##{task.id}" })
+        hook = TaskHook.create!(
+          team: team,
+          skill: skill,
+          trigger: trigger,
+          on_status: on_status,
+          config: input["hook_config"] || {},
+          position: team.task_hooks.count
+        )
+        label = skill ? "skill '#{skill.name}'" : "default behavior"
+        ServiceResponse.success(data: { output: "Added team default #{trigger}-hook on '#{on_status}' (#{label})" })
+      end
     rescue ActiveRecord::RecordNotFound
-      ServiceResponse.failure(error: "Skill '#{skill_name}' not found")
+      ServiceResponse.failure(error: "Task not found")
     end
 
     def remove_hook

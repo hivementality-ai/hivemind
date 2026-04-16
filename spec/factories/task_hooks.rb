@@ -24,5 +24,13 @@ FactoryBot.define do
     trait :for_template do
       association :task_template
     end
+
+    trait :for_team do
+      association :team
+    end
+
+    trait :without_skill do
+      skill { nil }
+    end
   end
 end
