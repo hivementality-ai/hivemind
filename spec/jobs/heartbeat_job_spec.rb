@@ -199,6 +199,36 @@ RSpec.describe HeartbeatJob, type: :job do
       expect(prompt_arg).to include("task_manager")
     end
 
+    it "explicitly forbids Trello in the prompt" do
+      described_class.perform_now
+
+      prompt_arg = nil
+      expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
+      expect(prompt_arg).to include("FORBIDDEN TOOLS")
+      expect(prompt_arg).to include("trello")
+      expect(prompt_arg).to include("do NOT use Trello")
+    end
+
+    it "lists allowed tools in the prompt" do
+      described_class.perform_now
+
+      prompt_arg = nil
+      expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
+      expect(prompt_arg).to include("ALLOWED TOOLS")
+      expect(prompt_arg).to include("task_manager")
+      expect(prompt_arg).to include("delegate")
+      expect(prompt_arg).to include("memory_search")
+      expect(prompt_arg).to include("heartbeat_write")
+    end
+
+    it "instructs not to ask the user questions" do
+      described_class.perform_now
+
+      prompt_arg = nil
+      expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
+      expect(prompt_arg).to include("Do NOT ask the user questions")
+    end
+
     # ─── HeartbeatRun tracking ────────────────────────────────────
 
     it "creates a HeartbeatRun record after each execution" do
