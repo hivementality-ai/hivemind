@@ -200,6 +200,101 @@ RSpec.describe HeartbeatJob, type: :job do
       expect(run.metadata["tasks_count"]).to eq(1)
     end
 
+    # ─── Ephemeral sessions ──────────────────────────────────────
+
+    it "creates a new session for each heartbeat run" do
+      expect { described_class.perform_now }.to change(Session, :count).by(1)
+      session = Session.last
+      expect(session.title).to start_with("🫀 Heartbeat")
+      expect(session.session_key).to start_with("heartbeat-")
+    end
+
+    it "creates a unique session each time (no reuse)" do
+      described_class.perform_now
+      allow(Setting).to receive(:get).with("heartbeat_last_run").and_return(nil)
+      first_session = Session.last
+
+      described_class.perform_now
+      second_session = Session.last
+
+      expect(first_session.id).not_to eq(second_session.id)
+      expect(first_session.session_key).not_to eq(second_session.session_key)
+    end
+
+    it "marks the session as completed after the run" do
+      described_class.perform_now
+      session = Session.last
+      expect(session.status).to eq("completed")
+    end
+
+    # ─── Relay summaries ─────────────────────────────────────────
+
+    it "includes the previous heartbeat summary in the prompt" do
+      create(:heartbeat_run, agent: agent, status: "action_taken",
+             summary: "Delegated Task #31 to Mando. PR #240 still in review.")
+
+      described_class.perform_now
+
+      prompt_arg = nil
+      expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
+      expect(prompt_arg).to include("Previous heartbeat handoff")
+      expect(prompt_arg).to include("Delegated Task #31 to Mando")
+    end
+
+    it "does not include HEARTBEAT_OK as a relay summary" do
+      create(:heartbeat_run, agent: agent, status: "ok", summary: "HEARTBEAT_OK")
+
+      described_class.perform_now
+
+      prompt_arg = nil
+      expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
+      expect(prompt_arg).not_to include("Previous heartbeat handoff")
+    end
+
+    it "stores the previous_summary on the HeartbeatRun for audit trail" do
+      create(:heartbeat_run, agent: agent, status: "action_taken",
+             summary: "Delegated Task #31 to Mando.")
+
+      described_class.perform_now
+
+      run = HeartbeatRun.last
+      expect(run.previous_summary).to eq("Delegated Task #31 to Mando.")
+    end
+
+    it "includes ephemeral mode instructions in the prompt" do
+      described_class.perform_now
+
+      prompt_arg = nil
+      expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
+      expect(prompt_arg).to include("ephemeral mode")
+      expect(prompt_arg).to include("task_manager")
+      expect(prompt_arg).to include("delegate")
+      expect(prompt_arg).to include("HANDOFF")
+    end
+
+    # ─── Session cleanup ─────────────────────────────────────────
+
+    it "cleans up completed heartbeat sessions older than 24 hours" do
+      old_session = create(:session, agent: agent, title: "🫀 Heartbeat 08:00",
+                           status: "completed", created_at: 25.hours.ago)
+      recent_session = create(:session, agent: agent, title: "🫀 Heartbeat 09:00",
+                              status: "completed", created_at: 1.hour.ago)
+
+      described_class.perform_now
+
+      expect(Session.exists?(old_session.id)).to be false
+      expect(Session.exists?(recent_session.id)).to be true
+    end
+
+    it "does not delete non-heartbeat sessions" do
+      other_session = create(:session, agent: agent, title: "Regular chat",
+                             status: "completed", created_at: 25.hours.ago)
+
+      described_class.perform_now
+
+      expect(Session.exists?(other_session.id)).to be true
+    end
+
     # ─── light_context mode ───────────────────────────────────────
 
     context "with light_context enabled" do
@@ -243,6 +338,27 @@ RSpec.describe HeartbeatJob, type: :job do
         expect(Sessions::Chat).to have_received(:call).with(
           hash_including(message: a_string_including("Watch for errors"))
         )
+      end
+
+      it "includes relay summary in light_context mode" do
+        create(:heartbeat_run, agent: agent, status: "action_taken",
+               summary: "Checked email, found 2 urgent items.")
+
+        described_class.perform_now
+
+        prompt_arg = nil
+        expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
+        expect(prompt_arg).to include("Previous heartbeat handoff")
+        expect(prompt_arg).to include("Checked email")
+      end
+
+      it "includes ephemeral mode instructions in light_context mode" do
+        described_class.perform_now
+
+        prompt_arg = nil
+        expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
+        expect(prompt_arg).to include("ephemeral mode")
+        expect(prompt_arg).to include("HANDOFF")
       end
     end
   end
