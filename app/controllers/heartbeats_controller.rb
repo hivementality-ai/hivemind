@@ -7,6 +7,7 @@ class HeartbeatsController < ApplicationController
     @config = heartbeat_config
     @runs = HeartbeatRun.includes(:agent, :session).recent
     @provider_models = enabled_provider_models
+    @soul_agent = Agent.system_assistant
   end
 
   def update
@@ -40,11 +41,27 @@ class HeartbeatsController < ApplicationController
     task_name = params[:task].to_s.strip
     return redirect_to heartbeats_path, alert: "No task specified" if task_name.blank?
 
-    tasks = load_tasks
-    tasks.reject! { |t| t["task"] == task_name && t["protected"] == true }
-    Setting.set("heartbeat_tasks", tasks.to_json)
+    setting = Setting.find_or_create_by!(key: "heartbeat_tasks") { |s| s.value = "[]" }
+    removed = 0
 
-    redirect_to heartbeats_path, notice: "Standing item deleted"
+    setting.with_lock do
+      tasks = begin
+        JSON.parse(setting.reload.value || "[]")
+      rescue JSON::ParserError
+        []
+      end
+
+      before = tasks.size
+      tasks.reject! { |t| t["task"] == task_name && t["protected"] == true }
+      removed = before - tasks.size
+      setting.update!(value: tasks.to_json)
+    end
+
+    if removed > 0
+      redirect_to heartbeats_path, notice: "Standing item deleted"
+    else
+      redirect_to heartbeats_path, alert: "Standing item not found"
+    end
   end
 
   private

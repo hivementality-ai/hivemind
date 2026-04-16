@@ -164,6 +164,8 @@ class HeartbeatJob < ApplicationJob
     if team_agents.any?
       parts << "\n## Your Team (delegate only to these agents)"
       team_agents.each { |name, role| parts << "- #{name} (#{role})" }
+    else
+      parts << "\nNo team members are configured. Skip delegation — work through checklist items only."
     end
 
     parts << "\nIf nothing needs attention, reply with exactly: HEARTBEAT_OK"
@@ -197,6 +199,8 @@ class HeartbeatJob < ApplicationJob
     if team_agents.any?
       parts << "\nTeam (delegate only to these):"
       team_agents.each { |name, role| parts << "- #{name} (#{role})" }
+    else
+      parts << "\nNo team members configured. Skip delegation."
     end
 
     parts << "\nReply HEARTBEAT_OK if nothing needs attention."

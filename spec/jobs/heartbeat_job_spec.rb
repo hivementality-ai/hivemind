@@ -136,7 +136,8 @@ RSpec.describe HeartbeatJob, type: :job do
     end
 
     it "includes teammates in prompt" do
-      create(:agent, name: "Helper", role: "Developer", enabled: true)
+      team = create(:team)
+      create(:agent, name: "Helper", role: "Developer", enabled: true, team: team)
       described_class.perform_now
       expect(Sessions::Chat).to have_received(:call).with(hash_including(message: a_string_including("Helper")))
     end
@@ -205,7 +206,7 @@ RSpec.describe HeartbeatJob, type: :job do
       it "adds an overdue callout section to the prompt" do
         described_class.perform_now
         expect(Sessions::Chat).to have_received(:call).with(
-          hash_including(message: a_string_including("Overdue tasks requiring attention"))
+          hash_including(message: a_string_including("Overdue — Delegate These"))
         )
       end
 
@@ -224,7 +225,7 @@ RSpec.describe HeartbeatJob, type: :job do
         described_class.perform_now
         prompt_arg = nil
         expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
-        expect(prompt_arg).not_to include("Overdue tasks requiring attention")
+        expect(prompt_arg).not_to include("Overdue — Delegate These")
       end
     end
 

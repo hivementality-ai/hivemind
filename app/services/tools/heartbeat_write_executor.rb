@@ -5,11 +5,12 @@ module Tools
     # Allows agents to add/remove tasks from the heartbeat checklist.
     #
     # Actions:
-    #   add           — Add a temporary (one-off) task. Auto-wiped after the heartbeat processes it.
-    #   add_standing  — Add a protected (permanent) standing item. Only users can delete these.
-    #   remove        — Remove a task by name match. Protected items cannot be removed by agents.
-    #   list          — List all tasks, indicating which are protected.
-    #   clear         — Wipe all non-protected (temporary) tasks. Protected items survive.
+    #   add    — Add a temporary (one-off) task. Auto-wiped after the heartbeat processes it.
+    #   remove — Remove a temporary task by exact name match. Protected items cannot be removed by agents.
+    #   list   — List all tasks, indicating which are protected.
+    #   clear  — Wipe all non-protected (temporary) tasks. Protected items survive.
+    #
+    # Note: Standing (protected) items can only be created by users through the UI.
     def call
       action = input["action"].to_s.strip.presence || "add"
       task = input["task"].to_s.strip
@@ -17,10 +18,7 @@ module Tools
       case action
       when "add"
         return ServiceResponse.failure(error: "No task provided") if task.empty?
-        add_task(task, protected: false)
-      when "add_standing"
-        return ServiceResponse.failure(error: "No task provided") if task.empty?
-        add_task(task, protected: true)
+        add_task(task)
       when "remove"
         return ServiceResponse.failure(error: "No task provided") if task.empty?
         remove_task(task)
@@ -29,7 +27,7 @@ module Tools
       when "clear"
         clear_temporary_tasks
       else
-        ServiceResponse.failure(error: "Unknown action: #{action}. Supported: add, add_standing, remove, list, clear")
+        ServiceResponse.failure(error: "Unknown action: #{action}. Supported: add, remove, list, clear")
       end
     rescue StandardError => e
       ServiceResponse.failure(error: "Heartbeat write failed: #{e.message}")
@@ -37,52 +35,54 @@ module Tools
 
     private
 
-    def current_tasks
-      raw = Setting.get("heartbeat_tasks")
-      return [] unless raw
-
-      JSON.parse(raw)
-    rescue JSON::ParserError
-      []
+    def with_tasks_lock(&block)
+      setting = Setting.find_or_create_by!(key: "heartbeat_tasks") { |s| s.value = "[]" }
+      setting.with_lock do
+        tasks = begin
+          JSON.parse(setting.reload.value || "[]")
+        rescue JSON::ParserError
+          []
+        end
+        result = block.call(tasks)
+        setting.update!(value: tasks.to_json)
+        result
+      end
     end
 
-    def save_tasks(tasks)
-      Setting.set("heartbeat_tasks", tasks.to_json)
-    end
+    def add_task(task)
+      with_tasks_lock do |tasks|
+        tasks << {
+          "task" => task,
+          "protected" => false,
+          "added_by" => agent&.name,
+          "added_at" => Time.current.iso8601
+        }
+      end
 
-    def add_task(task, protected:)
-      tasks = current_tasks
-      tasks << {
-        "task" => task,
-        "protected" => protected,
-        "added_by" => agent&.name,
-        "added_at" => Time.current.iso8601
-      }
-      save_tasks(tasks)
-
-      label = protected ? "standing (protected)" : "temporary"
       ServiceResponse.success(data: {
-        output: "Added #{label} task to heartbeat checklist: #{task}\n#{tasks.size} total tasks.",
+        output: "Added temporary task to heartbeat checklist: #{task}",
         exit_code: 0
       })
     end
 
     def remove_task(task)
-      tasks = current_tasks
-      before = tasks.size
+      removed = 0
+      blocked = false
 
-      protected_matches = tasks.select { |t| t["task"].downcase.include?(task.downcase) && t["protected"] == true }
-      tasks.reject! { |t| t["task"].downcase.include?(task.downcase) && t["protected"] != true }
-      save_tasks(tasks)
-
-      removed = before - tasks.size
+      with_tasks_lock do |tasks|
+        protected_match = tasks.any? { |t| t["task"] == task && t["protected"] == true }
+        before = tasks.size
+        tasks.reject! { |t| t["task"] == task && t["protected"] != true }
+        removed = before - tasks.size
+        blocked = protected_match && removed == 0
+      end
 
       if removed > 0
         ServiceResponse.success(data: {
           output: "Removed #{removed} task(s) matching '#{task}'.",
           exit_code: 0
         })
-      elsif protected_matches.any?
+      elsif blocked
         ServiceResponse.failure(error: "Cannot remove '#{task}' — it is a protected standing item. Only users can delete standing items.")
       else
         ServiceResponse.success(data: { output: "No matching tasks found.", exit_code: 0 })
@@ -90,7 +90,12 @@ module Tools
     end
 
     def list_tasks
-      tasks = current_tasks
+      raw = Setting.get("heartbeat_tasks")
+      tasks = begin
+        JSON.parse(raw || "[]")
+      rescue JSON::ParserError
+        []
+      end
 
       if tasks.any?
         output = tasks.map.with_index do |t, i|
@@ -104,13 +109,18 @@ module Tools
     end
 
     def clear_temporary_tasks
-      tasks = current_tasks
-      standing = tasks.select { |t| t["protected"] == true }
-      cleared = tasks.size - standing.size
-      save_tasks(standing)
+      cleared = 0
+      standing_count = 0
+
+      with_tasks_lock do |tasks|
+        standing = tasks.select { |t| t["protected"] == true }
+        cleared = tasks.size - standing.size
+        standing_count = standing.size
+        tasks.replace(standing)
+      end
 
       ServiceResponse.success(data: {
-        output: "Cleared #{cleared} temporary task(s). #{standing.size} protected standing item(s) preserved.",
+        output: "Cleared #{cleared} temporary task(s). #{standing_count} protected standing item(s) preserved.",
         exit_code: 0
       })
     end
