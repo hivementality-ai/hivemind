@@ -146,12 +146,17 @@ module Tasks
         You have been assigned this task. Work through it using your available tools.
 
         1. Read the task details above carefully — description, checklist, comments, and dependencies.
-        2. Do the work described. Follow the checklist items if present.
-        3. Check off checklist items as you complete them using `task_manager` with `update_checklist` / `toggle`.
-        4. When finished:
+        2. **If this is a code task** (writing code, fixing bugs, creating PRs, etc.):
+           a. Use `git worktree` to create an isolated working directory for your branch. Do NOT work directly in the main checkout.
+           b. Create a new branch for your work (e.g., `task-<id>-<short-description>`).
+           c. Work inside the worktree directory. This prevents conflicts with other agents working on the same repo.
+           d. When done, commit, push, and create a PR. Clean up the worktree when finished (`git worktree remove`).
+        3. Do the work described. Follow the checklist items if present.
+        4. Check off checklist items as you complete them using `task_manager` with `update_checklist` / `toggle`.
+        5. When finished:
            a. Add a summary comment to the task (`task_manager` → `add_comment`) explaining what you did, decisions made, and anything the reviewer should know.
            b. Move the task to `review` (`task_manager` → `move` with status `review`).
-        5. If you get blocked or the task is unclear, add a comment explaining why and stop. Do NOT move to review.
+        6. If you get blocked or the task is unclear, add a comment explaining why and stop. Do NOT move to review.
       INSTRUCTIONS
     end
   end
