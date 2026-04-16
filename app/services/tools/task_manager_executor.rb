@@ -24,9 +24,10 @@ module Tools
       when "remove_hook"      then remove_hook
       when "add_artifact"     then add_artifact
       when "remove_artifact"  then remove_artifact
+      when "list_subtasks"    then list_subtasks
       else
         ServiceResponse.failure(
-          error: "Unknown action: #{action}. Supported: create, update, move, assign, list, my_tasks, add_comment, close, add_dependency, remove_dependency, update_checklist, add_hook, remove_hook, add_artifact, remove_artifact"
+          error: "Unknown action: #{action}. Supported: create, update, move, assign, list, my_tasks, add_comment, close, add_dependency, remove_dependency, update_checklist, add_hook, remove_hook, add_artifact, remove_artifact, list_subtasks"
         )
       end
     rescue StandardError => e
@@ -135,6 +136,7 @@ module Tools
       scope = scope.by_status(input["status"])           if input["status"].present?
       scope = scope.where(priority: input["priority"])  if input["priority"].present?
       scope = scope.for_project(find_project(input["project_id"])) if input["project_id"].present?
+      scope = scope.where(parent_id: nil) if input["root_only"] == true
 
       if input["assigned_to"].present?
         target = find_agent(input["assigned_to"])
@@ -370,6 +372,16 @@ module Tools
       else
         ServiceResponse.failure(error: "Artifact '#{artifact_id}' not found on task ##{task.id}")
       end
+    end
+
+    def list_subtasks
+      task = find_task!
+      subtasks = task.subtasks.by_priority.recent.includes(:assigned_to_agent)
+
+      return ServiceResponse.success(data: { output: "Task ##{task.id} has no subtasks." }) if subtasks.empty?
+
+      lines = subtasks.map(&:to_summary)
+      ServiceResponse.success(data: { output: "Subtasks of ##{task.id} (#{subtasks.size}):\n\n#{lines.join("\n")}" })
     end
 
     # ─── Helpers ───────────────────────────────────────────────────

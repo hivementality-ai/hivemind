@@ -926,6 +926,77 @@ RSpec.describe Tools::TaskManagerExecutor do
       end
     end
 
+    # ─── list_subtasks ───────────────────────────────────────────
+
+    context "action: list_subtasks" do
+      let!(:parent_task) { create(:task, status: "in_progress") }
+      let!(:sub1) { create(:task, parent: parent_task, status: "todo", title: "Sub 1") }
+      let!(:sub2) { create(:task, parent: parent_task, status: "backlog", title: "Sub 2") }
+      let!(:other) { create(:task, title: "Unrelated") }
+      let(:input) { { "action" => "list_subtasks", "task_id" => parent_task.id.to_s } }
+
+      it "returns only subtasks of the given parent" do
+        result = subject.call
+        expect(result).to be_success
+        expect(result.data[:output]).to include("Sub 1")
+        expect(result.data[:output]).to include("Sub 2")
+        expect(result.data[:output]).not_to include("Unrelated")
+      end
+
+      it "shows count of subtasks" do
+        result = subject.call
+        expect(result.data[:output]).to include("Subtasks of ##{parent_task.id} (2)")
+      end
+
+      it "returns friendly message when no subtasks" do
+        input["task_id"] = other.id.to_s
+        result = subject.call
+        expect(result).to be_success
+        expect(result.data[:output]).to include("no subtasks")
+      end
+    end
+
+    # ─── list with root_only ─────────────────────────────────────
+
+    context "action: list with root_only" do
+      let!(:parent) { create(:task, status: "todo") }
+      let!(:child) { create(:task, status: "backlog", parent: parent) }
+      let(:input) { { "action" => "list", "root_only" => true } }
+
+      it "excludes subtasks from the list" do
+        result = subject.call
+        expect(result).to be_success
+        expect(result.data[:output]).to include(parent.title)
+        expect(result.data[:output]).not_to include(child.title)
+      end
+    end
+
+    # ─── close with parent-child enforcement ─────────────────────
+
+    context "action: close (parent-child enforcement)" do
+      it "blocks closing a parent with open subtasks" do
+        parent = create(:task, status: "review")
+        create(:task, status: "todo", parent: parent)
+        input = { "action" => "close", "task_id" => parent.id.to_s }
+        executor = described_class.new(input: input, config: {}, agent: agent)
+
+        result = executor.call
+        expect(result).not_to be_success
+        expect(result.error).to include("subtasks still open")
+      end
+
+      it "allows closing a parent when all subtasks are done" do
+        parent = create(:task, status: "review")
+        create(:task, :done, parent: parent)
+        input = { "action" => "close", "task_id" => parent.id.to_s }
+        executor = described_class.new(input: input, config: {}, agent: agent)
+
+        result = executor.call
+        expect(result).to be_success
+        expect(parent.reload.status).to eq("done")
+      end
+    end
+
     # ─── create with template ────────────────────────────────────
 
     context "action: create with template" do

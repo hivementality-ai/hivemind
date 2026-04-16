@@ -66,6 +66,15 @@ RSpec.describe Task, type: :model do
       end
     end
 
+    describe ".root_tasks" do
+      it "excludes subtasks" do
+        parent = create(:task, status: "in_progress")
+        child = create(:task, parent: parent)
+        expect(Task.root_tasks).to include(parent)
+        expect(Task.root_tasks).not_to include(child)
+      end
+    end
+
     describe ".by_priority" do
       it "orders urgent before high before medium before low" do
         low    = create(:task, priority: "low")
