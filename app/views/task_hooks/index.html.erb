@@ -1,13 +1,13 @@
 <div class="max-w-4xl mx-auto px-6 py-8">
   <div class="flex items-center gap-3 mb-6">
-    <%= link_to teams_path, class: "text-text-muted hover:text-white transition" do %>
+    <%= link_to hooks_overview_path, class: "text-text-muted hover:text-white transition" do %>
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
       </svg>
     <% end %>
     <div>
-      <h1 class="text-2xl font-bold text-white">Task Hooks</h1>
-      <p class="text-sm text-text-muted mt-0.5"><%= @team.name %> &middot; Team-level automation</p>
+      <h1 class="text-2xl font-bold text-white"><%= @team.name %> Hooks</h1>
+      <p class="text-sm text-text-muted mt-0.5">Manage hooks for this team. These apply to all tasks unless overridden.</p>
     </div>
   </div>
 
@@ -19,8 +19,8 @@
       </svg>
       <div class="text-sm text-text-muted">
         <p class="text-text-primary font-medium mb-1">How hooks work</p>
-        <p>Team hooks are <strong class="text-white">global defaults</strong> — they fire for any task on this team unless overridden by a task-level or template-level hook. Hooks run <strong class="text-white">pre</strong> (before) or <strong class="text-white">post</strong> (after) a status transition.</p>
-        <p class="mt-2"><strong class="text-white">Agent handoff:</strong> When a hook has an agent assigned, the task is automatically reassigned to that agent before the hook fires. This creates a pipeline — e.g. Mando writes code → moves to review → auto-assigns to Armorer → review hook fires.</p>
+        <p>Team hooks are <strong class="text-white">global defaults</strong> &mdash; they fire for any task on this team unless overridden by a task-level or template-level hook. Hooks run <strong class="text-white">pre</strong> (before) or <strong class="text-white">post</strong> (after) a status transition.</p>
+        <p class="mt-2"><strong class="text-white">Agent handoff:</strong> When a hook has an agent assigned, the task is automatically reassigned to that agent before the hook fires. This creates a workflow pipeline where each status change hands the task to the next agent.</p>
         <p class="mt-2">Precedence: <span class="text-brand">Task</span> > <span class="text-brand">Template</span> > <span class="text-brand">Team</span></p>
       </div>
     </div>
@@ -118,7 +118,7 @@
         </div>
 
         <div>
-          <label class="block text-xs font-medium text-text-muted mb-1.5">Agent <span class="text-text-faint">(auto-assign on fire)</span></label>
+          <label class="block text-xs font-medium text-text-muted mb-1.5">Agent <span class="text-text-faint">(auto-assign when triggered)</span></label>
           <%= f.select :agent_id,
                 options_for_select([["No auto-assign", ""]] + @agents.map { |a| [a.name, a.id] }),
                 {}, class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-brand/50" %>

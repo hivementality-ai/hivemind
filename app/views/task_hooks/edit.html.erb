@@ -9,7 +9,7 @@
   </div>
 
   <div class="bg-surface-card rounded-xl border border-border-default p-6">
-    <%= form_with model: @hook, url: task_hook_path(@hook), method: :patch, local: true do |f| %>
+    <%= form_with model: @hook, url: team_task_hook_path(@team, @hook), method: :patch, local: true do |f| %>
       <div class="space-y-4 mb-6">
         <div>
           <label class="block text-xs font-medium text-text-muted mb-1.5">Trigger</label>
@@ -24,7 +24,7 @@
         </div>
 
         <div>
-          <label class="block text-xs font-medium text-text-muted mb-1.5">Agent <span class="text-text-faint">(auto-assign on fire)</span></label>
+          <label class="block text-xs font-medium text-text-muted mb-1.5">Agent <span class="text-text-faint">(auto-assign when triggered)</span></label>
           <%= f.select :agent_id,
                 options_for_select([["No auto-assign", ""]] + @agents.map { |a| [a.name, a.id] }, @hook.agent_id),
                 {}, class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-brand/50" %>
