@@ -653,6 +653,174 @@ RSpec.describe Tools::TaskManagerExecutor do
       end
     end
 
+    # ─── add_artifact ──────────────────────────────────────────────
+
+    context "action: add_artifact" do
+      let!(:task) { create(:task) }
+      let(:input) do
+        {
+          "action" => "add_artifact",
+          "task_id" => task.id.to_s,
+          "title" => "auth_service.rb",
+          "type" => "code",
+          "content" => "class AuthService; end"
+        }
+      end
+
+      it "adds an artifact to the task" do
+        subject.call
+        task.reload
+        expect(task.artifacts.size).to eq(1)
+        expect(task.artifacts.first["title"]).to eq("auth_service.rb")
+      end
+
+      it "sets the created_by to the agent name" do
+        subject.call
+        task.reload
+        expect(task.artifacts.first["created_by"]).to eq("Mando")
+      end
+
+      it "returns success mentioning the artifact title" do
+        result = subject.call
+        expect(result).to be_success
+        expect(result.data[:output]).to include("auth_service.rb")
+      end
+
+      it "logs an event" do
+        expect { subject.call }.to change(TaskEvent, :count).by(1)
+      end
+
+      it "defaults type to document when not provided" do
+        input.delete("type")
+        subject.call
+        task.reload
+        expect(task.artifacts.first["type"]).to eq("document")
+      end
+
+      context "without content" do
+        before { input.delete("content") }
+
+        it "creates artifact without content" do
+          result = subject.call
+          expect(result).to be_success
+          task.reload
+          expect(task.artifacts.first["content"]).to be_nil
+        end
+      end
+
+      context "when title is missing" do
+        let(:input) { { "action" => "add_artifact", "task_id" => task.id.to_s } }
+
+        it "returns failure" do
+          result = subject.call
+          expect(result).not_to be_success
+          expect(result.error).to include("title is required")
+        end
+      end
+
+      context "when task_id is missing" do
+        let(:input) { { "action" => "add_artifact", "title" => "orphan" } }
+
+        it "returns failure" do
+          result = subject.call
+          expect(result).not_to be_success
+          expect(result.error).to include("task_id is required")
+        end
+      end
+
+      context "when task does not exist" do
+        let(:input) { { "action" => "add_artifact", "task_id" => "99999", "title" => "ghost" } }
+
+        it "returns failure" do
+          result = subject.call
+          expect(result).not_to be_success
+          expect(result.error).to include("not found")
+        end
+      end
+    end
+
+    # ─── remove_artifact ─────────────────────────────────────────
+
+    context "action: remove_artifact" do
+      let!(:task) { create(:task) }
+      let!(:artifact) { task.add_artifact(type: "code", title: "old.rb", created_by: "Mando") }
+      let(:input) { { "action" => "remove_artifact", "task_id" => task.id.to_s, "artifact_id" => artifact["id"] } }
+
+      it "removes the artifact" do
+        subject.call
+        task.reload
+        expect(task.artifacts.size).to eq(0)
+      end
+
+      it "returns success" do
+        result = subject.call
+        expect(result).to be_success
+      end
+
+      it "logs an event" do
+        expect { subject.call }.to change(TaskEvent, :count).by(1)
+      end
+
+      context "when artifact_id does not match" do
+        let(:input) { { "action" => "remove_artifact", "task_id" => task.id.to_s, "artifact_id" => "bad-uuid" } }
+
+        it "returns failure" do
+          result = subject.call
+          expect(result).not_to be_success
+          expect(result.error).to include("not found")
+        end
+      end
+
+      context "when artifact_id is missing" do
+        let(:input) { { "action" => "remove_artifact", "task_id" => task.id.to_s } }
+
+        it "returns failure" do
+          result = subject.call
+          expect(result).not_to be_success
+          expect(result.error).to include("artifact_id is required")
+        end
+      end
+    end
+
+    # ─── add_hook with team-level (no task_id) ───────────────────
+
+    context "action: add_hook (team-level)" do
+      let(:team) { create(:team) }
+      let(:agent) { create(:agent, name: "Mando", team: team) }
+
+      let(:input) do
+        {
+          "action" => "add_hook",
+          "hook_trigger" => "post",
+          "hook_on_status" => "in_progress"
+        }
+      end
+
+      it "creates a team-level hook without a skill" do
+        expect { subject.call }.to change(TaskHook, :count).by(1)
+        hook = TaskHook.last
+        expect(hook.team).to eq(team)
+        expect(hook.task).to be_nil
+        expect(hook.skill).to be_nil
+      end
+
+      it "returns success mentioning default behavior" do
+        result = subject.call
+        expect(result).to be_success
+        expect(result.data[:output]).to include("default behavior")
+      end
+
+      context "when agent has no team" do
+        let(:agent) { create(:agent, name: "Mando", team: nil) }
+
+        it "returns failure" do
+          result = subject.call
+          expect(result).not_to be_success
+          expect(result.error).to include("No team found")
+        end
+      end
+    end
+
     # ─── create with template ────────────────────────────────────
 
     context "action: create with template" do
