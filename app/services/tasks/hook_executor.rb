@@ -91,6 +91,19 @@ module Tasks
         parts << ""
       end
 
+      # Include artifacts as compact references
+      if @task.artifacts.present?
+        parts << "### Artifacts"
+        @task.artifacts.each do |artifact|
+          line = "- **#{artifact['title']}** (#{artifact['type']})"
+          line += " — #{artifact['url']}" if artifact["url"].present?
+          line += " by #{artifact['created_by']}" if artifact["created_by"].present?
+          line += ": #{artifact['description']}" if artifact["description"].present?
+          parts << line
+        end
+        parts << ""
+      end
+
       # Include comments (full history)
       if @task.comments.present?
         parts << "### Comments"

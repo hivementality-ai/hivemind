@@ -153,6 +153,41 @@ RSpec.describe Tasks::HookExecutor do
       described_class.call(hook: hook, task: task, agent: agent)
     end
 
+    it "includes artifact references as compact lines in the prompt" do
+      task.add_artifact(
+        type: "pr",
+        title: "feat: flux capacitor (#42)",
+        url: "https://github.com/org/repo/pull/42",
+        description: "Core time travel logic",
+        created_by: "Mando"
+      )
+      task.add_artifact(
+        type: "branch",
+        title: "feat/flux-capacitor",
+        created_by: "Mando"
+      )
+
+      expect(ChatStreamJob).to receive(:perform_later) do |_session_id, prompt, _files|
+        expect(prompt).to include("### Artifacts")
+        expect(prompt).to include("feat: flux capacitor (#42)")
+        expect(prompt).to include("https://github.com/org/repo/pull/42")
+        expect(prompt).to include("Core time travel logic")
+        expect(prompt).to include("feat/flux-capacitor")
+        # Should NOT contain huge content blocks or truncation
+        expect(prompt).not_to include("truncate")
+      end
+
+      described_class.call(hook: hook, task: task, agent: agent)
+    end
+
+    it "omits artifacts section when task has no artifacts" do
+      expect(ChatStreamJob).to receive(:perform_later) do |_session_id, prompt, _files|
+        expect(prompt).not_to include("### Artifacts")
+      end
+
+      described_class.call(hook: hook, task: task, agent: agent)
+    end
+
     it "includes comments in the prompt" do
       task.add_comment(author_name: "Doc Brown", body: "Great Scott! Don't forget the 1.21 gigawatts.")
 
