@@ -247,7 +247,9 @@ class HeartbeatJob < ApplicationJob
 
       ## YOUR JOB (in order):
 
-      1. **Check the board**: Call task_manager with action "list" to see all tasks. REQUIRED.
+      1. **Check the board**: The default list may not return everything. Call task_manager "list"
+         separately for each status you need to check: "todo", "in_progress", "review", "backlog".
+         Work through them one at a time so you don't miss anything.
 
       2. **Kick off ready work**: For any task in "todo" status that:
          - Has an assigned agent, AND

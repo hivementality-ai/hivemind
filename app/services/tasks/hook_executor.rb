@@ -145,13 +145,11 @@ module Tasks
       <<~INSTRUCTIONS.strip
         You have been assigned this task. Work through it using your available tools.
 
-        1. Read the task details above carefully — description, checklist, comments, and dependencies.
-        2. Do the work described. Follow the checklist items if present.
-        3. Check off checklist items as you complete them using `task_manager` with `update_checklist` / `toggle`.
-        4. When finished:
-           a. Add a summary comment to the task (`task_manager` → `add_comment`) explaining what you did, decisions made, and anything the reviewer should know.
-           b. Move the task to `review` (`task_manager` → `move` with status `review`).
-        5. If you get blocked or the task is unclear, add a comment explaining why and stop. Do NOT move to review.
+        Read the task details, description, checklist, comments, and dependencies carefully before starting.
+
+        For code tasks: use `git worktree` so you're working in an isolated branch — don't work directly on main. Push to the required repo (check the task description/comments for which repo). Create a PR if appropriate and clean up the worktree when done.
+
+        Check off checklist items as you go. When you're done, add a summary comment to the task and move it to `review`. If you get blocked, comment explaining why and stop — don't move to review.
       INSTRUCTIONS
     end
   end
