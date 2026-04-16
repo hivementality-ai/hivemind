@@ -23,6 +23,11 @@ FactoryBot.define do
       status { "todo" }
     end
 
+    trait :archived do
+      status      { "done" }
+      archived_at { 1.hour.ago }
+    end
+
     trait :with_agent do
       association :created_by_agent, factory: :agent
       association :assigned_to_agent, factory: :agent
