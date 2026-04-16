@@ -1,0 +1,96 @@
+<%= form_with model: task, local: true, class: "space-y-5" do |f| %>
+  <% if task.errors.any? %>
+    <div class="bg-red-900/40 border border-red-600 rounded-lg px-4 py-3">
+      <ul class="text-red-300 text-sm list-disc list-inside space-y-1">
+        <% task.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <%= f.label :title, class: "block text-sm font-medium text-text-muted mb-1" %>
+    <%= f.text_field :title,
+          placeholder: "Task title",
+          class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white placeholder-text-faint focus:outline-none focus:border-brand/50" %>
+  </div>
+
+  <div>
+    <%= f.label :description, class: "block text-sm font-medium text-text-muted mb-1" %>
+    <%= f.text_area :description,
+          rows: 4,
+          placeholder: "Optional description...",
+          class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white placeholder-text-faint focus:outline-none focus:border-brand/50 resize-none" %>
+  </div>
+
+  <div class="grid grid-cols-2 gap-4">
+    <div>
+      <%= f.label :status, class: "block text-sm font-medium text-text-muted mb-1" %>
+      <%= f.select :status, Task::STATUSES.map { |s| [s.humanize.gsub("_", " "), s] },
+            {},
+            class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white focus:outline-none focus:border-brand/50" %>
+    </div>
+
+    <div>
+      <%= f.label :priority, class: "block text-sm font-medium text-text-muted mb-1" %>
+      <%= f.select :priority, Task::PRIORITIES.map { |p| [p.humanize, p] },
+            {},
+            class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white focus:outline-none focus:border-brand/50" %>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 gap-4">
+    <div>
+      <%= f.label :assigned_to_agent_id, "Assign to", class: "block text-sm font-medium text-text-muted mb-1" %>
+      <%= f.select :assigned_to_agent_id,
+            agents.map { |a| [a.name, a.id] },
+            { include_blank: "— Unassigned —" },
+            class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white focus:outline-none focus:border-brand/50" %>
+    </div>
+
+    <% if defined?(templates) && templates&.any? %>
+      <div>
+        <%= f.label :task_template_id, "Template", class: "block text-sm font-medium text-text-muted mb-1" %>
+        <%= f.select :task_template_id,
+              templates.map { |t| [t.name, t.id] },
+              { include_blank: "— No template —" },
+              class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white focus:outline-none focus:border-brand/50" %>
+      </div>
+    <% end %>
+  </div>
+
+  <% if defined?(projects) && projects&.any? %>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <%= f.label :project_id, "Project", class: "block text-sm font-medium text-text-muted mb-1" %>
+        <%= f.select :project_id,
+              projects.map { |p| [p.title, p.id] },
+              { include_blank: "— None —" },
+              class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white focus:outline-none focus:border-brand/50",
+              data: { action: "change->task-form#loadMilestones" } %>
+      </div>
+
+      <div>
+        <%= f.label :project_milestone_id, "Milestone", class: "block text-sm font-medium text-text-muted mb-1" %>
+        <%= f.select :project_milestone_id,
+              (defined?(milestones) ? milestones.map { |m| [m.title, m.id] } : []),
+              { include_blank: "— None —" },
+              class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white focus:outline-none focus:border-brand/50" %>
+      </div>
+    </div>
+  <% end %>
+
+  <div>
+    <%= f.label :due_at, "Due date", class: "block text-sm font-medium text-text-muted mb-1" %>
+    <%= f.datetime_local_field :due_at,
+          value: task.due_at&.strftime("%Y-%m-%dT%H:%M"),
+          class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white focus:outline-none focus:border-brand/50" %>
+  </div>
+
+  <div class="flex items-center gap-3 pt-2">
+    <%= f.submit task.persisted? ? "Save changes" : "Create task",
+          class: "px-5 py-2 bg-brand hover:bg-brand/80 text-white font-medium rounded-lg transition cursor-pointer" %>
+    <%= link_to "Cancel", tasks_path, class: "px-5 py-2 text-text-muted hover:text-white rounded-lg transition" %>
+  </div>
+<% end %>

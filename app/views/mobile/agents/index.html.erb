@@ -28,7 +28,7 @@
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-white truncate"><%= agent.name %></p>
               <p class="text-xs text-text-faint truncate">
-                <%= agent.respond_to?(:model_id) ? agent.model_id : "—" %>
+                <%= agent.role %> · <%= agent.llm_model %>
                 <% if status.to_s != "idle" %>
                   <span class="ml-1 text-<%= status.to_s == 'error' ? 'red' : 'amber' %>-400"><%= status %></span>
                 <% end %>

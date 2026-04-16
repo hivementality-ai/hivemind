@@ -32,6 +32,11 @@ module Tools
       output << "Status: #{sat.status}"
       output << "Duration: #{sat.duration_seconds}s" if sat.started_at
 
+      if sat.status.in?(%w[pending running])
+        output << ""
+        output << "⏳ Task is still in progress. Do NOT check again for at least 30 seconds. Work on something else and come back later."
+      end
+
       if sat.status == "completed" || sat.status == "failed"
         output << ""
         output << "Result:"

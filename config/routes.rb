@@ -26,7 +26,7 @@ Rails.application.routes.draw do
   # Mobile PWA Interface
   scope "/m", module: "mobile", as: "mobile" do
     root "home#index"                                    # Activity feed / quick actions
-    resources :sessions, only: [ :index, :show ] do
+    resources :sessions, only: [ :index, :show, :create ] do
       member do
         post :message
         post :interrupt
@@ -139,6 +139,17 @@ Rails.application.routes.draw do
     end
   end
 
+  # Tasks (kanban board)
+  resources :tasks do
+    member do
+      patch :move
+      patch :toggle_checklist
+    end
+  end
+
+  # Task Templates
+  resources :task_templates
+
   # Budgets
   get "budgets", to: "budgets#index", as: :budgets
   patch "budgets/:agent_id", to: "budgets#update", as: :update_budget
@@ -147,6 +158,9 @@ Rails.application.routes.draw do
   get "heartbeat", to: "heartbeats#index", as: :heartbeats
   patch "heartbeat", to: "heartbeats#update", as: :update_heartbeat
   post "heartbeat/trigger", to: "heartbeats#trigger", as: :trigger_heartbeat
+  patch "heartbeat/soul", to: "heartbeats#update_soul", as: :update_soul_heartbeat
+  post "heartbeat/tasks/standing", to: "heartbeats#add_standing_task", as: :add_standing_heartbeat_task
+  delete "heartbeat/tasks/standing", to: "heartbeats#delete_standing_task", as: :delete_standing_heartbeat_task
 
   # Scheduled Tasks
   resources :scheduled_tasks, only: [ :index, :edit, :update, :destroy ] do
@@ -155,6 +169,9 @@ Rails.application.routes.draw do
       post :run_now
     end
   end
+
+  # Audit Log
+  get "audit_logs", to: "audit_logs#index", as: :audit_logs
 
   # Analytics
   resources :analytics, only: [ :index, :show ] do

@@ -324,4 +324,75 @@ RSpec.describe AgentsController, type: :controller do
       end
     end
   end
+
+  describe 'hierarchy params' do
+    let(:manager) { create(:agent) }
+
+    describe 'POST #create' do
+      it 'persists title when provided' do
+        post :create, params: {
+          agent: {
+            name: "CTO Agent",
+            role: "Executive",
+            system_prompt: "You lead.",
+            title: "CTO"
+          }
+        }
+        expect(Agent.last.title).to eq("CTO")
+      end
+
+      it 'persists reports_to_id when provided' do
+        post :create, params: {
+          agent: {
+            name: "Report Agent",
+            role: "Assistant",
+            system_prompt: "You assist.",
+            reports_to_id: manager.id
+          }
+        }
+        expect(Agent.last.manager).to eq(manager)
+      end
+
+      it 'persists both title and reports_to_id together' do
+        post :create, params: {
+          agent: {
+            name: "VP Agent",
+            role: "Assistant",
+            system_prompt: "You manage.",
+            title: "VP of Engineering",
+            reports_to_id: manager.id
+          }
+        }
+        created = Agent.last
+        expect(created.title).to eq("VP of Engineering")
+        expect(created.manager).to eq(manager)
+      end
+    end
+
+    describe 'PATCH #update' do
+      it 'assigns a manager when reports_to_id is updated' do
+        patch :update, params: { slug: agent.slug, agent: { reports_to_id: manager.id } }
+        expect(agent.reload.manager).to eq(manager)
+      end
+
+      it 'persists title when updated' do
+        patch :update, params: { slug: agent.slug, agent: { title: "Staff Engineer" } }
+        expect(agent.reload.title).to eq("Staff Engineer")
+      end
+
+      it 're-renders edit with 422 when reports_to_id is set to self' do
+        patch :update, params: { slug: agent.slug, agent: { reports_to_id: agent.id } }
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response).to render_template(:edit)
+      end
+
+      it 'does not save when reports_to_id would create a cycle' do
+        # agent -> manager; now try manager reporting to agent
+        agent.update!(reports_to_id: manager.id)
+        patch :update, params: { slug: manager.slug, agent: { reports_to_id: agent.id } }
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(manager.reload.reports_to_id).not_to eq(agent.id)
+      end
+    end
+  end
 end

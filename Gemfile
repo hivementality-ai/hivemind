@@ -33,7 +33,7 @@ gem "rack-attack"
 
 # LLM Providers
 gem "ruby-openai", "~> 7.0"
-gem "anthropic", "~> 1.25"
+gem "anthropic", "~> 1.32"
 
 # HTTP Client (for webhooks, web fetch, etc.)
 gem "faraday", "~> 2.0"
@@ -47,7 +47,7 @@ gem "kamal", require: false
 gem "thruster", require: false
 
 # ActiveRecord Encryption + pgvector for memory search
-gem "neighbor", "~> 0.4"
+gem "neighbor", "~> 1.0"
 
 # Image processing
 gem "image_processing", "~> 1.2"

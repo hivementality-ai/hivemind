@@ -10,6 +10,29 @@ RSpec.describe TeamsController, type: :controller do
     sign_in user
   end
 
+  describe 'GET #index' do
+    let!(:team_with_agents) { create(:team) }
+
+    it 'returns a successful response' do
+      get :index
+      expect(response).to be_successful
+    end
+
+    it 'assigns @teams' do
+      get :index
+      expect(assigns(:teams)).to include(team_with_agents)
+    end
+
+    context 'when not authenticated' do
+      before { sign_out user }
+
+      it 'redirects to sign in' do
+        get :index
+        expect(response).to redirect_to(new_user_session_path)
+      end
+    end
+  end
+
   describe 'GET #edit' do
     it 'returns a successful response' do
       get :edit, params: { id: team.id }

@@ -37,10 +37,15 @@ module Tools
       output << "Sources: #{rs.sources_count}"
       output << "Duration: #{rs.duration_seconds}s" if rs.started_at
 
+      if rs.active?
+        output << ""
+        output << "⏳ Research is still in progress. Do NOT check again for at least 30 seconds. Work on something else and come back later."
+      end
+
       if rs.progress_log.present?
         output << ""
         output << "=== Recent Progress ==="
-        rs.progress_log.last(10).each do |entry|
+        rs.progress_log.last(5).each do |entry|
           output << "- #{entry['message'] || entry[:message]}"
         end
       end
