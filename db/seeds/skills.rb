@@ -380,33 +380,6 @@ skills = [
     CONTENT
   },
   {
-    name: "work_on_task",
-    description: "Task hook skill: work through an assigned task and move it to review when done.",
-    category: "automation",
-    content: <<~CONTENT
-      # Work On Task
-
-      You have been assigned a task from the team task board. A hook fired because this task was moved to `in_progress`.
-
-      ## Your Job
-
-      1. **Read the task details carefully** — title, description, checklist, comments, and dependencies are all provided above.
-      2. **Do the work** — Use your tools to complete the task. Follow the description and checklist items.
-      3. **Check off checklist items** as you complete them using `task_manager` with `update_checklist` / `toggle`.
-      4. **When finished**, do TWO things:
-         a. **Add a summary comment** to the task using `task_manager` with `add_comment` — explain what you did, what files you changed, any decisions you made, and anything the reviewer should know.
-         b. **Move the task to `review`** using `task_manager` with `move` action and status `review`.
-
-      ## Rules
-
-      - **Stay focused on this task only.** Do not go looking for other work.
-      - **If you get blocked**, add a comment explaining the blocker and stop. Do NOT move to review.
-      - **If the task description is unclear**, add a comment asking for clarification and stop. Do NOT guess.
-      - **Be thorough.** Check your work before moving to review.
-      - **Your summary comment is your deliverable.** The reviewer will read it to understand what was done.
-    CONTENT
-  },
-  {
     name: "deep_research",
     description: "Perform thorough, multi-step research on any topic with web search, source analysis, and synthesized reports.",
     category: "utilities",
@@ -454,7 +427,6 @@ SKILL_TOOL_MAP = {
   "docker" => [ "shell" ],
   "git" => [ "shell", "file_read", "file_write", "file_edit" ],
   "ticket-planning" => [ "ask_user", "file_read", "web_fetch" ],
-  "work_on_task" => [ "task_manager", "shell", "file_read", "file_write", "file_edit", "web_fetch", "web_search", "grep", "glob" ],
   "deep_research" => [ "deep_research", "deep_research_status", "web_search", "web_fetch" ]
 }.freeze
 

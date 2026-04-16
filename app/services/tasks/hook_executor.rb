@@ -15,7 +15,6 @@ module Tasks
 
     def call
       return ServiceResponse.failure(error: "No agent available to execute hook") unless @agent
-      return ServiceResponse.failure(error: "Hook skill not found") unless @hook.skill
 
       skill = @hook.skill
       prompt = build_prompt(skill)
@@ -38,12 +37,13 @@ module Tasks
 
       ChatStreamJob.perform_later(session.id, prompt, [])
 
+      skill_label = skill ? "skill '#{skill.name}'" : "default behavior"
       Tasks::EventLogger.call(
         task: @task,
         agent: @agent,
         event_type: "hook_fired",
-        summary: "#{@hook.trigger.capitalize}-hook fired: skill '#{skill.name}' on status '#{@hook.on_status}'",
-        metadata: { hook_id: @hook.id, session_id: session.id, skill_name: skill.name }
+        summary: "#{@hook.trigger.capitalize}-hook fired: #{skill_label} on status '#{@hook.on_status}'",
+        metadata: { hook_id: @hook.id, session_id: session.id, skill_name: skill&.name }
       )
 
       ServiceResponse.success(data: { session_id: session.id })
@@ -116,9 +116,15 @@ module Tasks
         parts << ""
       end
 
-      parts << "### Skill Instructions"
-      parts << skill.content
-      parts << ""
+      if skill
+        parts << "### Skill Instructions"
+        parts << skill.content
+        parts << ""
+      else
+        parts << "### Instructions"
+        parts << default_task_instructions
+        parts << ""
+      end
 
       if @hook.config.present?
         parts << "### Hook Configuration"
@@ -133,6 +139,20 @@ module Tasks
       end
 
       parts.join("\n")
+    end
+
+    def default_task_instructions
+      <<~INSTRUCTIONS.strip
+        You have been assigned this task. Work through it using your available tools.
+
+        1. Read the task details above carefully — description, checklist, comments, and dependencies.
+        2. Do the work described. Follow the checklist items if present.
+        3. Check off checklist items as you complete them using `task_manager` with `update_checklist` / `toggle`.
+        4. When finished:
+           a. Add a summary comment to the task (`task_manager` → `add_comment`) explaining what you did, decisions made, and anything the reviewer should know.
+           b. Move the task to `review` (`task_manager` → `move` with status `review`).
+        5. If you get blocked or the task is unclear, add a comment explaining why and stop. Do NOT move to review.
+      INSTRUCTIONS
     end
   end
 end
