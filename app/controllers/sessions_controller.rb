@@ -7,11 +7,6 @@ class SessionsController < ApplicationController
 
   # GET /sessions — list all sessions
   def index
-    @sessions = Session.includes(:agent)
-                       .where(status: :active)
-                       .order(Arel.sql("COALESCE(last_activity_at, created_at) DESC"))
-                       .limit(50)
-
     # If agent_id is passed via GET, auto-create a session and redirect to chat
     if params[:agent_id].present? && request.get?
       agent = Agent.by_slug(params[:agent_id]).first || Agent.find_by(id: params[:agent_id])
@@ -27,6 +22,39 @@ class SessionsController < ApplicationController
         Plugins::Hooks.trigger("session_created", session: session)
         redirect_to session_path(session) and return
       end
+    end
+
+    @agents = Agent.enabled.order(:name)
+
+    sessions_scope = Session.includes(:agent)
+                            .where(status: :active)
+                            .order(Arel.sql("COALESCE(last_activity_at, created_at) DESC"))
+
+    # Filter by agent
+    if params[:filter_agent].present?
+      sessions_scope = sessions_scope.where(agent_id: params[:filter_agent])
+    end
+
+    # Filter by session type
+    case params[:filter_type]
+    when "delegated"
+      sessions_scope = sessions_scope.where.not(team_chat_session_id: nil)
+    when "direct"
+      sessions_scope = sessions_scope.where(team_chat_session_id: nil)
+    end
+
+    @sessions = sessions_scope.limit(100)
+
+    # One most-recent session per agent, sorted by recency (for compact cards section)
+    @recent_agent_sessions = @agents.map do |agent|
+      recent = Session.where(agent: agent)
+                      .active_sessions
+                      .order(Arel.sql("COALESCE(last_activity_at, created_at) DESC"))
+                      .first
+      { agent: agent, session: recent }
+    end.sort_by do |entry|
+      s = entry[:session]
+      s ? -(s.last_activity_at || s.created_at).to_i : 1
     end
   end
 
@@ -51,6 +79,13 @@ class SessionsController < ApplicationController
     @messages = @session.transcript || []
     @attachments = @session.chat_attachments.includes(file_attachment: :blob).index_by(&:message_index)
     @processing = Redis.current.get("session_processing:#{@session.id}") == "1"
+
+    # Recent sessions for this agent (sidebar)
+    @recent_sessions = Session.where(agent: @agent)
+                              .active_sessions
+                              .where.not(id: @session.id)
+                              .order(Arel.sql("COALESCE(last_activity_at, created_at) DESC"))
+                              .limit(15)
   end
 
   # POST /sessions/:id/message — send a message (async via Sidekiq + ActionCable)
