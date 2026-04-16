@@ -124,109 +124,67 @@ RSpec.describe HeartbeatJob, type: :job do
 
         described_class.perform_now
 
-        # provider is not changed — original stays (we didn't update_column with nil)
         expect(agent.reload.model_provider).to eq("anthropic")
       end
     end
 
-    it "builds prompt with checklist tasks" do
+    # ─── Prompt content ───────────────────────────────────────────
+
+    it "includes a timestamp in the prompt" do
+      described_class.perform_now
+      expect(Sessions::Chat).to have_received(:call).with(
+        hash_including(message: a_string_including("Heartbeat check-in. Time:"))
+      )
+    end
+
+    it "includes checklist tasks in the prompt" do
       allow(Setting).to receive(:get).with("heartbeat_tasks").and_return([ { "task" => "Check email" } ].to_json)
       described_class.perform_now
       expect(Sessions::Chat).to have_received(:call).with(hash_including(message: a_string_including("Check email")))
     end
 
-    it "includes teammates in prompt" do
+    it "separates standing and one-off tasks" do
+      tasks = [
+        { "task" => "Daily standup", "protected" => true },
+        { "task" => "One-time setup", "protected" => false }
+      ]
+      allow(Setting).to receive(:get).with("heartbeat_tasks").and_return(tasks.to_json)
+      described_class.perform_now
+      prompt_arg = nil
+      expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
+      expect(prompt_arg).to include("Standing checks (do not remove):")
+      expect(prompt_arg).to include("One-off tasks (remove after handling):")
+    end
+
+    it "does not include teammate list in the prompt" do
       team = create(:team)
       create(:agent, name: "Helper", role: "Developer", enabled: true, team: team)
       described_class.perform_now
-      expect(Sessions::Chat).to have_received(:call).with(hash_including(message: a_string_including("Helper")))
+      prompt_arg = nil
+      expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
+      expect(prompt_arg).not_to include("Helper")
+    end
+
+    it "does not include the task board in the prompt" do
+      create(:task, title: "Deploy to staging", status: "todo", priority: "high")
+      described_class.perform_now
+      prompt_arg = nil
+      expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
+      expect(prompt_arg).not_to include("Deploy to staging")
+    end
+
+    it "includes custom prompt when set" do
+      config_with_prompt = { "enabled" => true, "interval_minutes" => 30, "prompt" => "Watch for anomalies" }.to_json
+      allow(Setting).to receive(:get).with("heartbeat").and_return(config_with_prompt)
+      described_class.perform_now
+      expect(Sessions::Chat).to have_received(:call).with(
+        hash_including(message: a_string_including("Watch for anomalies"))
+      )
     end
 
     it "handles errors gracefully" do
       allow(Sessions::Chat).to receive(:call).and_raise(StandardError, "boom")
       expect { described_class.perform_now }.not_to raise_error
-    end
-
-    # ─── Open task board injection ────────────────────────────────
-
-    context "with open tasks on the board" do
-      let!(:open_task) { create(:task, title: "Deploy to staging", status: "todo", priority: "high") }
-      let!(:done_task) { create(:task, title: "Already shipped", status: "done") }
-
-      it "injects open tasks into the full prompt" do
-        described_class.perform_now
-        expect(Sessions::Chat).to have_received(:call).with(
-          hash_including(message: a_string_including("Deploy to staging"))
-        )
-      end
-
-      it "does not include done tasks in the prompt" do
-        described_class.perform_now
-        prompt_arg = nil
-        expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
-        expect(prompt_arg).not_to include("Already shipped")
-      end
-
-      it "includes the task_manager tool hint in the prompt" do
-        described_class.perform_now
-        expect(Sessions::Chat).to have_received(:call).with(
-          hash_including(message: a_string_including("task_manager"))
-        )
-      end
-
-      it "limits the injected task list to 20 tasks" do
-        create_list(:task, 25, status: "todo")
-        described_class.perform_now
-        prompt_arg = nil
-        expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
-        # Count to_summary lines — each starts with [#
-        task_lines = prompt_arg.scan(/\[#\d+\]/).size
-        expect(task_lines).to be <= 20
-      end
-    end
-
-    context "when there are no open tasks" do
-      before { Task.delete_all }
-
-      it "does not inject a task section into the prompt" do
-        described_class.perform_now
-        prompt_arg = nil
-        expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
-        expect(prompt_arg).not_to include("Open tasks on the team board")
-      end
-    end
-
-    # ─── Overdue callout ─────────────────────────────────────────
-
-    context "with overdue tasks" do
-      let!(:overdue_task) do
-        create(:task, :overdue, title: "Fix the memory leak")
-      end
-
-      it "adds an overdue callout section to the prompt" do
-        described_class.perform_now
-        expect(Sessions::Chat).to have_received(:call).with(
-          hash_including(message: a_string_including("Overdue — Delegate These"))
-        )
-      end
-
-      it "includes the overdue task in the callout" do
-        described_class.perform_now
-        expect(Sessions::Chat).to have_received(:call).with(
-          hash_including(message: a_string_including("Fix the memory leak"))
-        )
-      end
-    end
-
-    context "with no overdue tasks" do
-      let!(:future_task) { create(:task, status: "todo", due_at: 7.days.from_now) }
-
-      it "does not add an overdue section" do
-        described_class.perform_now
-        prompt_arg = nil
-        expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
-        expect(prompt_arg).not_to include("Overdue — Delegate These")
-      end
     end
 
     # ─── HeartbeatRun tracking ────────────────────────────────────
@@ -235,11 +193,11 @@ RSpec.describe HeartbeatJob, type: :job do
       expect { described_class.perform_now }.to change(HeartbeatRun, :count).by(1)
     end
 
-    it "records the number of open tasks in the run metadata" do
-      create_list(:task, 3, status: "todo")
+    it "records the number of tasks in the run metadata" do
+      allow(Setting).to receive(:get).with("heartbeat_tasks").and_return([ { "task" => "Do a thing" } ].to_json)
       described_class.perform_now
       run = HeartbeatRun.last
-      expect(run.metadata["tasks_count"]).to be_a(Integer)
+      expect(run.metadata["tasks_count"]).to eq(1)
     end
 
     # ─── light_context mode ───────────────────────────────────────
@@ -247,27 +205,27 @@ RSpec.describe HeartbeatJob, type: :job do
     context "with light_context enabled" do
       let(:config) { { "enabled" => true, "interval_minutes" => 30, "light_context" => true }.to_json }
 
-      it "uses a minimal prompt" do
+      it "includes a timestamp in the minimal prompt" do
         described_class.perform_now
         expect(Sessions::Chat).to have_received(:call).with(
-          hash_including(message: a_string_including("Heartbeat check-in. Tools:"))
+          hash_including(message: a_string_including("Heartbeat check-in. Time:"))
         )
       end
 
       it "does not include teammate listing" do
         create(:agent, name: "Helper", role: "Developer", enabled: true)
         described_class.perform_now
-        call_args = nil
-        expect(Sessions::Chat).to have_received(:call) { |args| call_args = args }
-        expect(call_args[:message]).not_to include("Available teammates")
+        prompt_arg = nil
+        expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
+        expect(prompt_arg).not_to include("Helper")
       end
 
       it "does not inject the open task board" do
         create(:task, title: "Should not appear", status: "todo")
         described_class.perform_now
-        call_args = nil
-        expect(Sessions::Chat).to have_received(:call) { |args| call_args = args }
-        expect(call_args[:message]).not_to include("Open tasks on the team board")
+        prompt_arg = nil
+        expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
+        expect(prompt_arg).not_to include("Should not appear")
       end
 
       it "still includes checklist tasks" do
