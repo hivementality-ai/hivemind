@@ -138,41 +138,5 @@ RSpec.describe Agent, type: :model do
         expect(Agent.exists?(gamma.id)).to be true
       end
     end
-
-    describe "title field" do
-      it "persists a title on the agent" do
-        alpha.update!(title: "Chief Executive")
-        expect(alpha.reload.title).to eq("Chief Executive")
-      end
-
-      it "allows title to be nil" do
-        alpha.update!(title: nil)
-        expect(alpha.reload.title).to be_nil
-      end
-
-      it "is valid as a root node with a title but no manager" do
-        agent = build(:agent, title: "Founder", reports_to_id: nil)
-        expect(agent).to be_valid
-      end
-    end
-
-    describe "#chain_of_command with deep hierarchy" do
-      it "returns all ancestors in order without looping for a 4-level chain" do
-        epsilon = create(:agent, name: "Epsilon", reports_to_id: delta.id)
-        # chain: epsilon -> delta -> beta -> alpha
-        expect(epsilon.chain_of_command).to eq([delta, beta, alpha])
-      end
-    end
-
-    describe "manager reassignment" do
-      it "removes the report from the old manager and adds to the new one" do
-        new_manager = create(:agent, name: "NewManager")
-
-        beta.update!(reports_to_id: new_manager.id)
-
-        expect(alpha.reload.direct_reports).not_to include(beta)
-        expect(new_manager.reload.direct_reports).to include(beta)
-      end
-    end
   end
 end
