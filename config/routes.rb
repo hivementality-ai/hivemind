@@ -158,6 +158,8 @@ Rails.application.routes.draw do
   get "heartbeat", to: "heartbeats#index", as: :heartbeats
   patch "heartbeat", to: "heartbeats#update", as: :update_heartbeat
   post "heartbeat/trigger", to: "heartbeats#trigger", as: :trigger_heartbeat
+  patch "heartbeat/soul", to: "heartbeats#update_soul", as: :update_soul_heartbeat
+  delete "heartbeat/tasks/standing", to: "heartbeats#delete_standing_task", as: :delete_standing_heartbeat_task
 
   # Scheduled Tasks
   resources :scheduled_tasks, only: [ :index, :edit, :update, :destroy ] do
@@ -166,6 +168,9 @@ Rails.application.routes.draw do
       post :run_now
     end
   end
+
+  # Audit Log
+  get "audit_logs", to: "audit_logs#index", as: :audit_logs
 
   # Analytics
   resources :analytics, only: [ :index, :show ] do
