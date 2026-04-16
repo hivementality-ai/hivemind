@@ -22,9 +22,11 @@ module Tools
       when "update_checklist" then update_checklist
       when "add_hook"         then add_hook
       when "remove_hook"      then remove_hook
+      when "add_artifact"     then add_artifact
+      when "remove_artifact"  then remove_artifact
       else
         ServiceResponse.failure(
-          error: "Unknown action: #{action}. Supported: create, update, move, assign, list, my_tasks, add_comment, close, add_dependency, remove_dependency, update_checklist, add_hook, remove_hook"
+          error: "Unknown action: #{action}. Supported: create, update, move, assign, list, my_tasks, add_comment, close, add_dependency, remove_dependency, update_checklist, add_hook, remove_hook, add_artifact, remove_artifact"
         )
       end
     rescue StandardError => e
@@ -313,6 +315,45 @@ module Tools
       ServiceResponse.success(data: { output: "Removed hook ##{hook_id} from task ##{task.id}" })
     rescue ActiveRecord::RecordNotFound
       ServiceResponse.failure(error: "Hook ##{hook_id} not found on this task")
+    end
+
+    def add_artifact
+      task = find_task!
+      title = require_param!("title")
+
+      artifact = task.add_artifact(
+        title:      title,
+        content:    input["content"],
+        type:       input["type"] || "document",
+        metadata:   input["metadata"] || {},
+        created_by: agent&.name || "Unknown"
+      )
+
+      Tasks::EventLogger.call(
+        task: task,
+        agent: agent,
+        event_type: "artifact_added",
+        summary: "Artifact added: #{title} (#{artifact['type']})"
+      )
+
+      ServiceResponse.success(data: { output: "Added artifact '#{title}' to task ##{task.id} (#{artifact['type']})" })
+    end
+
+    def remove_artifact
+      task = find_task!
+      artifact_id = require_param!("artifact_id")
+
+      if task.remove_artifact(artifact_id)
+        Tasks::EventLogger.call(
+          task: task,
+          agent: agent,
+          event_type: "artifact_removed",
+          summary: "Artifact removed: #{artifact_id}"
+        )
+        ServiceResponse.success(data: { output: "Removed artifact from task ##{task.id}" })
+      else
+        ServiceResponse.failure(error: "Artifact '#{artifact_id}' not found on task ##{task.id}")
+      end
     end
 
     # ─── Helpers ───────────────────────────────────────────────────

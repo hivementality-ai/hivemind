@@ -49,6 +49,13 @@
               <% end %>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0 ml-4">
+              <%= link_to task_hooks_path,
+                  class: "px-3 py-1.5 text-xs font-medium bg-surface-raised hover:bg-surface-overlay text-text-muted hover:text-white rounded-lg transition inline-flex items-center gap-1.5" do %>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Hooks
+              <% end %>
               <%= link_to "Edit", edit_team_path(team),
                   class: "px-3 py-1.5 text-xs font-medium bg-surface-raised hover:bg-surface-overlay text-text-muted hover:text-white rounded-lg transition" %>
               <%= button_to team_path(team), method: :delete,

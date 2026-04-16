@@ -93,6 +93,65 @@ class Task < ApplicationRecord
     self
   end
 
+  # ─── Artifacts ───────────────────────────────────────────────────
+  ARTIFACT_TYPES = %w[code document report data image link other].freeze
+
+  def add_artifact(title:, content: nil, artifact_type: "other", metadata: {}, created_by: nil)
+    entry = {
+      "id"         => SecureRandom.uuid,
+      "title"      => title,
+      "type"       => ARTIFACT_TYPES.include?(artifact_type) ? artifact_type : "other",
+      "content"    => content,
+      "metadata"   => metadata,
+      "created_by" => created_by,
+      "created_at" => Time.current.iso8601
+    }
+    self.artifacts = (artifacts || []) + [ entry ]
+    save!
+    entry
+  end
+
+  def remove_artifact(artifact_id)
+    return false if artifacts.blank?
+
+    original_size = artifacts.size
+    self.artifacts = artifacts.reject { |a| a["id"] == artifact_id }
+    return false if artifacts.size == original_size
+
+    save!
+    true
+  end
+
+  # ─── Artifacts ──────────────────────────────────────────────────
+
+  ARTIFACT_TYPES = %w[code document report data image link].freeze
+
+  def add_artifact(type:, title:, content: nil, metadata: {}, created_by: nil)
+    entry = {
+      "id"         => SecureRandom.uuid,
+      "type"       => ARTIFACT_TYPES.include?(type) ? type : "document",
+      "title"      => title,
+      "content"    => content,
+      "metadata"   => metadata,
+      "created_by" => created_by,
+      "created_at" => Time.current.iso8601
+    }.compact
+    self.artifacts = (artifacts || []) + [ entry ]
+    save!
+    entry
+  end
+
+  def remove_artifact(artifact_id)
+    return false if artifacts.blank?
+
+    original_size = artifacts.size
+    self.artifacts = artifacts.reject { |a| a["id"] == artifact_id }
+    return false if artifacts.size == original_size
+
+    save!
+    true
+  end
+
   def add_comment(author_name:, body:)
     entry = {
       "author"     => author_name,
@@ -130,6 +189,7 @@ class Task < ApplicationRecord
     parts << "Milestone: #{project_milestone.title}" if project_milestone
     parts << "Blocked" if blocked_by_dependencies?
     parts << "Checklist: #{checklist.count { |i| i['checked'] }}/#{checklist.size}" if checklist.present?
+    parts << "Artifacts: #{artifacts.size}" if artifacts.present?
     parts << "Description: #{description.truncate(120)}" if description.present?
     parts.join(" | ")
   end
