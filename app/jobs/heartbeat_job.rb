@@ -57,7 +57,14 @@ class HeartbeatJob < ApplicationJob
 
     usage = result&.data&.dig(:usage) || {}
     reply = result&.success? ? result.data[:content].to_s.strip : nil
+    tool_history = result&.success? ? result.data[:tool_history] : nil
     is_ok = reply.blank? || reply.match?(/\AHEARTBEAT_OK\z/i)
+
+    # Validate: if no tools were called, this is a failed heartbeat
+    tool_count = tool_history&.size || 0
+    if tool_count == 0 && result&.success?
+      Rails.logger.warn("[Heartbeat] Model returned response with ZERO tool calls — likely fabricated results")
+    end
 
     # Mark ephemeral session as completed
     session.update!(status: "completed")
@@ -73,7 +80,7 @@ class HeartbeatJob < ApplicationJob
       output_tokens: usage[:output_tokens] || 0,
       duration_ms: duration_ms,
       model: agent.llm_model,
-      metadata: { tasks_count: load_tasks.size }
+      metadata: { tasks_count: load_tasks.size, tool_calls_count: tool_count, tool_history: tool_history&.first(20) }
     )
 
     # Clean up old ephemeral heartbeat sessions (keep last 24h)
@@ -167,12 +174,7 @@ class HeartbeatJob < ApplicationJob
 
     parts << "\n#{custom}" if custom.present?
 
-    parts << "\n--- Instructions ---"
-    parts << "You are running in ephemeral mode. You have NO memory of previous heartbeats — the handoff above is your only context."
-    parts << "Use the task_manager tool to check the task board. Use the delegate tool to assign work to agents."
-    parts << "After completing your checks, end your response with a brief HANDOFF SUMMARY for the next heartbeat."
-    parts << "Format: 'HANDOFF: [what you did, what's pending, anything the next heartbeat should know]'"
-    parts << "If nothing needs attention, reply HEARTBEAT_OK."
+    parts << tool_enforcement_instructions
 
     parts.join("\n")
   end
@@ -206,14 +208,36 @@ class HeartbeatJob < ApplicationJob
 
     parts << "\n#{custom}" if custom.present?
 
-    parts << "\n--- Instructions ---"
-    parts << "You are running in ephemeral mode. You have NO memory of previous heartbeats — the handoff above is your only context."
-    parts << "Use the task_manager tool to check the task board. Use the delegate tool to assign work to agents."
-    parts << "After completing your checks, end your response with a brief HANDOFF SUMMARY for the next heartbeat."
-    parts << "Format: 'HANDOFF: [what you did, what's pending, anything the next heartbeat should know]'"
-    parts << "If nothing needs attention, reply HEARTBEAT_OK."
+    parts << tool_enforcement_instructions
 
     parts.join("\n")
+  end
+
+  # Shared instructions that enforce actual tool usage.
+  # This prevents models from fabricating tool results.
+  def tool_enforcement_instructions
+    <<~INSTRUCTIONS
+
+      --- CRITICAL INSTRUCTIONS ---
+      You have tools available. You MUST use them. This is non-negotiable.
+
+      REQUIRED ACTIONS (use the actual tools — do NOT simulate or fabricate results):
+      1. Call task_manager with action "list" to check the task board. You MUST make this tool call.
+      2. If tasks need assignment, call delegate to assign work to agents.
+      3. If tasks need status updates, call task_manager with the appropriate action.
+
+      RULES:
+      - NEVER describe what a tool "would return" — actually call it.
+      - NEVER fabricate or invent tool results. If you didn't call the tool, you don't know the answer.
+      - A heartbeat that reports status without making tool calls is INVALID.
+      - The previous handoff is context only — you must VERIFY the current state by calling tools.
+
+      You are running in ephemeral mode. You have NO memory of previous heartbeats — the handoff above is your only context.
+
+      After completing your checks, end your response with a brief HANDOFF SUMMARY for the next heartbeat.
+      Format: 'HANDOFF: [what you did, what's pending, anything the next heartbeat should know]'
+      If nothing needs attention, reply HEARTBEAT_OK.
+    INSTRUCTIONS
   end
 
   # Remove ephemeral heartbeat sessions older than 24 hours.

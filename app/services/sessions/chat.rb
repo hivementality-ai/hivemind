@@ -29,35 +29,55 @@ module Sessions
       message_result = Sessions::MessageBuilder.call(session: @session, agent: agent)
       messages = message_result.data[:messages]
 
-      # 4. Call the LLM
+      # 4. Resolve tools for this agent
+      tools = resolve_tools(agent)
+
+      # 5. Call the LLM
       options = { model: agent.llm_model, agent_id: agent.id, session_id: @session.id }
 
-      # For OAuth/SDK proxy path, pass tool definitions so MCP bridge can be built
-      if adapter.respond_to?(:send, true) && agent.model_provider == "anthropic"
-        api_key = adapter.send(:api_key) rescue nil
-        if api_key&.start_with?("sk-ant-oat")
-          tools = resolve_tools(agent)
-          options[:tool_definitions] = tools.map { |t| t.respond_to?(:to_llm_tool) ? t.to_llm_tool : t } if tools.any?
-        end
+      # Detect OAuth/MCP proxy path (Anthropic OAuth tokens)
+      oauth_mcp = adapter.is_a?(Providers::AnthropicAdapter) &&
+                  (adapter.send(:api_key) rescue nil)&.start_with?("sk-ant-oat") &&
+                  tools.any?
+
+      if oauth_mcp
+        # OAuth path: pass tool definitions for MCP bridge
+        options[:tool_definitions] = tools.map { |t| t.respond_to?(:to_llm_tool) ? t.to_llm_tool : t }
       end
 
-      if @stream && @on_chunk
+      if tools.any? && !oauth_mcp
+        # ToolLoop path: full agentic tool execution for non-OAuth providers
+        channel = "session_#{@session.session_key}"
+        result = Agents::ToolLoop.call(
+          adapter:, agent:, session: @session, messages:, tools:, channel:, options:
+        )
+        return result unless result&.success?
+
+        content = result.data[:content].to_s
+        usage = result.data[:usage] || {}
+        tool_history = result.data[:tool_history]
+      elsif @stream && @on_chunk
         response = adapter.chat(messages:, options:) do |chunk|
           @on_chunk.call(chunk)
         end
+        return response unless response.success?
+        content = response.data[:content]
+        usage = response.data[:usage] || {}
+        tool_history = nil
       else
         response = adapter.chat(messages:, options:)
+        return response unless response.success?
+        content = response.data[:content]
+        usage = response.data[:usage] || {}
+        tool_history = nil
       end
 
-      return response unless response.success?
+      # 6. Append assistant response to transcript (with tool history if present)
+      transcript_entry = { "role" => "assistant", "content" => content }
+      transcript_entry["tool_calls"] = tool_history if tool_history.present?
+      @session.append_transcript(transcript_entry)
 
-      content = response.data[:content]
-      usage = response.data[:usage] || {}
-
-      # 5. Append assistant response to transcript
-      @session.append_transcript({ "role" => "assistant", "content" => content })
-
-      # 6. Update token counts
+      # 7. Update token counts
       input_tokens = usage[:input_tokens] || 0
       output_tokens = usage[:output_tokens] || 0
       @session.update!(
@@ -66,17 +86,17 @@ module Sessions
         total_tokens: @session.total_tokens + input_tokens + output_tokens
       )
 
-      # 7. Post-processing (usage, memory, summarization, origin delivery)
+      # 8. Post-processing (usage, memory, summarization, origin delivery)
       Sessions::PostProcessor.call(
         agent: agent, session: @session,
         user_message: @message, assistant_response: content,
         usage: usage
       )
 
-      # 8. Trigger consolidation for longer sessions (every 20 turns)
+      # 9. Trigger consolidation for longer sessions (every 20 turns)
       maybe_consolidate
 
-      ServiceResponse.success(data: { content:, usage: })
+      ServiceResponse.success(data: { content:, usage:, tool_history: })
     rescue StandardError => e
       Rails.logger.error("[Sessions::Chat] Error: #{e.message}")
       ServiceResponse.failure(error: e.message)
