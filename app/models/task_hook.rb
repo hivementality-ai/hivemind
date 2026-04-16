@@ -7,6 +7,7 @@ class TaskHook < ApplicationRecord
   belongs_to :task_template, optional: true
   belongs_to :team, optional: true
   belongs_to :skill, optional: true
+  belongs_to :agent, optional: true
 
   validates :trigger, inclusion: { in: TRIGGERS }
   validates :on_status, inclusion: { in: Task::STATUSES }
@@ -29,6 +30,11 @@ class TaskHook < ApplicationRecord
     else
       "Unknown"
     end
+  end
+
+  # Human-readable label for the assigned agent
+  def agent_label
+    agent&.name || "No auto-assign"
   end
 
   private

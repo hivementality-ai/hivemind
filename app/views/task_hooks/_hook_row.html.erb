@@ -22,6 +22,15 @@
   <!-- Arrow -->
   <span class="text-text-faint">&rarr;</span>
 
+  <!-- Agent (auto-assign) -->
+  <% if hook.agent %>
+    <span class="text-sm text-emerald-400 font-medium"><%= hook.agent.name %></span>
+  <% else %>
+    <span class="text-sm text-text-faint italic">any agent</span>
+  <% end %>
+
+  <span class="text-text-faint">&rarr;</span>
+
   <!-- Skill or Default -->
   <% if hook.skill %>
     <span class="text-sm text-brand"><%= hook.skill.name %></span>

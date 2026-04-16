@@ -53,6 +53,78 @@ RSpec.describe Tasks::HookExecutor do
     end
   end
 
+  describe "agent auto-assignment" do
+    let(:hook_agent) { create(:agent, name: "armorer") }
+    let(:original_agent) { create(:agent, name: "mando") }
+    let(:assigned_task) { create(:task, title: "Build beskar armor", assigned_to_agent: original_agent) }
+
+    context "when hook has an agent assigned" do
+      let(:hook_with_agent) { create(:task_hook, :post, task: assigned_task, skill: skill, on_status: "review", agent: hook_agent) }
+
+      it "reassigns the task to the hook's agent" do
+        described_class.call(hook: hook_with_agent, task: assigned_task, agent: original_agent)
+        assigned_task.reload
+        expect(assigned_task.assigned_to_agent).to eq(hook_agent)
+      end
+
+      it "creates an auto_assigned event" do
+        expect {
+          described_class.call(hook: hook_with_agent, task: assigned_task, agent: original_agent)
+        }.to change(TaskEvent, :count).by(2) # auto_assigned + hook_fired
+
+        auto_event = TaskEvent.where(event_type: "auto_assigned").last
+        expect(auto_event.summary).to include("armorer")
+        expect(auto_event.summary).to include("post-hook")
+      end
+
+      it "uses the hook agent for the session, not the original agent" do
+        result = described_class.call(hook: hook_with_agent, task: assigned_task, agent: original_agent)
+        session = Session.find(result.data[:session_id])
+        expect(session.agent).to eq(hook_agent)
+      end
+
+      it "does not reassign if already assigned to the hook agent" do
+        assigned_task.update!(assigned_to_agent: hook_agent)
+        expect {
+          described_class.call(hook: hook_with_agent, task: assigned_task, agent: hook_agent)
+        }.to change(TaskEvent, :count).by(1) # only hook_fired, no auto_assigned
+      end
+    end
+
+    context "when hook has no agent assigned" do
+      let(:hook_no_agent) { create(:task_hook, :post, task: assigned_task, skill: skill, on_status: "review", agent: nil) }
+
+      it "uses the fallback agent passed in" do
+        result = described_class.call(hook: hook_no_agent, task: assigned_task, agent: original_agent)
+        session = Session.find(result.data[:session_id])
+        expect(session.agent).to eq(original_agent)
+      end
+
+      it "does not change task assignment" do
+        described_class.call(hook: hook_no_agent, task: assigned_task, agent: original_agent)
+        assigned_task.reload
+        expect(assigned_task.assigned_to_agent).to eq(original_agent)
+      end
+
+      it "falls back to task assigned agent when no agent passed" do
+        result = described_class.call(hook: hook_no_agent, task: assigned_task)
+        session = Session.find(result.data[:session_id])
+        expect(session.agent).to eq(original_agent)
+      end
+    end
+
+    context "with an unassigned task and a hook agent" do
+      let(:unassigned_task) { create(:task, title: "Unassigned task", assigned_to_agent: nil, created_by_agent: original_agent) }
+      let(:hook_assigns) { create(:task_hook, :post, task: unassigned_task, skill: skill, on_status: "in_progress", agent: hook_agent) }
+
+      it "assigns the hook agent to the previously unassigned task" do
+        described_class.call(hook: hook_assigns, task: unassigned_task)
+        unassigned_task.reload
+        expect(unassigned_task.assigned_to_agent).to eq(hook_agent)
+      end
+    end
+  end
+
   describe "prompt enrichment" do
     # We test the prompt content by inspecting what ChatStreamJob receives
     it "includes task description in the prompt" do

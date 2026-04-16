@@ -9,8 +9,12 @@ module Tasks
     def initialize(hook:, task:, agent:, context:)
       @hook = hook
       @task = task
-      @agent = agent || task.assigned_to_agent || task.created_by_agent
       @context = context
+
+      # Hook agent takes priority — this is the "hand off to next agent" behavior.
+      # If the hook specifies an agent, reassign the task and use that agent.
+      # Otherwise fall back to the passed agent, then task's current assignment.
+      @agent = resolve_and_reassign_agent(agent)
     end
 
     def call
@@ -139,6 +143,26 @@ module Tasks
       end
 
       parts.join("\n")
+    end
+
+    def resolve_and_reassign_agent(fallback_agent)
+      hook_agent = @hook.agent
+
+      if hook_agent
+        # Auto-reassign the task to the hook's agent (pipeline handoff)
+        if @task.assigned_to_agent != hook_agent
+          @task.update!(assigned_to_agent: hook_agent)
+          Tasks::EventLogger.call(
+            task: @task,
+            agent: hook_agent,
+            event_type: "auto_assigned",
+            summary: "Auto-assigned to #{hook_agent.name} by #{@hook.trigger}-hook on '#{@hook.on_status}'"
+          )
+        end
+        hook_agent
+      else
+        fallback_agent || @task.assigned_to_agent || @task.created_by_agent
+      end
     end
 
     def default_task_instructions

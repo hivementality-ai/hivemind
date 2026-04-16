@@ -782,6 +782,57 @@ RSpec.describe Tools::TaskManagerExecutor do
       end
     end
 
+    # ─── add_hook with agent_name ───────────────────────────────
+
+    context "action: add_hook with agent_name" do
+      let!(:task) { create(:task) }
+      let!(:skill) { create(:skill, name: "code_review") }
+      let!(:hook_agent) { create(:agent, name: "Armorer") }
+
+      let(:input) do
+        {
+          "action" => "add_hook",
+          "task_id" => task.id.to_s,
+          "skill_name" => "code_review",
+          "hook_trigger" => "post",
+          "hook_on_status" => "review",
+          "agent_name" => "Armorer"
+        }
+      end
+
+      it "creates a hook with the specified agent" do
+        subject.call
+        hook = TaskHook.last
+        expect(hook.agent).to eq(hook_agent)
+      end
+
+      it "returns success mentioning the agent" do
+        result = subject.call
+        expect(result).to be_success
+        expect(result.data[:output]).to include("Armorer")
+      end
+
+      context "when agent_name is not provided" do
+        before { input.delete("agent_name") }
+
+        it "creates a hook without an agent" do
+          subject.call
+          hook = TaskHook.last
+          expect(hook.agent).to be_nil
+        end
+      end
+
+      context "when agent not found" do
+        before { input["agent_name"] = "GhostAgent" }
+
+        it "returns failure" do
+          result = subject.call
+          expect(result).not_to be_success
+          expect(result.error).to include("not found")
+        end
+      end
+    end
+
     # ─── add_hook with team-level (no task_id) ───────────────────
 
     context "action: add_hook (team-level)" do
@@ -817,6 +868,25 @@ RSpec.describe Tools::TaskManagerExecutor do
           result = subject.call
           expect(result).not_to be_success
           expect(result.error).to include("No team found")
+        end
+      end
+
+      context "with agent_name for auto-assign" do
+        let!(:hook_agent) { create(:agent, name: "Armorer", team: team) }
+
+        before { input["agent_name"] = "Armorer" }
+
+        it "creates a team-level hook with the agent" do
+          subject.call
+          hook = TaskHook.last
+          expect(hook.team).to eq(team)
+          expect(hook.agent).to eq(hook_agent)
+        end
+
+        it "returns success mentioning the agent" do
+          result = subject.call
+          expect(result).to be_success
+          expect(result.data[:output]).to include("Armorer")
         end
       end
     end

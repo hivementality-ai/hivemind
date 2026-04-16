@@ -272,19 +272,29 @@ module Tools
         return ServiceResponse.failure(error: "Skill '#{skill_name}' not found") unless skill
       end
 
+      # Optional agent to auto-assign when this hook fires
+      hook_agent = nil
+      agent_name = input["agent_name"].to_s.strip.presence
+      if agent_name
+        hook_agent = Agent.find_by(name: agent_name) || Agent.find_by(slug: agent_name)
+        return ServiceResponse.failure(error: "Agent '#{agent_name}' not found") unless hook_agent
+      end
+
       task_id = input["task_id"]
       if task_id.present?
         task = Task.find(task_id)
         hook = TaskHook.create!(
           task: task,
           skill: skill,
+          agent: hook_agent,
           trigger: trigger,
           on_status: on_status,
           config: input["hook_config"] || {},
           position: task.task_hooks.count
         )
         label = skill ? "skill '#{skill.name}'" : "default behavior"
-        ServiceResponse.success(data: { output: "Added #{trigger}-hook on '#{on_status}' (#{label}) to task ##{task.id}" })
+        agent_label = hook_agent ? " → #{hook_agent.name}" : ""
+        ServiceResponse.success(data: { output: "Added #{trigger}-hook on '#{on_status}' (#{label}#{agent_label}) to task ##{task.id}" })
       else
         # Team-level default hook
         team = @agent&.team
@@ -293,13 +303,15 @@ module Tools
         hook = TaskHook.create!(
           team: team,
           skill: skill,
+          agent: hook_agent,
           trigger: trigger,
           on_status: on_status,
           config: input["hook_config"] || {},
           position: team.task_hooks.count
         )
         label = skill ? "skill '#{skill.name}'" : "default behavior"
-        ServiceResponse.success(data: { output: "Added team default #{trigger}-hook on '#{on_status}' (#{label})" })
+        agent_label = hook_agent ? " → #{hook_agent.name}" : ""
+        ServiceResponse.success(data: { output: "Added team default #{trigger}-hook on '#{on_status}' (#{label}#{agent_label})" })
       end
     rescue ActiveRecord::RecordNotFound
       ServiceResponse.failure(error: "Task not found")

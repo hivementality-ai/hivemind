@@ -1,6 +1,6 @@
 <div class="max-w-xl mx-auto px-6 py-8">
   <div class="flex items-center gap-3 mb-6">
-    <%= link_to task_hooks_path, class: "text-text-muted hover:text-white transition" do %>
+    <%= link_to team_task_hooks_path(@hook.team), class: "text-text-muted hover:text-white transition" do %>
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
       </svg>
@@ -24,6 +24,13 @@
         </div>
 
         <div>
+          <label class="block text-xs font-medium text-text-muted mb-1.5">Agent <span class="text-text-faint">(auto-assign on fire)</span></label>
+          <%= f.select :agent_id,
+                options_for_select([["No auto-assign", ""]] + @agents.map { |a| [a.name, a.id] }, @hook.agent_id),
+                {}, class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-brand/50" %>
+        </div>
+
+        <div>
           <label class="block text-xs font-medium text-text-muted mb-1.5">Skill <span class="text-text-faint">(optional)</span></label>
           <%= f.select :skill_id,
                 options_for_select([["Default behavior", ""]] + @skills.map { |s| [s.name, s.id] }, @hook.skill_id),
@@ -38,7 +45,7 @@
 
       <div class="flex items-center gap-3">
         <%= f.submit "Save Changes", class: "px-4 py-2 bg-brand hover:bg-brand/80 text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
-        <%= link_to "Cancel", task_hooks_path, class: "px-4 py-2 text-text-muted hover:text-white text-sm rounded-lg transition" %>
+        <%= link_to "Cancel", team_task_hooks_path(@hook.team), class: "px-4 py-2 text-text-muted hover:text-white text-sm rounded-lg transition" %>
       </div>
     <% end %>
   </div>

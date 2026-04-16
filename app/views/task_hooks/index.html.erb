@@ -20,6 +20,7 @@
       <div class="text-sm text-text-muted">
         <p class="text-text-primary font-medium mb-1">How hooks work</p>
         <p>Team hooks are <strong class="text-white">global defaults</strong> — they fire for any task on this team unless overridden by a task-level or template-level hook. Hooks run <strong class="text-white">pre</strong> (before) or <strong class="text-white">post</strong> (after) a status transition.</p>
+        <p class="mt-2"><strong class="text-white">Agent handoff:</strong> When a hook has an agent assigned, the task is automatically reassigned to that agent before the hook fires. This creates a pipeline — e.g. Mando writes code → moves to review → auto-assigns to Armorer → review hook fires.</p>
         <p class="mt-2">Precedence: <span class="text-brand">Task</span> > <span class="text-brand">Template</span> > <span class="text-brand">Team</span></p>
       </div>
     </div>
@@ -41,9 +42,17 @@
             <span class="text-text-muted text-sm">on</span>
             <span class="text-white font-medium text-sm"><%= hook.on_status %></span>
             <span class="text-text-faint">&rarr;</span>
+            <% if hook.agent %>
+              <span class="text-emerald-400 text-sm font-medium"><%= hook.agent.name %></span>
+            <% else %>
+              <span class="text-text-faint text-sm italic">any agent</span>
+            <% end %>
+
             <% if hook.skill %>
+              <span class="text-text-faint">&rarr;</span>
               <span class="text-brand text-sm font-medium"><%= hook.skill.name %></span>
             <% else %>
+              <span class="text-text-faint">&rarr;</span>
               <span class="text-text-muted text-sm italic">default behavior</span>
             <% end %>
 
@@ -95,7 +104,7 @@
     <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-4">Add Hook</h2>
 
     <%= form_with model: [@team, TaskHook.new], url: team_task_hooks_path(@team), local: true do |f| %>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
           <label class="block text-xs font-medium text-text-muted mb-1.5">Trigger</label>
           <%= f.select :trigger, TaskHook::TRIGGERS.map { |t| [t == "pre" ? "Pre (before)" : "Post (after)", t] },
@@ -105,6 +114,13 @@
         <div>
           <label class="block text-xs font-medium text-text-muted mb-1.5">On Status</label>
           <%= f.select :on_status, Task::STATUSES.map { |s| [s.humanize, s] },
+                {}, class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-brand/50" %>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-text-muted mb-1.5">Agent <span class="text-text-faint">(auto-assign on fire)</span></label>
+          <%= f.select :agent_id,
+                options_for_select([["No auto-assign", ""]] + @agents.map { |a| [a.name, a.id] }),
                 {}, class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-brand/50" %>
         </div>
 
