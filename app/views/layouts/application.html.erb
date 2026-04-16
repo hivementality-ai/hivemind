@@ -139,11 +139,14 @@
                 <span>Tasks</span>
               <% end %>
 
-              <%= link_to task_hooks_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{request.path.start_with?('/task_hooks') ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <span>Hooks</span>
+              <% first_team = Team.first %>
+              <% if first_team %>
+                <%= link_to team_task_hooks_path(first_team), class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{request.path.include?('/task_hooks') ? 'bg-surface-raised text-white' : ''}" do %>
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <span>Hooks</span>
+                <% end %>
               <% end %>
 
               <%= link_to budgets_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{current_page?(budgets_path) ? 'bg-surface-raised text-white' : ''}" do %>

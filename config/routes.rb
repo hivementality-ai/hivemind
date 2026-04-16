@@ -153,12 +153,7 @@ Rails.application.routes.draw do
     end
   end
 
-  # Task Hooks (dedicated management page)
-  resources :task_hooks, only: [:index, :create, :edit, :update, :destroy] do
-    member do
-      patch :toggle
-    end
-  end
+
 
   # Task Templates
   resources :task_templates
