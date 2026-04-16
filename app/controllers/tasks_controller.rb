@@ -1,17 +1,18 @@
 # frozen_string_literal: true
 
 class TasksController < ApplicationController
-  before_action :set_task, only: [ :show, :edit, :update, :destroy, :move, :toggle_checklist ]
+  before_action :set_task, only: [ :show, :edit, :update, :destroy, :move, :toggle_checklist, :archive ]
 
   def index
     @tasks_by_status = Task::STATUSES.index_with do |status|
-      Task.by_status(status).by_priority
+      Task.not_archived.by_status(status).by_priority
           .includes(:assigned_to_agent, :created_by_agent, :project, :project_milestone)
           .to_a
     end
-    @agents = Agent.visible.enabled.order(:name)
-    @total_open  = Task.open.count
-    @total_done  = Task.done.count
+    @agents          = Agent.visible.enabled.order(:name)
+    @total_open      = Task.not_archived.open.count
+    @total_done      = Task.not_archived.done.count
+    @total_archived  = Task.archived.count
   end
 
   def show
@@ -131,6 +132,25 @@ class TasksController < ApplicationController
     end
 
     render json: { status: "ok", task: task_json(@task.reload) }
+  end
+
+  # PATCH /tasks/:id/archive — archive a completed task
+  def archive
+    unless @task.status == "done"
+      respond_to do |format|
+        format.html { redirect_to tasks_path, alert: "Only completed tasks can be archived." }
+        format.json { render json: { error: "task must be in done status" }, status: :unprocessable_entity }
+      end
+      return
+    end
+
+    @task.archive!
+    Tasks::EventLogger.call(task: @task, event_type: "archived", summary: "Task archived")
+
+    respond_to do |format|
+      format.html { redirect_to tasks_path, notice: "Task archived." }
+      format.json { render json: { status: "ok" } }
+    end
   end
 
   # PATCH /tasks/:id/toggle_checklist — toggle a checklist item

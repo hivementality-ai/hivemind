@@ -24,6 +24,16 @@
     <%= link_to task_path(task), class: "text-sm font-medium text-white hover:text-brand leading-snug flex-1" do %>
       <%= task.title.truncate(80) %>
     <% end %>
+    <% if task.status == "done" %>
+      <%= button_to archive_task_path(task), method: :patch,
+            title: "Archive task",
+            data: { turbo_confirm: "Archive this task? It will be hidden from the board." },
+            class: "flex-shrink-0 p-1 text-text-faint hover:text-slate-300 hover:bg-surface-card rounded transition" do %>
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+        </svg>
+      <% end %>
+    <% end %>
   </div>
 
   <!-- Priority + ID + Indicators -->

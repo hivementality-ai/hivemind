@@ -144,6 +144,7 @@ Rails.application.routes.draw do
     member do
       patch :move
       patch :toggle_checklist
+      patch :archive
     end
   end
 

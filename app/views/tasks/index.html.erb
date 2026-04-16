@@ -3,7 +3,7 @@
     <div>
       <h1 class="text-3xl font-bold text-white">Tasks</h1>
       <p class="text-text-muted mt-1">
-        <%= @total_open %> open &middot; <%= @total_done %> done
+        <%= @total_open %> open &middot; <%= @total_done %> done<% if @total_archived > 0 %> &middot; <span class="text-text-faint"><%= @total_archived %> archived</span><% end %>
       </p>
     </div>
     <%= link_to new_task_path, class: "flex items-center gap-2 px-4 py-2 bg-brand hover:bg-brand/80 text-white rounded-lg font-medium transition" do %>

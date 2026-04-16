@@ -347,4 +347,53 @@ RSpec.describe Task, type: :model do
       expect(task.priority).to eq("high")
     end
   end
+
+  describe "archiving" do
+    describe ".not_archived" do
+      it "returns tasks without an archived_at timestamp" do
+        active = create(:task)
+        archived = create(:task, :done)
+        archived.archive!
+
+        expect(Task.not_archived).to include(active)
+        expect(Task.not_archived).not_to include(archived)
+      end
+    end
+
+    describe ".archived" do
+      it "returns only archived tasks" do
+        active = create(:task)
+        archived = create(:task, :done)
+        archived.archive!
+
+        expect(Task.archived).to include(archived)
+        expect(Task.archived).not_to include(active)
+      end
+    end
+
+    describe "#archive!" do
+      it "sets archived_at on a done task" do
+        task = create(:task, :done)
+        expect { task.archive! }.to change { task.archived_at }.from(nil)
+      end
+
+      it "raises ArgumentError when task is not in done status" do
+        task = create(:task, status: "in_progress")
+        expect { task.archive! }.to raise_error(ArgumentError, /only done tasks/)
+      end
+    end
+
+    describe "#archived?" do
+      it "returns false when archived_at is nil" do
+        task = build(:task)
+        expect(task.archived?).to be false
+      end
+
+      it "returns true when archived_at is set" do
+        task = create(:task, :done)
+        task.archive!
+        expect(task.archived?).to be true
+      end
+    end
+  end
 end
