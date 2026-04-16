@@ -231,10 +231,11 @@ class HeartbeatJob < ApplicationJob
       - delegate: Assign work to teammate agents. Use this to kick off tasks.
       - memory_search: Search your memories for context.
       - heartbeat_write: Manage the heartbeat checklist.
+      - project_list, project_status: READ-ONLY project awareness. You may check project/milestone status to include in your handoff, but do NOT start, update, or modify milestones. Projects advance through the task board, not through direct milestone updates.
 
       FORBIDDEN TOOLS (do NOT use these, even if available):
       - trello — We do NOT use Trello. All work tracking is done via task_manager.
-      - project_list, project_status, project_update — Project system is disabled.
+      - project_update — Do not modify projects or milestones directly. Flag needed changes in the handoff.
       - Any tool not listed in ALLOWED TOOLS above — ignore it completely.
 
       REQUIRED ACTIONS (use the actual tools — do NOT simulate or fabricate results):
