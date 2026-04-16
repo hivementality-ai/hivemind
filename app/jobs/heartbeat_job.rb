@@ -29,18 +29,21 @@ class HeartbeatJob < ApplicationJob
       agent.update_column(:model_provider, provider) if provider.present?
     end
 
-    session = Session.find_or_create_by!(
+    # --- Ephemeral session: fresh context every heartbeat ---
+    session = Session.create!(
       agent: agent,
-      title: "🫀 Heartbeat"
-    ) do |s|
-      s.session_key = "heartbeat-system"
-      s.status = "active"
-      s.metadata = { type: "heartbeat" }
-    end
+      title: "🫀 Heartbeat #{Time.current.strftime('%H:%M')}",
+      session_key: "heartbeat-#{SecureRandom.hex(6)}",
+      status: "active",
+      metadata: { type: "heartbeat" }
+    )
 
-    prompt = build_prompt(config)
+    # Load relay summary from last successful run
+    previous_summary = last_relay_summary
 
-    Rails.logger.info("[Heartbeat] Running with model #{agent.llm_model} via #{agent.model_provider}")
+    prompt = build_prompt(config, previous_summary)
+
+    Rails.logger.info("[Heartbeat] Running with model #{agent.llm_model} via #{agent.model_provider} (ephemeral session #{session.session_key})")
 
     started_at = Time.current
     result = Sessions::Chat.call(session: session, message: prompt, agent: agent)
@@ -56,18 +59,25 @@ class HeartbeatJob < ApplicationJob
     reply = result&.success? ? result.data[:content].to_s.strip : nil
     is_ok = reply.blank? || reply.match?(/\AHEARTBEAT_OK\z/i)
 
-    # Track the run
+    # Mark ephemeral session as completed
+    session.update!(status: "completed")
+
+    # Track the run (summary becomes the relay note for the next heartbeat)
     HeartbeatRun.create!(
       agent: agent,
       session: session,
       status: result&.success? ? (is_ok ? "ok" : "action_taken") : "error",
       summary: result&.success? ? reply&.truncate(2000) : result&.error&.truncate(2000),
+      previous_summary: previous_summary&.truncate(2000),
       input_tokens: usage[:input_tokens] || 0,
       output_tokens: usage[:output_tokens] || 0,
       duration_ms: duration_ms,
       model: agent.llm_model,
       metadata: { tasks_count: load_tasks.size }
     )
+
+    # Clean up old ephemeral heartbeat sessions (keep last 24h)
+    cleanup_old_sessions
 
     return if !result&.success? || is_ok
 
@@ -109,20 +119,35 @@ class HeartbeatJob < ApplicationJob
     end&.adapter_type
   end
 
-  def build_prompt(config)
+  # Get the summary from the last successful heartbeat run.
+  # This is the "relay note" — what the previous heartbeat did and observed.
+  def last_relay_summary
+    HeartbeatRun.where(status: %w[ok action_taken])
+                .order(created_at: :desc)
+                .pick(:summary)
+  end
+
+  def build_prompt(config, previous_summary = nil)
     tasks = load_tasks
     custom = config["prompt"]
 
     if config["light_context"]
-      build_light_prompt(tasks, custom)
+      build_light_prompt(tasks, custom, previous_summary)
     else
-      build_full_prompt(tasks, custom)
+      build_full_prompt(tasks, custom, previous_summary)
     end
   end
 
-  def build_full_prompt(tasks, custom)
+  def build_full_prompt(tasks, custom, previous_summary = nil)
     parts = []
     parts << "Heartbeat check-in. Time: #{Time.current.strftime('%A %B %-d, %Y %I:%M %p %Z')}."
+
+    # Relay summary from previous heartbeat
+    if previous_summary.present? && !previous_summary.match?(/\AHEARTBEAT_OK\z/i)
+      parts << "\n--- Previous heartbeat handoff ---"
+      parts << previous_summary
+      parts << "--- End handoff ---"
+    end
 
     standing, temporary = tasks.partition { |t| t["protected"] == true }
 
@@ -141,14 +166,27 @@ class HeartbeatJob < ApplicationJob
     end
 
     parts << "\n#{custom}" if custom.present?
-    parts << "\nReply HEARTBEAT_OK if nothing needs attention."
+
+    parts << "\n--- Instructions ---"
+    parts << "You are running in ephemeral mode. You have NO memory of previous heartbeats — the handoff above is your only context."
+    parts << "Use the task_manager tool to check the task board. Use the delegate tool to assign work to agents."
+    parts << "After completing your checks, end your response with a brief HANDOFF SUMMARY for the next heartbeat."
+    parts << "Format: 'HANDOFF: [what you did, what's pending, anything the next heartbeat should know]'"
+    parts << "If nothing needs attention, reply HEARTBEAT_OK."
 
     parts.join("\n")
   end
 
-  def build_light_prompt(tasks, custom)
+  def build_light_prompt(tasks, custom, previous_summary = nil)
     parts = []
     parts << "Heartbeat check-in. Time: #{Time.current.strftime('%A %B %-d, %Y %I:%M %p %Z')}."
+
+    # Relay summary from previous heartbeat
+    if previous_summary.present? && !previous_summary.match?(/\AHEARTBEAT_OK\z/i)
+      parts << "\n--- Previous heartbeat handoff ---"
+      parts << previous_summary
+      parts << "--- End handoff ---"
+    end
 
     standing, temporary = tasks.partition { |t| t["protected"] == true }
 
@@ -167,9 +205,26 @@ class HeartbeatJob < ApplicationJob
     end
 
     parts << "\n#{custom}" if custom.present?
-    parts << "\nReply HEARTBEAT_OK if nothing needs attention."
+
+    parts << "\n--- Instructions ---"
+    parts << "You are running in ephemeral mode. You have NO memory of previous heartbeats — the handoff above is your only context."
+    parts << "Use the task_manager tool to check the task board. Use the delegate tool to assign work to agents."
+    parts << "After completing your checks, end your response with a brief HANDOFF SUMMARY for the next heartbeat."
+    parts << "Format: 'HANDOFF: [what you did, what's pending, anything the next heartbeat should know]'"
+    parts << "If nothing needs attention, reply HEARTBEAT_OK."
 
     parts.join("\n")
+  end
+
+  # Remove ephemeral heartbeat sessions older than 24 hours.
+  # Keeps the database clean without losing recent audit trail.
+  def cleanup_old_sessions
+    Session.where("title LIKE ?", "🫀 Heartbeat%")
+           .where(status: "completed")
+           .where("created_at < ?", 24.hours.ago)
+           .destroy_all
+  rescue StandardError => e
+    Rails.logger.warn("[Heartbeat] Session cleanup failed: #{e.message}")
   end
 
   def load_tasks
