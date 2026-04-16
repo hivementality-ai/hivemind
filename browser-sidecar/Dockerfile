@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/playwright:v1.52.0-noble
+FROM mcr.microsoft.com/playwright:v1.59.1-noble
 
 RUN addgroup --system sidecar && adduser --system sidecar --ingroup sidecar
 
