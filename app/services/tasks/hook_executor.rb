@@ -147,10 +147,11 @@ module Tasks
 
         1. Read the task details above carefully — description, checklist, comments, and dependencies.
         2. **If this is a code task** (writing code, fixing bugs, creating PRs, etc.):
-           a. Use `git worktree` to create an isolated working directory for your branch. Do NOT work directly in the main checkout.
-           b. Create a new branch for your work (e.g., `task-<id>-<short-description>`).
-           c. Work inside the worktree directory. This prevents conflicts with other agents working on the same repo.
-           d. When done, commit, push, and create a PR. Clean up the worktree when finished (`git worktree remove`).
+           a. Check the task description and comments for the target repository. Clone it if it's not already in /workspace, or use the existing clone.
+           b. Use `git worktree` to create an isolated working directory for your branch. Do NOT work directly in the main checkout.
+           c. Create a new branch for your work (e.g., `task-<id>-<short-description>`).
+           d. Work inside the worktree directory. This prevents conflicts with other agents working on the same repo.
+           e. When done, commit and push your branch to the required repo. Create a PR if appropriate. Clean up the worktree when finished (`git worktree remove`).
         3. Do the work described. Follow the checklist items if present.
         4. Check off checklist items as you complete them using `task_manager` with `update_checklist` / `toggle`.
         5. When finished:
