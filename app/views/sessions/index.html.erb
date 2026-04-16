@@ -1,123 +1,133 @@
 <div class="max-w-7xl mx-auto px-6 py-8">
-  <div class="flex items-center justify-between mb-8">
+  <!-- Page Header -->
+  <div class="flex items-center justify-between mb-6">
     <div>
-      <h1 class="text-3xl font-bold text-white">Chat Sessions</h1>
-      <p class="text-text-muted mt-1">Talk to your agents</p>
+      <h1 class="text-2xl font-bold text-white">Chat</h1>
+      <p class="text-text-muted text-sm mt-0.5">Talk to your agents</p>
     </div>
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    <!-- Left: Agent Cards (sorted by most recent) -->
-    <div class="lg:col-span-2">
-      <h2 class="text-lg font-semibold text-white mb-4">Agents</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <% agents_by_recent = Agent.enabled.sort_by do |agent|
-             most_recent = Session.where(agent: agent).active_sessions.order(Arel.sql("COALESCE(last_activity_at, created_at) DESC")).first
-             most_recent&.last_activity_at || most_recent&.created_at || Time.at(0)
-           end.reverse %>
-        
-        <% agents_by_recent.each do |agent| %>
-          <% most_recent_session = Session.where(agent: agent).active_sessions.order(last_activity_at: :desc).first %>
-          
-          <div class="bg-surface-card rounded-xl border border-border-default p-6 hover:border-brand/50 transition">
-            <!-- Agent Header -->
-            <div class="flex items-center gap-3 mb-4">
-              <%= agent_avatar(agent, size: :md) %>
-              <div class="flex-1">
-                <h3 class="text-white font-semibold"><%= agent.name %></h3>
-                <p class="text-text-muted text-xs"><%= agent.role %> · <%= agent.llm_model %></p>
-              </div>
-            </div>
-
-            <!-- Agent Description -->
-            <p class="text-text-muted text-sm mb-4 line-clamp-2"><%= agent.system_prompt&.truncate(100) %></p>
-
-            <!-- Last Activity (if has sessions) -->
-            <% if most_recent_session %>
-              <div class="bg-surface-raised rounded-lg p-3 mb-4 border border-border-default/50">
-                <p class="text-text-muted text-xs">Last:</p>
-                <p class="text-text-primary text-xs mt-1 line-clamp-2">
-                  <% last_msg = most_recent_session.transcript&.last %>
-                  <% if last_msg %>
-                    <%= last_msg["content"]&.truncate(80) %>
-                  <% end %>
-                </p>
-                <p class="text-text-faint text-xs mt-2">
-                  <%= time_ago_in_words(most_recent_session.last_activity_at || most_recent_session.created_at) %> ago
-                </p>
+  <!-- Compact Agent Cards -->
+  <div class="mb-8">
+    <h2 class="text-xs font-semibold text-text-faint uppercase tracking-wider mb-3">Agents</h2>
+    <div class="flex flex-wrap gap-3">
+      <% @recent_agent_sessions.each do |entry| %>
+        <% agent = entry[:agent] %>
+        <% recent = entry[:session] %>
+        <div class="bg-surface-card border border-border-default rounded-xl p-4 hover:border-brand/50 transition flex items-center gap-3 min-w-[220px] flex-1 max-w-xs">
+          <%= agent_avatar(agent, size: :sm) %>
+          <div class="flex-1 min-w-0">
+            <div class="text-white font-medium text-sm truncate"><%= agent.name %></div>
+            <div class="text-text-faint text-xs truncate"><%= agent.role %></div>
+            <% if recent %>
+              <div class="text-text-faint text-xs mt-0.5">
+                <%= time_ago_in_words(recent.last_activity_at || recent.created_at) %> ago
               </div>
             <% end %>
-
-            <!-- Action Buttons -->
-            <div class="flex gap-2">
-              <% if most_recent_session %>
-                <!-- Resume Button (primary) -->
-                <%= link_to "Resume", session_path(most_recent_session),
-                    class: "flex-1 px-3 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition text-center" %>
-                
-                <!-- Start New Button (secondary) -->
-                <%= button_to "New", sessions_path(agent_id: agent.slug), method: :post,
-                    class: "flex-1 px-3 py-2 bg-surface-raised hover:bg-surface-overlay text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
-              <% else %>
-                <!-- Start New (full width when no sessions) -->
-                <%= button_to "Start Chat", sessions_path(agent_id: agent.slug), method: :post,
-                    class: "w-full px-3 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
-              <% end %>
-            </div>
           </div>
+          <div class="flex flex-col gap-1.5 flex-shrink-0">
+            <% if recent %>
+              <%= link_to "Resume", session_path(recent),
+                  class: "px-3 py-1 bg-brand hover:bg-brand-dark text-white text-xs font-medium rounded-lg transition text-center" %>
+              <%= button_to "New", sessions_path(agent_id: agent.slug), method: :post,
+                  class: "px-3 py-1 bg-surface-raised hover:bg-surface-overlay text-text-primary text-xs font-medium rounded-lg transition cursor-pointer" %>
+            <% else %>
+              <%= button_to "Chat", sessions_path(agent_id: agent.slug), method: :post,
+                  class: "px-3 py-1.5 bg-brand hover:bg-brand-dark text-white text-xs font-medium rounded-lg transition cursor-pointer" %>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Session List with Filters -->
+  <div>
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-xs font-semibold text-text-faint uppercase tracking-wider">All Sessions</h2>
+      <div class="flex items-center gap-2 text-sm">
+        <!-- Agent Filter -->
+        <%= form_with url: sessions_path, method: :get, data: { turbo: false }, class: "flex items-center gap-2" do |f| %>
+          <%= f.select :filter_agent,
+              options_for_select([["All agents", ""]] + @agents.map { |a| [a.name, a.id] }, params[:filter_agent]),
+              {},
+              class: "bg-surface-card border border-border-default text-text-primary text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand cursor-pointer",
+              onchange: "this.form.submit()" %>
+
+          <!-- Type Filter -->
+          <%= f.select :filter_type,
+              options_for_select([
+                ["All types", ""],
+                ["Direct chats", "direct"],
+                ["Delegated / subtasked", "delegated"]
+              ], params[:filter_type]),
+              {},
+              class: "bg-surface-card border border-border-default text-text-primary text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand cursor-pointer",
+              onchange: "this.form.submit()" %>
+
+          <% if params[:filter_agent].present? || params[:filter_type].present? %>
+            <%= link_to "Clear", sessions_path, class: "text-xs text-text-faint hover:text-white transition" %>
+          <% end %>
         <% end %>
       </div>
     </div>
 
-    <!-- Right: Recent Conversations -->
-    <div>
-      <h2 class="text-lg font-semibold text-white mb-4">Recent</h2>
-      <div class="bg-surface-card rounded-xl border border-border-default p-6 space-y-3 max-h-screen overflow-y-auto">
-        <% active_sessions = Session.where(status: :active).order(Arel.sql("COALESCE(last_activity_at, created_at) DESC")).limit(20) %>
-        
-        <% if active_sessions.any? %>
-          <% active_sessions.each do |session| %>
-            <%= link_to session_path(session), class: "block bg-surface-raised border border-border-default/50 rounded-lg p-3 hover:border-brand transition group" do %>
-              <div class="flex items-start gap-3 mb-2">
-                <%= agent_avatar(session.agent, size: :xs) %>
-                <div class="flex-1 min-w-0">
-                  <h4 class="text-white font-medium text-sm">
-                    <% if session.title.present? && session.title != "New Chat" %>
-                      <%= session.title %>
-                    <% else %>
-                      <%= session.agent.name %>
-                    <% end %>
-                  </h4>
-                  <p class="text-text-faint text-xs">
-                    <%= time_ago_in_words(session.last_activity_at || session.created_at) %> ago
-                  </p>
-                </div>
+    <% if @sessions.any? %>
+      <div class="space-y-1">
+        <% @sessions.each do |session| %>
+          <%= link_to session_path(session), class: "flex items-center gap-3 px-4 py-3 bg-surface-card border border-border-default rounded-xl hover:border-brand/50 transition group" do %>
+            <!-- Agent avatar -->
+            <%= agent_avatar(session.agent, size: :xs) %>
+
+            <!-- Title + preview -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-white text-sm font-medium truncate">
+                  <% if session.title.present? && session.title != "New Chat" %>
+                    <%= session.title %>
+                  <% else %>
+                    <%= session.agent.name %>
+                  <% end %>
+                </span>
+                <% if session.team_chat_session_id.present? %>
+                  <span class="flex-shrink-0 text-xs px-1.5 py-0.5 rounded bg-purple-900/40 border border-purple-700/40 text-purple-300">delegated</span>
+                <% end %>
                 <% if session.origin_channel_type.present? %>
-                  <span class="text-xs flex-shrink-0">
-                    <% case session.origin_channel_type %>
-                      <% when "whatsapp" %>
-                        <span class="px-1.5 py-0.5 bg-green-900/50 border border-green-700/50 rounded text-green-300 text-xs">WhatsApp</span>
-                      <% when "telegram" %>
-                        <span class="px-1.5 py-0.5 bg-cyan-900/50 border border-cyan-700/50 rounded text-cyan-300 text-xs">Telegram</span>
-                      <% when "discord" %>
-                        <span class="px-1.5 py-0.5 bg-purple-900/50 border border-purple-700/50 rounded text-purple-300 text-xs">Discord</span>
-                    <% end %>
-                  </span>
+                  <% case session.origin_channel_type %>
+                  <% when "whatsapp" %>
+                    <span class="flex-shrink-0 text-xs px-1.5 py-0.5 rounded bg-green-900/40 border border-green-700/40 text-green-300">WhatsApp</span>
+                  <% when "telegram" %>
+                    <span class="flex-shrink-0 text-xs px-1.5 py-0.5 rounded bg-cyan-900/40 border border-cyan-700/40 text-cyan-300">Telegram</span>
+                  <% when "discord" %>
+                    <span class="flex-shrink-0 text-xs px-1.5 py-0.5 rounded bg-purple-900/40 border border-purple-700/40 text-purple-300">Discord</span>
+                  <% end %>
                 <% end %>
               </div>
-              
               <% last_msg = session.transcript&.last %>
               <% if last_msg %>
-                <p class="text-text-muted text-xs truncate">
-                  <%= last_msg["content"]&.truncate(80) %>
+                <p class="text-text-muted text-xs truncate mt-0.5">
+                  <%= last_msg["content"]&.truncate(100) %>
                 </p>
               <% end %>
-            <% end %>
+            </div>
+
+            <!-- Agent name + time -->
+            <div class="flex-shrink-0 text-right">
+              <div class="text-text-faint text-xs"><%= session.agent.name %></div>
+              <div class="text-text-faint text-xs mt-0.5">
+                <%= time_ago_in_words(session.last_activity_at || session.created_at) %> ago
+              </div>
+            </div>
           <% end %>
-        <% else %>
-          <p class="text-text-muted text-sm text-center py-8">No recent conversations</p>
         <% end %>
       </div>
-    </div>
+    <% else %>
+      <div class="bg-surface-card border border-border-default rounded-xl px-6 py-12 text-center">
+        <p class="text-text-muted text-sm">No sessions found<%= params[:filter_agent].present? || params[:filter_type].present? ? " matching these filters" : "" %>.</p>
+        <% if params[:filter_agent].present? || params[:filter_type].present? %>
+          <%= link_to "Clear filters", sessions_path, class: "text-brand text-sm hover:underline mt-2 inline-block" %>
+        <% end %>
+      </div>
+    <% end %>
   </div>
 </div>
