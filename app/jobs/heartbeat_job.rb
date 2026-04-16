@@ -92,8 +92,13 @@ class HeartbeatJob < ApplicationJob
       "session_#{session.session_key}",
       { type: "heartbeat", content: reply, timestamp: Time.current.iso8601 }
     )
-    # Run project coordination on every heartbeat tick
-    Projects::Coordinator.call if Project.active_or_blocked.any?
+    # DISABLED: Projects::Coordinator was auto-kicking off milestone sessions
+    # every heartbeat cycle without explicit user approval. Milestones should
+    # use the task board instead — agents pick up work via task_manager, not
+    # by the coordinator spawning autonomous sessions behind the scenes.
+    # Re-enable once milestones are wired through the task system.
+    #
+    # Projects::Coordinator.call if Project.active_or_blocked.any?
 
   rescue StandardError => e
     Rails.logger.error("[Heartbeat] Failed: #{e.message}")
