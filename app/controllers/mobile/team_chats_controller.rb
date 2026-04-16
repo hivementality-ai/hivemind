@@ -6,6 +6,10 @@ module Mobile
 
     def index
       @teams = Team.includes(:agents).order(:name)
+      @recent_sessions = TeamChatSession
+                          .includes(:team, team: :agents)
+                          .order(updated_at: :desc)
+                          .limit(25)
     end
 
     def show

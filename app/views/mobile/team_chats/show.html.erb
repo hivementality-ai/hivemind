@@ -2,7 +2,7 @@
 <% agent_colors = {} %>
 <% @agents.each_with_index { |a, i| agent_colors[a.id] = colors[i % colors.size] } %>
 
-<div class="flex flex-col h-[100dvh]"
+<div class="flex flex-col h-full min-h-0"
      data-controller="mobile-chat"
      data-mobile-chat-session-id-value="<%= @session.id %>"
      data-mobile-chat-message-url-value="<%= message_mobile_team_chat_path(@session) %>"

@@ -1,92 +1,90 @@
 <div class="px-4 py-4 space-y-6">
 
+  <% colors = %w[bg-brand bg-green-600 bg-yellow-600 bg-pink-600 bg-cyan-600 bg-red-600 bg-indigo-600 bg-orange-600] %>
+  <% team_color = ->(team) { colors[(@teams.index(team) || 0) % colors.size] } %>
+
   <h1 class="text-lg font-bold text-white">Team Chats</h1>
 
-  <% colors = %w[bg-brand bg-green-600 bg-yellow-600 bg-pink-600 bg-cyan-600 bg-red-600 bg-indigo-600 bg-orange-600] %>
-
-  <% if @teams.any? %>
-    <% @teams.each do |team| %>
-      <section class="space-y-3">
-        <%# ===== Team Header Card ===== %>
-        <div class="rounded-xl bg-surface-card border border-border-default p-4">
-          <div class="flex items-center justify-between mb-3">
-            <div class="min-w-0 flex-1">
-              <h2 class="text-base font-semibold text-white truncate"><%= team.name %></h2>
-            </div>
-            <span class="flex-shrink-0 text-xs text-text-faint bg-surface-raised px-2 py-0.5 rounded-full">
-              <%= team.agents.enabled.count %> agents
-            </span>
-          </div>
-
-          <%# Agent avatar row %>
-          <div class="flex items-center mb-3">
-            <div class="flex -space-x-2">
-              <% team.agents.enabled.order(:name).first(8).each_with_index do |agent, i| %>
-                <div class="w-7 h-7 <%= colors[i % colors.size] %> rounded-full flex items-center justify-center text-white font-bold text-[10px] border-2 border-surface-card"
-                     title="<%= agent.name %>">
-                  <%= agent.name[0].upcase %>
-                </div>
-              <% end %>
-            </div>
-            <% extra = team.agents.enabled.count - 8 %>
-            <% if extra > 0 %>
-              <span class="ml-1 text-xs text-text-faint">+<%= extra %></span>
-            <% end %>
-          </div>
-
-          <%# Active indicator %>
-          <% active_count = team.team_chat_sessions.joins(:agent_sessions).where(agent_sessions: { status: :processing }).distinct.count rescue 0 %>
-          <% if active_count > 0 %>
-            <div class="flex items-center gap-1.5 mb-3">
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span class="text-xs text-emerald-400"><%= active_count %> active</span>
-            </div>
-          <% end %>
-
-          <%# New Chat button %>
-          <%= button_to team_team_chats_path(team), method: :post, class: "w-full px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition cursor-pointer text-center" do %>
-            New Chat
-          <% end %>
-        </div>
-
-        <%# ===== Recent Sessions ===== %>
-        <% sessions = team.team_chat_sessions.recent.limit(5) rescue [] %>
-        <% if sessions.any? %>
-          <div class="space-y-2">
-            <% sessions.each do |s| %>
-              <a href="<%= mobile_team_chat_path(s) %>" class="block rounded-xl bg-surface-card border border-border-default p-4 active:opacity-75 transition-opacity" style="min-height: 44px;">
-                <div class="flex items-start justify-between gap-3">
-                  <div class="min-w-0 flex-1">
-                    <p class="text-sm font-medium text-white truncate"><%= s.title %></p>
-                    <% last_msg = s.team_chat_messages.order(:created_at).last rescue nil %>
-                    <% if last_msg %>
-                      <p class="mt-1 text-xs text-text-muted line-clamp-2">
-                        <% if last_msg.from_agent? %>
-                          <% sender = team.agents.find { |a| a.id == last_msg.sender_id } %>
-                          <span class="text-amber-400"><%= sender&.name || "Agent" %>:</span>
-                        <% else %>
-                          <span class="text-amber-300">You:</span>
-                        <% end %>
-                        <%= last_msg.content.to_s.truncate(80) %>
-                      </p>
-                    <% end %>
-                  </div>
-                  <% if s.updated_at.present? %>
-                    <time class="flex-shrink-0 text-[11px] text-text-faint whitespace-nowrap" datetime="<%= s.updated_at.iso8601 %>">
-                      <%= time_ago_in_words(s.updated_at) %> ago
-                    </time>
+  <%# ===== Recent Chats (flat list, sorted by most recent) ===== %>
+  <section>
+    <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Recent Chats</h2>
+    <% if @recent_sessions.any? %>
+      <div class="space-y-2">
+        <% @recent_sessions.each do |s| %>
+          <% team = s.team %>
+          <a href="<%= mobile_team_chat_path(s) %>" class="block rounded-xl bg-surface-card border border-border-default p-4 active:opacity-75 transition-opacity" style="min-height: 44px;">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <% if team %>
+                    <span class="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded <%= team_color.call(team) %> text-white">
+                      <%= team.name %>
+                    </span>
                   <% end %>
                 </div>
-              </a>
-            <% end %>
-          </div>
-        <% else %>
-          <div class="rounded-xl bg-surface-card border border-border-default p-4 text-center">
-            <p class="text-xs text-text-muted">No chats yet. Start one to talk with your team.</p>
+                <p class="text-sm font-medium text-white truncate"><%= s.title %></p>
+                <% last_msg = s.team_chat_messages.order(:created_at).last rescue nil %>
+                <% if last_msg %>
+                  <p class="mt-1 text-xs text-text-muted line-clamp-2">
+                    <% if last_msg.from_agent? && team %>
+                      <% sender = team.agents.find { |a| a.id == last_msg.sender_id } %>
+                      <span class="text-amber-400"><%= sender&.name || "Agent" %>:</span>
+                    <% else %>
+                      <span class="text-amber-300">You:</span>
+                    <% end %>
+                    <%= last_msg.content.to_s.truncate(80) %>
+                  </p>
+                <% end %>
+              </div>
+              <% if s.updated_at.present? %>
+                <time class="flex-shrink-0 text-[11px] text-text-faint whitespace-nowrap" datetime="<%= s.updated_at.iso8601 %>">
+                  <%= time_ago_in_words(s.updated_at) %> ago
+                </time>
+              <% end %>
+            </div>
+          </a>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="rounded-xl bg-surface-card border border-border-default p-4 text-center">
+        <p class="text-xs text-text-muted">No chats yet. Start one below.</p>
+      </div>
+    <% end %>
+  </section>
+
+  <%# ===== Start New Chat (by team) ===== %>
+  <% if @teams.any? %>
+    <section>
+      <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Start New Chat</h2>
+      <div class="space-y-2">
+        <% @teams.each do |team| %>
+          <div class="rounded-xl bg-surface-card border border-border-default p-4">
+            <div class="flex items-center justify-between gap-3 mb-3">
+              <div class="min-w-0 flex-1">
+                <h3 class="text-sm font-semibold text-white truncate"><%= team.name %></h3>
+                <div class="flex items-center mt-1.5">
+                  <div class="flex -space-x-2">
+                    <% team.agents.enabled.order(:name).first(6).each_with_index do |agent, i| %>
+                      <div class="w-6 h-6 <%= colors[i % colors.size] %> rounded-full flex items-center justify-center text-white font-bold text-[9px] border-2 border-surface-card"
+                           title="<%= agent.name %>">
+                        <%= agent.name[0].upcase %>
+                      </div>
+                    <% end %>
+                  </div>
+                  <% extra = team.agents.enabled.count - 6 %>
+                  <% if extra > 0 %>
+                    <span class="ml-1 text-xs text-text-faint">+<%= extra %></span>
+                  <% end %>
+                </div>
+              </div>
+              <%= button_to team_team_chats_path(team), method: :post, class: "flex-shrink-0 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded-lg transition cursor-pointer" do %>
+                New Chat
+              <% end %>
+            </div>
           </div>
         <% end %>
-      </section>
-    <% end %>
+      </div>
+    </section>
   <% else %>
     <div class="rounded-xl bg-surface-card border border-border-default p-8 text-center">
       <p class="text-sm text-text-muted mb-2">No teams created yet.</p>

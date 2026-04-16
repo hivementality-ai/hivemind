@@ -1,5 +1,8 @@
 import { Controller } from "@hotwired/stimulus"
 import { createConsumer } from "@rails/actioncable"
+import { marked } from "marked"
+
+marked.setOptions({ breaks: true, gfm: true, silent: true })
 
 export default class extends Controller {
   static targets = [
@@ -28,7 +31,9 @@ export default class extends Controller {
     this.touchStartY = 0
 
     this.subscribeToChannel()
+    this.renderExistingMarkdown()
     this.scrollToBottom(true)
+
 
     if (this.processingValue) {
       this.showThinking()
@@ -189,7 +194,7 @@ export default class extends Controller {
     const bubble = document.createElement("div")
     bubble.className = "max-w-[85%] px-3 py-2 rounded-2xl rounded-bl-sm bg-surface-card text-white text-sm border border-border-default"
     const content = document.createElement("div")
-    content.className = "message-content prose prose-invert prose-sm max-w-none"
+    content.className = "message-content chat-content text-sm"
     bubble.appendChild(content)
     wrapper.appendChild(bubble)
     this.messagesTarget.appendChild(wrapper)
@@ -384,24 +389,32 @@ export default class extends Controller {
     })
   }
 
+  renderExistingMarkdown() {
+    if (!this.hasMessagesTarget) return
+    this.messagesTarget.querySelectorAll(".chat-content").forEach(el => {
+      const raw = el.textContent
+      if (raw && raw.trim()) {
+        el.innerHTML = this.renderMarkdown(raw)
+      }
+    })
+  }
+
   renderMarkdown(text) {
     if (!text) return ""
-    if (typeof marked !== "undefined") {
-      try {
-        const html = marked.parse(text)
-        return this.sanitize(html)
-      } catch {
-        return this.escapeHtml(text)
-      }
+    try {
+      const html = marked.parse(text)
+      return this.sanitize(html)
+    } catch {
+      return this.escapeHtml(text).replace(/\n/g, "<br>")
     }
-    return this.escapeHtml(text).replace(/\n/g, "<br>")
   }
 
   sanitize(html) {
-    const tmp = document.createElement("div")
-    tmp.innerHTML = html
-    tmp.querySelectorAll("script, iframe, object, embed, form").forEach(el => el.remove())
-    return tmp.innerHTML
+    return html
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+      .replace(/<(iframe|object|embed|form)\b[^>]*>[\s\S]*?<\/\1>/gi, "")
+      .replace(/\son\w+\s*=/gi, " data-blocked=")
+      .trim()
   }
 
   escapeHtml(text) {

@@ -22,9 +22,15 @@
 
   <style>
     body { font-family: 'Inter', sans-serif; }
+    html, body { overscroll-behavior: none; }
+    main { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+    [data-mobile-chat-target="messages"] {
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
   </style>
 </head>
-<body class="h-full bg-surface-base text-white overflow-x-hidden">
+<body class="h-full bg-surface-base text-white overflow-hidden">
   <div class="flex flex-col h-full" style="padding-bottom: env(safe-area-inset-bottom, 0px);">
 
     <%# ===== Header ===== %>
