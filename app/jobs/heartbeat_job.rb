@@ -233,13 +233,15 @@ class HeartbeatJob < ApplicationJob
       - heartbeat_write: Manage the heartbeat checklist.
 
       FORBIDDEN TOOLS (do NOT use these, even if available):
-      - trello: We do NOT use Trello. All work tracking is done via task_manager.
-      - Do NOT use any tool not listed above. Ignore tools outside the allowed list.
+      - trello — We do NOT use Trello. All work tracking is done via task_manager.
+      - project_list, project_status, project_update — Project system is disabled.
+      - Any tool not listed in ALLOWED TOOLS above — ignore it completely.
 
       REQUIRED ACTIONS (use the actual tools — do NOT simulate or fabricate results):
       1. Call task_manager with action "list" to check the task board. You MUST make this tool call.
       2. For any task in "todo" status that has an assigned agent, call delegate to tell that agent to pick it up and move it to in_progress. Do NOT ask the user — just delegate it.
-      3. If tasks need status updates, call task_manager with the appropriate action.
+      3. For unassigned tasks that need attention, flag them in your handoff summary.
+      4. Complete any one-off checklist items, then remove them with heartbeat_write.
 
       RULES:
       - NEVER describe what a tool "would return" — actually call it.
