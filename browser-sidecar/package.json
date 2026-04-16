@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "express": "^5.1.0",
-    "playwright": "^1.52.0"
+    "playwright": "1.59.1"
   },
   "devDependencies": {
     "jest": "^29.7.0",
