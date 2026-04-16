@@ -122,39 +122,50 @@ class HeartbeatJob < ApplicationJob
 
   def build_full_prompt(tasks, custom)
     parts = []
-    parts << "This is your periodic heartbeat check-in."
-    parts << "First, check your memories for context from previous heartbeats using the memory_search tool."
-    parts << "After completing tasks, save important findings to memory so you remember them next time."
+    parts << "This is your periodic heartbeat check-in. You are a monitor and delegator — assess and route, do not execute directly."
+    parts << "First, search your memories for context from previous heartbeats using the memory_search tool."
+    parts << "After completing checks, save important findings to memory so you remember them next time."
 
-    if tasks.any?
-      parts << "\nYour checklist:"
-      tasks.each_with_index do |t, i|
+    standing, temporary = tasks.partition { |t| t["protected"] == true }
+
+    if standing.any?
+      parts << "\n## Standing Monitors (run every heartbeat — do not remove these)"
+      standing.each_with_index do |t, i|
         parts << "#{i + 1}. #{t["task"]}"
       end
-      parts << "\nWork through each task. Report what you find."
+    end
+
+    if temporary.any?
+      parts << "\n## One-Off Tasks (handle then remove via heartbeat_write remove)"
+      temporary.each_with_index do |t, i|
+        parts << "#{i + 1}. #{t["task"]}"
+      end
+      parts << "Remove each one-off task after handling it using: heartbeat_write action=remove"
     end
 
     parts << "\n#{custom}" if custom.present?
 
-    # Include open task board context so agents can act on pending work
+    # Include open task board context so the monitor can assess status
     open_tasks = Task.open.by_priority.includes(:assigned_to_agent).limit(20)
     if open_tasks.any?
-      parts << "\nOpen tasks on the team board (use task_manager tool to update):"
+      parts << "\n## Team Task Board"
       open_tasks.each { |t| parts << "  - #{t.to_summary}" }
     end
 
-    # Highlight overdue tasks
+    # Highlight overdue tasks — these need delegation
     overdue = open_tasks.select(&:overdue?)
     if overdue.any?
-      parts << "\nOverdue tasks requiring attention:"
+      parts << "\n## Overdue — Delegate These"
       overdue.each { |t| parts << "  - #{t.to_summary}" }
     end
 
-    # Tell it who's available to delegate to
-    teammates = Agent.visible.enabled.pluck(:name, :role)
-    if teammates.any?
-      parts << "\nAvailable teammates you can delegate to:"
-      teammates.each { |name, role| parts << "- #{name} (#{role})" }
+    # Team-only delegation targets
+    team_agents = team_delegation_targets
+    if team_agents.any?
+      parts << "\n## Your Team (delegate only to these agents)"
+      team_agents.each { |name, role| parts << "- #{name} (#{role})" }
+    else
+      parts << "\nNo team members are configured. Skip delegation — work through checklist items only."
     end
 
     parts << "\nIf nothing needs attention, reply with exactly: HEARTBEAT_OK"
@@ -164,16 +175,34 @@ class HeartbeatJob < ApplicationJob
 
   def build_light_prompt(tasks, custom)
     parts = []
-    parts << "Heartbeat check-in. Tools: memory_search, delegate, message, heartbeat_write."
+    parts << "Heartbeat check-in. Monitor and delegate — do not execute. Tools: memory_search, delegate, task_manager, heartbeat_write."
 
-    if tasks.any?
-      parts << "\nChecklist:"
-      tasks.each_with_index do |t, i|
+    standing, temporary = tasks.partition { |t| t["protected"] == true }
+
+    if standing.any?
+      parts << "\nStanding monitors (do not remove):"
+      standing.each_with_index do |t, i|
+        parts << "#{i + 1}. #{t["task"]}"
+      end
+    end
+
+    if temporary.any?
+      parts << "\nOne-off tasks (remove after handling):"
+      temporary.each_with_index do |t, i|
         parts << "#{i + 1}. #{t["task"]}"
       end
     end
 
     parts << "\n#{custom}" if custom.present?
+
+    team_agents = team_delegation_targets
+    if team_agents.any?
+      parts << "\nTeam (delegate only to these):"
+      team_agents.each { |name, role| parts << "- #{name} (#{role})" }
+    else
+      parts << "\nNo team members configured. Skip delegation."
+    end
+
     parts << "\nReply HEARTBEAT_OK if nothing needs attention."
 
     parts.join("\n")
@@ -185,5 +214,11 @@ class HeartbeatJob < ApplicationJob
     JSON.parse(raw)
   rescue JSON::ParserError
     []
+  end
+
+  # Returns [name, role] pairs for agents that belong to a team.
+  # The heartbeat delegates to team members only — not every visible agent.
+  def team_delegation_targets
+    Agent.visible.enabled.where.not(team_id: nil).pluck(:name, :role)
   end
 end

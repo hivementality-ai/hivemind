@@ -124,4 +124,78 @@ RSpec.describe HeartbeatsController, type: :controller do
       expect(flash[:notice]).to include('triggered')
     end
   end
+
+  describe 'PATCH #update_soul' do
+    let!(:soul_agent) { create(:agent, name: 'Assistant', system_agent: true, role: 'General Assistant', enabled: true) }
+
+    it 'updates the system prompt and redirects' do
+      patch :update_soul, params: { system_prompt: 'You are a diligent monitor.' }
+      expect(response).to redirect_to(heartbeats_path)
+      expect(flash[:notice]).to include('Soul updated')
+      expect(soul_agent.reload.system_prompt).to eq('You are a diligent monitor.')
+    end
+
+    it 'strips leading/trailing whitespace from the prompt' do
+      patch :update_soul, params: { system_prompt: '   trimmed   ' }
+      expect(soul_agent.reload.system_prompt).to eq('trimmed')
+    end
+
+    context 'when not authenticated' do
+      before { sign_out user }
+
+      it 'redirects to sign in' do
+        patch :update_soul, params: { system_prompt: 'anything' }
+        expect(response).to redirect_to(new_user_session_path)
+      end
+    end
+  end
+
+  describe 'DELETE #delete_standing_task' do
+    before do
+      standing = [
+        { 'task' => 'Check logs', 'protected' => true, 'added_by' => 'user', 'added_at' => Time.current.iso8601 },
+        { 'task' => 'Temp task',  'protected' => false, 'added_by' => 'agent', 'added_at' => Time.current.iso8601 }
+      ]
+      Setting.set('heartbeat_tasks', standing.to_json)
+    end
+
+    it 'deletes an existing standing item and redirects with notice' do
+      delete :delete_standing_task, params: { task: 'Check logs' }
+      expect(response).to redirect_to(heartbeats_path)
+      expect(flash[:notice]).to include('deleted')
+
+      tasks = JSON.parse(Setting.get('heartbeat_tasks'))
+      expect(tasks.none? { |t| t['task'] == 'Check logs' }).to be true
+    end
+
+    it 'does not delete a temporary (non-protected) task' do
+      delete :delete_standing_task, params: { task: 'Temp task' }
+      expect(response).to redirect_to(heartbeats_path)
+      expect(flash[:alert]).to include('not found')
+
+      tasks = JSON.parse(Setting.get('heartbeat_tasks'))
+      expect(tasks.any? { |t| t['task'] == 'Temp task' }).to be true
+    end
+
+    it 'returns an alert when the task does not exist' do
+      delete :delete_standing_task, params: { task: 'Nonexistent task' }
+      expect(response).to redirect_to(heartbeats_path)
+      expect(flash[:alert]).to include('not found')
+    end
+
+    it 'returns an alert when no task param is given' do
+      delete :delete_standing_task, params: { task: '' }
+      expect(response).to redirect_to(heartbeats_path)
+      expect(flash[:alert]).to be_present
+    end
+
+    context 'when not authenticated' do
+      before { sign_out user }
+
+      it 'redirects to sign in' do
+        delete :delete_standing_task, params: { task: 'Check logs' }
+        expect(response).to redirect_to(new_user_session_path)
+      end
+    end
+  end
 end

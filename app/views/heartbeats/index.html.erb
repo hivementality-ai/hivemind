@@ -114,23 +114,87 @@
     </div>
   </div>
 
+  <!-- Soul Viewer / Editor -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-lg font-semibold text-white">Soul</h2>
+      <button type="button"
+              onclick="document.getElementById('soul-editor').classList.toggle('hidden')"
+              class="text-xs text-brand-light hover:underline">
+        Edit
+      </button>
+    </div>
+    <p class="text-text-faint text-sm mb-4">The system prompt that defines how the heartbeat assistant behaves. This is its core identity — the "soul" it wakes up with every run.</p>
+
+    <!-- Read-only soul view -->
+    <div id="soul-viewer" class="p-4 bg-surface-base rounded-lg">
+      <pre class="text-text-primary text-xs whitespace-pre-wrap leading-relaxed font-mono"><%= @soul_agent.system_prompt %></pre>
+    </div>
+
+    <!-- Inline editor (hidden by default) -->
+    <div id="soul-editor" class="hidden mt-4">
+      <%= form_tag update_soul_heartbeat_path, method: :patch do %>
+        <%= text_area_tag :system_prompt, @soul_agent.system_prompt,
+            rows: 16,
+            class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-brand resize-y" %>
+        <div class="flex justify-end gap-3 mt-3">
+          <button type="button"
+                  onclick="document.getElementById('soul-editor').classList.add('hidden')"
+                  class="px-4 py-2 bg-surface-overlay text-text-primary text-sm rounded-lg hover:bg-surface-raised transition">
+            Cancel
+          </button>
+          <%= submit_tag "Save Soul", class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
   <!-- Task Checklist -->
   <div class="bg-surface-card rounded-xl border border-border-default p-6">
-    <h2 class="text-lg font-semibold text-white mb-2">Checklist</h2>
-    <p class="text-text-faint text-sm mb-4">Tasks added by your agents. The heartbeat assistant works through these each check-in.</p>
+    <h2 class="text-lg font-semibold text-white mb-1">Checklist</h2>
+    <p class="text-text-faint text-sm mb-4">
+      Standing items (<span class="inline-flex items-center gap-1">🔒 <span class="text-xs">protected</span></span>) persist across every heartbeat — only you can delete them.
+      Temporary items are one-off tasks added by agents and are auto-wiped after being handled.
+    </p>
 
     <% tasks = begin; JSON.parse(Setting.get("heartbeat_tasks") || "[]"); rescue; []; end %>
+    <% standing_tasks = tasks.select { |t| t["protected"] == true } %>
+    <% temporary_tasks = tasks.reject { |t| t["protected"] == true } %>
+
     <% if tasks.any? %>
-      <div class="space-y-2">
-        <% tasks.each_with_index do |task, i| %>
-          <div class="flex items-center justify-between bg-surface-base rounded-lg px-4 py-3">
-            <div>
-              <p class="text-white text-sm"><%= task["task"] %></p>
-              <p class="text-gray-600 text-xs">Added by <%= task["added_by"] || "unknown" %> · <%= task["added_at"] ? time_ago_in_words(Time.parse(task["added_at"])) + " ago" : "" %></p>
+      <% if standing_tasks.any? %>
+        <p class="text-text-muted text-xs font-medium uppercase tracking-wide mb-2">Standing Monitors</p>
+        <div class="space-y-2 mb-4">
+          <% standing_tasks.each do |task| %>
+            <div class="flex items-center justify-between bg-surface-base rounded-lg px-4 py-3 border border-amber-800/30">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="text-amber-400 flex-shrink-0" title="Protected — only users can delete this">🔒</span>
+                <div class="min-w-0">
+                  <p class="text-white text-sm"><%= task["task"] %></p>
+                  <p class="text-gray-600 text-xs">Added by <%= task["added_by"] || "unknown" %> · <%= task["added_at"] ? time_ago_in_words(Time.parse(task["added_at"])) + " ago" : "" %></p>
+                </div>
+              </div>
+              <%= button_to "Delete", delete_standing_heartbeat_task_path(task: task["task"]), method: :delete,
+                  data: { turbo_confirm: "Delete this standing item permanently?" },
+                  class: "flex-shrink-0 ml-4 px-3 py-1 bg-red-900/40 hover:bg-red-800/60 text-red-400 text-xs rounded-lg transition" %>
             </div>
-          </div>
-        <% end %>
-      </div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <% if temporary_tasks.any? %>
+        <p class="text-text-muted text-xs font-medium uppercase tracking-wide mb-2">One-Off Tasks</p>
+        <div class="space-y-2">
+          <% temporary_tasks.each do |task| %>
+            <div class="flex items-center justify-between bg-surface-base rounded-lg px-4 py-3">
+              <div>
+                <p class="text-white text-sm"><%= task["task"] %></p>
+                <p class="text-gray-600 text-xs">Added by <%= task["added_by"] || "unknown" %> · <%= task["added_at"] ? time_ago_in_words(Time.parse(task["added_at"])) + " ago" : "" %></p>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
     <% else %>
       <p class="text-text-faint text-sm text-center py-4">No tasks yet. Your agents can add tasks using the <code class="text-text-muted">heartbeat_write</code> tool.</p>
     <% end %>

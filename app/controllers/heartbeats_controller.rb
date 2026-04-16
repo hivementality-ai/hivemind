@@ -7,6 +7,7 @@ class HeartbeatsController < ApplicationController
     @config = heartbeat_config
     @runs = HeartbeatRun.includes(:agent, :session).recent
     @provider_models = enabled_provider_models
+    @soul_agent = Agent.system_assistant
   end
 
   def update
@@ -28,6 +29,41 @@ class HeartbeatsController < ApplicationController
     redirect_to heartbeats_path, notice: "Heartbeat triggered"
   end
 
+  def update_soul
+    agent = Agent.system_assistant
+    agent.update!(system_prompt: params[:system_prompt].to_s.strip)
+    redirect_to heartbeats_path, notice: "Soul updated"
+  rescue ActiveRecord::RecordInvalid => e
+    redirect_to heartbeats_path, alert: "Failed to update soul: #{e.message}"
+  end
+
+  def delete_standing_task
+    task_name = params[:task].to_s.strip
+    return redirect_to heartbeats_path, alert: "No task specified" if task_name.blank?
+
+    setting = Setting.find_or_create_by!(key: "heartbeat_tasks") { |s| s.value = "[]" }
+    removed = 0
+
+    setting.with_lock do
+      tasks = begin
+        JSON.parse(setting.reload.value || "[]")
+      rescue JSON::ParserError
+        []
+      end
+
+      before = tasks.size
+      tasks.reject! { |t| t["task"] == task_name && t["protected"] == true }
+      removed = before - tasks.size
+      setting.update!(value: tasks.to_json)
+    end
+
+    if removed > 0
+      redirect_to heartbeats_path, notice: "Standing item deleted"
+    else
+      redirect_to heartbeats_path, alert: "Standing item not found"
+    end
+  end
+
   private
 
   def heartbeat_config
@@ -40,6 +76,14 @@ class HeartbeatsController < ApplicationController
 
   def default_config
     { "enabled" => false, "model" => nil, "provider" => nil, "interval_minutes" => 30, "prompt" => nil, "light_context" => false }
+  end
+
+  def load_tasks
+    raw = Setting.get("heartbeat_tasks")
+    return [] unless raw
+    JSON.parse(raw)
+  rescue JSON::ParserError
+    []
   end
 
   # Returns an array of { provider_name:, adapter_type:, models: [{id:, name:}] }
