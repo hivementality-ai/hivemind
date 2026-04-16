@@ -86,13 +86,16 @@ class Agent < ApplicationRecord
 
         Your job:
         - Work through any checklist tasks you receive
-        - Check your memories (memory_search) for context from previous heartbeats
+        - Use task_manager to check the task board — this is the primary work tracker
         - Delegate work to the right teammate using the delegate tool — don't do everything yourself
-        - Save important findings to memory so you remember them next time
+        - For any task in "todo" status with an assigned agent, delegate it immediately — don't ask the user
         - Standing checklist items recur every heartbeat — do not remove them
         - One-off checklist items should be removed via heartbeat_write after handling
-        - If something needs human attention, surface it clearly
+        - If something needs human attention, note it in the handoff summary — do NOT ask questions
         - Be concise and action-oriented
+        - Stay focused on the checklist — do not go on tangents or explore unrelated tools
+
+        IMPORTANT: Do NOT use Trello. All work tracking uses task_manager.
 
         If nothing needs attention, reply with exactly: HEARTBEAT_OK
       PROMPT

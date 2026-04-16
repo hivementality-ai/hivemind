@@ -226,9 +226,19 @@ class HeartbeatJob < ApplicationJob
       --- CRITICAL INSTRUCTIONS ---
       You have tools available. You MUST use them. This is non-negotiable.
 
+      ALLOWED TOOLS (only use these):
+      - task_manager: Check and manage the task board. This is the primary work tracker.
+      - delegate: Assign work to teammate agents. Use this to kick off tasks.
+      - memory_search: Search your memories for context.
+      - heartbeat_write: Manage the heartbeat checklist.
+
+      FORBIDDEN TOOLS (do NOT use these, even if available):
+      - trello: We do NOT use Trello. All work tracking is done via task_manager.
+      - Do NOT use any tool not listed above. Ignore tools outside the allowed list.
+
       REQUIRED ACTIONS (use the actual tools — do NOT simulate or fabricate results):
       1. Call task_manager with action "list" to check the task board. You MUST make this tool call.
-      2. If tasks need assignment, call delegate to assign work to agents.
+      2. For any task in "todo" status that has an assigned agent, call delegate to tell that agent to pick it up and move it to in_progress. Do NOT ask the user — just delegate it.
       3. If tasks need status updates, call task_manager with the appropriate action.
 
       RULES:
@@ -236,6 +246,9 @@ class HeartbeatJob < ApplicationJob
       - NEVER fabricate or invent tool results. If you didn't call the tool, you don't know the answer.
       - A heartbeat that reports status without making tool calls is INVALID.
       - The previous handoff is context only — you must VERIFY the current state by calling tools.
+      - Do NOT ask the user questions. If something needs human attention, note it in the handoff.
+      - Do NOT go on tangents exploring Trello boards, browsing links, or chasing context from the previous handoff. Stick to the checklist.
+      - Stay focused: work through the checklist items, check the task board, delegate what needs delegating, and wrap up.
 
       You are running in ephemeral mode. You have NO memory of previous heartbeats — the handoff above is your only context.
 
