@@ -157,6 +157,16 @@
       Temporary items are one-off tasks added by agents and are auto-wiped after being handled.
     </p>
 
+    <!-- Add Standing Task Form -->
+    <div class="mb-5">
+      <%= form_tag add_standing_heartbeat_task_path, method: :post, class: "flex items-center gap-2" do %>
+        <%= text_field_tag :task, nil,
+            placeholder: "Add a standing task…",
+            class: "flex-1 px-4 py-2.5 bg-surface-raised border border-border-default rounded-lg text-white text-sm placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50" %>
+        <%= submit_tag "Add", class: "px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+      <% end %>
+    </div>
+
     <% tasks = begin; JSON.parse(Setting.get("heartbeat_tasks") || "[]"); rescue; []; end %>
     <% standing_tasks = tasks.select { |t| t["protected"] == true } %>
     <% temporary_tasks = tasks.reject { |t| t["protected"] == true } %>

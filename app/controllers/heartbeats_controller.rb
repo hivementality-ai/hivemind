@@ -37,6 +37,36 @@ class HeartbeatsController < ApplicationController
     redirect_to heartbeats_path, alert: "Failed to update soul: #{e.message}"
   end
 
+  def add_standing_task
+    task_name = params[:task].to_s.strip
+    return redirect_to heartbeats_path, alert: "Task cannot be blank" if task_name.blank?
+
+    setting = Setting.find_or_create_by!(key: "heartbeat_tasks") { |s| s.value = "[]" }
+
+    setting.with_lock do
+      tasks = begin
+        JSON.parse(setting.reload.value || "[]")
+      rescue JSON::ParserError
+        []
+      end
+
+      if tasks.any? { |t| t["task"] == task_name && t["protected"] == true }
+        return redirect_to heartbeats_path, alert: "That standing task already exists"
+      end
+
+      tasks << {
+        "task" => task_name,
+        "protected" => true,
+        "added_by" => current_user.email,
+        "added_at" => Time.current.iso8601
+      }
+
+      setting.update!(value: tasks.to_json)
+    end
+
+    redirect_to heartbeats_path, notice: "Standing task added"
+  end
+
   def delete_standing_task
     task_name = params[:task].to_s.strip
     return redirect_to heartbeats_path, alert: "No task specified" if task_name.blank?
