@@ -145,19 +145,11 @@ module Tasks
       <<~INSTRUCTIONS.strip
         You have been assigned this task. Work through it using your available tools.
 
-        1. Read the task details above carefully — description, checklist, comments, and dependencies.
-        2. **If this is a code task** (writing code, fixing bugs, creating PRs, etc.):
-           a. Check the task description and comments for the target repository. Clone it if it's not already in /workspace, or use the existing clone.
-           b. Use `git worktree` to create an isolated working directory for your branch. Do NOT work directly in the main checkout.
-           c. Create a new branch for your work (e.g., `task-<id>-<short-description>`).
-           d. Work inside the worktree directory. This prevents conflicts with other agents working on the same repo.
-           e. When done, commit and push your branch to the required repo. Create a PR if appropriate. Clean up the worktree when finished (`git worktree remove`).
-        3. Do the work described. Follow the checklist items if present.
-        4. Check off checklist items as you complete them using `task_manager` with `update_checklist` / `toggle`.
-        5. When finished:
-           a. Add a summary comment to the task (`task_manager` → `add_comment`) explaining what you did, decisions made, and anything the reviewer should know.
-           b. Move the task to `review` (`task_manager` → `move` with status `review`).
-        6. If you get blocked or the task is unclear, add a comment explaining why and stop. Do NOT move to review.
+        Read the task details, description, checklist, comments, and dependencies carefully before starting.
+
+        For code tasks: use `git worktree` so you're working in an isolated branch — don't work directly on main. Push to the required repo (check the task description/comments for which repo). Create a PR if appropriate and clean up the worktree when done.
+
+        Check off checklist items as you go. When you're done, add a summary comment to the task and move it to `review`. If you get blocked, comment explaining why and stop — don't move to review.
       INSTRUCTIONS
     end
   end
