@@ -227,35 +227,52 @@ class HeartbeatJob < ApplicationJob
       You have tools available. You MUST use them. This is non-negotiable.
 
       ALLOWED TOOLS (only use these):
-      - task_manager: Check and manage the task board. This is the primary work tracker.
-      - delegate: Assign work to teammate agents. Use this to kick off tasks.
+      - task_manager: Check and manage the task board. This is your primary tool.
       - memory_search: Search your memories for context.
       - heartbeat_write: Manage the heartbeat checklist.
-      - project_list, project_status: READ-ONLY project awareness. You may check project/milestone status to include in your handoff, but do NOT start, update, or modify milestones. Projects advance through the task board, not through direct milestone updates.
+      - project_list, project_status: READ-ONLY project awareness. Check project/milestone status to include in your handoff, but do NOT modify milestones.
 
       FORBIDDEN TOOLS (do NOT use these, even if available):
       - trello — We do NOT use Trello. All work tracking is done via task_manager.
-      - project_update — Do not modify projects or milestones directly. Flag needed changes in the handoff.
+      - delegate — Do NOT delegate. Moving tasks to in_progress triggers hooks that start agent sessions automatically.
+      - project_update — Do not modify projects or milestones directly.
       - Any tool not listed in ALLOWED TOOLS above — ignore it completely.
 
-      REQUIRED ACTIONS (use the actual tools — do NOT simulate or fabricate results):
-      1. Call task_manager with action "list" to check the task board. You MUST make this tool call.
-      2. For any task in "todo" status that has an assigned agent, call delegate to tell that agent to pick it up and move it to in_progress. Do NOT ask the user — just delegate it.
-      3. For unassigned tasks that need attention, flag them in your handoff summary.
-      4. Complete any one-off checklist items, then remove them with heartbeat_write.
+      ## How the Task Board Works
 
-      RULES:
-      - NEVER describe what a tool "would return" — actually call it.
-      - NEVER fabricate or invent tool results. If you didn't call the tool, you don't know the answer.
-      - A heartbeat that reports status without making tool calls is INVALID.
-      - The previous handoff is context only — you must VERIFY the current state by calling tools.
-      - Do NOT ask the user questions. If something needs human attention, note it in the handoff.
-      - Do NOT go on tangents exploring Trello boards, browsing links, or chasing context from the previous handoff. Stick to the checklist.
-      - Stay focused: work through the checklist items, check the task board, delegate what needs delegating, and wrap up.
+      The task board has hooks. When a task is moved to `in_progress`, a hook automatically
+      creates a new agent session for the assigned agent with full task context. The agent
+      works through the task and moves it to `review` when done. You do NOT need to delegate
+      or create sessions — just move the task.
 
-      You are running in ephemeral mode. You have NO memory of previous heartbeats — the handoff above is your only context.
+      ## YOUR JOB (in order):
 
-      After completing your checks, end your response with a brief HANDOFF SUMMARY for the next heartbeat.
+      1. **Check the board**: Call task_manager with action "list" to see all tasks. REQUIRED.
+
+      2. **Kick off ready work**: For any task in "todo" status that:
+         - Has an assigned agent, AND
+         - Has its dependencies met (not blocked)
+         → Move it to "in_progress" using task_manager with action "move". The hook system handles the rest.
+
+      3. **Flag unassigned work**: If a "todo" task has no assigned agent, note it in your handoff.
+
+      4. **Monitor in_progress tasks**: Check for tasks that seem stalled (in_progress for a long time).
+         Note any concerns in your handoff. Do NOT move them — just report.
+
+      5. **Handle checklist**: Complete any one-off heartbeat checklist items, then remove them with heartbeat_write.
+
+      6. **Check projects** (if any): Call project_list / project_status to get a read on milestone progress. Include in handoff.
+
+      ## RULES:
+      - NEVER fabricate or simulate tool results. If you didn't call it, you don't know.
+      - A heartbeat without tool calls is INVALID.
+      - Do NOT ask the user questions. Flag issues in the handoff.
+      - Do NOT chase Trello, links, or tangents from the previous handoff. Stick to the checklist.
+      - Stay focused: check board → move ready tasks → handle checklist → write handoff → done.
+
+      You are running in ephemeral mode. The handoff above is your only context from the previous cycle.
+
+      End your response with a HANDOFF SUMMARY for the next heartbeat.
       Format: 'HANDOFF: [what you did, what's pending, anything the next heartbeat should know]'
       If nothing needs attention, reply HEARTBEAT_OK.
     INSTRUCTIONS

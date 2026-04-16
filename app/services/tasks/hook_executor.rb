@@ -60,12 +60,62 @@ module Tasks
       parts << "You are executing a #{@hook.trigger}-hook for task status transition to '#{@hook.on_status}'."
       parts << ""
       parts << "### Task Details"
-      parts << "- Title: #{@task.title}"
-      parts << "- Description: #{@task.description}" if @task.description.present?
-      parts << "- Status: #{@task.status}"
-      parts << "- Priority: #{@task.priority}"
-      parts << "- Assigned to: #{@task.assigned_to_agent&.name}" if @task.assigned_to_agent
+      parts << "- **Task ID**: ##{@task.id}"
+      parts << "- **Title**: #{@task.title}"
+      parts << "- **Status**: #{@task.status}"
+      parts << "- **Priority**: #{@task.priority}"
+      parts << "- **Assigned to**: #{@task.assigned_to_agent&.name}" if @task.assigned_to_agent
+      parts << "- **Created by**: #{@task.created_by_agent&.name}" if @task.created_by_agent
+      parts << "- **Due**: #{@task.due_at.strftime('%Y-%m-%d %H:%M')}" if @task.due_at.present?
+      parts << "- **Project**: #{@task.project.title}" if @task.project
+      parts << "- **Milestone**: #{@task.project_milestone.title}" if @task.project_milestone
       parts << ""
+
+      if @task.description.present?
+        parts << "### Description"
+        parts << @task.description
+        parts << ""
+      end
+
+      # Include checklist items
+      if @task.checklist.present?
+        parts << "### Checklist"
+        @task.checklist.each_with_index do |item, idx|
+          check = item["checked"] ? "x" : " "
+          parts << "- [#{check}] (index #{idx}) #{item['title']}"
+        end
+        parts << ""
+      end
+
+      # Include comments (full history)
+      if @task.comments.present?
+        parts << "### Comments"
+        @task.comments.each do |comment|
+          parts << "**#{comment['author']}** (#{comment['created_at']}):"
+          parts << comment["body"]
+          parts << ""
+        end
+      end
+
+      # Include dependency info
+      if @task.task_dependencies.exists?
+        parts << "### Dependencies"
+        @task.blocking_tasks.each do |dep|
+          status_icon = dep.status == "done" ? "✅" : "⏳"
+          parts << "- #{status_icon} ##{dep.id}: #{dep.title} (#{dep.status})"
+        end
+        parts << ""
+      end
+
+      # Include tasks that depend on this one
+      if @task.inverse_dependencies.exists?
+        parts << "### Downstream Tasks (blocked by this task)"
+        @task.dependent_tasks.each do |dep|
+          parts << "- ##{dep.id}: #{dep.title} (#{dep.status})"
+        end
+        parts << ""
+      end
+
       parts << "### Skill Instructions"
       parts << skill.content
       parts << ""
@@ -77,7 +127,7 @@ module Tasks
       end
 
       if @context.present?
-        parts << "### Task Context"
+        parts << "### Additional Context"
         parts << @context.to_s.truncate(5000)
         parts << ""
       end
