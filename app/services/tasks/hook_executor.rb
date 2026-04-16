@@ -91,6 +91,26 @@ module Tasks
         parts << ""
       end
 
+      # Include artifacts produced by prior agents
+      if @task.artifacts.present?
+        parts << "### Artifacts"
+        parts << "The following artifacts have been produced on this task by previous agents:"
+        parts << ""
+        @task.artifacts.each do |artifact|
+          parts << "#### #{artifact['title']} (#{artifact['type']})"
+          parts << "- **Created by**: #{artifact['created_by']}" if artifact["created_by"].present?
+          parts << "- **Created at**: #{artifact['created_at']}" if artifact["created_at"].present?
+          if artifact["metadata"].present? && artifact["metadata"].any?
+            artifact["metadata"].each { |k, v| parts << "- **#{k}**: #{v}" }
+          end
+          if artifact["content"].present?
+            parts << ""
+            parts << artifact["content"].truncate(10_000)
+          end
+          parts << ""
+        end
+      end
+
       # Include comments (full history)
       if @task.comments.present?
         parts << "### Comments"

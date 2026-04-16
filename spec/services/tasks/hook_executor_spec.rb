@@ -165,6 +165,64 @@ RSpec.describe Tasks::HookExecutor do
       described_class.call(hook: hook, task: task, agent: agent)
     end
 
+    it "includes artifacts in the prompt" do
+      task.add_artifact(
+        title: "auth_service.rb",
+        type: "code",
+        content: "class AuthService\n  def authenticate(user)\n    # ...\n  end\nend",
+        created_by: "mando",
+        metadata: { "language" => "ruby" }
+      )
+      task.add_artifact(
+        title: "Research Summary",
+        type: "document",
+        content: "## Findings\nThe API supports OAuth2.",
+        created_by: "grogu"
+      )
+
+      expect(ChatStreamJob).to receive(:perform_later) do |_session_id, prompt, _files|
+        expect(prompt).to include("### Artifacts")
+        expect(prompt).to include("previous agents")
+        expect(prompt).to include("auth_service.rb")
+        expect(prompt).to include("code")
+        expect(prompt).to include("class AuthService")
+        expect(prompt).to include("mando")
+        expect(prompt).to include("Research Summary")
+        expect(prompt).to include("document")
+        expect(prompt).to include("OAuth2")
+        expect(prompt).to include("grogu")
+        expect(prompt).to include("ruby")
+      end
+
+      described_class.call(hook: hook, task: task, agent: agent)
+    end
+
+    it "does not include artifacts section when task has no artifacts" do
+      expect(ChatStreamJob).to receive(:perform_later) do |_session_id, prompt, _files|
+        expect(prompt).not_to include("### Artifacts")
+      end
+
+      described_class.call(hook: hook, task: task, agent: agent)
+    end
+
+    it "truncates very long artifact content" do
+      task.add_artifact(
+        title: "huge_file.rb",
+        type: "code",
+        content: "x" * 20_000,
+        created_by: "mando"
+      )
+
+      expect(ChatStreamJob).to receive(:perform_later) do |_session_id, prompt, _files|
+        expect(prompt).to include("### Artifacts")
+        expect(prompt).to include("huge_file.rb")
+        # Content should be truncated to 10,000 chars
+        expect(prompt.scan("x").length).to be <= 10_001
+      end
+
+      described_class.call(hook: hook, task: task, agent: agent)
+    end
+
     it "includes dependency info in the prompt" do
       blocker = create(:task, title: "Build time circuits", status: "in_progress")
       create(:task_dependency, task: task, depends_on: blocker)
