@@ -10,7 +10,9 @@ class Task < ApplicationRecord
   belongs_to :project, optional: true
   belongs_to :project_milestone, optional: true
   belongs_to :session, optional: true
+  belongs_to :parent, class_name: "Task", optional: true
 
+  has_many :subtasks, class_name: "Task", foreign_key: :parent_id, dependent: :nullify, inverse_of: :parent
   has_many :task_hooks, dependent: :destroy
   has_many :task_events, dependent: :destroy
   has_many :task_dependencies, dependent: :destroy
@@ -22,6 +24,8 @@ class Task < ApplicationRecord
   validates :title, presence: true
   validates :status, inclusion: { in: STATUSES }
   validates :priority, inclusion: { in: PRIORITIES }
+  validate :parent_cannot_be_self
+  validate :parent_cannot_be_own_subtask
 
   before_validation :set_completed_at
 
@@ -66,6 +70,29 @@ class Task < ApplicationRecord
 
   def blocked_by_dependencies?
     task_dependencies.exists? && !dependencies_met?
+  end
+
+  # Can this subtask progress? Parent must be at least in_progress.
+  def parent_allows_progress?
+    return true unless parent_id?
+
+    status_index = STATUSES.index(parent.status)
+    status_index >= STATUSES.index("in_progress")
+  end
+
+  # Can this parent move to done? All subtasks must be done.
+  def subtasks_complete?
+    return true unless subtasks.exists?
+
+    subtasks.where.not(status: "done").none?
+  end
+
+  def subtask?
+    parent_id.present?
+  end
+
+  def parent_task?
+    subtasks.exists?
   end
 
   def checklist_complete?
@@ -159,6 +186,8 @@ class Task < ApplicationRecord
     parts << "Due: #{due_at.strftime('%Y-%m-%d')}" if due_at
     parts << "Project: #{project.title}" if project
     parts << "Milestone: #{project_milestone.title}" if project_milestone
+    parts << "Parent: ##{parent_id}" if parent_id?
+    parts << subtask_summary if subtask_summary
     parts << "Blocked" if blocked_by_dependencies?
     parts << "Checklist: #{checklist.count { |i| i['checked'] }}/#{checklist.size}" if checklist.present?
     parts << "Artifacts: #{artifacts.size}" if artifacts.present?
@@ -166,7 +195,36 @@ class Task < ApplicationRecord
     parts.join(" | ")
   end
 
+  # Include parent and subtask info in summary
+  def subtask_summary
+    return nil unless subtasks.exists?
+
+    done_count = subtasks.where(status: "done").count
+    "Subtasks: #{done_count}/#{subtasks.count}"
+  end
+
   private
+
+  def parent_cannot_be_self
+    errors.add(:parent_id, "a task cannot be its own parent") if parent_id.present? && parent_id == id
+  end
+
+  def parent_cannot_be_own_subtask
+    return unless parent_id.present? && parent_id_changed?
+    return unless id.present?
+
+    # Walk up the chain to detect cycles
+    current = parent
+    seen = Set.new([id])
+    while current
+      if seen.include?(current.id)
+        errors.add(:parent_id, "would create a circular parent-child relationship")
+        return
+      end
+      seen << current.id
+      current = current.parent
+    end
+  end
 
   def set_completed_at
     if status_changed? && status == "done" && completed_at.nil?

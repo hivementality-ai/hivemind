@@ -32,5 +32,9 @@ FactoryBot.define do
       association :created_by_agent, factory: :agent
       association :assigned_to_agent, factory: :agent
     end
+
+    trait :with_parent do
+      association :parent, factory: :task, status: "in_progress"
+    end
   end
 end

@@ -894,6 +894,38 @@ RSpec.describe Tools::TaskManagerExecutor do
       end
     end
 
+    # ─── create with parent_id (subtask) ──────────────────────────
+
+    context "action: create with parent_id" do
+      let!(:parent_task) { create(:task, title: "Parent feature", status: "in_progress") }
+      let(:input) { { "action" => "create", "title" => "Subtask one", "parent_id" => parent_task.id.to_s } }
+
+      it "creates a subtask linked to the parent" do
+        subject.call
+        task = Task.last
+        expect(task.parent).to eq(parent_task)
+      end
+
+      it "includes subtask label in output" do
+        result = subject.call
+        expect(result).to be_success
+        expect(result.data[:output]).to include("subtask of ##{parent_task.id}")
+      end
+    end
+
+    # ─── update with parent_id ──────────────────────────────────
+
+    context "action: update with parent_id" do
+      let!(:parent_task) { create(:task, title: "Parent feature") }
+      let!(:task) { create(:task, title: "Standalone task") }
+      let(:input) { { "action" => "update", "task_id" => task.id.to_s, "parent_id" => parent_task.id.to_s } }
+
+      it "sets the parent on the task" do
+        subject.call
+        expect(task.reload.parent).to eq(parent_task)
+      end
+    end
+
     # ─── create with template ────────────────────────────────────
 
     context "action: create with template" do

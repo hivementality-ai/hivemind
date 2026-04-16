@@ -807,6 +807,7 @@ BUILTIN_TOOLS = [
         "limit" => { "type" => "integer", "description" => "Max results to return (default: 20, max: 50)" },
         "template" => { "type" => "string", "description" => "Task template name to apply on create" },
         "checklist" => { "type" => "array", "items" => { "type" => "string" }, "description" => "Checklist items for create" },
+        "parent_id" => { "type" => "integer", "description" => "Parent task ID to create a subtask. Subtasks cannot progress past their parent's status, and parent tasks cannot close until all subtasks are done." },
         "depends_on_task_id" => { "type" => "integer", "description" => "Task ID to add/remove as dependency" },
         "checklist_action" => { "type" => "string", "description" => "Checklist sub-action: add or toggle", "enum" => %w[add toggle] },
         "item_title" => { "type" => "string", "description" => "Title for new checklist item (with checklist_action=add)" },

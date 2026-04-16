@@ -22,6 +22,29 @@
         <% end %>
       </div>
 
+      <!-- Subtasks -->
+      <% if @task.subtasks.any? %>
+        <div class="bg-surface-card rounded-xl border border-border-default p-6">
+          <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">
+            Subtasks (<%= @task.subtasks.where(status: "done").count %>/<%= @task.subtasks.count %>)
+          </h2>
+          <div class="space-y-2">
+            <% @task.subtasks.by_priority.each do |subtask| %>
+              <div class="flex items-center gap-3 px-3 py-2 bg-surface-raised rounded-lg border border-border-default">
+                <span class="w-2 h-2 rounded-full flex-shrink-0 <%= subtask.status == 'done' ? 'bg-green-500' : subtask.status == 'in_progress' ? 'bg-blue-500' : subtask.status == 'review' ? 'bg-purple-500' : 'bg-slate-500' %>"></span>
+                <%= link_to task_path(subtask), class: "flex-1 text-sm text-text-primary hover:text-brand transition" do %>
+                  <span class="font-medium">#<%= subtask.id %></span> <%= subtask.title %>
+                <% end %>
+                <span class="text-xs text-text-faint"><%= subtask.status.humanize %></span>
+                <% if subtask.assigned_to_agent %>
+                  <span class="text-xs text-text-muted"><%= subtask.assigned_to_agent.name %></span>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+
       <!-- Checklist -->
       <% if @task.checklist.present? %>
         <div class="bg-surface-card rounded-xl border border-border-default p-6">
@@ -295,6 +318,14 @@
             <div>
               <dt class="text-xs text-text-faint mb-1">Created by</dt>
               <dd class="text-sm text-white"><%= @task.created_by_agent.name %></dd>
+            </div>
+          <% end %>
+          <% if @task.parent %>
+            <div>
+              <dt class="text-xs text-text-faint mb-1">Parent Task</dt>
+              <dd class="text-sm text-brand">
+                <%= link_to "##{@task.parent.id} #{@task.parent.title.truncate(40)}", task_path(@task.parent), class: "hover:underline" %>
+              </dd>
             </div>
           <% end %>
           <% if @task.task_template %>

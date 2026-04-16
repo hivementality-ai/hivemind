@@ -46,7 +46,8 @@ module Tools
         status:             valid_status(input["status"]) || "backlog",
         priority:           valid_priority(input["priority"]) || "medium",
         created_by_agent:   agent,
-        due_at:             parse_date(input["due_at"])
+        due_at:             parse_date(input["due_at"]),
+        parent_id:          input["parent_id"].presence&.to_i
       )
 
       task.assigned_to_agent = find_agent(input["assign_to"]) if input["assign_to"].present?
@@ -76,7 +77,8 @@ module Tools
         summary: "Task created: #{task.title}"
       )
 
-      ServiceResponse.success(data: { output: "Created task ##{task.id}: #{task.title} (#{task.status}/#{task.priority})" })
+      parent_label = task.parent_id? ? " (subtask of ##{task.parent_id})" : ""
+      ServiceResponse.success(data: { output: "Created task ##{task.id}: #{task.title} (#{task.status}/#{task.priority})#{parent_label}" })
     end
 
     def update_task
@@ -86,6 +88,7 @@ module Tools
       task.description = input["description"]              if input.key?("description")
       task.priority    = valid_priority(input["priority"]) if input["priority"].present?
       task.due_at      = parse_date(input["due_at"])       if input.key?("due_at")
+      task.parent_id   = input["parent_id"]&.to_i          if input.key?("parent_id")
 
       # Optional linkage updates
       task.project           = find_project(input["project_id"])     if input.key?("project_id")

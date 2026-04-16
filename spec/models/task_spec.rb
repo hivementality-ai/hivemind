@@ -464,6 +464,145 @@ RSpec.describe Task, type: :model do
     end
   end
 
+  describe "parent-child relationships" do
+    describe "associations" do
+      it { should belong_to(:parent).class_name("Task").optional }
+      it { should have_many(:subtasks).class_name("Task").with_foreign_key(:parent_id) }
+    end
+
+    describe "validations" do
+      it "prevents a task from being its own parent" do
+        task = create(:task)
+        task.parent_id = task.id
+        expect(task).not_to be_valid
+        expect(task.errors[:parent_id]).to include("a task cannot be its own parent")
+      end
+
+      it "prevents circular parent-child relationships" do
+        parent = create(:task)
+        child = create(:task, parent: parent)
+        parent.parent_id = child.id
+        expect(parent).not_to be_valid
+        expect(parent.errors[:parent_id]).to include("would create a circular parent-child relationship")
+      end
+
+      it "allows valid parent assignment" do
+        parent = create(:task, status: "in_progress")
+        child = create(:task, parent: parent)
+        expect(child).to be_valid
+        expect(child.parent).to eq(parent)
+      end
+    end
+
+    describe "#subtask?" do
+      it "returns true when task has a parent" do
+        parent = create(:task)
+        child = create(:task, parent: parent)
+        expect(child.subtask?).to be true
+      end
+
+      it "returns false when task has no parent" do
+        task = create(:task)
+        expect(task.subtask?).to be false
+      end
+    end
+
+    describe "#parent_task?" do
+      it "returns true when task has subtasks" do
+        parent = create(:task)
+        create(:task, parent: parent)
+        expect(parent.parent_task?).to be true
+      end
+
+      it "returns false when task has no subtasks" do
+        task = create(:task)
+        expect(task.parent_task?).to be false
+      end
+    end
+
+    describe "#parent_allows_progress?" do
+      it "returns true when no parent" do
+        task = create(:task)
+        expect(task.parent_allows_progress?).to be true
+      end
+
+      it "returns true when parent is in_progress" do
+        parent = create(:task, status: "in_progress")
+        child = create(:task, parent: parent)
+        expect(child.parent_allows_progress?).to be true
+      end
+
+      it "returns true when parent is in review" do
+        parent = create(:task, status: "review")
+        child = create(:task, parent: parent)
+        expect(child.parent_allows_progress?).to be true
+      end
+
+      it "returns true when parent is done" do
+        parent = create(:task, :done)
+        child = create(:task, parent: parent)
+        expect(child.parent_allows_progress?).to be true
+      end
+
+      it "returns false when parent is in backlog" do
+        parent = create(:task, status: "backlog")
+        child = create(:task, parent: parent)
+        expect(child.parent_allows_progress?).to be false
+      end
+
+      it "returns false when parent is in todo" do
+        parent = create(:task, status: "todo")
+        child = create(:task, parent: parent)
+        expect(child.parent_allows_progress?).to be false
+      end
+    end
+
+    describe "#subtasks_complete?" do
+      it "returns true when no subtasks" do
+        task = create(:task)
+        expect(task.subtasks_complete?).to be true
+      end
+
+      it "returns true when all subtasks are done" do
+        parent = create(:task, status: "in_progress")
+        create(:task, :done, parent: parent)
+        create(:task, :done, parent: parent)
+        expect(parent.subtasks_complete?).to be true
+      end
+
+      it "returns false when any subtask is not done" do
+        parent = create(:task, status: "in_progress")
+        create(:task, :done, parent: parent)
+        create(:task, status: "in_progress", parent: parent)
+        expect(parent.subtasks_complete?).to be false
+      end
+    end
+
+    describe "dependent: :nullify" do
+      it "nullifies subtask parent_id when parent is destroyed" do
+        parent = create(:task)
+        child = create(:task, parent: parent)
+        parent.destroy!
+        expect(child.reload.parent_id).to be_nil
+      end
+    end
+
+    describe "#to_summary" do
+      it "includes parent reference for subtasks" do
+        parent = create(:task)
+        child = create(:task, parent: parent)
+        expect(child.to_summary).to include("Parent: ##{parent.id}")
+      end
+
+      it "includes subtask count for parent tasks" do
+        parent = create(:task, status: "in_progress")
+        create(:task, :done, parent: parent)
+        create(:task, status: "todo", parent: parent)
+        expect(parent.to_summary).to include("Subtasks: 1/2")
+      end
+    end
+  end
+
   describe "#apply_template!" do
     it "sets template and priority" do
       template = create(:task_template, default_priority: "high")

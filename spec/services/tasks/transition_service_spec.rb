@@ -83,6 +83,87 @@ RSpec.describe Tasks::TransitionService do
       end
     end
 
+    context "parent-child enforcement" do
+      it "blocks subtask from moving to in_progress when parent is in backlog" do
+        parent = create(:task, status: "backlog")
+        child = create(:task, status: "todo", parent: parent)
+
+        result = described_class.call(task: child, new_status: "in_progress")
+
+        expect(result).not_to be_success
+        expect(result.error).to include("Parent task")
+        expect(result.error).to include("must be at least in_progress")
+      end
+
+      it "blocks subtask from moving to in_progress when parent is in todo" do
+        parent = create(:task, status: "todo")
+        child = create(:task, status: "todo", parent: parent)
+
+        result = described_class.call(task: child, new_status: "in_progress")
+
+        expect(result).not_to be_success
+        expect(result.error).to include("Parent task")
+      end
+
+      it "allows subtask to move to in_progress when parent is in_progress" do
+        parent = create(:task, status: "in_progress")
+        child = create(:task, status: "todo", parent: parent)
+
+        result = described_class.call(task: child, new_status: "in_progress")
+
+        expect(result).to be_success
+        expect(child.reload.status).to eq("in_progress")
+      end
+
+      it "allows subtask to move to done when parent is in_progress" do
+        parent = create(:task, status: "in_progress")
+        child = create(:task, status: "review", parent: parent)
+
+        result = described_class.call(task: child, new_status: "done")
+
+        expect(result).to be_success
+      end
+
+      it "blocks parent from closing when subtasks are incomplete" do
+        parent = create(:task, status: "review")
+        create(:task, :done, parent: parent)
+        incomplete = create(:task, status: "in_progress", parent: parent)
+
+        result = described_class.call(task: parent, new_status: "done")
+
+        expect(result).not_to be_success
+        expect(result.error).to include("subtasks still open")
+        expect(result.error).to include("##{incomplete.id}")
+      end
+
+      it "allows parent to close when all subtasks are done" do
+        parent = create(:task, status: "review")
+        create(:task, :done, parent: parent)
+        create(:task, :done, parent: parent)
+
+        result = described_class.call(task: parent, new_status: "done")
+
+        expect(result).to be_success
+      end
+
+      it "allows parent to close when it has no subtasks" do
+        parent = create(:task, status: "review")
+
+        result = described_class.call(task: parent, new_status: "done")
+
+        expect(result).to be_success
+      end
+
+      it "allows subtask backward transitions regardless of parent status" do
+        parent = create(:task, status: "backlog")
+        child = create(:task, status: "in_progress", parent: parent)
+
+        result = described_class.call(task: child, new_status: "todo")
+
+        expect(result).to be_success
+      end
+    end
+
     context "pre-hooks" do
       it "blocks transition when pre-hook fails" do
         task = create(:task, status: "todo")
