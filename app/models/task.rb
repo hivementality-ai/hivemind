@@ -27,7 +27,8 @@ class Task < ApplicationRecord
 
   scope :open,       -> { where.not(status: "done") }
   scope :done,       -> { where(status: "done") }
-  scope :for_agent,  ->(agent) { where(assigned_to_agent: agent) }
+  scope :for_agent,   ->(agent)   { where(assigned_to_agent: agent) }
+  scope :for_project, ->(project) { where(project: project) }
   scope :by_status,  ->(s) { where(status: s) }
   scope :by_priority, -> { order(Arel.sql("CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END")) }
   scope :recent,     -> { order(created_at: :desc) }

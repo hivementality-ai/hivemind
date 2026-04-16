@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_03_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_16_130001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -718,7 +718,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_03_000001) do
     t.text "description"
     t.datetime "due_at"
     t.jsonb "metadata", default: {}, null: false
+    t.bigint "project_id"
+    t.bigint "project_milestone_id"
     t.string "priority", default: "medium", null: false
+    t.bigint "session_id"
     t.string "status", default: "backlog", null: false
     t.bigint "task_template_id"
     t.string "title", null: false
@@ -728,6 +731,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_03_000001) do
     t.index ["created_at"], name: "index_tasks_on_created_at"
     t.index ["created_by_agent_id"], name: "index_tasks_on_created_by_agent_id"
     t.index ["priority"], name: "index_tasks_on_priority"
+    t.index ["project_id"], name: "index_tasks_on_project_id"
+    t.index ["project_milestone_id"], name: "index_tasks_on_project_milestone_id"
+    t.index ["session_id"], name: "index_tasks_on_session_id"
     t.index ["status"], name: "index_tasks_on_status"
     t.index ["task_template_id"], name: "index_tasks_on_task_template_id"
   end
@@ -942,6 +948,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_03_000001) do
   add_foreign_key "agents", "agents", column: "reports_to_id", on_delete: :nullify
   add_foreign_key "tasks", "agents", column: "assigned_to_agent_id"
   add_foreign_key "tasks", "agents", column: "created_by_agent_id"
+  add_foreign_key "tasks", "project_milestones"
+  add_foreign_key "tasks", "projects"
+  add_foreign_key "tasks", "sessions"
   add_foreign_key "tasks", "task_templates"
   add_foreign_key "team_chat_messages", "team_chat_sessions"
   add_foreign_key "team_chat_sessions", "teams"
