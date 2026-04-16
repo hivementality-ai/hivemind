@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe HeartbeatJob, type: :job do
   let(:agent) { create(:agent, name: "System Assistant", llm_model: "claude-3-5-sonnet", model_provider: "anthropic", system_agent: true) }
   let(:config) { { "enabled" => true, "interval_minutes" => 30 }.to_json }
-  let(:chat_result) { double(success?: true, data: { content: "Everything looks good" }) }
+  let(:chat_result) { double(success?: true, data: { content: "Everything looks good", usage: {}, tool_history: nil }) }
 
   before do
     allow(ActionCable.server).to receive(:broadcast)
@@ -45,7 +45,7 @@ RSpec.describe HeartbeatJob, type: :job do
     end
 
     it "suppresses HEARTBEAT_OK responses" do
-      allow(Sessions::Chat).to receive(:call).and_return(double(success?: true, data: { content: "HEARTBEAT_OK" }))
+      allow(Sessions::Chat).to receive(:call).and_return(double(success?: true, data: { content: "HEARTBEAT_OK", usage: {}, tool_history: nil }))
       described_class.perform_now
       expect(ActionCable.server).not_to have_received(:broadcast)
     end
@@ -187,6 +187,18 @@ RSpec.describe HeartbeatJob, type: :job do
       expect { described_class.perform_now }.not_to raise_error
     end
 
+    # ─── Tool enforcement in prompt ───────────────────────────────
+
+    it "includes tool enforcement instructions in the prompt" do
+      described_class.perform_now
+
+      prompt_arg = nil
+      expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
+      expect(prompt_arg).to include("NEVER fabricate or invent tool results")
+      expect(prompt_arg).to include("MUST use them")
+      expect(prompt_arg).to include("task_manager")
+    end
+
     # ─── HeartbeatRun tracking ────────────────────────────────────
 
     it "creates a HeartbeatRun record after each execution" do
@@ -198,6 +210,28 @@ RSpec.describe HeartbeatJob, type: :job do
       described_class.perform_now
       run = HeartbeatRun.last
       expect(run.metadata["tasks_count"]).to eq(1)
+    end
+
+    it "records tool_calls_count in the run metadata" do
+      tool_history = [{ tool: "task_manager", input: { action: "list" }, output: "3 tasks", success: true }]
+      allow(Sessions::Chat).to receive(:call).and_return(
+        double(success?: true, data: { content: "Checked the board", usage: {}, tool_history: tool_history })
+      )
+
+      described_class.perform_now
+
+      run = HeartbeatRun.last
+      expect(run.metadata["tool_calls_count"]).to eq(1)
+    end
+
+    it "logs a warning when zero tool calls are made" do
+      allow(Sessions::Chat).to receive(:call).and_return(
+        double(success?: true, data: { content: "Everything fine", usage: {}, tool_history: nil })
+      )
+
+      expect(Rails.logger).to receive(:warn).with(/ZERO tool calls/)
+
+      described_class.perform_now
     end
 
     # ─── Ephemeral sessions ──────────────────────────────────────
@@ -352,13 +386,13 @@ RSpec.describe HeartbeatJob, type: :job do
         expect(prompt_arg).to include("Checked email")
       end
 
-      it "includes ephemeral mode instructions in light_context mode" do
+      it "includes tool enforcement instructions in light_context mode" do
         described_class.perform_now
 
         prompt_arg = nil
         expect(Sessions::Chat).to have_received(:call) { |args| prompt_arg = args[:message] }
-        expect(prompt_arg).to include("ephemeral mode")
-        expect(prompt_arg).to include("HANDOFF")
+        expect(prompt_arg).to include("NEVER fabricate")
+        expect(prompt_arg).to include("MUST use them")
       end
     end
   end
