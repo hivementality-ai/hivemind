@@ -4,6 +4,7 @@ class ProjectMilestone < ApplicationRecord
   belongs_to :project
   belongs_to :agent, optional: true
   belongs_to :session, optional: true
+  has_many :tasks, dependent: :nullify
   has_many :events, class_name: "ProjectEvent", dependent: :nullify
 
   validates :title, presence: true

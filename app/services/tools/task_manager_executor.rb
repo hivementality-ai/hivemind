@@ -47,9 +47,12 @@ module Tools
         due_at:             parse_date(input["due_at"])
       )
 
-      if input["assign_to"].present?
-        task.assigned_to_agent = find_agent(input["assign_to"])
-      end
+      task.assigned_to_agent = find_agent(input["assign_to"]) if input["assign_to"].present?
+
+      # Optional linkage to project / milestone / session
+      task.project           = find_project(input["project_id"])    if input["project_id"].present?
+      task.project_milestone = find_milestone(input["milestone_id"]) if input["milestone_id"].present?
+      task.session           = resolve_session(input["session_id"])  if input["session_id"].present?
 
       # Apply template if specified
       if input["template"].present?
@@ -77,10 +80,15 @@ module Tools
     def update_task
       task = find_task!
 
-      task.title       = input["title"]       if input["title"].present?
-      task.description = input["description"] if input.key?("description")
+      task.title       = input["title"]                    if input["title"].present?
+      task.description = input["description"]              if input.key?("description")
       task.priority    = valid_priority(input["priority"]) if input["priority"].present?
-      task.due_at      = parse_date(input["due_at"]) if input.key?("due_at")
+      task.due_at      = parse_date(input["due_at"])       if input.key?("due_at")
+
+      # Optional linkage updates
+      task.project           = find_project(input["project_id"])     if input.key?("project_id")
+      task.project_milestone = find_milestone(input["milestone_id"]) if input.key?("milestone_id")
+      task.session           = resolve_session(input["session_id"])  if input.key?("session_id")
 
       task.save!
       ServiceResponse.success(data: { output: "Updated task ##{task.id}: #{task.title}" })
@@ -119,8 +127,9 @@ module Tools
     def list_tasks
       scope = Task.all.by_priority.recent
 
-      scope = scope.by_status(input["status"]) if input["status"].present?
-      scope = scope.where(priority: input["priority"]) if input["priority"].present?
+      scope = scope.by_status(input["status"])           if input["status"].present?
+      scope = scope.where(priority: input["priority"])  if input["priority"].present?
+      scope = scope.for_project(find_project(input["project_id"])) if input["project_id"].present?
 
       if input["assigned_to"].present?
         target = find_agent(input["assigned_to"])
@@ -128,7 +137,7 @@ module Tools
       end
 
       limit = (input["limit"] || 20).to_i.clamp(1, 50)
-      tasks = scope.limit(limit).includes(:assigned_to_agent, :created_by_agent)
+      tasks = scope.limit(limit).includes(:assigned_to_agent, :created_by_agent, :project)
 
       return ServiceResponse.success(data: { output: "No tasks found." }) if tasks.empty?
 
@@ -142,7 +151,7 @@ module Tools
       end
 
       tasks = Task.for_agent(agent).open.by_priority.recent
-                  .includes(:created_by_agent)
+                  .includes(:created_by_agent, :project)
                   .limit(20)
 
       return ServiceResponse.success(data: { output: "You have no open tasks." }) if tasks.empty?
@@ -300,11 +309,35 @@ module Tools
     end
 
     def find_agent(name_or_id)
-      agent = Agent.find_by(name: name_or_id) ||
+      found = Agent.find_by(name: name_or_id) ||
               Agent.find_by(slug: name_or_id) ||
               Agent.find_by(id: name_or_id.to_i)
-      raise "Agent '#{name_or_id}' not found" unless agent
-      agent
+      raise "Agent '#{name_or_id}' not found" unless found
+      found
+    end
+
+    def find_project(id_or_title)
+      return nil if id_or_title.blank?
+
+      Project.find_by(id: id_or_title.to_i) ||
+        Project.find_by(title: id_or_title) ||
+        raise("Project '#{id_or_title}' not found")
+    end
+
+    def find_milestone(id)
+      return nil if id.blank?
+
+      ProjectMilestone.find(id)
+    rescue ActiveRecord::RecordNotFound
+      raise "Milestone ##{id} not found"
+    end
+
+    def resolve_session(id)
+      return nil if id.blank?
+
+      Session.find(id)
+    rescue ActiveRecord::RecordNotFound
+      raise "Session ##{id} not found"
     end
 
     def valid_status(val)
