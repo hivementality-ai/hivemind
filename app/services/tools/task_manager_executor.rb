@@ -334,11 +334,12 @@ module Tools
       title = require_param!("title")
 
       artifact = task.add_artifact(
-        title:      title,
-        content:    input["content"],
-        type:       input["type"] || "document",
-        metadata:   input["metadata"] || {},
-        created_by: agent&.name || "Unknown"
+        title:       title,
+        url:         input["url"],
+        description: input["description"],
+        type:        input["type"] || "url",
+        metadata:    input["metadata"] || {},
+        created_by:  agent&.name || "Unknown"
       )
 
       Tasks::EventLogger.call(

@@ -57,63 +57,60 @@
         </h2>
 
         <% if @task.artifacts.any? %>
-          <div class="space-y-3 mb-4">
+          <div class="space-y-2 mb-4">
             <% @task.artifacts.each do |artifact| %>
-              <div class="bg-surface-raised rounded-lg border border-border-default overflow-hidden">
-                <div class="flex items-center gap-3 px-4 py-2.5">
-                  <%
-                    icon_color = case artifact["type"]
-                      when "code"     then "text-green-400"
-                      when "document" then "text-blue-400"
-                      when "report"   then "text-purple-400"
-                      when "data"     then "text-yellow-400"
-                      when "image"    then "text-pink-400"
-                      when "link"     then "text-cyan-400"
-                      else                 "text-text-muted"
-                    end
-                  %>
-                  <svg class="w-4 h-4 flex-shrink-0 <%= icon_color %>" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <% case artifact["type"] %>
-                    <% when "code" %>
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                    <% when "image" %>
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    <% when "link" %>
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                    <% else %>
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    <% end %>
-                  </svg>
-                  <div class="flex-1 min-w-0">
-                    <span class="text-sm font-medium text-white"><%= artifact["title"] %></span>
-                    <span class="text-xs text-text-faint ml-2"><%= artifact["type"] %></span>
-                  </div>
-                  <% if artifact["created_by"] %>
-                    <span class="text-xs text-text-faint"><%= artifact["created_by"] %></span>
+              <div class="flex items-center gap-3 px-4 py-2.5 bg-surface-raised rounded-lg border border-border-default">
+                <%
+                  icon_color = case artifact["type"]
+                    when "pr"       then "text-green-400"
+                    when "branch"   then "text-orange-400"
+                    when "commit"   then "text-yellow-400"
+                    when "file"     then "text-blue-400"
+                    when "url"      then "text-cyan-400"
+                    when "document" then "text-purple-400"
+                    else                 "text-text-muted"
+                  end
+                %>
+                <svg class="w-4 h-4 flex-shrink-0 <%= icon_color %>" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <% case artifact["type"] %>
+                  <% when "pr" %>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                  <% when "branch" %>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  <% when "commit" %>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <% when "file" %>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <% when "url" %>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  <% when "document" %>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                  <% else %>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                   <% end %>
-                  <% if artifact["created_at"] %>
-                    <span class="text-xs text-text-faint"><%= Time.zone.parse(artifact["created_at"])&.strftime("%b %-d, %H:%M") rescue artifact["created_at"] %></span>
+                </svg>
+                <div class="flex-1 min-w-0">
+                  <% if artifact["url"].present? %>
+                    <%= link_to artifact["title"], artifact["url"], target: "_blank", rel: "noopener", class: "text-sm font-medium text-accent-primary hover:underline" %>
+                  <% else %>
+                    <span class="text-sm font-medium text-white"><%= artifact["title"] %></span>
+                  <% end %>
+                  <span class="text-xs text-text-faint ml-2"><%= artifact["type"] %></span>
+                  <% if artifact["description"].present? %>
+                    <span class="text-xs text-text-muted ml-2">— <%= artifact["description"].truncate(80) %></span>
                   <% end %>
                 </div>
-                <% if artifact["content"].present? %>
-                  <details class="group">
-                    <summary class="px-4 py-1.5 text-xs text-text-muted hover:text-white cursor-pointer select-none border-t border-border-default bg-surface-base/50">
-                      Show content
-                    </summary>
-                    <div class="px-4 py-3 border-t border-border-default bg-surface-base/30">
-                      <% if artifact["type"] == "code" %>
-                        <pre class="text-xs text-text-primary font-mono whitespace-pre-wrap overflow-x-auto"><%= artifact["content"] %></pre>
-                      <% else %>
-                        <div class="text-sm text-text-primary whitespace-pre-wrap"><%= artifact["content"] %></div>
-                      <% end %>
-                    </div>
-                  </details>
+                <% if artifact["created_by"] %>
+                  <span class="text-xs text-text-faint"><%= artifact["created_by"] %></span>
+                <% end %>
+                <% if artifact["created_at"] %>
+                  <span class="text-xs text-text-faint"><%= Time.zone.parse(artifact["created_at"])&.strftime("%b %-d, %H:%M") rescue artifact["created_at"] %></span>
                 <% end %>
               </div>
             <% end %>
           </div>
         <% else %>
-          <p class="text-text-faint text-sm">No artifacts yet. Agents attach artifacts as they work on this task.</p>
+          <p class="text-text-faint text-sm">No artifacts yet. Agents attach references (PRs, branches, docs) as they work.</p>
         <% end %>
       </div>
 

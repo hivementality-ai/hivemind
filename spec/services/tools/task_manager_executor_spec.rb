@@ -661,9 +661,10 @@ RSpec.describe Tools::TaskManagerExecutor do
         {
           "action" => "add_artifact",
           "task_id" => task.id.to_s,
-          "title" => "auth_service.rb",
-          "type" => "code",
-          "content" => "class AuthService; end"
+          "title" => "feat: add auth service (#42)",
+          "type" => "pr",
+          "url" => "https://github.com/org/repo/pull/42",
+          "description" => "Authentication service implementation"
         }
       end
 
@@ -671,7 +672,9 @@ RSpec.describe Tools::TaskManagerExecutor do
         subject.call
         task.reload
         expect(task.artifacts.size).to eq(1)
-        expect(task.artifacts.first["title"]).to eq("auth_service.rb")
+        expect(task.artifacts.first["title"]).to eq("feat: add auth service (#42)")
+        expect(task.artifacts.first["type"]).to eq("pr")
+        expect(task.artifacts.first["url"]).to eq("https://github.com/org/repo/pull/42")
       end
 
       it "sets the created_by to the agent name" do
@@ -683,28 +686,28 @@ RSpec.describe Tools::TaskManagerExecutor do
       it "returns success mentioning the artifact title" do
         result = subject.call
         expect(result).to be_success
-        expect(result.data[:output]).to include("auth_service.rb")
+        expect(result.data[:output]).to include("feat: add auth service (#42)")
       end
 
       it "logs an event" do
         expect { subject.call }.to change(TaskEvent, :count).by(1)
       end
 
-      it "defaults type to document when not provided" do
+      it "defaults type to url when not provided" do
         input.delete("type")
         subject.call
         task.reload
-        expect(task.artifacts.first["type"]).to eq("document")
+        expect(task.artifacts.first["type"]).to eq("url")
       end
 
-      context "without content" do
-        before { input.delete("content") }
+      context "without url" do
+        before { input.delete("url") }
 
-        it "creates artifact without content" do
+        it "creates artifact without url" do
           result = subject.call
           expect(result).to be_success
           task.reload
-          expect(task.artifacts.first["content"]).to be_nil
+          expect(task.artifacts.first["url"]).to be_nil
         end
       end
 
@@ -743,7 +746,7 @@ RSpec.describe Tools::TaskManagerExecutor do
 
     context "action: remove_artifact" do
       let!(:task) { create(:task) }
-      let!(:artifact) { task.add_artifact(type: "code", title: "old.rb", created_by: "Mando") }
+      let!(:artifact) { task.add_artifact(type: "pr", title: "PR #1", url: "https://github.com/org/repo/pull/1", created_by: "Mando") }
       let(:input) { { "action" => "remove_artifact", "task_id" => task.id.to_s, "artifact_id" => artifact["id"] } }
 
       it "removes the artifact" do

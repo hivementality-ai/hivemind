@@ -377,28 +377,35 @@ RSpec.describe Task, type: :model do
     let(:task) { create(:task) }
 
     describe "#add_artifact" do
-      it "adds an artifact and saves the record" do
-        artifact = task.add_artifact(type: "code", title: "auth_service.rb", content: "class AuthService; end", created_by: "Mando")
+      it "adds a reference artifact and saves the record" do
+        artifact = task.add_artifact(
+          type: "pr",
+          title: "feat: add auth service (#42)",
+          url: "https://github.com/org/repo/pull/42",
+          description: "Authentication service implementation",
+          created_by: "Mando"
+        )
         task.reload
         expect(task.artifacts.size).to eq(1)
-        expect(task.artifacts.first["title"]).to eq("auth_service.rb")
-        expect(task.artifacts.first["type"]).to eq("code")
-        expect(task.artifacts.first["content"]).to eq("class AuthService; end")
+        expect(task.artifacts.first["title"]).to eq("feat: add auth service (#42)")
+        expect(task.artifacts.first["type"]).to eq("pr")
+        expect(task.artifacts.first["url"]).to eq("https://github.com/org/repo/pull/42")
+        expect(task.artifacts.first["description"]).to eq("Authentication service implementation")
         expect(task.artifacts.first["created_by"]).to eq("Mando")
         expect(task.artifacts.first["id"]).to be_present
         expect(task.artifacts.first["created_at"]).to be_present
       end
 
       it "preserves existing artifacts when adding a new one" do
-        task.add_artifact(type: "code", title: "first.rb", created_by: "Mando")
-        task.add_artifact(type: "document", title: "second.md", created_by: "Grogu")
+        task.add_artifact(type: "pr", title: "PR #1", url: "https://github.com/org/repo/pull/1", created_by: "Mando")
+        task.add_artifact(type: "branch", title: "feat/auth", created_by: "Grogu")
         task.reload
         expect(task.artifacts.size).to eq(2)
       end
 
-      it "defaults to 'document' type for unknown types" do
+      it "defaults to 'url' type for unknown types" do
         artifact = task.add_artifact(type: "banana", title: "something")
-        expect(artifact["type"]).to eq("document")
+        expect(artifact["type"]).to eq("url")
       end
 
       it "accepts all valid artifact types" do
@@ -409,21 +416,23 @@ RSpec.describe Task, type: :model do
       end
 
       it "returns the newly added artifact hash" do
-        result = task.add_artifact(type: "report", title: "Analysis", content: "Findings...")
-        expect(result["title"]).to eq("Analysis")
-        expect(result["type"]).to eq("report")
+        result = task.add_artifact(type: "pr", title: "Fix bug (#10)", url: "https://github.com/org/repo/pull/10")
+        expect(result["title"]).to eq("Fix bug (#10)")
+        expect(result["type"]).to eq("pr")
+        expect(result["url"]).to eq("https://github.com/org/repo/pull/10")
         expect(result["id"]).to be_present
       end
 
-      it "omits nil content from the artifact hash" do
-        result = task.add_artifact(type: "link", title: "PR Link")
-        expect(result).not_to have_key("content")
+      it "omits nil url and description from the artifact hash" do
+        result = task.add_artifact(type: "branch", title: "feat/auth")
+        expect(result).not_to have_key("url")
+        expect(result).not_to have_key("description")
       end
     end
 
     describe "#remove_artifact" do
       it "removes an artifact by id" do
-        artifact = task.add_artifact(type: "code", title: "to_remove.rb", created_by: "Mando")
+        artifact = task.add_artifact(type: "pr", title: "PR #1", url: "https://github.com/org/repo/pull/1", created_by: "Mando")
         expect(task.artifacts.size).to eq(1)
 
         result = task.remove_artifact(artifact["id"])
@@ -433,7 +442,7 @@ RSpec.describe Task, type: :model do
       end
 
       it "returns false when artifact id is not found" do
-        task.add_artifact(type: "code", title: "keep.rb", created_by: "Mando")
+        task.add_artifact(type: "branch", title: "feat/auth", created_by: "Mando")
         result = task.remove_artifact("nonexistent-uuid")
         expect(result).to be false
         expect(task.artifacts.size).to eq(1)
@@ -445,12 +454,12 @@ RSpec.describe Task, type: :model do
       end
 
       it "only removes the matching artifact, keeping others" do
-        a1 = task.add_artifact(type: "code", title: "first.rb", created_by: "Mando")
-        task.add_artifact(type: "document", title: "second.md", created_by: "Grogu")
+        a1 = task.add_artifact(type: "pr", title: "PR #1", created_by: "Mando")
+        task.add_artifact(type: "branch", title: "feat/auth", created_by: "Grogu")
         task.remove_artifact(a1["id"])
         task.reload
         expect(task.artifacts.size).to eq(1)
-        expect(task.artifacts.first["title"]).to eq("second.md")
+        expect(task.artifacts.first["title"]).to eq("feat/auth")
       end
     end
   end

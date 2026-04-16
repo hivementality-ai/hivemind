@@ -94,15 +94,16 @@ class Task < ApplicationRecord
   end
 
   # ─── Artifacts ───────────────────────────────────────────────────
-  ARTIFACT_TYPES = %w[code document report data image link other].freeze
+  ARTIFACT_TYPES = %w[pr branch commit file url document other].freeze
 
-  def add_artifact(title:, content: nil, type: "document", metadata: {}, created_by: nil)
-    artifact_type = ARTIFACT_TYPES.include?(type) ? type : "document"
+  def add_artifact(title:, type: "url", url: nil, description: nil, metadata: {}, created_by: nil)
+    artifact_type = ARTIFACT_TYPES.include?(type) ? type : "url"
     entry = {
       "id"         => SecureRandom.uuid,
       "type"       => artifact_type,
       "title"      => title,
-      "content"    => content,
+      "url"        => url,
+      "description" => description,
       "metadata"   => metadata,
       "created_by" => created_by,
       "created_at" => Time.current.iso8601

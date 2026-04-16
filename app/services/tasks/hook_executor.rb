@@ -91,6 +91,19 @@ module Tasks
         parts << ""
       end
 
+      # Include artifacts as compact references
+      if @task.artifacts.present?
+        parts << "### Artifacts"
+        @task.artifacts.each do |artifact|
+          line = "- **#{artifact['title']}** (#{artifact['type']})"
+          line += " — #{artifact['url']}" if artifact["url"].present?
+          line += " by #{artifact['created_by']}" if artifact["created_by"].present?
+          line += ": #{artifact['description']}" if artifact["description"].present?
+          parts << line
+        end
+        parts << ""
+      end
+
       # Include comments (full history)
       if @task.comments.present?
         parts << "### Comments"
@@ -129,6 +142,17 @@ module Tasks
         parts << default_task_instructions
         parts << ""
       end
+
+      # Always remind agents to record their output as artifacts
+      parts << "### Recording Your Work"
+      parts << "When you produce deliverables, record each one as a task artifact using the `task_manager` tool with `add_artifact`:"
+      parts << "- **title**: Short name (e.g. \"feat: auth service (#42)\", \"feature/auth-module\")"
+      parts << "- **type**: `pr`, `branch`, `commit`, `file`, `url`, or `document`"
+      parts << "- **url**: Link to the resource (GitHub PR URL, branch URL, doc link, etc.)"
+      parts << "- **description**: One-line summary of what it is"
+      parts << ""
+      parts << "This ensures the next agent in the pipeline knows what you produced and where to find it."
+      parts << ""
 
       if @hook.config.present?
         parts << "### Hook Configuration"
