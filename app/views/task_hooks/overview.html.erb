@@ -1,0 +1,89 @@
+<div class="max-w-5xl mx-auto px-6 py-8">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-white">Hooks</h1>
+      <p class="text-sm text-text-muted mt-0.5">Automate agent handoffs and actions on task status changes.</p>
+    </div>
+  </div>
+
+  <!-- Explanation -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-5 mb-6">
+    <div class="flex items-start gap-3">
+      <svg class="w-5 h-5 text-brand mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <div class="text-sm text-text-muted">
+        <p class="text-text-primary font-medium mb-1">How hooks work</p>
+        <p>Hooks fire automatically when a task changes status. They can <strong class="text-white">reassign the task</strong> to a specific agent and <strong class="text-white">load a skill</strong> to guide that agent's work. This creates automated pipelines &mdash; one agent completes their stage, the task moves to the next status, and the next agent picks it up automatically.</p>
+        <p class="mt-2">Hooks run <strong class="text-white">pre</strong> (before) or <strong class="text-white">post</strong> (after) a status transition. Team hooks are global defaults that apply to all tasks unless overridden.</p>
+        <p class="mt-2">Precedence: <span class="text-brand">Task</span> > <span class="text-brand">Template</span> > <span class="text-brand">Team</span></p>
+      </div>
+    </div>
+  </div>
+
+  <% if @teams.any? %>
+    <div class="space-y-6">
+      <% @teams.each do |team| %>
+        <div class="bg-surface-card rounded-xl border border-border-default p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <h2 class="text-white font-semibold text-lg"><%= team.name %></h2>
+              <span class="px-2 py-0.5 text-xs rounded-full bg-brand/20 text-brand-light">
+                <%= team.agents.size %> agent<%= team.agents.size == 1 ? "" : "s" %>
+              </span>
+              <% if team.task_hooks.any? %>
+                <span class="px-2 py-0.5 text-xs rounded-full bg-purple-900/30 text-purple-300">
+                  <%= team.task_hooks.size %> hook<%= team.task_hooks.size == 1 ? "" : "s" %>
+                </span>
+              <% end %>
+            </div>
+            <%= link_to team_task_hooks_path(team),
+                class: "px-3 py-1.5 text-xs font-medium bg-brand hover:bg-brand/80 text-white rounded-lg transition inline-flex items-center gap-1.5" do %>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Manage Hooks
+            <% end %>
+          </div>
+
+          <% if team.task_hooks.any? %>
+            <div class="space-y-2">
+              <% team.task_hooks.select(&:enabled?).each do |hook| %>
+                <div class="flex items-center gap-3 bg-surface-raised rounded-lg px-4 py-2.5">
+                  <span class="px-2 py-0.5 rounded text-xs font-semibold uppercase <%= hook.trigger == 'pre' ? 'bg-blue-900/40 text-blue-300' : 'bg-purple-900/40 text-purple-300' %>">
+                    <%= hook.trigger %>
+                  </span>
+                  <span class="text-text-muted text-sm">on</span>
+                  <span class="text-white font-medium text-sm"><%= hook.on_status %></span>
+                  <span class="text-text-faint">&rarr;</span>
+                  <% if hook.agent %>
+                    <span class="text-emerald-400 text-sm font-medium"><%= hook.agent.name %></span>
+                  <% else %>
+                    <span class="text-text-faint text-sm italic">current agent</span>
+                  <% end %>
+                  <% if hook.skill %>
+                    <span class="text-text-faint">&rarr;</span>
+                    <span class="text-brand text-sm font-medium"><%= hook.skill.name %></span>
+                  <% end %>
+                </div>
+              <% end %>
+              <% disabled_count = team.task_hooks.reject(&:enabled?).size %>
+              <% if disabled_count > 0 %>
+                <p class="text-text-faint text-xs pl-4"><%= disabled_count %> disabled hook<%= disabled_count == 1 ? "" : "s" %> not shown</p>
+              <% end %>
+            </div>
+          <% else %>
+            <p class="text-text-faint text-sm">No hooks configured. Click "Manage Hooks" to add automation for this team.</p>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="bg-surface-card rounded-xl border border-border-default p-12 text-center">
+      <p class="text-text-muted text-sm mb-2">No teams yet.</p>
+      <p class="text-text-faint text-xs mb-4">Create a team first, then you can add hooks to automate task workflows.</p>
+      <%= link_to "Create a Team", new_team_path, class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition" %>
+    </div>
+  <% end %>
+</div>

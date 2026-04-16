@@ -155,6 +155,9 @@ Rails.application.routes.draw do
 
 
 
+  # Hooks (top-level overview of all teams' hooks)
+  get "hooks", to: "task_hooks#overview", as: :hooks_overview
+
   # Task Templates
   resources :task_templates
 

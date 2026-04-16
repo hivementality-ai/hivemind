@@ -2,8 +2,12 @@
 
 class TaskHooksController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_team
+  before_action :set_team, except: :overview
   before_action :set_hook, only: %i[edit update destroy toggle]
+
+  def overview
+    @teams = Team.includes(:agents, task_hooks: [:skill, :agent]).order(:name)
+  end
 
   def index
     @hooks = @team.task_hooks.includes(:skill, :agent).ordered
