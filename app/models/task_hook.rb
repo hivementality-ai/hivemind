@@ -18,6 +18,19 @@ class TaskHook < ApplicationRecord
   scope :for_status, ->(s) { where(on_status: s) }
   scope :ordered, -> { order(:position) }
 
+  # Human-readable label for the hook's scope
+  def scope_label
+    if task_id.present?
+      "Task ##{task_id}"
+    elsif task_template_id.present?
+      "Template: #{task_template&.name}"
+    elsif team_id.present?
+      "Team default"
+    else
+      "Unknown"
+    end
+  end
+
   private
 
   def exactly_one_owner

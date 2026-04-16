@@ -1,0 +1,63 @@
+<div class="flex items-center gap-4 px-5 py-3 <%= hook.enabled? ? '' : 'opacity-50' %>">
+  <!-- Trigger Badge -->
+  <span class="px-2 py-0.5 rounded text-xs font-semibold uppercase flex-shrink-0
+    <%= hook.trigger == 'pre' ? 'bg-blue-900/40 text-blue-300' : 'bg-purple-900/40 text-purple-300' %>">
+    <%= hook.trigger %>
+  </span>
+
+  <!-- Status -->
+  <span class="text-text-muted text-sm">on</span>
+  <%
+    status_color = case hook.on_status
+      when "backlog"     then "text-slate-400"
+      when "todo"        then "text-blue-400"
+      when "in_progress" then "text-yellow-400"
+      when "review"      then "text-purple-400"
+      when "done"        then "text-green-400"
+      else "text-text-primary"
+    end
+  %>
+  <span class="text-sm font-medium <%= status_color %>"><%= hook.on_status.humanize %></span>
+
+  <!-- Arrow -->
+  <span class="text-text-faint">&rarr;</span>
+
+  <!-- Skill or Default -->
+  <% if hook.skill %>
+    <span class="text-sm text-brand"><%= hook.skill.name %></span>
+  <% else %>
+    <span class="text-sm text-text-muted italic">Default behavior</span>
+  <% end %>
+
+  <!-- Scope label -->
+  <span class="text-xs text-text-faint bg-surface-raised px-2 py-0.5 rounded-full ml-auto flex-shrink-0">
+    <%= hook.scope_label %>
+  </span>
+
+  <!-- Actions -->
+  <div class="flex items-center gap-1 flex-shrink-0">
+    <!-- Toggle -->
+    <%= button_to toggle_task_hook_path(hook), method: :patch,
+          class: "p-1.5 rounded-lg hover:bg-surface-raised transition",
+          title: hook.enabled? ? "Disable" : "Enable" do %>
+      <% if hook.enabled? %>
+        <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+        </svg>
+      <% else %>
+        <svg class="w-4 h-4 text-text-faint" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/>
+        </svg>
+      <% end %>
+    <% end %>
+
+    <!-- Delete -->
+    <%= button_to task_hook_path(hook), method: :delete,
+          data: { turbo_confirm: "Delete this hook?" },
+          class: "p-1.5 rounded-lg hover:bg-red-900/20 transition" do %>
+      <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+      </svg>
+    <% end %>
+  </div>
+</div>

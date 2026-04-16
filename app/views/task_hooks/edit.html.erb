@@ -1,0 +1,45 @@
+<div class="max-w-xl mx-auto px-6 py-8">
+  <div class="flex items-center gap-3 mb-6">
+    <%= link_to task_hooks_path, class: "text-text-muted hover:text-white transition" do %>
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+      </svg>
+    <% end %>
+    <h1 class="text-2xl font-bold text-white">Edit Hook</h1>
+  </div>
+
+  <div class="bg-surface-card rounded-xl border border-border-default p-6">
+    <%= form_with model: @hook, url: task_hook_path(@hook), method: :patch, local: true do |f| %>
+      <div class="space-y-4 mb-6">
+        <div>
+          <label class="block text-xs font-medium text-text-muted mb-1.5">Trigger</label>
+          <%= f.select :trigger, TaskHook::TRIGGERS.map { |t| [t == "pre" ? "Pre (before)" : "Post (after)", t] },
+                {}, class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-brand/50" %>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-text-muted mb-1.5">On Status</label>
+          <%= f.select :on_status, Task::STATUSES.map { |s| [s.humanize, s] },
+                {}, class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-brand/50" %>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-text-muted mb-1.5">Skill <span class="text-text-faint">(optional)</span></label>
+          <%= f.select :skill_id,
+                options_for_select([["Default behavior", ""]] + @skills.map { |s| [s.name, s.id] }, @hook.skill_id),
+                {}, class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-brand/50" %>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <%= f.check_box :enabled, class: "w-4 h-4 rounded border-border-default bg-surface-raised text-brand focus:ring-brand/50" %>
+          <label class="text-sm text-text-primary">Enabled</label>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <%= f.submit "Save Changes", class: "px-4 py-2 bg-brand hover:bg-brand/80 text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+        <%= link_to "Cancel", task_hooks_path, class: "px-4 py-2 text-text-muted hover:text-white text-sm rounded-lg transition" %>
+      </div>
+    <% end %>
+  </div>
+</div>

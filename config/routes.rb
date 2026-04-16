@@ -66,6 +66,11 @@ Rails.application.routes.draw do
   get "team_chats", to: "team_chats#index", as: :team_chats_index
   resources :teams do
     resources :team_chats, only: [ :create ], path: "chats"
+    resources :task_hooks, only: [ :index, :create, :edit, :update, :destroy ] do
+      member do
+        patch :toggle
+      end
+    end
   end
   resources :team_chats, only: [ :show, :update ] do
     member do
@@ -147,6 +152,8 @@ Rails.application.routes.draw do
       patch :archive
     end
   end
+
+
 
   # Task Templates
   resources :task_templates

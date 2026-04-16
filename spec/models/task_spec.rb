@@ -373,6 +373,88 @@ RSpec.describe Task, type: :model do
     end
   end
 
+  describe "artifacts" do
+    let(:task) { create(:task) }
+
+    describe "#add_artifact" do
+      it "adds an artifact and saves the record" do
+        artifact = task.add_artifact(type: "code", title: "auth_service.rb", content: "class AuthService; end", created_by: "Mando")
+        task.reload
+        expect(task.artifacts.size).to eq(1)
+        expect(task.artifacts.first["title"]).to eq("auth_service.rb")
+        expect(task.artifacts.first["type"]).to eq("code")
+        expect(task.artifacts.first["content"]).to eq("class AuthService; end")
+        expect(task.artifacts.first["created_by"]).to eq("Mando")
+        expect(task.artifacts.first["id"]).to be_present
+        expect(task.artifacts.first["created_at"]).to be_present
+      end
+
+      it "preserves existing artifacts when adding a new one" do
+        task.add_artifact(type: "code", title: "first.rb", created_by: "Mando")
+        task.add_artifact(type: "document", title: "second.md", created_by: "Grogu")
+        task.reload
+        expect(task.artifacts.size).to eq(2)
+      end
+
+      it "defaults to 'document' type for unknown types" do
+        artifact = task.add_artifact(type: "banana", title: "something")
+        expect(artifact["type"]).to eq("document")
+      end
+
+      it "accepts all valid artifact types" do
+        Task::ARTIFACT_TYPES.each do |type|
+          artifact = task.add_artifact(type: type, title: "test-#{type}")
+          expect(artifact["type"]).to eq(type)
+        end
+      end
+
+      it "returns the newly added artifact hash" do
+        result = task.add_artifact(type: "report", title: "Analysis", content: "Findings...")
+        expect(result["title"]).to eq("Analysis")
+        expect(result["type"]).to eq("report")
+        expect(result["id"]).to be_present
+      end
+
+      it "omits nil content from the artifact hash" do
+        result = task.add_artifact(type: "link", title: "PR Link")
+        expect(result).not_to have_key("content")
+      end
+    end
+
+    describe "#remove_artifact" do
+      it "removes an artifact by id" do
+        artifact = task.add_artifact(type: "code", title: "to_remove.rb", created_by: "Mando")
+        expect(task.artifacts.size).to eq(1)
+
+        result = task.remove_artifact(artifact["id"])
+        expect(result).to be true
+        task.reload
+        expect(task.artifacts.size).to eq(0)
+      end
+
+      it "returns false when artifact id is not found" do
+        task.add_artifact(type: "code", title: "keep.rb", created_by: "Mando")
+        result = task.remove_artifact("nonexistent-uuid")
+        expect(result).to be false
+        expect(task.artifacts.size).to eq(1)
+      end
+
+      it "returns false when artifacts are empty" do
+        result = task.remove_artifact("anything")
+        expect(result).to be false
+      end
+
+      it "only removes the matching artifact, keeping others" do
+        a1 = task.add_artifact(type: "code", title: "first.rb", created_by: "Mando")
+        task.add_artifact(type: "document", title: "second.md", created_by: "Grogu")
+        task.remove_artifact(a1["id"])
+        task.reload
+        expect(task.artifacts.size).to eq(1)
+        expect(task.artifacts.first["title"]).to eq("second.md")
+      end
+    end
+  end
+
   describe "#apply_template!" do
     it "sets template and priority" do
       template = create(:task_template, default_priority: "high")
