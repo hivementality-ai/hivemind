@@ -270,4 +270,36 @@ RSpec.describe TasksController, type: :controller do
       end
     end
   end
+
+  # ─── PATCH #archive ───────────────────────────────────────────
+
+  describe "PATCH #archive" do
+    let!(:done_task) { create(:task, :done) }
+    let!(:open_task) { create(:task, status: "in_progress") }
+
+    it "archives a done task" do
+      patch :archive, params: { id: done_task.id }
+      expect(done_task.reload.archived_at).to be_present
+    end
+
+    it "redirects to tasks index with a notice" do
+      patch :archive, params: { id: done_task.id }
+      expect(response).to redirect_to(tasks_path)
+      expect(flash[:notice]).to eq("Task archived.")
+    end
+
+    it "rejects archiving a non-done task and redirects with alert" do
+      patch :archive, params: { id: open_task.id }
+      expect(open_task.reload.archived_at).to be_nil
+      expect(response).to redirect_to(tasks_path)
+      expect(flash[:alert]).to match(/only completed tasks/i)
+    end
+
+    it "raises not found for missing task" do
+      expect {
+        patch :archive, params: { id: 999999 }
+      }.to raise_error(ActiveRecord::RecordNotFound)
+    end
+  end
+
 end
