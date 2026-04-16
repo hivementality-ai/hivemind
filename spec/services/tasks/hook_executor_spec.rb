@@ -188,6 +188,18 @@ RSpec.describe Tasks::HookExecutor do
       described_class.call(hook: hook, task: task, agent: agent)
     end
 
+    it "includes artifact creation instructions in every prompt" do
+      expect(ChatStreamJob).to receive(:perform_later) do |_session_id, prompt, _files|
+        expect(prompt).to include("### Recording Your Work")
+        expect(prompt).to include("add_artifact")
+        expect(prompt).to include("**type**")
+        expect(prompt).to include("`pr`, `branch`, `commit`, `file`, `url`, or `document`")
+        expect(prompt).to include("next agent in the pipeline")
+      end
+
+      described_class.call(hook: hook, task: task, agent: agent)
+    end
+
     it "includes comments in the prompt" do
       task.add_comment(author_name: "Doc Brown", body: "Great Scott! Don't forget the 1.21 gigawatts.")
 

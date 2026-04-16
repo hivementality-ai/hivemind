@@ -143,6 +143,17 @@ module Tasks
         parts << ""
       end
 
+      # Always remind agents to record their output as artifacts
+      parts << "### Recording Your Work"
+      parts << "When you produce deliverables, record each one as a task artifact using the `task_manager` tool with `add_artifact`:"
+      parts << "- **title**: Short name (e.g. \"feat: auth service (#42)\", \"feature/auth-module\")"
+      parts << "- **type**: `pr`, `branch`, `commit`, `file`, `url`, or `document`"
+      parts << "- **url**: Link to the resource (GitHub PR URL, branch URL, doc link, etc.)"
+      parts << "- **description**: One-line summary of what it is"
+      parts << ""
+      parts << "This ensures the next agent in the pipeline knows what you produced and where to find it."
+      parts << ""
+
       if @hook.config.present?
         parts << "### Hook Configuration"
         @hook.config.each { |k, v| parts << "- #{k}: #{v}" }
