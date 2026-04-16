@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_01_200000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_03_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -136,12 +136,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_200000) do
     t.string "model_provider", default: "openai"
     t.decimal "monthly_budget_limit", precision: 10, scale: 4, default: "100.0"
     t.string "name"
+    t.bigint "reports_to_id"
     t.string "role"
     t.citext "slug", null: false
     t.integer "status"
     t.boolean "system_agent", default: false, null: false
     t.text "system_prompt"
     t.bigint "team_id"
+    t.string "title"
     t.integer "thinking_budget_tokens", default: 10000
     t.boolean "thinking_enabled", default: false, null: false
     t.string "thinking_visibility", default: "hidden"
@@ -151,6 +153,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_200000) do
     t.string "workspace_path"
     t.index ["enabled"], name: "index_agents_on_enabled"
     t.index ["name"], name: "index_agents_on_name", unique: true
+    t.index ["reports_to_id"], name: "index_agents_on_reports_to_id"
     t.index ["slug"], name: "index_agents_on_slug", unique: true
     t.index ["status"], name: "index_agents_on_status"
     t.index ["team_id"], name: "index_agents_on_team_id"
@@ -936,6 +939,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_01_200000) do
   add_foreign_key "task_hooks", "skills"
   add_foreign_key "task_hooks", "task_templates"
   add_foreign_key "task_hooks", "tasks"
+  add_foreign_key "agents", "agents", column: "reports_to_id", on_delete: :nullify
   add_foreign_key "tasks", "agents", column: "assigned_to_agent_id"
   add_foreign_key "tasks", "agents", column: "created_by_agent_id"
   add_foreign_key "tasks", "task_templates"
