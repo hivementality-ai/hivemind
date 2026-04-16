@@ -7,6 +7,9 @@ RSpec.describe Task, type: :model do
     it { should belong_to(:created_by_agent).class_name("Agent").optional }
     it { should belong_to(:assigned_to_agent).class_name("Agent").optional }
     it { should belong_to(:task_template).optional }
+    it { should belong_to(:project).optional }
+    it { should belong_to(:project_milestone).optional }
+    it { should belong_to(:session).optional }
     it { should have_many(:task_hooks).dependent(:destroy) }
     it { should have_many(:task_events).dependent(:destroy) }
     it { should have_many(:task_dependencies).dependent(:destroy) }
@@ -163,6 +166,25 @@ RSpec.describe Task, type: :model do
       summary = task.to_summary
       expect(summary).not_to include("Assigned:")
       expect(summary).not_to include("Due:")
+    end
+
+    it "includes project title when linked" do
+      project = create(:project)
+      task    = create(:task, project: project)
+      expect(task.to_summary).to include("Project: #{project.title}")
+    end
+
+    it "includes milestone title when linked" do
+      project   = create(:project)
+      milestone = create(:project_milestone, project: project)
+      task      = create(:task, project_milestone: milestone)
+      expect(task.to_summary).to include("Milestone: #{milestone.title}")
+    end
+
+    it "omits project and milestone when absent" do
+      task = create(:task, project: nil, project_milestone: nil)
+      expect(task.to_summary).not_to include("Project:")
+      expect(task.to_summary).not_to include("Milestone:")
     end
 
     it "truncates long descriptions" do

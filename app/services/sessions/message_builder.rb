@@ -41,6 +41,9 @@ module Sessions
       memory_context = recall_memories
       dynamic_parts << memory_context if memory_context.present?
 
+      task_context = assigned_task_context
+      dynamic_parts << task_context if task_context.present?
+
       if (mood = @session.metadata&.dig("mood"))
         dynamic_parts << "## Style Override\nAdjust your communication style: #{mood}"
       end
@@ -98,6 +101,24 @@ module Sessions
       content_blocks << { type: "text", text: text } if text.present?
 
       { role: "user", content: content_blocks }
+    end
+
+    # Injects the agent's open assigned tasks so they're aware of their workload on wake.
+    # Capped at 10 tasks to keep the context tight.
+    def assigned_task_context
+      return nil unless @agent.is_a?(Agent) && @agent.persisted?
+
+      tasks = Task.for_agent(@agent).open.by_priority.includes(:project, :project_milestone).limit(10)
+      return nil if tasks.empty?
+
+      lines = tasks.map(&:to_summary)
+      overdue_count = tasks.count(&:overdue?)
+
+      header = "## Your Assigned Tasks (#{tasks.size} open#{overdue_count > 0 ? ", #{overdue_count} overdue" : ""})"
+      "#{header}\n#{lines.map { |l| "- #{l}" }.join("\n")}"
+    rescue StandardError => e
+      Rails.logger.warn("[MessageBuilder] Task context failed: #{e.message}")
+      nil
     end
 
     def recall_memories

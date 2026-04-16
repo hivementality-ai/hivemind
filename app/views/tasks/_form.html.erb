@@ -60,6 +60,27 @@
     <% end %>
   </div>
 
+  <% if defined?(projects) && projects&.any? %>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <%= f.label :project_id, "Project", class: "block text-sm font-medium text-text-muted mb-1" %>
+        <%= f.select :project_id,
+              projects.map { |p| [p.title, p.id] },
+              { include_blank: "— None —" },
+              class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white focus:outline-none focus:border-brand/50",
+              data: { action: "change->task-form#loadMilestones" } %>
+      </div>
+
+      <div>
+        <%= f.label :project_milestone_id, "Milestone", class: "block text-sm font-medium text-text-muted mb-1" %>
+        <%= f.select :project_milestone_id,
+              (defined?(milestones) ? milestones.map { |m| [m.title, m.id] } : []),
+              { include_blank: "— None —" },
+              class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white focus:outline-none focus:border-brand/50" %>
+      </div>
+    </div>
+  <% end %>
+
   <div>
     <%= f.label :due_at, "Due date", class: "block text-sm font-medium text-text-muted mb-1" %>
     <%= f.datetime_local_field :due_at,

@@ -5,7 +5,9 @@ class TasksController < ApplicationController
 
   def index
     @tasks_by_status = Task::STATUSES.index_with do |status|
-      Task.by_status(status).by_priority.includes(:assigned_to_agent, :created_by_agent).to_a
+      Task.by_status(status).by_priority
+          .includes(:assigned_to_agent, :created_by_agent, :project, :project_milestone)
+          .to_a
     end
     @agents = Agent.visible.enabled.order(:name)
     @total_open  = Task.open.count
@@ -13,14 +15,18 @@ class TasksController < ApplicationController
   end
 
   def show
-    @agents = Agent.visible.enabled.order(:name)
-    @events = @task.task_events.recent_first.limit(20)
+    @agents     = Agent.visible.enabled.order(:name)
+    @projects   = Project.order(:title)
+    @milestones = @task.project ? @task.project.milestones.ordered : ProjectMilestone.none
+    @events     = @task.task_events.recent_first.limit(20)
   end
 
   def new
-    @task = Task.new(status: "backlog", priority: "medium")
-    @agents = Agent.visible.enabled.order(:name)
-    @templates = TaskTemplate.order(:name)
+    @task       = Task.new(status: "backlog", priority: "medium")
+    @agents     = Agent.visible.enabled.order(:name)
+    @templates  = TaskTemplate.order(:name)
+    @projects   = Project.order(:title)
+    @milestones = ProjectMilestone.none
   end
 
   def create
@@ -35,15 +41,19 @@ class TasksController < ApplicationController
       Tasks::EventLogger.call(task: @task, event_type: "created", summary: "Task created: #{@task.title}")
       redirect_to tasks_path, notice: "Task created."
     else
-      @agents = Agent.visible.enabled.order(:name)
-      @templates = TaskTemplate.order(:name)
+      @agents     = Agent.visible.enabled.order(:name)
+      @templates  = TaskTemplate.order(:name)
+      @projects   = Project.order(:title)
+      @milestones = @task.project ? @task.project.milestones.ordered : ProjectMilestone.none
       render :new, status: :unprocessable_entity
     end
   end
 
   def edit
-    @agents = Agent.visible.enabled.order(:name)
-    @templates = TaskTemplate.order(:name)
+    @agents     = Agent.visible.enabled.order(:name)
+    @templates  = TaskTemplate.order(:name)
+    @projects   = Project.order(:title)
+    @milestones = @task.project ? @task.project.milestones.ordered : ProjectMilestone.none
   end
 
   def update
@@ -65,8 +75,10 @@ class TasksController < ApplicationController
         respond_to do |format|
           format.html do
             flash[:alert] = result.error
-            @agents = Agent.visible.enabled.order(:name)
-            @templates = TaskTemplate.order(:name)
+            @agents     = Agent.visible.enabled.order(:name)
+            @templates  = TaskTemplate.order(:name)
+            @projects   = Project.order(:title)
+            @milestones = @task.project ? @task.project.milestones.ordered : ProjectMilestone.none
             render :edit, status: :unprocessable_entity
           end
           format.json { render json: { error: result.error }, status: :unprocessable_entity }
@@ -81,8 +93,10 @@ class TasksController < ApplicationController
     else
       respond_to do |format|
         format.html do
-          @agents = Agent.visible.enabled.order(:name)
-          @templates = TaskTemplate.order(:name)
+          @agents     = Agent.visible.enabled.order(:name)
+          @templates  = TaskTemplate.order(:name)
+          @projects   = Project.order(:title)
+          @milestones = @task.project ? @task.project.milestones.ordered : ProjectMilestone.none
           render :edit, status: :unprocessable_entity
         end
         format.json { render json: { errors: @task.errors.full_messages }, status: :unprocessable_entity }
@@ -154,6 +168,8 @@ class TasksController < ApplicationController
       :priority,
       :assigned_to_agent_id,
       :task_template_id,
+      :project_id,
+      :project_milestone_id,
       :due_at
     )
   end
