@@ -6,7 +6,7 @@ RSpec.describe Swarms::VariableResolver do
   # Build a SwarmDocument from a JSON hash via the full parser pipeline.
   def parse_doc(hash)
     result = Swarms::SwarmParser.call(json: JSON.generate(hash))
-    expect(result).to be_success, "test fixture failed to parse: #{result.payload&.dig(:errors)}"
+    expect(result).to be_success, "test fixture failed to parse: #{result.failure? ? result.payload&.dig(:errors) : nil}"
     result.payload
   end
 
