@@ -29,11 +29,11 @@ RSpec.describe SessionsController, type: :controller do
       expect(sessions.first).to eq(active_session2) # Most recent first
     end
 
-    it 'limits results to 50 sessions' do
-      # Create more than 50 sessions
-      55.times { create(:session, status: :active) }
+    it 'limits results to 100 sessions' do
+      # Create more than 100 sessions
+      105.times { create(:session, status: :active) }
       get :index
-      expect(assigns(:sessions).count).to eq(50)
+      expect(assigns(:sessions).count).to eq(100)
     end
 
     it 'includes agent association' do

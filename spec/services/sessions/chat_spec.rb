@@ -80,6 +80,7 @@ RSpec.describe Sessions::Chat do
         allow(adapter).to receive(:chat).and_return(llm_response)
         # Stub is_a? check for OAuth detection
         allow(adapter).to receive(:is_a?).with(Providers::AnthropicAdapter).and_return(false)
+        allow(Agents::ToolLoop).to receive(:call)
       end
 
       it "falls back to direct adapter.chat" do

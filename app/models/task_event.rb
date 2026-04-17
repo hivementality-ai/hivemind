@@ -5,6 +5,7 @@ class TaskEvent < ApplicationRecord
     status_change hook_fired comment_added assigned
     dependency_added dependency_removed checklist_updated created
     attachment_added attachment_removed
+    archived auto_assigned artifact_added artifact_removed
   ].freeze
 
   belongs_to :task

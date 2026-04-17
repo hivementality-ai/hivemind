@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_16_130001) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_17_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -340,6 +340,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_130001) do
     t.bigint "session_id"
     t.string "status", default: "ok", null: false
     t.text "summary"
+    t.text "previous_summary"
     t.datetime "updated_at", null: false
     t.index ["agent_id"], name: "index_heartbeat_runs_on_agent_id"
     t.index ["created_at"], name: "index_heartbeat_runs_on_created_at"
@@ -680,22 +681,38 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_130001) do
     t.index ["task_id"], name: "index_task_events_on_task_id"
   end
 
+  create_table "task_attachments", force: :cascade do |t|
+    t.bigint "task_id", null: false
+    t.string "title", null: false
+    t.string "url", null: false
+    t.string "content_type"
+    t.string "uploaded_by"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["task_id"], name: "index_task_attachments_on_task_id"
+  end
+
   create_table "task_hooks", force: :cascade do |t|
+    t.bigint "agent_id"
     t.jsonb "config", default: {}, null: false
     t.datetime "created_at", null: false
     t.boolean "enabled", default: true, null: false
     t.string "on_status", null: false
     t.integer "position", default: 0, null: false
-    t.bigint "skill_id", null: false
+    t.bigint "skill_id"
     t.bigint "task_id"
     t.bigint "task_template_id"
+    t.bigint "team_id"
     t.string "trigger", null: false
     t.datetime "updated_at", null: false
+    t.index ["agent_id"], name: "index_task_hooks_on_agent_id"
     t.index ["skill_id"], name: "index_task_hooks_on_skill_id"
     t.index ["task_id", "trigger", "on_status"], name: "index_task_hooks_on_task_id_and_trigger_and_on_status"
     t.index ["task_id"], name: "index_task_hooks_on_task_id"
     t.index ["task_template_id", "trigger", "on_status"], name: "index_task_hooks_on_task_template_id_and_trigger_and_on_status"
     t.index ["task_template_id"], name: "index_task_hooks_on_task_template_id"
+    t.index ["team_id", "trigger", "on_status"], name: "index_task_hooks_on_team_id_and_trigger_and_on_status"
+    t.index ["team_id"], name: "index_task_hooks_on_team_id"
   end
 
   create_table "task_templates", force: :cascade do |t|
@@ -726,6 +743,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_130001) do
     t.bigint "task_template_id"
     t.string "title", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "artifacts", default: [], null: false
+    t.datetime "archived_at"
+    t.index ["archived_at"], name: "index_tasks_on_archived_at"
     t.index ["assigned_to_agent_id", "status"], name: "index_tasks_on_assigned_to_agent_id_and_status"
     t.index ["assigned_to_agent_id"], name: "index_tasks_on_assigned_to_agent_id"
     t.index ["created_at"], name: "index_tasks_on_created_at"
@@ -942,9 +962,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_130001) do
   add_foreign_key "task_dependencies", "tasks", column: "depends_on_id"
   add_foreign_key "task_events", "agents"
   add_foreign_key "task_events", "tasks"
+  add_foreign_key "task_attachments", "tasks"
+  add_foreign_key "task_hooks", "agents"
   add_foreign_key "task_hooks", "skills"
   add_foreign_key "task_hooks", "task_templates"
   add_foreign_key "task_hooks", "tasks"
+  add_foreign_key "task_hooks", "teams"
   add_foreign_key "agents", "agents", column: "reports_to_id", on_delete: :nullify
   add_foreign_key "tasks", "agents", column: "assigned_to_agent_id"
   add_foreign_key "tasks", "agents", column: "created_by_agent_id"
