@@ -1,0 +1,87 @@
+<div class="max-w-2xl mx-auto px-6 py-8">
+  <%= link_to "← Teams", teams_path, class: "text-brand-light hover:text-brand text-sm" %>
+
+  <div class="mt-6 mb-8">
+    <h1 class="text-2xl font-bold text-white">Export Swarm</h1>
+    <p class="text-text-muted mt-1">
+      Download <span class="text-white font-medium"><%= @team.name %></span> as a portable
+      <code class="text-brand-light text-xs bg-surface-raised px-1.5 py-0.5 rounded">.swarm.json</code> file.
+      Sensitive values are automatically replaced with <code class="text-xs text-text-muted bg-surface-raised px-1.5 py-0.5 rounded">vault:</code> references.
+    </p>
+  </div>
+
+  <% if flash[:alert] %>
+    <div class="mb-6 bg-red-900/50 border border-red-600 text-red-200 px-4 py-3 rounded-lg text-sm">
+      <%= flash[:alert] %>
+    </div>
+  <% end %>
+
+  <%# Team summary %>
+  <div class="bg-surface-card rounded-xl border border-border-default p-5 mb-6">
+    <h2 class="text-sm font-medium text-text-primary mb-3">What will be exported</h2>
+    <div class="grid grid-cols-3 gap-4 text-center">
+      <div class="bg-surface-raised rounded-lg p-3">
+        <div class="text-2xl font-bold text-white"><%= @team.agents.count %></div>
+        <div class="text-xs text-text-muted mt-0.5">Agent<%= @team.agents.count == 1 ? "" : "s" %></div>
+      </div>
+      <div class="bg-surface-raised rounded-lg p-3">
+        <div class="text-2xl font-bold text-white"><%= Skill.joins(:agents).where(agents: { team_id: @team.id }).distinct.count %></div>
+        <div class="text-xs text-text-muted mt-0.5">Skills</div>
+      </div>
+      <div class="bg-surface-raised rounded-lg p-3">
+        <div class="text-2xl font-bold text-white"><%= Tool.joins(:agents).where(agents: { team_id: @team.id }).distinct.count %></div>
+        <div class="text-xs text-text-muted mt-0.5">Tools</div>
+      </div>
+    </div>
+  </div>
+
+  <%# Export metadata form %>
+  <%= form_with url: export_team_path(@team), method: :post, class: "space-y-5" do |f| %>
+    <div class="bg-surface-card rounded-xl border border-border-default p-6 space-y-5">
+      <h2 class="text-sm font-medium text-text-primary">Author Info <span class="text-text-faint font-normal">(optional)</span></h2>
+
+      <div>
+        <%= f.label :author_name, "Author Name", class: "block text-sm font-medium text-text-primary mb-1" %>
+        <%= f.text_field :author_name,
+            value: @author_name,
+            class: "w-full px-4 py-2.5 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent text-sm",
+            placeholder: "e.g. Alice Smith" %>
+      </div>
+
+      <div>
+        <%= f.label :author_email, "Author Email", class: "block text-sm font-medium text-text-primary mb-1" %>
+        <%= f.text_field :author_email,
+            value: @author_email,
+            type: "email",
+            class: "w-full px-4 py-2.5 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent text-sm",
+            placeholder: "e.g. alice@example.com" %>
+      </div>
+
+      <div>
+        <%= f.label :description, "Description Override", class: "block text-sm font-medium text-text-primary mb-1" %>
+        <p class="text-xs text-text-faint mb-1.5">Leave blank to use the team's existing description.</p>
+        <%= f.text_area :description,
+            value: @description,
+            rows: 2,
+            class: "w-full px-4 py-2.5 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent resize-none text-sm",
+            placeholder: "Optional description for the exported swarm file" %>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <%= f.submit "Download .swarm.json",
+          class: "px-6 py-3 bg-brand hover:bg-brand-dark text-white font-semibold rounded-lg transition cursor-pointer inline-flex items-center gap-2" %>
+      <%= link_to "Cancel", teams_path,
+          class: "px-6 py-3 bg-surface-raised border border-border-default text-text-muted hover:text-white rounded-lg transition" %>
+    </div>
+  <% end %>
+
+  <div class="mt-6 bg-surface-raised border border-border-default rounded-lg p-4">
+    <p class="text-xs text-text-faint">
+      <span class="text-text-muted font-medium">Note:</span>
+      API keys, tokens, and passwords are automatically stripped and replaced with
+      <code class="text-brand-light">vault:</code> references. Recipients must populate those vault entries
+      before importing the swarm.
+    </p>
+  </div>
+</div>
