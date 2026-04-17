@@ -212,7 +212,6 @@ RSpec.describe Swarms::SwarmParser do
       expect(result.message).to include("5MB")
     end
   end
-end
 
   # ---------------------------------------------------------------------------
   # SwarmValidator integration — referential integrity & uniqueness
@@ -309,3 +308,4 @@ end
       expect(result.payload[:errors]).to all(be_a(String))
     end
   end
+end
