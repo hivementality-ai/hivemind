@@ -103,8 +103,9 @@ module Swarms
     # -----------------------------------------------------------------------
 
     SwarmAuthor = Data.define(:name, :url, :email) do
+      # Returns nil if h is nil; otherwise builds from any hash (symbol or string keys).
       def self.from_hash(h)
-        return nil if h.blank?
+        return nil if h.nil?
 
         h = h.with_indifferent_access
         new(
@@ -116,8 +117,9 @@ module Swarms
     end
 
     SwarmRequirements = Data.define(:hivemind_version, :integrations, :provider_models) do
+      # Returns nil if h is nil; returns an instance with defaults for an empty hash.
       def self.from_hash(h)
-        return nil if h.blank?
+        return nil if h.nil?
 
         h = h.with_indifferent_access
         new(
@@ -129,8 +131,9 @@ module Swarms
     end
 
     SwarmTeam = Data.define(:name, :description, :custom_soul) do
+      # Returns nil if h is nil; otherwise builds from any hash.
       def self.from_hash(h)
-        return nil if h.blank?
+        return nil if h.nil?
 
         h = h.with_indifferent_access
         new(

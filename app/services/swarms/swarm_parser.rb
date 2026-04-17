@@ -117,7 +117,7 @@ module Swarms
     end
 
     def build_variables(raw)
-      return {} if raw.blank?
+      return {} if raw.nil?
 
       raw.each_with_object({}) do |(key, definition), acc|
         acc[key.to_s] = SwarmDocument::SwarmVariable.from_hash(definition)
