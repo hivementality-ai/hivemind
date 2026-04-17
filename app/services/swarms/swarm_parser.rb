@@ -17,7 +17,7 @@ module Swarms
   #     Rails.logger.error(result.error)
   #   end
   class SwarmParser
-    MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024 # 5 MB
+    MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024 # 5 MB per spec
 
     def self.call(path: nil, json: nil)
       new(path:, json:).call
@@ -90,33 +90,38 @@ module Swarms
       h = parsed.with_indifferent_access
 
       SwarmDocument.new(
-        swarm_version:   h[:swarm_version],
-        metadata:        build_metadata(h[:metadata]),
-        variables:       build_variables(h[:variables]),
-        vault_refs:      build_vault_refs(h[:vault_refs]),
-        agents:          normalize_array(h[:agents]),
-        skills:          normalize_array(h[:skills]),
-        tools:           normalize_array(h[:tools]),
-        channels:        normalize_array(h[:channels]),
-        mcp_servers:     normalize_array(h[:mcp_servers]),
-        scheduled_tasks: normalize_array(h[:scheduled_tasks])
+        swarm_version:    h[:swarm_version],
+        name:             h[:name],
+        slug:             h[:slug].presence,
+        description:      h[:description].presence,
+        author:           SwarmDocument::SwarmAuthor.from_hash(h[:author]),
+        version:          h[:version].presence,
+        license:          h[:license].presence,
+        tags:             Array(h[:tags]).map(&:to_s),
+        icon:             h[:icon].presence,
+        homepage:         h[:homepage].presence,
+        requires:         SwarmDocument::SwarmRequirements.from_hash(h[:requires]),
+        team:             SwarmDocument::SwarmTeam.from_hash(h[:team]),
+        agents:           normalize_array(h[:agents]),
+        skills:           normalize_array(h[:skills]),
+        tools:            normalize_array(h[:tools]),
+        channels:         normalize_array(h[:channels]),
+        mcp_servers:      normalize_array(h[:mcp_servers]),
+        api_integrations: normalize_array(h[:api_integrations]),
+        variables:        build_variables(h[:variables])
       )
-    end
-
-    def build_metadata(raw)
-      SwarmDocument::SwarmMetadata.from_hash(raw || {})
-    end
-
-    def build_variables(raw)
-      Array(raw).map { |v| SwarmDocument::SwarmVariable.from_hash(v) }
-    end
-
-    def build_vault_refs(raw)
-      Array(raw).map { |r| SwarmDocument::VaultRef.from_hash(r) }
     end
 
     def normalize_array(raw)
       Array(raw).map { |item| item.with_indifferent_access }
+    end
+
+    def build_variables(raw)
+      return {} if raw.blank?
+
+      raw.each_with_object({}) do |(key, definition), acc|
+        acc[key.to_s] = SwarmDocument::SwarmVariable.from_hash(definition)
+      end
     end
   end
 end

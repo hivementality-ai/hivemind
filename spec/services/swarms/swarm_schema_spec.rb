@@ -6,7 +6,7 @@ RSpec.describe Swarms::SwarmSchema do
   def valid_swarm(**overrides)
     {
       swarm_version: "1.0",
-      metadata: { name: "Test Swarm" }
+      name: "Test Swarm"
     }.merge(overrides)
   end
 
@@ -52,53 +52,152 @@ RSpec.describe Swarms::SwarmSchema do
     end
 
     # ----------------------------------------------------------------
-    # metadata
+    # top-level metadata fields
     # ----------------------------------------------------------------
-    describe "metadata" do
-      context "when missing" do
+    describe "top-level metadata" do
+      context "when name is missing" do
         let(:raw) { { swarm_version: "1.0" } }
 
         it { is_expected.to be_invalid }
         it "reports the missing field" do
-          expect(result.errors).to include("metadata is required")
-        end
-      end
-
-      context "when not a hash" do
-        let(:raw) { valid_swarm(metadata: "bad") }
-
-        it { is_expected.to be_invalid }
-        it "reports the type error" do
-          expect(result.errors).to include("metadata must be an object")
-        end
-      end
-
-      context "when name is missing" do
-        let(:raw) { valid_swarm(metadata: { description: "no name here" }) }
-
-        it { is_expected.to be_invalid }
-        it "reports the missing name" do
-          expect(result.errors).to include("metadata.name is required")
+          expect(result.errors).to include("name is required")
         end
       end
 
       context "when tags is not an array" do
-        let(:raw) { valid_swarm(metadata: { name: "Swarm", tags: "tag1" }) }
+        let(:raw) { valid_swarm(tags: "devops") }
 
         it { is_expected.to be_invalid }
         it "reports the type error" do
-          expect(result.errors).to include("metadata.tags must be an array")
+          expect(result.errors).to include("tags must be an array")
         end
       end
 
-      context "with full valid metadata" do
+      context "with full valid top-level metadata" do
         let(:raw) do
-          valid_swarm(metadata: {
-            name: "Dream Team",
+          valid_swarm(
+            name:        "Dream Team",
+            slug:        "dream-team",
             description: "A swarm for dreams",
-            author: "Din Djarin",
-            tags: ["ai", "team"],
-            exported_at: "2026-01-01T00:00:00Z"
+            version:     "1.2.0",
+            license:     "MIT",
+            tags:        ["ai", "team"],
+            icon:        "🐝",
+            homepage:    "https://example.com"
+          )
+        end
+
+        it { is_expected.to be_valid }
+      end
+    end
+
+    # ----------------------------------------------------------------
+    # author
+    # ----------------------------------------------------------------
+    describe "author" do
+      context "when author is a string instead of an object" do
+        let(:raw) { valid_swarm(author: "Din Djarin") }
+
+        it { is_expected.to be_invalid }
+        it "reports the type error" do
+          expect(result.errors).to include("author must be an object")
+        end
+      end
+
+      context "when author.name is missing" do
+        let(:raw) { valid_swarm(author: { url: "https://example.com" }) }
+
+        it { is_expected.to be_invalid }
+        it "reports the missing name" do
+          expect(result.errors).to include("author.name is required")
+        end
+      end
+
+      context "with a valid author object" do
+        let(:raw) do
+          valid_swarm(author: {
+            name:  "Din Djarin",
+            url:   "https://example.com",
+            email: "mando@example.com"
+          })
+        end
+
+        it { is_expected.to be_valid }
+      end
+    end
+
+    # ----------------------------------------------------------------
+    # requires
+    # ----------------------------------------------------------------
+    describe "requires" do
+      context "when requires is not an object" do
+        let(:raw) { valid_swarm(requires: ">=2.0.0") }
+
+        it { is_expected.to be_invalid }
+        it "reports the type error" do
+          expect(result.errors).to include("requires must be an object")
+        end
+      end
+
+      context "when integrations is not an array" do
+        let(:raw) { valid_swarm(requires: { integrations: "github" }) }
+
+        it { is_expected.to be_invalid }
+        it "reports the type error" do
+          expect(result.errors).to include("requires.integrations must be an array")
+        end
+      end
+
+      context "when provider_models is not an array" do
+        let(:raw) { valid_swarm(requires: { provider_models: "claude-sonnet-4" }) }
+
+        it { is_expected.to be_invalid }
+        it "reports the type error" do
+          expect(result.errors).to include("requires.provider_models must be an array")
+        end
+      end
+
+      context "with valid requires" do
+        let(:raw) do
+          valid_swarm(requires: {
+            hivemind_version: ">=2.0.0",
+            integrations:     ["github", "slack"],
+            provider_models:  ["claude-haiku-4-5", "claude-sonnet-4"]
+          })
+        end
+
+        it { is_expected.to be_valid }
+      end
+    end
+
+    # ----------------------------------------------------------------
+    # team
+    # ----------------------------------------------------------------
+    describe "team" do
+      context "when team is not an object" do
+        let(:raw) { valid_swarm(team: "DevOps Squad") }
+
+        it { is_expected.to be_invalid }
+        it "reports the type error" do
+          expect(result.errors).to include("team must be an object")
+        end
+      end
+
+      context "when team.name is missing" do
+        let(:raw) { valid_swarm(team: { description: "A team" }) }
+
+        it { is_expected.to be_invalid }
+        it "reports the missing name" do
+          expect(result.errors).to include("team.name is required")
+        end
+      end
+
+      context "with a valid team" do
+        let(:raw) do
+          valid_swarm(team: {
+            name:        "DevOps Squad",
+            description: "CI/CD and monitoring",
+            custom_soul: "## Rules\n- Be fast"
           })
         end
 
@@ -110,69 +209,58 @@ RSpec.describe Swarms::SwarmSchema do
     # variables
     # ----------------------------------------------------------------
     describe "variables" do
-      context "when not an array" do
-        let(:raw) { valid_swarm(variables: "bad") }
+      context "when not an object" do
+        let(:raw) { valid_swarm(variables: [{ name: "FOO", description: "a var" }]) }
 
         it { is_expected.to be_invalid }
         it "reports the type error" do
-          expect(result.errors).to include("variables must be an array")
+          expect(result.errors).to include("variables must be an object")
         end
       end
 
-      context "when an element has no name" do
-        let(:raw) { valid_swarm(variables: [{ description: "no name" }]) }
+      context "when a variable definition is not an object" do
+        let(:raw) { valid_swarm(variables: { "MY_VAR" => "just a string" }) }
 
         it { is_expected.to be_invalid }
         it "reports the indexed error" do
-          expect(result.errors).to include("variables[0].name is required")
+          expect(result.errors).to include("variables.MY_VAR must be an object")
+        end
+      end
+
+      context "when description is missing" do
+        let(:raw) { valid_swarm(variables: { "MY_VAR" => { required: true } }) }
+
+        it { is_expected.to be_invalid }
+        it "reports the missing description" do
+          expect(result.errors).to include("variables.MY_VAR.description is required")
         end
       end
 
       context "when required is not a boolean" do
-        let(:raw) { valid_swarm(variables: [{ name: "MY_VAR", required: "yes" }]) }
+        let(:raw) { valid_swarm(variables: { "MY_VAR" => { description: "A var", required: "yes" } }) }
 
         it { is_expected.to be_invalid }
         it "reports the type error" do
-          expect(result.errors).to include("variables[0].required must be a boolean")
+          expect(result.errors).to include("variables.MY_VAR.required must be a boolean")
         end
       end
 
-      context "with valid variables" do
+      context "when type is invalid" do
+        let(:raw) { valid_swarm(variables: { "MY_VAR" => { description: "A var", type: "uuid" } }) }
+
+        it { is_expected.to be_invalid }
+        it "reports the invalid type" do
+          expect(result.errors.first).to match(/type.*invalid/)
+        end
+      end
+
+      context "with valid variables hash" do
         let(:raw) do
-          valid_swarm(variables: [
-            { name: "API_KEY", description: "The API key", required: true },
-            { name: "DEBUG", default: "false", required: false }
-          ])
+          valid_swarm(variables: {
+            "SLACK_CHANNEL_ID" => { description: "Slack channel ID", required: true, type: "string" },
+            "THRESHOLD"        => { description: "Alert threshold", required: false, type: "integer", default: 10 }
+          })
         end
-
-        it { is_expected.to be_valid }
-      end
-    end
-
-    # ----------------------------------------------------------------
-    # vault_refs
-    # ----------------------------------------------------------------
-    describe "vault_refs" do
-      context "when path is missing" do
-        let(:raw) { valid_swarm(vault_refs: [{ description: "no path" }]) }
-
-        it { is_expected.to be_invalid }
-        it "reports the missing path" do
-          expect(result.errors).to include("vault_refs[0].path is required")
-        end
-      end
-
-      context "when path lacks namespace/key format" do
-        let(:raw) { valid_swarm(vault_refs: [{ path: "nodivider" }]) }
-
-        it { is_expected.to be_invalid }
-        it "reports the format error" do
-          expect(result.errors.first).to match(/namespace\/key format/)
-        end
-      end
-
-      context "with valid vault_refs" do
-        let(:raw) { valid_swarm(vault_refs: [{ path: "slack/bot_token", description: "Slack token" }]) }
 
         it { is_expected.to be_valid }
       end
@@ -232,22 +320,200 @@ RSpec.describe Swarms::SwarmSchema do
         end
       end
 
+      context "when thinking_visibility is invalid" do
+        let(:raw) { valid_swarm(agents: [{ name: "Bob", role: "Helper", thinking_visibility: "invisible" }]) }
+
+        it { is_expected.to be_invalid }
+        it "reports the invalid value" do
+          expect(result.errors.first).to match(/thinking_visibility.*invalid/)
+        end
+      end
+
+      context "when thinking_budget_tokens is out of range" do
+        let(:raw) { valid_swarm(agents: [{ name: "Bob", role: "Helper", thinking_budget_tokens: 999_999 }]) }
+
+        it { is_expected.to be_invalid }
+        it "reports the range error" do
+          expect(result.errors.first).to match(/thinking_budget_tokens.*1 and 128000/)
+        end
+      end
+
+      # --- agent channels ---
+
+      context "when agent channels is not an array" do
+        let(:raw) { valid_swarm(agents: [{ name: "Bob", role: "Helper", channels: "ops-slack" }]) }
+
+        it { is_expected.to be_invalid }
+        it "reports the type error" do
+          expect(result.errors).to include("agents[0].channels must be an array")
+        end
+      end
+
+      context "when an agent channel binding is not an object" do
+        let(:raw) { valid_swarm(agents: [{ name: "Bob", role: "Helper", channels: ["ops-slack"] }]) }
+
+        it { is_expected.to be_invalid }
+        it "reports the type error" do
+          expect(result.errors).to include("agents[0].channels[0] must be an object")
+        end
+      end
+
+      context "when an agent channel binding is missing channel_ref" do
+        let(:raw) { valid_swarm(agents: [{ name: "Bob", role: "Helper", channels: [{ is_default: true }] }]) }
+
+        it { is_expected.to be_invalid }
+        it "reports the missing channel_ref" do
+          expect(result.errors).to include("agents[0].channels[0].channel_ref is required")
+        end
+      end
+
+      context "with valid agent channel bindings" do
+        let(:raw) do
+          valid_swarm(agents: [{
+            name: "Bob", role: "Helper",
+            channels: [
+              { channel_ref: "ops-slack", is_default: true },
+              { channel_ref: "alerts-discord" }
+            ]
+          }])
+        end
+
+        it { is_expected.to be_valid }
+      end
+
+      # --- agent scheduled_tasks ---
+
+      context "when an agent scheduled task is missing name" do
+        let(:raw) do
+          valid_swarm(agents: [{
+            name: "Bob", role: "Helper",
+            scheduled_tasks: [{ schedule: "0 9 * * *" }]
+          }])
+        end
+
+        it { is_expected.to be_invalid }
+        it "reports the missing name" do
+          expect(result.errors).to include("agents[0].scheduled_tasks[0].name is required")
+        end
+      end
+
+      context "when an agent scheduled task has an invalid cron" do
+        let(:raw) do
+          valid_swarm(agents: [{
+            name: "Bob", role: "Helper",
+            scheduled_tasks: [{ name: "Daily", schedule: "every day at 9" }]
+          }])
+        end
+
+        it { is_expected.to be_invalid }
+        it "reports the invalid schedule" do
+          expect(result.errors.first).to match(/not a valid cron expression/)
+        end
+      end
+
+      context "with valid per-agent scheduled tasks" do
+        let(:raw) do
+          valid_swarm(agents: [{
+            name: "Watchdog", role: "DevOps Engineer",
+            scheduled_tasks: [
+              { name: "Health sweep", schedule: "*/15 * * * *", description: "Check health", enabled: true }
+            ]
+          }])
+        end
+
+        it { is_expected.to be_valid }
+      end
+
+      context "with MON-FRI named days in cron" do
+        let(:raw) do
+          valid_swarm(agents: [{
+            name: "Commander", role: "DevOps Engineer",
+            scheduled_tasks: [{ name: "Standup", schedule: "0 14 * * MON-FRI" }]
+          }])
+        end
+
+        it { is_expected.to be_valid }
+      end
+
+      # --- workspace_files ---
+
+      context "when workspace_files is not an object" do
+        let(:raw) { valid_swarm(agents: [{ name: "Bob", role: "Helper", workspace_files: ["file.txt"] }]) }
+
+        it { is_expected.to be_invalid }
+        it "reports the type error" do
+          expect(result.errors).to include("agents[0].workspace_files must be an object")
+        end
+      end
+
+      context "when a workspace_files key contains path traversal" do
+        let(:raw) do
+          valid_swarm(agents: [{
+            name: "Bob", role: "Helper",
+            workspace_files: { "../../etc/passwd" => "evil" }
+          }])
+        end
+
+        it { is_expected.to be_invalid }
+        it "reports the traversal error" do
+          expect(result.errors.first).to match(/must be a relative path without directory traversal/)
+        end
+      end
+
+      context "when a workspace_files key is an absolute path" do
+        let(:raw) do
+          valid_swarm(agents: [{
+            name: "Bob", role: "Helper",
+            workspace_files: { "/etc/passwd" => "evil" }
+          }])
+        end
+
+        it { is_expected.to be_invalid }
+        it "reports the path error" do
+          expect(result.errors.first).to match(/must be a relative path without directory traversal/)
+        end
+      end
+
+      context "with valid workspace_files" do
+        let(:raw) do
+          valid_swarm(agents: [{
+            name: "Dev", role: "Software Engineer",
+            workspace_files: {
+              "SOUL.md"             => "# Dev\n\nYou write code.",
+              "scripts/setup.sh"    => "#!/bin/bash\nnpm install"
+            }
+          }])
+        end
+
+        it { is_expected.to be_valid }
+      end
+
       context "with a fully valid agent" do
         let(:raw) do
           valid_swarm(agents: [{
-            name: "Mando",
-            role: "Senior Engineer",
-            system_prompt: "You write code.",
-            llm_model: "claude-sonnet-4-5",
-            model_provider: "anthropic",
-            skills: ["git", "github"],
-            tools: ["bash"],
-            mcp_servers: ["filesystem"],
+            name:                    "Mando",
+            role:                    "Software Engineer",
+            custom_instructions:     "You write code.",
+            llm_model:               "claude-sonnet-4",
+            model_provider:          "anthropic",
+            thinking_enabled:        true,
+            thinking_budget_tokens:  16000,
+            thinking_visibility:     "hidden",
+            skills:                  ["git", "github"],
+            tools:                   ["shell"],
+            mcp_servers:             ["filesystem"],
+            channels:                [{ channel_ref: "ops-slack", is_default: true }],
+            scheduled_tasks:         [{ name: "Health check", schedule: "*/15 * * * *" }],
+            heartbeat_enabled:       true,
+            heartbeat_interval_minutes: 30,
+            daily_budget_limit:      "25.0",
+            monthly_budget_limit:    "500.0",
             egress_policy: {
-              mode: "allowlist",
-              rules: [{ pattern: "github.com" }],
+              mode:        "allowlist",
+              rules:       [{ pattern: "*.github.com" }],
               log_blocked: true
-            }
+            },
+            workspace_files: { "SOUL.md" => "# Mando" }
           }])
         end
 
@@ -286,6 +552,24 @@ RSpec.describe Swarms::SwarmSchema do
         end
       end
 
+      context "when summary exceeds 150 characters" do
+        let(:raw) { valid_swarm(skills: [{ name: "git", content: "X", summary: "A" * 151 }]) }
+
+        it { is_expected.to be_invalid }
+        it "reports the length error" do
+          expect(result.errors).to include("skills[0].summary exceeds 150 character limit")
+        end
+      end
+
+      context "when content exceeds 100KB" do
+        let(:raw) { valid_swarm(skills: [{ name: "git", summary: "Git", content: "X" * (100 * 1024 + 1) }]) }
+
+        it { is_expected.to be_invalid }
+        it "reports the size error" do
+          expect(result.errors).to include("skills[0].content exceeds 100KB limit")
+        end
+      end
+
       context "when category is invalid" do
         let(:raw) { valid_swarm(skills: [{ name: "git", content: "Git instructions", summary: "Git", category: "wizardry" }]) }
 
@@ -299,6 +583,15 @@ RSpec.describe Swarms::SwarmSchema do
         let(:raw) { valid_swarm(skills: [{ name: "git", content: "Git instructions", summary: "Git workflow", category: "coding" }]) }
 
         it { is_expected.to be_valid }
+      end
+
+      context "with skill tools array containing a non-string" do
+        let(:raw) { valid_swarm(skills: [{ name: "git", content: "X", summary: "Git", tools: [123] }]) }
+
+        it { is_expected.to be_invalid }
+        it "reports the type error" do
+          expect(result.errors).to include("skills[0].tools[0] must be a string")
+        end
       end
     end
 
@@ -333,9 +626,9 @@ RSpec.describe Swarms::SwarmSchema do
       context "with a valid custom_script tool" do
         let(:raw) do
           valid_swarm(tools: [{
-            name: "my_tool",
-            description: "Does a thing",
-            executor_type: "custom_script",
+            name:            "my_tool",
+            description:     "Does a thing",
+            executor_type:   "custom_script",
             script_template: "echo {{message}}"
           }])
         end
@@ -348,8 +641,26 @@ RSpec.describe Swarms::SwarmSchema do
     # channels
     # ----------------------------------------------------------------
     describe "channels" do
+      context "when ref is missing" do
+        let(:raw) { valid_swarm(channels: [{ name: "general", channel_type: "slack" }]) }
+
+        it { is_expected.to be_invalid }
+        it "reports the missing ref" do
+          expect(result.errors).to include("channels[0].ref is required")
+        end
+      end
+
+      context "when name is missing" do
+        let(:raw) { valid_swarm(channels: [{ ref: "ops-slack", channel_type: "slack" }]) }
+
+        it { is_expected.to be_invalid }
+        it "reports the missing name" do
+          expect(result.errors).to include("channels[0].name is required")
+        end
+      end
+
       context "when channel_type is missing" do
-        let(:raw) { valid_swarm(channels: [{ name: "general" }]) }
+        let(:raw) { valid_swarm(channels: [{ ref: "ops-slack", name: "Ops Slack" }]) }
 
         it { is_expected.to be_invalid }
         it "reports the missing channel_type" do
@@ -358,7 +669,7 @@ RSpec.describe Swarms::SwarmSchema do
       end
 
       context "when channel_type is invalid" do
-        let(:raw) { valid_swarm(channels: [{ name: "general", channel_type: "fax" }]) }
+        let(:raw) { valid_swarm(channels: [{ ref: "ops-fax", name: "Ops Fax", channel_type: "fax" }]) }
 
         it { is_expected.to be_invalid }
         it "reports the invalid channel_type" do
@@ -367,9 +678,18 @@ RSpec.describe Swarms::SwarmSchema do
       end
 
       context "with a valid slack channel" do
-        let(:raw) { valid_swarm(channels: [{ name: "general", channel_type: "slack" }]) }
+        let(:raw) { valid_swarm(channels: [{ ref: "ops-slack", name: "Ops Slack", channel_type: "slack" }]) }
 
         it { is_expected.to be_valid }
+      end
+
+      context "with all valid channel types" do
+        %w[slack discord telegram whatsapp signal web].each do |type|
+          it "accepts #{type}" do
+            raw = valid_swarm(channels: [{ ref: "ch-#{type}", name: type.capitalize, channel_type: type }])
+            expect(described_class.validate(raw)).to be_valid
+          end
+        end
       end
     end
 
@@ -422,6 +742,15 @@ RSpec.describe Swarms::SwarmSchema do
         end
       end
 
+      context "when auth_config is not an object" do
+        let(:raw) { valid_swarm(mcp_servers: [{ name: "remote", transport: "sse", url: "https://mcp.example.com", auth_config: "Bearer token" }]) }
+
+        it { is_expected.to be_invalid }
+        it "reports the type error" do
+          expect(result.errors).to include("mcp_servers[0].auth_config must be an object")
+        end
+      end
+
       context "with a valid stdio server" do
         let(:raw) { valid_swarm(mcp_servers: [{ name: "filesystem", transport: "stdio", command: "npx -y @mcp/fs" }]) }
 
@@ -436,59 +765,215 @@ RSpec.describe Swarms::SwarmSchema do
     end
 
     # ----------------------------------------------------------------
-    # scheduled_tasks
+    # api_integrations
     # ----------------------------------------------------------------
-    describe "scheduled_tasks" do
-      context "when agent reference is missing" do
-        let(:raw) { valid_swarm(scheduled_tasks: [{ name: "Daily", schedule: "0 9 * * *" }]) }
+    describe "api_integrations" do
+      context "when not an array" do
+        let(:raw) { valid_swarm(api_integrations: { name: "pagerduty", base_url: "https://api.pagerduty.com" }) }
 
         it { is_expected.to be_invalid }
-        it "reports the missing agent" do
-          expect(result.errors).to include("scheduled_tasks[0].agent is required")
+        it "reports the type error" do
+          expect(result.errors).to include("api_integrations must be an array")
         end
       end
 
-      context "when schedule is not a valid cron expression" do
-        let(:raw) { valid_swarm(scheduled_tasks: [{ name: "Daily", schedule: "every day", agent: "mando" }]) }
+      context "when name is missing" do
+        let(:raw) { valid_swarm(api_integrations: [{ base_url: "https://api.example.com" }]) }
 
         it { is_expected.to be_invalid }
-        it "reports the invalid schedule" do
-          expect(result.errors.first).to match(/not a valid cron expression/)
+        it "reports the missing name" do
+          expect(result.errors).to include("api_integrations[0].name is required")
         end
       end
 
-      context "when confirmation_status is invalid" do
-        let(:raw) { valid_swarm(scheduled_tasks: [{ name: "Daily", schedule: "0 9 * * *", agent: "mando", confirmation_status: "maybe" }]) }
+      context "when base_url is missing" do
+        let(:raw) { valid_swarm(api_integrations: [{ name: "pagerduty" }]) }
 
         it { is_expected.to be_invalid }
-        it "reports the invalid status" do
-          expect(result.errors.first).to match(/confirmation_status.*invalid/)
+        it "reports the missing base_url" do
+          expect(result.errors).to include("api_integrations[0].base_url is required")
         end
       end
 
-      context "with a valid scheduled task" do
-        let(:raw) { valid_swarm(scheduled_tasks: [{ name: "Daily standup", schedule: "0 9 * * *", agent: "mando", confirmation_status: "active" }]) }
+      context "when endpoints is not an array" do
+        let(:raw) do
+          valid_swarm(api_integrations: [{
+            name: "pd", base_url: "https://api.pd.com",
+            endpoints: "GET /incidents"
+          }])
+        end
+
+        it { is_expected.to be_invalid }
+        it "reports the type error" do
+          expect(result.errors).to include("api_integrations[0].endpoints must be an array")
+        end
+      end
+
+      context "when an endpoint is missing method" do
+        let(:raw) do
+          valid_swarm(api_integrations: [{
+            name: "pd", base_url: "https://api.pd.com",
+            endpoints: [{ path: "/incidents" }]
+          }])
+        end
+
+        it { is_expected.to be_invalid }
+        it "reports the missing method" do
+          expect(result.errors).to include("api_integrations[0].endpoints[0].method is required")
+        end
+      end
+
+      context "when timeout_seconds is not a positive integer" do
+        let(:raw) do
+          valid_swarm(api_integrations: [{
+            name: "pd", base_url: "https://api.pd.com",
+            timeout_seconds: 0
+          }])
+        end
+
+        it { is_expected.to be_invalid }
+        it "reports the validation error" do
+          expect(result.errors).to include("api_integrations[0].timeout_seconds must be a positive integer")
+        end
+      end
+
+      context "with a valid api integration" do
+        let(:raw) do
+          valid_swarm(api_integrations: [{
+            name:            "pagerduty",
+            description:     "PagerDuty API",
+            base_url:        "https://api.pagerduty.com",
+            timeout_seconds: 30,
+            endpoints:       [{ method: "GET", path: "/incidents", description: "List incidents" }]
+          }])
+        end
+
+        it { is_expected.to be_valid }
+      end
+
+      context "with an empty api_integrations array" do
+        let(:raw) { valid_swarm(api_integrations: []) }
 
         it { is_expected.to be_valid }
       end
     end
 
     # ----------------------------------------------------------------
-    # Multiple errors
+    # Full spec example validation
+    # ----------------------------------------------------------------
+    describe "spec example" do
+      context "with the DevOps swarm example" do
+        let(:raw) do
+          {
+            swarm_version: "1.0",
+            name:          "DevOps Swarm",
+            slug:          "devops-swarm",
+            description:   "3-agent DevOps team",
+            version:       "1.0.0",
+            author:        { name: "Hivemind Community", url: "https://hivemind.dev" },
+            tags:          ["devops", "cicd"],
+
+            requires: {
+              hivemind_version: ">=2.0.0",
+              integrations:     ["github", "slack"],
+              provider_models:  ["claude-haiku-4-5", "claude-sonnet-4"]
+            },
+
+            variables: {
+              "SLACK_CHANNEL_ID" => { description: "Slack channel for alerts", required: true, type: "string" },
+              "GITHUB_ORG"       => { description: "GitHub org", required: true, type: "string" }
+            },
+
+            team: {
+              name:        "DevOps Squadron",
+              description: "CI/CD, monitoring, incident response"
+            },
+
+            skills: [{
+              name:     "incident_triage",
+              summary:  "Classify and triage production incidents",
+              category: "automation",
+              content:  "# Incident Triage\n\n## Severity Levels"
+            }],
+
+            tools: [{
+              name:            "service_health",
+              description:     "Check health of a service",
+              executor_type:   "custom_script",
+              script_template: "curl -sf https://{{service}}.example.com/health"
+            }],
+
+            channels: [{
+              ref:          "ops-slack",
+              name:         "DevOps Slack",
+              channel_type: "slack"
+            }],
+
+            mcp_servers: [{
+              name:      "github-mcp",
+              transport: "stdio",
+              command:   "npx -y @modelcontextprotocol/server-github",
+              env_vars:  { "GITHUB_PERSONAL_ACCESS_TOKEN" => "vault:github/pat" }
+            }],
+
+            api_integrations: [],
+
+            agents: [
+              {
+                name:  "Commander",
+                role:  "DevOps Engineer",
+                tools: ["shell", "service_health"],
+                skills: ["incident_triage"],
+                channels: [{ channel_ref: "ops-slack", is_default: true }],
+                mcp_servers: ["github-mcp"],
+                scheduled_tasks: [{
+                  name:     "Morning Status",
+                  schedule: "0 14 * * 1-5"
+                }],
+                heartbeat_enabled:          true,
+                heartbeat_interval_minutes: 60,
+                daily_budget_limit:         "25.0",
+                egress_policy: {
+                  mode:  "allowlist",
+                  rules: [{ pattern: "*.github.com" }]
+                }
+              },
+              {
+                name:  "Watchdog",
+                role:  "DevOps Engineer",
+                tools: ["shell", "service_health"],
+                scheduled_tasks: [{
+                  name:     "Health Sweep",
+                  schedule: "*/15 * * * *"
+                }]
+              }
+            ]
+          }
+        end
+
+        it { is_expected.to be_valid }
+        it "has no errors" do
+          expect(result.errors).to be_empty
+        end
+      end
+    end
+
+    # ----------------------------------------------------------------
+    # Error accumulation
     # ----------------------------------------------------------------
     describe "error accumulation" do
       context "with multiple invalid sections" do
         let(:raw) do
           {
             swarm_version: "1.0",
-            metadata: { name: "Multi Error Swarm" },
-            agents: [{ name: "Bob" }, { role: "Helper" }],
-            skills: [{ name: "git" }],
-            mcp_servers: [{ name: "fs", transport: "stdio" }]
+            name:          "Multi Error Swarm",
+            agents:        [{ name: "Bob" }, { role: "Helper" }],
+            skills:        [{ name: "git" }],
+            mcp_servers:   [{ name: "fs", transport: "stdio" }]
           }
         end
 
-        it "collects all errors" do
+        it "collects all errors without short-circuiting" do
           expect(result.errors.length).to be >= 4
           expect(result.errors).to include("agents[0].role is required")
           expect(result.errors).to include("agents[1].name is required")
