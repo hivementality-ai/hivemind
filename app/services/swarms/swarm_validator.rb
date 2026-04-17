@@ -5,14 +5,19 @@ module Swarms
   #
   # This runs AFTER SwarmSchema structural validation passes. It checks:
   #
-  #   1. Referential integrity — all names referenced by agents actually exist
-  #      in the top-level section they reference:
-  #        - agent.skills[]        → names in skills[]
-  #        - agent.tools[]         → names in tools[]
-  #        - agent.mcp_servers[]   → names in mcp_servers[]
+  #   1. Referential integrity — all names referenced anywhere must exist in their
+  #      corresponding top-level section:
+  #        - agent.skills[]              → names in skills[]
+  #        - agent.tools[]               → names in tools[]
+  #        - agent.mcp_servers[]         → names in mcp_servers[]
   #        - agent.channels[].channel_ref → refs in channels[]
+  #        - skill.tools[]               → names in tools[]
   #
-  #   2. Uniqueness — no duplicate names (or refs) within each top-level section:
+  #   2. Uniqueness — no duplicate names (or refs) within each top-level section.
+  #      Comparisons are case-sensitive (e.g. "Tool" and "tool" are distinct names).
+  #      This mirrors JSON conventions and how the runtime resolves refs by exact string
+  #      match. If case-insensitive deduplication is ever required, it must be added
+  #      deliberately here and documented in the spec.
   #        - agents[].name
   #        - skills[].name
   #        - tools[].name
@@ -26,9 +31,14 @@ module Swarms
   #        - tool.script_template ≤ 100 KB (102_400 bytes)
   #        - total file size is handled by SwarmParser, not here
   #
-  # Returns a ValidationResult (same type as SwarmSchema):
-  #   valid?   – true/false
-  #   errors   – array of ValidationError structs with path and message
+  # NOTE — ValidationResult/ValidationError type contract:
+  #   SwarmValidator returns a ValidationResult whose errors array contains
+  #   ValidationError structs (Data objects with :path and :message fields).
+  #   This differs from SwarmSchema, which returns a ValidationResult whose
+  #   errors array contains plain Strings. Both expose the same valid?/invalid?
+  #   interface, but callers that inspect individual errors must account for this
+  #   difference. SwarmParser (#200) should normalise the two before surfacing
+  #   them to callers.
   #
   # Usage:
   #   result = SwarmValidator.validate(raw_hash)
@@ -162,9 +172,10 @@ module Swarms
 
     def validate_referential_integrity
       agents = raw[:agents]
-      return unless agents.is_a?(Array)
+      agents.each_with_index { |agent, i| validate_agent_refs(agent, i) } if agents.is_a?(Array)
 
-      agents.each_with_index { |agent, i| validate_agent_refs(agent, i) }
+      skills = raw[:skills]
+      skills.each_with_index { |skill, i| validate_skill_refs(skill, i) } if skills.is_a?(Array)
     end
 
     def validate_agent_refs(agent, index)
@@ -178,6 +189,16 @@ module Swarms
       validate_string_refs(a[:mcp_servers], "#{prefix}.mcp_servers", mcp_server_names, "mcp_servers")
 
       validate_channel_refs(a[:channels], prefix)
+    end
+
+    # Skills may declare a tools[] list — each entry must name a top-level tool.
+    def validate_skill_refs(skill, index)
+      return unless skill.is_a?(Hash)
+
+      s      = skill.with_indifferent_access
+      prefix = "skills[#{index}]"
+
+      validate_string_refs(s[:tools], "#{prefix}.tools", tool_names, "tools")
     end
 
     # Validates an array of string names against a known Set.

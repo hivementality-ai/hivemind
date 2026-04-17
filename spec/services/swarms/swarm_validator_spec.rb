@@ -375,6 +375,63 @@ RSpec.describe Swarms::SwarmValidator do
   end
 
   # ---------------------------------------------------------------------------
+  # Referential integrity — skill.tools[]
+  # ---------------------------------------------------------------------------
+
+  describe "referential integrity: skill tools" do
+    it "rejects a tool ref in skills[] that has no matching top-level tool" do
+      result = validate(valid_swarm(
+        skills: [{ name: "core-skill", tools: ["ghost-tool"] }],
+        tools:  [{ name: "my-tool" }]
+      ))
+      expect(result).to be_invalid
+      expect(result.errors.map(&:path)).to include("skills[0].tools[0]")
+      expect(result.errors.map(&:message).join).to include("ghost-tool")
+    end
+
+    it "accepts a skill tool ref that resolves to a top-level tool" do
+      result = validate(valid_swarm(
+        skills: [{ name: "core-skill", tools: ["my-tool"] }],
+        tools:  [{ name: "my-tool" }]
+      ))
+      expect(result).to be_valid
+    end
+
+    it "accepts a skill with no tools array" do
+      result = validate(valid_swarm(
+        skills: [{ name: "core-skill", summary: "No tools needed" }]
+      ))
+      expect(result).to be_valid
+    end
+
+    it "rejects skill tool refs when the tools section is absent" do
+      swarm = {
+        swarm_version: "1.0",
+        name:          "No Tools Swarm",
+        skills:        [{ name: "core-skill", tools: ["some-tool"] }]
+      }
+      result = validate(swarm)
+      expect(result).to be_invalid
+      expect(result.errors.map(&:path)).to include("skills[0].tools[0]")
+    end
+
+    it "reports errors for each invalid ref across multiple skills" do
+      result = validate(valid_swarm(
+        skills: [
+          { name: "skill-a", tools: ["real-tool", "ghost-tool"] },
+          { name: "skill-b", tools: ["another-ghost"] }
+        ],
+        tools: [{ name: "real-tool" }]
+      ))
+      expect(result).to be_invalid
+      paths = result.errors.map(&:path)
+      expect(paths).to include("skills[0].tools[1]")
+      expect(paths).to include("skills[1].tools[0]")
+      expect(paths).not_to include("skills[0].tools[0]")
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # Referential integrity — agent.channels[].channel_ref
   # ---------------------------------------------------------------------------
 
