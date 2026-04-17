@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_17_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_17_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -822,6 +822,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_17_000001) do
     t.integer "exit_code"
     t.jsonb "input", default: {}, null: false
     t.text "output"
+    t.text "raw_output"
     t.bigint "session_id", null: false
     t.string "status", default: "pending", null: false
     t.bigint "tool_id", null: false

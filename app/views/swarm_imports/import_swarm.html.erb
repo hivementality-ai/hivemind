@@ -1,0 +1,63 @@
+<div class="max-w-2xl mx-auto px-6 py-8">
+  <%= link_to "← Teams", teams_path, class: "text-brand-light hover:text-brand text-sm" %>
+
+  <div class="mt-6 mb-8">
+    <h1 class="text-2xl font-bold text-white">Import Swarm</h1>
+    <p class="text-text-muted mt-1">
+      Upload a
+      <code class="text-brand-light text-xs bg-surface-raised px-1.5 py-0.5 rounded">.swarm.json</code>
+      file to deploy agents, skills, and tools into this platform.
+    </p>
+  </div>
+
+  <% if flash[:alert].present? %>
+    <div class="mb-6 bg-red-900/50 border border-red-600 text-red-200 px-4 py-3 rounded-lg text-sm">
+      <%= flash[:alert] %>
+    </div>
+  <% end %>
+
+  <% if local_assigns[:parse_errors].present? %>
+    <div class="mb-6 bg-red-900/50 border border-red-600 text-red-200 px-4 py-3 rounded-lg text-sm">
+      <p class="font-medium mb-1">File could not be parsed:</p>
+      <ul class="list-disc list-inside space-y-0.5">
+        <% parse_errors.each do |err| %>
+          <li><%= err %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <%= form_tag upload_swarm_teams_path, method: :post, multipart: true,
+              class: "space-y-6" do %>
+    <div class="bg-surface-card rounded-xl border border-border-default p-6">
+      <h2 class="text-sm font-medium text-text-primary mb-4">Select Swarm File</h2>
+
+      <div class="border-2 border-dashed border-border-default rounded-lg p-8 text-center hover:border-brand/50 transition">
+        <svg class="w-10 h-10 text-text-faint mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <p class="text-text-muted text-sm mb-3">Choose a <code class="text-brand-light text-xs">.swarm.json</code> file</p>
+        <%= file_field_tag :swarm_file,
+            accept: ".json",
+            required: true,
+            class: "text-sm text-text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-surface-raised file:text-text-primary hover:file:bg-surface-overlay file:cursor-pointer" %>
+      </div>
+    </div>
+
+    <div class="bg-surface-raised border border-border-default rounded-lg p-4">
+      <p class="text-xs text-text-faint">
+        <span class="text-text-muted font-medium">What happens next:</span>
+        The file will be validated, then you'll review variable inputs, vault secret
+        status, and any naming conflicts before anything is created.
+      </p>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <%= submit_tag "Upload & Preview →",
+          class: "px-6 py-3 bg-brand hover:bg-brand-dark text-white font-semibold rounded-lg transition cursor-pointer" %>
+      <%= link_to "Cancel", teams_path,
+          class: "px-6 py-3 bg-surface-raised border border-border-default text-text-muted hover:text-white rounded-lg transition" %>
+    </div>
+  <% end %>
+</div>

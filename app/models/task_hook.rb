@@ -11,6 +11,7 @@ class TaskHook < ApplicationRecord
 
   validates :trigger, inclusion: { in: TRIGGERS }
   validates :on_status, inclusion: { in: Task::STATUSES }
+  validates :skill, presence: true, if: -> { task_id.present? }
   validate :exactly_one_owner
 
   scope :enabled, -> { where(enabled: true) }

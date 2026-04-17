@@ -331,13 +331,13 @@ module Tools
 
     def add_artifact
       task = find_task!
-      title = require_param!("title")
+      title = require_param!("artifact_title")
 
       artifact = task.add_artifact(
         title:       title,
-        url:         input["url"],
-        description: input["description"],
-        type:        input["type"] || "url",
+        url:         input["artifact_url"],
+        description: input["artifact_description"],
+        type:        input["artifact_type"] || "url",
         metadata:    input["metadata"] || {},
         created_by:  agent&.name || "Unknown"
       )
