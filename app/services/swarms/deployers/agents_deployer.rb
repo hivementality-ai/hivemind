@@ -3,26 +3,23 @@
 module Swarms
   module Deployers
     # Creates or updates Agent records from a SwarmDocument's agents[] section,
-    # then wires up skill and tool associations and applies agent-level config.
+    # then wires up skill and tool associations.
     #
     # Must run AFTER SkillsDeployer and ToolsDeployer so that the skill/tool
     # records referenced by agents already exist in the database.
     #
     # Each agent entry is a plain Hash (as produced by SwarmParser#normalize_array)
     # with the following relevant fields:
-    #   name                   – required
-    #   role                   – required
-    #   soul / system_prompt   – optional (soul takes precedence)
-    #   model                  – optional LLM model string
-    #   model_config           – optional Hash of model parameters
-    #   thinking_enabled       – optional boolean
+    #   name                  – required
+    #   role                  – required
+    #   soul / system_prompt  – optional (soul takes precedence)
+    #   model                 – optional LLM model string
+    #   model_config          – optional Hash of model parameters
+    #   thinking_enabled      – optional boolean
     #   thinking_budget_tokens – optional integer
-    #   thinking_visibility    – optional "hidden" | "debug"
-    #   skills[]               – optional array of skill names to associate
-    #   tools[]                – optional array of tool names to associate
-    #   egress_policy          – optional Hash — applied via EgressPolicyDeployer
-    #   tool_loop_config       – optional Hash — applied via ToolLoopConfigDeployer
-    #   budget_limits          – optional Hash — applied via BudgetLimitsDeployer
+    #   thinking_visibility   – optional "hidden" | "debug"
+    #   skills[]              – optional array of skill names to associate
+    #   tools[]               – optional array of tool names to associate
     #
     # Resolution strategies are keyed by agent name:
     #   :skip      – keep existing agent and its associations unchanged
@@ -75,7 +72,6 @@ module Swarms
         if existing.nil?
           record = create_agent(name, agent_hash)
           wire_associations(record, agent_hash)
-          apply_agent_config(record, agent_hash)
           DeployResult.new(name: name, record: record, action: :created)
         else
           apply_strategy(strategy, existing, name, agent_hash)
@@ -93,13 +89,11 @@ module Swarms
         when :overwrite
           existing.update!(build_attributes(name, agent_hash))
           replace_associations(existing, agent_hash)
-          apply_agent_config(existing, agent_hash)
           DeployResult.new(name: name, record: existing, action: :updated)
         when :rename
           new_name = unique_name(name)
           record   = create_agent(new_name, agent_hash.merge(name: new_name))
           wire_associations(record, agent_hash)
-          apply_agent_config(record, agent_hash)
           DeployResult.new(name: new_name, record: record, action: :renamed)
         else
           # No resolution provided but conflict exists — skip to be safe.
@@ -109,10 +103,10 @@ module Swarms
 
       def build_attributes(name, agent_hash)
         attrs = {
-          name:          name,
-          role:          agent_hash[:role].to_s,
+          name:        name,
+          role:        agent_hash[:role].to_s,
           system_prompt: resolve_system_prompt(agent_hash),
-          enabled:       agent_hash.key?(:enabled) ? agent_hash[:enabled] : true
+          enabled:     agent_hash.key?(:enabled) ? agent_hash[:enabled] : true
         }
 
         attrs[:team] = @team if @team.present?
@@ -142,44 +136,6 @@ module Swarms
       def resolve_system_prompt(agent_hash)
         agent_hash[:soul].presence || agent_hash[:system_prompt].presence
       end
-
-      # -----------------------------------------------------------------------
-      # Agent-level config deployers
-      # -----------------------------------------------------------------------
-
-      # Apply egress_policy, tool_loop_config, and budget_limits from the swarm
-      # hash onto an already-persisted agent record. Each sub-deployer validates
-      # before writing and raises on failure so the outer transaction rolls back.
-      def apply_agent_config(agent, agent_hash)
-        apply_egress_policy(agent, agent_hash[:egress_policy])
-        apply_tool_loop_config(agent, agent_hash[:tool_loop_config])
-        apply_budget_limits(agent, agent_hash[:budget_limits])
-      end
-
-      def apply_egress_policy(agent, policy)
-        return if policy.blank?
-
-        result = AgentConfig::EgressPolicyDeployer.call(agent: agent, policy: policy)
-        raise "Egress policy deploy failed: #{result.message}" unless result.success?
-      end
-
-      def apply_tool_loop_config(agent, config)
-        return if config.blank?
-
-        result = AgentConfig::ToolLoopConfigDeployer.call(agent: agent, config: config)
-        raise "Tool loop config deploy failed: #{result.message}" unless result.success?
-      end
-
-      def apply_budget_limits(agent, budget_limits)
-        return if budget_limits.blank?
-
-        result = AgentConfig::BudgetLimitsDeployer.call(agent: agent, budget_limits: budget_limits)
-        raise "Budget limits deploy failed: #{result.message}" unless result.success?
-      end
-
-      # -----------------------------------------------------------------------
-      # Association wiring
-      # -----------------------------------------------------------------------
 
       # Wire skill + tool associations on a freshly-created agent.
       def wire_associations(agent, agent_hash)
