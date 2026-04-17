@@ -362,7 +362,6 @@ RSpec.describe Swarms::SwarmImporter do
       expect(report.summary).to match(/renamed/)
     end
   end
-end
 
   # ---------------------------------------------------------------------------
   # Duplicate entity names within a single swarm file
@@ -419,3 +418,4 @@ end
       expect(actions).to eq(%i[created skipped])
     end
   end
+end
