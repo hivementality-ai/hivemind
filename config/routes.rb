@@ -151,6 +151,7 @@ Rails.application.routes.draw do
       patch :toggle_checklist
       patch :archive
     end
+    resources :task_attachments, only: [ :create, :destroy ], shallow: true
   end
 
 

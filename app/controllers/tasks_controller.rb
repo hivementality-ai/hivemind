@@ -6,7 +6,7 @@ class TasksController < ApplicationController
   def index
     @tasks_by_status = Task::STATUSES.index_with do |status|
       Task.not_archived.by_status(status).by_priority
-          .includes(:assigned_to_agent, :created_by_agent, :project, :project_milestone)
+          .includes(:assigned_to_agent, :created_by_agent, :project, :project_milestone, :task_attachments)
           .to_a
     end
     @agents          = Agent.visible.enabled.order(:name)
@@ -177,7 +177,7 @@ class TasksController < ApplicationController
   private
 
   def set_task
-    @task = Task.find(params[:id])
+    @task = Task.includes(:task_attachments).find(params[:id])
   end
 
   def task_params
