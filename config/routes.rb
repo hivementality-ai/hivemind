@@ -77,6 +77,10 @@ Rails.application.routes.draw do
       get  :preview_swarm
       post :confirm_swarm
     end
+    member do
+      get  :export
+      post :export
+    end
   end
   resources :team_chats, only: [ :show, :update ] do
     member do
@@ -158,6 +162,7 @@ Rails.application.routes.draw do
       patch :archive
     end
     resources :task_attachments, only: [ :create, :destroy ], shallow: true
+    resources :task_hooks, only: [ :create, :destroy ], module: :tasks
   end
 
 

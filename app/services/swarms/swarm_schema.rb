@@ -453,6 +453,10 @@ module Swarms
         errors << "#{prefix}.name is required" if t[:name].blank?
 
         errors << "#{prefix}.description must be a string" if t[:description].present? && !t[:description].is_a?(String)
+
+        if t[:script_template].present? && t[:script_template].is_a?(String)
+          errors << "#{prefix}.script_template exceeds 100KB limit" if t[:script_template].bytesize > 100 * 1024
+        end
       end
     end
 

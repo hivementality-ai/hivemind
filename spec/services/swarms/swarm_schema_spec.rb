@@ -659,6 +659,17 @@ RSpec.describe Swarms::SwarmSchema do
       result = validate(valid_swarm(tools: [{ name: "my-tool", description: "Does something" }]))
       expect(result).to be_valid
     end
+
+    it "rejects script_template exceeding 100KB" do
+      result = validate(valid_swarm(tools: [{ name: "my-tool", script_template: "x" * (100 * 1024 + 1) }]))
+      expect(result).to be_invalid
+      expect(result.errors).to include("tools[0].script_template exceeds 100KB limit")
+    end
+
+    it "accepts script_template exactly at 100KB" do
+      result = validate(valid_swarm(tools: [{ name: "my-tool", script_template: "x" * (100 * 1024) }]))
+      expect(result).to be_valid
+    end
   end
 
   # ---------------------------------------------------------------------------

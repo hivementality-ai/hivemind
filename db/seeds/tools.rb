@@ -786,7 +786,7 @@ BUILTIN_TOOLS = [
   # ── Task Manager ──────────────────────────────────────────────
   {
     name: "task_manager",
-    description: "Manage tasks on the shared team task board. Create, update, move, assign, list, comment on, close tasks, manage dependencies, checklists, and hooks. Supports task templates for reusable workflows.",
+    description: "Manage tasks on the shared team task board. Create, update, move, assign, list, comment on, close tasks, manage dependencies, checklists, hooks, and artifacts. Supports task templates for reusable workflows.",
     executor_type: "task_manager",
     requires_approval: false,
     parameters_schema: {
@@ -794,7 +794,7 @@ BUILTIN_TOOLS = [
         "action" => {
           "type" => "string",
           "description" => "Action to perform",
-          "enum" => %w[create update move assign list my_tasks add_comment close add_dependency remove_dependency update_checklist add_hook remove_hook]
+          "enum" => %w[create update move assign list my_tasks add_comment close add_dependency remove_dependency update_checklist add_hook remove_hook add_artifact remove_artifact]
         },
         "task_id" => { "type" => "integer", "description" => "Task ID (required for most actions except create, list, my_tasks)" },
         "title" => { "type" => "string", "description" => "Task title (required for create)" },
@@ -815,7 +815,12 @@ BUILTIN_TOOLS = [
         "hook_trigger" => { "type" => "string", "description" => "Hook trigger: pre or post", "enum" => %w[pre post] },
         "hook_on_status" => { "type" => "string", "description" => "Status that triggers the hook", "enum" => %w[backlog todo in_progress review done] },
         "hook_config" => { "type" => "object", "description" => "Optional configuration for the hook" },
-        "hook_id" => { "type" => "integer", "description" => "Hook ID for remove_hook" }
+        "hook_id" => { "type" => "integer", "description" => "Hook ID for remove_hook" },
+        "artifact_title" => { "type" => "string", "description" => "Artifact title (required for add_artifact)" },
+        "artifact_url" => { "type" => "string", "description" => "Artifact URL (for add_artifact)" },
+        "artifact_description" => { "type" => "string", "description" => "Artifact description (for add_artifact)" },
+        "artifact_type" => { "type" => "string", "description" => "Artifact type (for add_artifact)", "enum" => %w[pr branch commit file url document other] },
+        "artifact_id" => { "type" => "string", "description" => "Artifact ID (required for remove_artifact)" }
       },
       "required" => [ "action" ]
     }
