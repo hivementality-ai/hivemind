@@ -49,6 +49,9 @@ class HeartbeatJob < ApplicationJob
     result = Sessions::Chat.call(session: session, message: prompt, agent: agent)
     duration_ms = ((Time.current - started_at) * 1000).to_i
 
+    # Capture the model that was actually used before restoring
+    effective_model = agent.llm_model
+
     # Restore original model and provider
     if config["model"].present? && config["model"] != original_model
       agent.update_column(:llm_model, original_model)
@@ -79,7 +82,7 @@ class HeartbeatJob < ApplicationJob
       input_tokens: usage[:input_tokens] || 0,
       output_tokens: usage[:output_tokens] || 0,
       duration_ms: duration_ms,
-      model: agent.llm_model,
+      model: effective_model,
       metadata: { tasks_count: load_tasks.size, tool_calls_count: tool_count, tool_history: tool_history&.first(20) }
     )
 
