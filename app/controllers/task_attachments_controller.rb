@@ -21,15 +21,17 @@ class TaskAttachmentsController < ApplicationController
   end
 
   def destroy
-    task = @attachment.task
+    task  = @attachment.task
     title = @attachment.title
-    @attachment.destroy!
 
-    Tasks::EventLogger.call(
-      task:       task,
-      event_type: "attachment_removed",
-      summary:    "Attachment removed: #{title}"
-    )
+    ActiveRecord::Base.transaction do
+      @attachment.destroy!
+      Tasks::EventLogger.call(
+        task:       task,
+        event_type: "attachment_removed",
+        summary:    "Attachment removed: #{title}"
+      )
+    end
 
     redirect_to task_path(task), notice: "Attachment removed."
   end
@@ -45,6 +47,6 @@ class TaskAttachmentsController < ApplicationController
   end
 
   def attachment_params
-    params.require(:task_attachment).permit(:title, :url, :content_type)
+    params.require(:task_attachment).permit(:title, :url)
   end
 end
