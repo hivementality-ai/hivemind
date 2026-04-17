@@ -310,7 +310,7 @@ RSpec.describe Swarms::SwarmSchema do
     it "rejects invalid variable type" do
       result = validate(valid_swarm(variables: { "MY_VAR" => { type: "float" } }))
       expect(result).to be_invalid
-      expect(result.errors).to include(match(/variables.MY_VAR.type must be one of/))
+      expect(result.errors).to include(match(/variables\.MY_VAR\.type.*must be one of/))
     end
 
     it "accepts valid variable types" do
@@ -405,7 +405,7 @@ RSpec.describe Swarms::SwarmSchema do
       it "rejects invalid thinking_visibility" do
         result = validate(valid_swarm(agents: [{ name: "A", role: "B", thinking_visibility: "visible" }]))
         expect(result).to be_invalid
-        expect(result.errors).to include(match(/thinking_visibility must be one of/))
+        expect(result.errors).to include(match(/thinking_visibility.*must be one of/))
       end
 
       it "accepts valid thinking_visibility values" do
@@ -514,7 +514,7 @@ RSpec.describe Swarms::SwarmSchema do
       it "rejects invalid egress mode" do
         result = validate(valid_swarm(agents: [{ name: "A", role: "B", egress_policy: { mode: "open" } }]))
         expect(result).to be_invalid
-        expect(result.errors).to include(match(/egress_policy.mode must be one of/))
+        expect(result.errors).to include(match(/egress_policy\.mode.*must be one of/))
       end
 
       it "accepts valid egress modes" do
@@ -605,7 +605,7 @@ RSpec.describe Swarms::SwarmSchema do
     it "rejects invalid skill category" do
       result = validate(valid_swarm(skills: [{ name: "my-skill", category: "hacking" }]))
       expect(result).to be_invalid
-      expect(result.errors).to include(match(/skills\[0\]\.category must be one of/))
+      expect(result.errors).to include(match(/skills\[0\]\.category.*must be one of/))
     end
 
     it "accepts valid skill categories" do
@@ -703,7 +703,7 @@ RSpec.describe Swarms::SwarmSchema do
     it "rejects invalid channel type" do
       result = validate(valid_swarm(channels: [{ ref: "main-slack", name: "Main", type: "irc" }]))
       expect(result).to be_invalid
-      expect(result.errors).to include(match(/channels\[0\]\.type must be one of/))
+      expect(result.errors).to include(match(/channels\[0\]\.type.*must be one of/))
     end
 
     it "accepts all valid channel types" do
@@ -750,7 +750,7 @@ RSpec.describe Swarms::SwarmSchema do
     it "rejects invalid transport" do
       result = validate(valid_swarm(mcp_servers: [{ name: "my-mcp", transport: "http" }]))
       expect(result).to be_invalid
-      expect(result.errors).to include(match(/transport must be one of/))
+      expect(result.errors).to include(match(/transport.*must be one of/))
     end
 
     it "accepts stdio transport" do

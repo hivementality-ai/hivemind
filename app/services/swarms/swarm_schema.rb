@@ -117,11 +117,11 @@ module Swarms
         end
       end
 
-      errors << "description must be a string" if raw[:description].present? && !raw[:description].is_a?(String)
-      errors << "version must be a string"      if raw[:version].present?     && !raw[:version].is_a?(String)
-      errors << "license must be a string"      if raw[:license].present?     && !raw[:license].is_a?(String)
-      errors << "icon must be a string"         if raw[:icon].present?        && !raw[:icon].is_a?(String)
-      errors << "homepage must be a string"     if raw[:homepage].present?    && !raw[:homepage].is_a?(String)
+      errors << "description must be a string" if !raw[:description].nil? && !raw[:description].is_a?(String)
+      errors << "version must be a string"      if !raw[:version].nil?     && !raw[:version].is_a?(String)
+      errors << "license must be a string"      if !raw[:license].nil?     && !raw[:license].is_a?(String)
+      errors << "icon must be a string"         if !raw[:icon].nil?        && !raw[:icon].is_a?(String)
+      errors << "homepage must be a string"     if !raw[:homepage].nil?    && !raw[:homepage].is_a?(String)
 
       if raw[:tags].present?
         unless raw[:tags].is_a?(Array)
@@ -144,8 +144,8 @@ module Swarms
 
       a = author.with_indifferent_access
       errors << "author.name is required"       if a[:name].blank?
-      errors << "author.url must be a string"   if a[:url].present?   && !a[:url].is_a?(String)
-      errors << "author.email must be a string" if a[:email].present? && !a[:email].is_a?(String)
+      errors << "author.url must be a string"   if !a[:url].nil?   && !a[:url].is_a?(String)
+      errors << "author.email must be a string" if !a[:email].nil? && !a[:email].is_a?(String)
     end
 
     # ------------------------------------------------------------------
@@ -188,9 +188,9 @@ module Swarms
       end
 
       t = team.with_indifferent_access
-      errors << "team.name must be a string"        if t[:name].present?        && !t[:name].is_a?(String)
-      errors << "team.description must be a string" if t[:description].present? && !t[:description].is_a?(String)
-      errors << "team.custom_soul must be a string" if t[:custom_soul].present? && !t[:custom_soul].is_a?(String)
+      errors << "team.name must be a string"        if !t[:name].nil?        && !t[:name].is_a?(String)
+      errors << "team.description must be a string" if !t[:description].nil? && !t[:description].is_a?(String)
+      errors << "team.custom_soul must be a string" if !t[:custom_soul].nil? && !t[:custom_soul].is_a?(String)
     end
 
     # ------------------------------------------------------------------
@@ -257,8 +257,8 @@ module Swarms
       errors << "#{prefix}.name is required" if a[:name].blank?
       errors << "#{prefix}.role is required" if a[:role].blank?
 
-      errors << "#{prefix}.soul must be a string"  if a[:soul].present?  && !a[:soul].is_a?(String)
-      errors << "#{prefix}.model must be a string" if a[:model].present? && !a[:model].is_a?(String)
+      errors << "#{prefix}.soul must be a string"  if !a[:soul].nil?  && !a[:soul].is_a?(String)
+      errors << "#{prefix}.model must be a string" if !a[:model].nil? && !a[:model].is_a?(String)
 
       if a[:thinking_visibility].present? && !VALID_THINKING_VISIBILITY.include?(a[:thinking_visibility].to_s)
         errors << "#{prefix}.thinking_visibility '#{a[:thinking_visibility]}' is invalid (must be one of: #{VALID_THINKING_VISIBILITY.join(', ')})"
