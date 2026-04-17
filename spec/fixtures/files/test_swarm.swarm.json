@@ -1,0 +1,11 @@
+{
+  "swarm_version": "1.0",
+  "name": "Test Swarm",
+  "slug": "test-swarm",
+  "team": {
+    "name": "Test Team"
+  },
+  "agents": [],
+  "skills": [],
+  "tools": []
+}

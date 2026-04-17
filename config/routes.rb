@@ -71,6 +71,12 @@ Rails.application.routes.draw do
         patch :toggle
       end
     end
+    collection do
+      get  :import_swarm
+      post :upload_swarm
+      get  :preview_swarm
+      post :confirm_swarm
+    end
     member do
       get  :export
       post :export
