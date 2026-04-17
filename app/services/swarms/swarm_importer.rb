@@ -129,7 +129,7 @@ module Swarms
         )
       end
 
-      resolved_manifest         = resolver_result.payload[:manifest]
+      resolved_manifest          = resolver_result.payload[:manifest]
       variable_overrides_applied = resolver_result.payload[:resolved]
 
       # Rebuild document from resolved manifest so downstream stages work with
@@ -174,9 +174,9 @@ module Swarms
         message: "Deploy failed: #{e.record.errors.full_messages.join(', ')}",
         payload: { stage: :deploy }
       )
-    rescue StandardError => e
+    rescue RuntimeError => e
       ServiceResponse.error(
-        message: "Import failed: #{e.message}",
+        message: e.message,
         payload: { stage: :deploy }
       )
     end
@@ -199,13 +199,17 @@ module Swarms
       )
       raise deploy_error("team", team_result) unless team_result.success?
 
-      team_record = team_result.payload[:team]
-      results << EntityResult.new(
-        entity_type: :team,
-        name:        document.team&.name,
-        action:      team_action(team_record, document.team),
-        record:      team_record
-      ) if document.team&.name.present?
+      team_deploy = team_result.payload[:team]
+      if team_deploy
+        results << EntityResult.new(
+          entity_type: :team,
+          name:        team_deploy.name,
+          action:      team_deploy.action,
+          record:      team_deploy.record
+        )
+      end
+
+      team_record = team_deploy&.record
 
       # Skills — agents reference skills by name.
       skills_result = Deployers::SkillsDeployer.call(
@@ -248,19 +252,11 @@ module Swarms
     # Helpers
     # -------------------------------------------------------------------------
 
-    # Raise a RuntimeError that will be caught by the outer rescue and will roll
-    # back the transaction before being re-surfaced as a ServiceResponse.error.
+    # Raise a RuntimeError with a descriptive message. The outer rescue catches
+    # RuntimeError specifically so unrelated errors (bugs in pre-deploy stages)
+    # are not silently swallowed under a :deploy stage label.
     def deploy_error(stage_name, service_result)
       RuntimeError.new("Deploy failed at #{stage_name}: #{service_result.message}")
-    end
-
-    # Determine the team deploy action. TeamDeployer doesn't return a DeployResult
-    # value object — it just returns the record. We infer the action from context.
-    def team_action(team_record, team_data)
-      return :skipped if team_record.nil?
-      return :created if team_record.created_at == team_record.updated_at
-
-      team_record.name == team_data&.name ? :updated : :created
     end
 
     # Build informational warnings from detected conflicts, noting which resolution

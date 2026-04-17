@@ -363,3 +363,59 @@ RSpec.describe Swarms::SwarmImporter do
     end
   end
 end
+
+  # ---------------------------------------------------------------------------
+  # Duplicate entity names within a single swarm file
+  # ---------------------------------------------------------------------------
+
+  describe "duplicate entity names within the same swarm file" do
+    def swarm_with_duplicate_skills
+      {
+        "swarm_version" => "1.0",
+        "name"          => "Dupe Swarm",
+        "skills" => [
+          { "name" => "Alpha Skill", "content" => "# first" },
+          { "name" => "Alpha Skill", "content" => "# second — duplicate" }
+        ]
+      }.to_json
+    end
+
+    def swarm_with_duplicate_agents
+      {
+        "swarm_version" => "1.0",
+        "name"          => "Dupe Swarm",
+        "agents" => [
+          { "name" => "Alpha Agent", "role" => "assistant" },
+          { "name" => "Alpha Agent", "role" => "assistant" }
+        ]
+      }.to_json
+    end
+
+    it "creates only one skill when the same skill name appears twice" do
+      expect {
+        described_class.call(json: swarm_with_duplicate_skills)
+      }.to change(Skill, :count).by(1)
+    end
+
+    it "reports the second duplicate skill as :skipped" do
+      result = described_class.call(json: swarm_with_duplicate_skills)
+      expect(result).to be_success
+      skill_results = result.payload[:report].results_for(:skill)
+      actions = skill_results.map(&:action)
+      expect(actions).to eq(%i[created skipped])
+    end
+
+    it "creates only one agent when the same agent name appears twice" do
+      expect {
+        described_class.call(json: swarm_with_duplicate_agents)
+      }.to change(Agent, :count).by(1)
+    end
+
+    it "reports the second duplicate agent as :skipped" do
+      result = described_class.call(json: swarm_with_duplicate_agents)
+      expect(result).to be_success
+      agent_results = result.payload[:report].results_for(:agent)
+      actions = agent_results.map(&:action)
+      expect(actions).to eq(%i[created skipped])
+    end
+  end
