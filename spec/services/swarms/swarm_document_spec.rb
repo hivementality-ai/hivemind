@@ -3,252 +3,256 @@
 require "rails_helper"
 
 RSpec.describe Swarms::SwarmDocument do
-  describe "initialization" do
-    subject(:doc) do
-      described_class.new(
-        swarm_version: "1.0",
-        name: "Test Swarm"
-      )
-    end
-
-    it "stores the version" do
-      expect(doc.swarm_version).to eq("1.0")
-    end
-
-    it "stores the name" do
-      expect(doc.name).to eq("Test Swarm")
-    end
-
-    it "defaults collections to empty frozen arrays" do
-      expect(doc.agents).to eq([]).and be_frozen
-      expect(doc.skills).to eq([]).and be_frozen
-      expect(doc.tools).to eq([]).and be_frozen
-      expect(doc.channels).to eq([]).and be_frozen
-      expect(doc.mcp_servers).to eq([]).and be_frozen
-      expect(doc.api_integrations).to eq([]).and be_frozen
-      expect(doc.tags).to eq([]).and be_frozen
-    end
-
-    it "defaults variables to an empty frozen hash" do
-      expect(doc.variables).to eq({}).and be_frozen
-    end
-
-    it "defaults optional fields to nil" do
-      expect(doc.slug).to be_nil
-      expect(doc.description).to be_nil
-      expect(doc.author).to be_nil
-      expect(doc.version).to be_nil
-      expect(doc.license).to be_nil
-      expect(doc.icon).to be_nil
-      expect(doc.homepage).to be_nil
-      expect(doc.requires).to be_nil
-      expect(doc.team).to be_nil
-    end
-
-    it "is frozen after initialization" do
-      expect(doc).to be_frozen
-    end
-  end
-
-  describe "count helpers" do
-    let(:doc) do
-      described_class.new(
-        swarm_version: "1.0",
-        name: "Test Swarm",
-        agents:           [{ name: "A" }, { name: "B" }],
-        skills:           [{ name: "git" }],
-        tools:            [{ name: "bash" }, { name: "search" }, { name: "code" }],
-        api_integrations: [{ name: "pd", base_url: "https://api.pd.com" }]
-      )
-    end
-
-    it "reports agent_count" do
-      expect(doc.agent_count).to eq(2)
-    end
-
-    it "reports skill_count" do
-      expect(doc.skill_count).to eq(1)
-    end
-
-    it "reports tool_count" do
-      expect(doc.tool_count).to eq(3)
-    end
-
-    it "reports api_integration_count" do
-      expect(doc.api_integration_count).to eq(1)
-    end
-  end
-
-  # ------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
   # SwarmAuthor
-  # ------------------------------------------------------------------
-  describe described_class::SwarmAuthor do
-    describe ".from_hash" do
-      context "with all fields" do
-        subject(:author) do
-          described_class.from_hash(
-            name:  "Din Djarin",
-            url:   "https://mandalorian.forge",
-            email: "mando@mandalorian.forge"
-          )
-        end
+  # ---------------------------------------------------------------------------
+  describe "SwarmAuthor" do
+    subject(:klass) { described_class::SwarmAuthor }
 
-        it "parses name" do
-          expect(author.name).to eq("Din Djarin")
-        end
+    it "returns nil for nil input" do
+      expect(klass.from_hash(nil)).to be_nil
+    end
 
-        it "parses url" do
-          expect(author.url).to eq("https://mandalorian.forge")
-        end
+    it "builds from a hash" do
+      author = klass.from_hash({ "name" => "Jane", "url" => "https://jane.dev", "email" => "jane@dev.io" })
+      expect(author.name).to eq("Jane")
+      expect(author.url).to eq("https://jane.dev")
+      expect(author.email).to eq("jane@dev.io")
+    end
 
-        it "parses email" do
-          expect(author.email).to eq("mando@mandalorian.forge")
-        end
-      end
+    it "accepts symbol keys" do
+      author = klass.from_hash({ name: "Jane", url: "https://jane.dev" })
+      expect(author.name).to eq("Jane")
+    end
 
-      context "with only name" do
-        subject(:author) { described_class.from_hash(name: "Din Djarin") }
+    it "stores nil for missing optional fields" do
+      author = klass.from_hash({ name: "Jane" })
+      expect(author.url).to be_nil
+      expect(author.email).to be_nil
+    end
 
-        it "has nil optional fields" do
-          expect(author.url).to be_nil
-          expect(author.email).to be_nil
-        end
-      end
+    it "returns an empty-field instance for empty hash" do
+      author = klass.from_hash({})
+      expect(author).not_to be_nil
+      expect(author.name).to be_nil
+    end
 
-      context "with string keys" do
-        subject(:author) { described_class.from_hash("name" => "String Keys") }
-
-        it "handles string-keyed hashes" do
-          expect(author.name).to eq("String Keys")
-        end
-      end
+    it "is frozen" do
+      author = klass.from_hash({ name: "Jane" })
+      expect(author).to be_frozen
     end
   end
 
-  # ------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
   # SwarmRequirements
-  # ------------------------------------------------------------------
-  describe described_class::SwarmRequirements do
-    describe ".from_hash" do
-      context "with all fields" do
-        subject(:req) do
-          described_class.from_hash(
-            hivemind_version: ">=2.0.0",
-            integrations:     ["github", "slack"],
-            provider_models:  ["claude-haiku-4-5"]
-          )
-        end
+  # ---------------------------------------------------------------------------
+  describe "SwarmRequirements" do
+    subject(:klass) { described_class::SwarmRequirements }
 
-        it "parses hivemind_version" do
-          expect(req.hivemind_version).to eq(">=2.0.0")
-        end
+    it "returns nil for nil input" do
+      expect(klass.from_hash(nil)).to be_nil
+    end
 
-        it "parses integrations" do
-          expect(req.integrations).to contain_exactly("github", "slack")
-        end
+    it "returns an instance for an empty hash" do
+      req = klass.from_hash({})
+      expect(req).not_to be_nil
+      expect(req.integrations).to eq([])
+      expect(req.provider_models).to eq([])
+      expect(req.hivemind_version).to be_nil
+    end
 
-        it "parses provider_models" do
-          expect(req.provider_models).to contain_exactly("claude-haiku-4-5")
-        end
-      end
+    it "builds from a full hash" do
+      req = klass.from_hash({
+        "hivemind_version" => ">=2.0",
+        "integrations" => ["github", "linear"],
+        "provider_models" => ["claude-3-5-sonnet"]
+      })
+      expect(req.hivemind_version).to eq(">=2.0")
+      expect(req.integrations).to eq(["github", "linear"])
+      expect(req.provider_models).to eq(["claude-3-5-sonnet"])
+    end
 
-      context "with empty arrays" do
-        subject(:req) { described_class.from_hash({}) }
+    it "accepts symbol keys" do
+      req = klass.from_hash({ hivemind_version: ">=1.0", integrations: ["github"] })
+      expect(req.hivemind_version).to eq(">=1.0")
+    end
 
-        it "defaults to empty arrays" do
-          expect(req.integrations).to be_empty
-          expect(req.provider_models).to be_empty
-          expect(req.hivemind_version).to be_nil
-        end
-      end
+    it "coerces array items to strings" do
+      req = klass.from_hash({ integrations: [:github], provider_models: [:claude] })
+      expect(req.integrations).to eq(["github"])
+      expect(req.provider_models).to eq(["claude"])
+    end
+
+    it "is frozen" do
+      req = klass.from_hash({ hivemind_version: ">=1.0" })
+      expect(req).to be_frozen
     end
   end
 
-  # ------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
   # SwarmTeam
-  # ------------------------------------------------------------------
-  describe described_class::SwarmTeam do
-    describe ".from_hash" do
-      context "with all fields" do
-        subject(:team) do
-          described_class.from_hash(
-            name:        "DevOps Squad",
-            description: "CI/CD team",
-            custom_soul: "## Rules\n- Be fast"
-          )
-        end
+  # ---------------------------------------------------------------------------
+  describe "SwarmTeam" do
+    subject(:klass) { described_class::SwarmTeam }
 
-        it "parses name" do
-          expect(team.name).to eq("DevOps Squad")
-        end
+    it "returns nil for nil input" do
+      expect(klass.from_hash(nil)).to be_nil
+    end
 
-        it "parses description" do
-          expect(team.description).to eq("CI/CD team")
-        end
+    it "builds from a hash" do
+      team = klass.from_hash({ name: "Dream Team", description: "Best team", custom_soul: "Be excellent" })
+      expect(team.name).to eq("Dream Team")
+      expect(team.description).to eq("Best team")
+      expect(team.custom_soul).to eq("Be excellent")
+    end
 
-        it "parses custom_soul" do
-          expect(team.custom_soul).to eq("## Rules\n- Be fast")
-        end
-      end
+    it "returns instance for empty hash" do
+      team = klass.from_hash({})
+      expect(team).not_to be_nil
+      expect(team.name).to be_nil
+    end
 
-      context "with minimal fields" do
-        subject(:team) { described_class.from_hash(name: "Bare Team") }
-
-        it "has nil optional fields" do
-          expect(team.description).to be_nil
-          expect(team.custom_soul).to be_nil
-        end
-      end
+    it "is frozen" do
+      team = klass.from_hash({ name: "Dream Team" })
+      expect(team).to be_frozen
     end
   end
 
-  # ------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
   # SwarmVariable
-  # ------------------------------------------------------------------
-  describe described_class::SwarmVariable do
-    describe ".from_hash" do
-      context "with all fields" do
-        subject(:var) do
-          described_class.from_hash(
-            description: "The API key",
-            default:     "dev-key",
-            required:    true,
-            type:        "string"
-          )
-        end
+  # ---------------------------------------------------------------------------
+  describe "SwarmVariable" do
+    subject(:klass) { described_class::SwarmVariable }
 
-        it "parses description" do
-          expect(var.description).to eq("The API key")
-        end
+    it "builds from a full hash" do
+      var = klass.from_hash({ description: "API key", required: true, type: "string", default: "abc" })
+      expect(var.description).to eq("API key")
+      expect(var.required).to be(true)
+      expect(var.type).to eq("string")
+      expect(var.default).to eq("abc")
+    end
 
-        it "parses default" do
-          expect(var.default).to eq("dev-key")
-        end
+    it "defaults required to false" do
+      var = klass.from_hash({})
+      expect(var.required).to be(false)
+    end
 
-        it "parses required" do
-          expect(var.required).to be true
-        end
+    it "defaults type to string" do
+      var = klass.from_hash({})
+      expect(var.type).to eq("string")
+    end
 
-        it "parses type" do
-          expect(var.type).to eq("string")
-        end
+    it "allows nil default" do
+      var = klass.from_hash({ description: "Optional var" })
+      expect(var.default).to be_nil
+    end
+
+    it "is frozen" do
+      var = klass.from_hash({ description: "Test" })
+      expect(var).to be_frozen
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # SwarmDocument
+  # ---------------------------------------------------------------------------
+  describe "SwarmDocument" do
+    let(:minimal_doc) do
+      described_class.new(swarm_version: "1.0", name: "Test Swarm")
+    end
+
+    it "stores swarm_version and name" do
+      expect(minimal_doc.swarm_version).to eq("1.0")
+      expect(minimal_doc.name).to eq("Test Swarm")
+    end
+
+    it "defaults arrays to empty frozen arrays" do
+      expect(minimal_doc.agents).to eq([])
+      expect(minimal_doc.agents).to be_frozen
+      expect(minimal_doc.skills).to eq([])
+      expect(minimal_doc.tools).to eq([])
+      expect(minimal_doc.channels).to eq([])
+      expect(minimal_doc.mcp_servers).to eq([])
+      expect(minimal_doc.api_integrations).to eq([])
+      expect(minimal_doc.tags).to eq([])
+    end
+
+    it "defaults variables to empty frozen hash" do
+      expect(minimal_doc.variables).to eq({})
+      expect(minimal_doc.variables).to be_frozen
+    end
+
+    it "defaults optional scalar fields to nil" do
+      expect(minimal_doc.slug).to be_nil
+      expect(minimal_doc.description).to be_nil
+      expect(minimal_doc.author).to be_nil
+      expect(minimal_doc.version).to be_nil
+      expect(minimal_doc.license).to be_nil
+      expect(minimal_doc.icon).to be_nil
+      expect(minimal_doc.homepage).to be_nil
+      expect(minimal_doc.requires).to be_nil
+      expect(minimal_doc.team).to be_nil
+    end
+
+    it "is frozen" do
+      expect(minimal_doc).to be_frozen
+    end
+
+    describe "count helpers" do
+      let(:doc) do
+        described_class.new(
+          swarm_version: "1.0",
+          name: "Test",
+          agents:           [{ name: "A" }, { name: "B" }],
+          skills:           [{ name: "s1" }],
+          tools:            [{ name: "t1" }, { name: "t2" }, { name: "t3" }],
+          channels:         [{ ref: "c1" }],
+          mcp_servers:      [{ name: "m1" }, { name: "m2" }],
+          api_integrations: [{ name: "api1" }]
+        )
       end
 
-      context "with defaults" do
-        subject(:var) { described_class.from_hash(description: "A var") }
-
-        it "defaults required to false" do
-          expect(var.required).to be false
-        end
-
-        it "defaults type to string" do
-          expect(var.type).to eq("string")
-        end
-
-        it "has nil default" do
-          expect(var.default).to be_nil
-        end
+      it "returns correct agent_count" do
+        expect(doc.agent_count).to eq(2)
       end
+
+      it "returns correct skill_count" do
+        expect(doc.skill_count).to eq(1)
+      end
+
+      it "returns correct tool_count" do
+        expect(doc.tool_count).to eq(3)
+      end
+
+      it "returns correct channel_count" do
+        expect(doc.channel_count).to eq(1)
+      end
+
+      it "returns correct mcp_server_count" do
+        expect(doc.mcp_server_count).to eq(2)
+      end
+
+      it "returns correct api_integration_count" do
+        expect(doc.api_integration_count).to eq(1)
+      end
+    end
+
+    it "stores nested value objects" do
+      author = described_class::SwarmAuthor.from_hash({ name: "Jane" })
+      requires = described_class::SwarmRequirements.from_hash({ hivemind_version: ">=2.0" })
+      team = described_class::SwarmTeam.from_hash({ name: "Dream Team" })
+
+      doc = described_class.new(
+        swarm_version: "1.0",
+        name: "Test",
+        author: author,
+        requires: requires,
+        team: team
+      )
+
+      expect(doc.author.name).to eq("Jane")
+      expect(doc.requires.hivemind_version).to eq(">=2.0")
+      expect(doc.team.name).to eq("Dream Team")
     end
   end
 end
