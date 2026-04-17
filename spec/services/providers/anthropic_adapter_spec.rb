@@ -6,14 +6,43 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
   let(:config) { double("Config", base_url: nil) }
 
   describe "routing" do
-    context "with OAuth token" do
+    let(:faraday_client) { instance_double(Providers::Anthropic::FaradayClient) }
+
+    before do
+      allow(Providers::Anthropic::FaradayClient).to receive(:new).and_return(faraday_client)
+      allow(faraday_client).to receive(:chat).and_return(
+        ServiceResponse.success(data: { content: "faraday response", usage: {} })
+      )
+    end
+
+    context "with OAuth token (default flag off)" do
       let(:adapter) { described_class.new(config: config, api_key: "sk-ant-oat-test-token") }
 
-      it "delegates to SdkProxyClient" do
-        proxy_client = instance_double(Providers::Anthropic::SdkProxyClient)
-        allow(Providers::Anthropic::SdkProxyClient).to receive(:new).and_return(proxy_client)
-        allow(proxy_client).to receive(:chat).and_return(ServiceResponse.success(data: { content: "proxy response", usage: {} }))
+      it "delegates to FaradayClient, not SdkProxyClient" do
+        expect(Providers::Anthropic::SdkProxyClient).not_to receive(:new)
 
+        result = adapter.chat(messages: [ { role: "user", content: "Hi" } ])
+
+        expect(result).to be_success
+        expect(result.data[:content]).to eq("faraday response")
+        expect(faraday_client).to have_received(:chat)
+      end
+    end
+
+    context "with OAuth token and USE_SDK_PROXY_FALLBACK=true" do
+      let(:adapter) { described_class.new(config: config, api_key: "sk-ant-oat-test-token") }
+      let(:proxy_client) { instance_double(Providers::Anthropic::SdkProxyClient) }
+
+      before do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("USE_SDK_PROXY_FALLBACK").and_return("true")
+        allow(Providers::Anthropic::SdkProxyClient).to receive(:new).and_return(proxy_client)
+        allow(proxy_client).to receive(:chat).and_return(
+          ServiceResponse.success(data: { content: "proxy response", usage: {} })
+        )
+      end
+
+      it "delegates to SdkProxyClient" do
         result = adapter.chat(messages: [ { role: "user", content: "Hi" } ])
 
         expect(result).to be_success
@@ -25,28 +54,18 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
     context "with API key" do
       let(:adapter) { described_class.new(config: config, api_key: "sk-ant-api-test-key") }
 
-      it "delegates to GemClient" do
-        gem_client = instance_double(Providers::Anthropic::GemClient)
-        allow(Providers::Anthropic::GemClient).to receive(:new).and_return(gem_client)
-        allow(gem_client).to receive(:chat).and_return(ServiceResponse.success(data: { content: "gem response", usage: {} }))
-
-        anthropic_client = instance_double("Anthropic::Client")
-        allow(::Anthropic::Client).to receive(:new).and_return(anthropic_client)
-
+      it "delegates to FaradayClient" do
         result = adapter.chat(messages: [ { role: "user", content: "Hi" } ])
 
         expect(result).to be_success
-        expect(result.data[:content]).to eq("gem response")
-        expect(gem_client).to have_received(:chat).with(client: anthropic_client, params: anything)
+        expect(result.data[:content]).to eq("faraday response")
+        expect(faraday_client).to have_received(:chat)
       end
 
       it "injects request_payload into usage" do
-        gem_client = instance_double(Providers::Anthropic::GemClient)
-        allow(Providers::Anthropic::GemClient).to receive(:new).and_return(gem_client)
-        allow(gem_client).to receive(:chat).and_return(
+        allow(faraday_client).to receive(:chat).and_return(
           ServiceResponse.success(data: { content: "test", usage: { input_tokens: 10 } })
         )
-        allow(::Anthropic::Client).to receive(:new).and_return(double("client"))
 
         result = adapter.chat(messages: [ { role: "user", content: "Hi" } ])
 
@@ -59,7 +78,7 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
       let(:adapter) { described_class.new(config: config, api_key: "sk-ant-api-test-key") }
 
       it "wraps exceptions in failure response" do
-        allow(::Anthropic::Client).to receive(:new).and_raise(StandardError, "connection refused")
+        allow(faraday_client).to receive(:chat).and_raise(StandardError, "connection refused")
 
         result = adapter.chat(messages: [ { role: "user", content: "Hi" } ])
 

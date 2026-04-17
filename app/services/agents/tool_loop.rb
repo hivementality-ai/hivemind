@@ -21,17 +21,23 @@ module Agents
       @total_usage = { input_tokens: 0, output_tokens: 0 }
       @tool_history = []
       @loop_config = @agent.effective_tool_loop_config
+      @context_manager = Agents::ContextManager.new(@agent.llm_model, @agent.max_output_tokens || 8192, provider: @agent.model_provider, agent: @agent)
+      @decision_compactor = Agents::DecisionCompactor.new(context_manager: @context_manager, threshold: @context_manager.instance_variable_get(:@budget))
     end
 
     def call
-      llm_tools = @tools.map(&:to_llm_tool)
+      all_llm_tools = @tools.map(&:to_llm_tool)
+      discovered_names = Set.new
 
       loop do
         # Check for interrupt signal before LLM call
         check_signal!
 
+        # Filter tool schemas by detected task context to save tokens.
+        active_llm_tools = filter_tools_for_turn(all_llm_tools, discovered_names)
+
         # Call LLM
-        result = call_llm(llm_tools)
+        result = call_llm(active_llm_tools)
         return result unless result&.success?
 
         data = result.data
@@ -48,6 +54,9 @@ module Agents
           if data[:content].present?
             broadcast(type: "token", content: data[:content])
           end
+
+          # Record which tools got used so they stay in the schema for future turns.
+          tool_calls.each { |tc| discovered_names << tc["name"] }
 
           # Execute each tool call and track in history
           tool_results = execute_tool_calls(tool_calls)
@@ -68,6 +77,10 @@ module Agents
               content: tr[:result]
             }.with_indifferent_access
           end
+
+          # Feed milestone signals to the decision compactor.
+          feed_decision_signals(tool_calls, tool_results)
+          @messages = @decision_compactor.check!(@messages)
 
           # Analyze tool loop behavior
           loop_status = analyze_loop_behavior
@@ -121,6 +134,63 @@ module Agents
       raise
     rescue StandardError => e
       ServiceResponse.failure(error: "LLM call failed: #{e.message}")
+    end
+
+    def feed_decision_signals(tool_calls, tool_results)
+      edited_any = false
+      tool_calls.each_with_index do |tc, i|
+        name = tc["name"].to_s
+        result = tool_results[i]
+        success = !result[:result].to_s.start_with?("Error:") && !result[:result].to_s.start_with?("Tool unavailable")
+
+        if %w[file_edit file_write].include?(name)
+          path = (tc["input"] || {})["path"]
+          @decision_compactor.signal_file_edited!(path) if path
+          edited_any = true
+        end
+
+        if success && (name.include?("spec") || name.include?("test"))
+          @decision_compactor.signal_specs_passed!
+        end
+      end
+
+      @decision_compactor.signal_edit_batch_complete! if edited_any
+    rescue StandardError => e
+      Rails.logger.warn("[ToolLoop] decision-compactor signal failed: #{e.message}")
+    end
+
+    def filter_tools_for_turn(all_llm_tools, discovered_names)
+      return all_llm_tools unless dynamic_tool_schema_enabled?
+
+      last_user_msg = @messages.reverse.find { |m| (m[:role] || m["role"]).to_s == "user" }
+      content = last_user_msg && (last_user_msg[:content] || last_user_msg["content"])
+      message_text = extract_text(content)
+
+      context = Agents::DynamicToolSchema.detect_context(message_text)
+      Agents::DynamicToolSchema.filter(
+        all_llm_tools,
+        context: context,
+        discovered_names: discovered_names.to_a
+      )
+    end
+
+    def dynamic_tool_schema_enabled?
+      config = @agent.respond_to?(:inference_options) ? @agent.inference_options : {}
+      flag = config.is_a?(Hash) ? (config["dynamic_tool_schema_enabled"] || config[:dynamic_tool_schema_enabled]) : nil
+      flag.nil? ? true : !!flag
+    end
+
+    def extract_text(content)
+      case content
+      when String then content
+      when Array
+        content.map do |block|
+          block = block.to_h.with_indifferent_access rescue block
+          block[:text] || block["text"] || ""
+        end.join(" ")
+      else
+        ""
+      end
     end
 
     def execute_tool_calls(tool_calls)
