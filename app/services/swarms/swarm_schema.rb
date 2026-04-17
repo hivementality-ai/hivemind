@@ -25,6 +25,9 @@ module Swarms
   #   mcp_servers[]      – optional array of MCP server configurations
   #   api_integrations[] – optional array of API integration configs
   #   variables{}        – optional object of user-configurable variable definitions
+  #   workspace_files[]  – optional array of workspace file entries { path, content, encoding }
+  #   scheduled_tasks[]  – optional array of scheduled task entries { name, schedule, agent, ... }
+  #   heartbeat_config{} – optional heartbeat configuration object
   #
   # Returns a ValidationResult with:
   #   valid?   – true/false
@@ -78,6 +81,9 @@ module Swarms
       validate_channels
       validate_mcp_servers
       validate_api_integrations
+      validate_workspace_files_section
+      validate_scheduled_tasks_section
+      validate_heartbeat_config
 
       ValidationResult.new(errors: @errors.freeze)
     end
@@ -588,6 +594,132 @@ module Swarms
 
       if g[:max_response_bytes].present? && (!g[:max_response_bytes].is_a?(Integer) || g[:max_response_bytes] < 1)
         errors << "#{prefix}.max_response_bytes must be a positive integer"
+      end
+    end
+
+    # ------------------------------------------------------------------
+    # workspace_files[]  (top-level)
+    # ------------------------------------------------------------------
+
+    def validate_workspace_files_section
+      files = raw[:workspace_files]
+      return if files.nil?
+
+      unless files.is_a?(Array)
+        errors << "workspace_files must be an array"
+        return
+      end
+
+      files.each_with_index do |entry, i|
+        prefix = "workspace_files[#{i}]"
+
+        unless entry.is_a?(Hash)
+          errors << "#{prefix} must be an object"
+          next
+        end
+
+        f = entry.with_indifferent_access
+        errors << "#{prefix}.path is required"    if f[:path].blank?
+        errors << "#{prefix}.content is required" if f[:content].blank?
+
+        if f[:path].present?
+          if f[:path].include?("..") || f[:path].start_with?("/")
+            errors << "#{prefix}.path '#{f[:path]}' must be a relative path without directory traversal"
+          end
+        end
+
+        if f[:encoding].present? && !%w[base64 plain].include?(f[:encoding].to_s)
+          errors << "#{prefix}.encoding '#{f[:encoding]}' is invalid (must be 'base64' or 'plain')"
+        end
+      end
+    end
+
+    # ------------------------------------------------------------------
+    # scheduled_tasks[]  (top-level)
+    # ------------------------------------------------------------------
+
+    def validate_scheduled_tasks_section
+      tasks = raw[:scheduled_tasks]
+      return if tasks.nil?
+
+      unless tasks.is_a?(Array)
+        errors << "scheduled_tasks must be an array"
+        return
+      end
+
+      tasks.each_with_index do |task, i|
+        prefix = "scheduled_tasks[#{i}]"
+
+        unless task.is_a?(Hash)
+          errors << "#{prefix} must be an object"
+          next
+        end
+
+        t = task.with_indifferent_access
+        errors << "#{prefix}.name is required"     if t[:name].blank?
+        errors << "#{prefix}.schedule is required" if t[:schedule].blank?
+        errors << "#{prefix}.agent is required"    if t[:agent].blank?
+
+        if t[:schedule].present? && !valid_cron?(t[:schedule].to_s)
+          errors << "#{prefix}.schedule '#{t[:schedule]}' is not a valid cron expression"
+        end
+
+        if t[:enabled].present? && ![true, false].include?(t[:enabled])
+          errors << "#{prefix}.enabled must be a boolean"
+        end
+
+        if t[:params].present? && !t[:params].is_a?(Hash)
+          errors << "#{prefix}.params must be an object"
+        end
+      end
+    end
+
+    # ------------------------------------------------------------------
+    # heartbeat_config{}
+    # ------------------------------------------------------------------
+
+    def validate_heartbeat_config
+      config = raw[:heartbeat_config]
+      return if config.nil?
+
+      unless config.is_a?(Hash)
+        errors << "heartbeat_config must be an object"
+        return
+      end
+
+      c = config.with_indifferent_access
+
+      if c.key?(:enabled) && ![true, false].include?(c[:enabled])
+        errors << "heartbeat_config.enabled must be a boolean"
+      end
+
+      if c[:interval_minutes].present?
+        unless c[:interval_minutes].is_a?(Integer) && c[:interval_minutes] >= 5 && c[:interval_minutes] <= 1440
+          errors << "heartbeat_config.interval_minutes must be an integer between 5 and 1440"
+        end
+      end
+
+      errors << "heartbeat_config.model must be a string"    if c[:model].present?    && !c[:model].is_a?(String)
+      errors << "heartbeat_config.provider must be a string" if c[:provider].present? && !c[:provider].is_a?(String)
+      errors << "heartbeat_config.prompt must be a string"   if c[:prompt].present?   && !c[:prompt].is_a?(String)
+
+      if c.key?(:light_context) && ![true, false].include?(c[:light_context])
+        errors << "heartbeat_config.light_context must be a boolean"
+      end
+
+      if c[:checklist].present?
+        unless c[:checklist].is_a?(Array)
+          errors << "heartbeat_config.checklist must be an array"
+        else
+          c[:checklist].each_with_index do |item, i|
+            prefix = "heartbeat_config.checklist[#{i}]"
+            unless item.is_a?(Hash)
+              errors << "#{prefix} must be an object"
+              next
+            end
+            errors << "#{prefix}.task is required" if item.with_indifferent_access[:task].blank?
+          end
+        end
       end
     end
 

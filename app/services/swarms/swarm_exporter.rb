@@ -4,13 +4,16 @@ module Swarms
   # Orchestrates the full swarm export pipeline end-to-end.
   #
   # Pipeline stages (in order):
-  #   1. Serialize team      — TeamSerializer converts the Team record
-  #   2. Serialize agents    — AgentSerializer for each agent on the team
-  #   3. Serialize skills    — SkillSerializer for all skills referenced by team agents
-  #   4. Serialize tools     — ToolSerializer for all tools referenced by team agents
-  #   5. Assemble manifest   — build the top-level .swarm.json Hash with metadata
-  #   6. Strip secrets       — SecretStripper replaces sensitive values with vault: refs
-  #   7. Validate            — SwarmSchema.validate confirms output is valid before download
+  #   1. Serialize team            — TeamSerializer converts the Team record
+  #   2. Serialize agents          — AgentSerializer for each agent on the team
+  #   3. Serialize skills          — SkillSerializer for all skills referenced by team agents
+  #   4. Serialize tools           — ToolSerializer for all tools referenced by team agents
+  #   5. Serialize workspace files — WorkspaceFilesSerializer embeds requested files
+  #   6. Serialize scheduled tasks — ScheduledTasksSerializer for all agent scheduled tasks
+  #   7. Serialize heartbeat config — HeartbeatConfigSerializer captures global heartbeat settings
+  #   8. Assemble manifest         — build the top-level .swarm.json Hash with metadata
+  #   9. Strip secrets             — SecretStripper replaces sensitive values with vault: refs
+  #  10. Validate                  — SwarmSchema.validate confirms output is valid before download
   #
   # The exporter gathers associated entities by walking the team's agents. Skills
   # and tools are deduplicated by name so each only appears once in the output.
@@ -37,22 +40,26 @@ module Swarms
   class SwarmExporter
     SWARM_VERSION = "1.0"
 
-    def self.call(team:, author_name: nil, author_email: nil, description: nil, strip_secrets: true)
+    def self.call(team:, author_name: nil, author_email: nil, description: nil,
+                  strip_secrets: true, workspace_file_paths: [])
       new(
-        team:          team,
-        author_name:   author_name,
-        author_email:  author_email,
-        description:   description,
-        strip_secrets: strip_secrets
+        team:                 team,
+        author_name:          author_name,
+        author_email:         author_email,
+        description:          description,
+        strip_secrets:        strip_secrets,
+        workspace_file_paths: workspace_file_paths
       ).call
     end
 
-    def initialize(team:, author_name:, author_email:, description:, strip_secrets:)
-      @team          = team
-      @author_name   = author_name
-      @author_email  = author_email
-      @description   = description
-      @strip_secrets = strip_secrets
+    def initialize(team:, author_name:, author_email:, description:, strip_secrets:,
+                   workspace_file_paths: [])
+      @team                 = team
+      @author_name          = author_name
+      @author_email         = author_email
+      @description          = description
+      @strip_secrets        = strip_secrets
+      @workspace_file_paths = Array(workspace_file_paths)
     end
 
     def call
@@ -100,12 +107,21 @@ module Swarms
     def assemble_manifest
       agents = @team.agents.includes(:skills, :tools).order(:name).to_a
 
-      team_hash   = Serializers::TeamSerializer.call(team: @team)
+      team_hash    = Serializers::TeamSerializer.call(team: @team)
       agent_hashes = agents.map { |a| Serializers::AgentSerializer.call(agent: a) }
 
       # Collect unique skills and tools across all agents (by name, preserving order)
       skills = collect_skills(agents)
       tools  = collect_tools(agents)
+
+      # Collect scheduled tasks for all agents
+      scheduled_task_hashes = collect_scheduled_tasks(agents)
+
+      # Collect workspace files (only if explicit paths were requested)
+      workspace_file_hashes = collect_workspace_files
+
+      # Heartbeat config (global — not team-scoped)
+      heartbeat_hash = Serializers::HeartbeatConfigSerializer.call
 
       manifest = {
         "swarm_version" => SWARM_VERSION,
@@ -117,10 +133,13 @@ module Swarms
       manifest["description"] = resolved_description
       manifest["author"]      = build_author_hash if author_present?
 
-      manifest["team"]   = team_hash   if team_hash.present?
-      manifest["agents"] = agent_hashes if agent_hashes.any?
-      manifest["skills"] = skills.map { |s| Serializers::SkillSerializer.call(skill: s) } if skills.any?
-      manifest["tools"]  = tools.map  { |t| Serializers::ToolSerializer.call(tool: t) }   if tools.any?
+      manifest["team"]             = team_hash             if team_hash.present?
+      manifest["agents"]           = agent_hashes           if agent_hashes.any?
+      manifest["skills"]           = skills.map { |s| Serializers::SkillSerializer.call(skill: s) } if skills.any?
+      manifest["tools"]            = tools.map  { |t| Serializers::ToolSerializer.call(tool: t) }   if tools.any?
+      manifest["scheduled_tasks"]  = scheduled_task_hashes  if scheduled_task_hashes.any?
+      manifest["workspace_files"]  = workspace_file_hashes  if workspace_file_hashes.any?
+      manifest["heartbeat_config"] = heartbeat_hash          if heartbeat_hash.present?
 
       manifest.compact
     end
@@ -151,6 +170,26 @@ module Swarms
         end
       end
       tools
+    end
+
+    # Collect all scheduled tasks for the given agents, in agent-name + task-name order.
+    def collect_scheduled_tasks(agents)
+      agents.flat_map do |agent|
+        agent.scheduled_tasks.order(:name).map do |task|
+          Serializers::ScheduledTasksSerializer.call(scheduled_task: task)
+        end
+      end
+    end
+
+    # Serialize any workspace files explicitly requested for export.
+    # Returns an empty array when no paths were provided.
+    def collect_workspace_files
+      return [] if @workspace_file_paths.empty?
+
+      result = Serializers::WorkspaceFilesSerializer.call(paths: @workspace_file_paths)
+      return [] unless result.success?
+
+      result.payload[:workspace_files]
     end
 
     # -------------------------------------------------------------------------

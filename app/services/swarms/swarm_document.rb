@@ -60,12 +60,14 @@ module Swarms
     attr_reader :swarm_version, :name, :slug, :description, :author, :version,
                 :license, :tags, :icon, :homepage, :requires, :team,
                 :agents, :skills, :tools, :channels, :mcp_servers,
-                :api_integrations, :variables
+                :api_integrations, :variables,
+                :workspace_files, :scheduled_tasks, :heartbeat_config
 
     def initialize(swarm_version:, name:, slug: nil, description: nil, author: nil,
                    version: nil, license: nil, tags: nil, icon: nil, homepage: nil,
                    requires: nil, team: nil, agents: nil, skills: nil, tools: nil,
-                   channels: nil, mcp_servers: nil, api_integrations: nil, variables: nil)
+                   channels: nil, mcp_servers: nil, api_integrations: nil, variables: nil,
+                   workspace_files: nil, scheduled_tasks: nil, heartbeat_config: nil)
       @swarm_version    = swarm_version
       @name             = name
       @slug             = slug
@@ -85,14 +87,20 @@ module Swarms
       @mcp_servers      = Array(mcp_servers).freeze
       @api_integrations = Array(api_integrations).freeze
       @variables        = (variables || {}).freeze
+      @workspace_files  = Array(workspace_files).freeze
+      @scheduled_tasks  = Array(scheduled_tasks).freeze
+      @heartbeat_config = heartbeat_config
       freeze
     end
 
-    def agent_count         = @agents.size
-    def skill_count         = @skills.size
-    def tool_count          = @tools.size
-    def channel_count       = @channels.size
-    def mcp_server_count    = @mcp_servers.size
-    def api_integration_count = @api_integrations.size
+    def agent_count               = @agents.size
+    def skill_count               = @skills.size
+    def tool_count                = @tools.size
+    def channel_count             = @channels.size
+    def mcp_server_count          = @mcp_servers.size
+    def api_integration_count     = @api_integrations.size
+    def workspace_file_count      = @workspace_files.size
+    def scheduled_task_count      = @scheduled_tasks.size
+    def heartbeat_config_present? = !@heartbeat_config.nil?
   end
 end

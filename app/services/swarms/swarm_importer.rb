@@ -56,11 +56,11 @@ module Swarms
       :variable_overrides_applied,
       :vault_refs_checked
     ) do
-      # document                  – SwarmDocument that was imported
-      # entity_results            – Array<EntityResult> in deploy order
-      # warnings                  – Array<String> informational messages
+      # document                   – SwarmDocument that was imported
+      # entity_results             – Array<EntityResult> in deploy order
+      # warnings                   – Array<String> informational messages
       # variable_overrides_applied – Hash of variable values that were substituted
-      # vault_refs_checked        – Array<String> vault paths that were verified
+      # vault_refs_checked         – Array<String> vault paths that were verified
 
       def created   = entity_results.select { |r| r.action == :created }
       def updated   = entity_results.select { |r| r.action == :updated }
@@ -87,6 +87,12 @@ module Swarms
         parts.empty? ? "nothing deployed" : parts.join(", ")
       end
     end
+
+    # Outcome for a single deployed workspace file.
+    WorkspaceFileResult = Data.define(:path, :action)
+
+    # Outcome for heartbeat config deployment.
+    HeartbeatConfigResult = Data.define(:action)
 
     # -------------------------------------------------------------------------
     # Entry point
@@ -159,10 +165,19 @@ module Swarms
         entity_results = deploy_all(document)
       end
 
+      # Stage 5b: deploy workspace files, scheduled tasks, heartbeat config
+      # (outside the AR transaction — filesystem writes and Setting updates)
+      workspace_file_results  = deploy_workspace_files(document)
+      scheduled_task_results  = deploy_scheduled_tasks(document)
+      heartbeat_config_result = deploy_heartbeat_config(document)
+
+      warnings.concat(workspace_file_results.select { |r| r.action == :skipped }.map { |r| "Workspace file skipped (unsafe path): #{r.path}" })
+      warnings.concat(scheduled_task_results.select { |r| r.action == :agent_missing }.map { |r| "Scheduled task '#{r.name}' skipped — agent not found" })
+
       # Stage 6: build and return the import report
       report = ImportReport.new(
         document:                   document,
-        entity_results:             entity_results,
+        entity_results:             entity_results + scheduled_task_results_as_entity_results(scheduled_task_results),
         warnings:                   warnings,
         variable_overrides_applied: variable_overrides_applied,
         vault_refs_checked:         vault_refs_checked
@@ -248,6 +263,53 @@ module Swarms
       results
     end
 
+    # Deploy workspace files to disk (outside the AR transaction).
+    def deploy_workspace_files(document)
+      return [] if document.workspace_files.empty?
+
+      result = Deployers::WorkspaceFilesDeployer.call(document: document)
+      return result.payload[:workspace_files] if result.success?
+
+      Rails.logger.warn("[SwarmImporter] WorkspaceFilesDeployer failed: #{result.message}")
+      []
+    end
+
+    # Deploy scheduled tasks (inside or outside transaction — uses AR).
+    # Called after deploy_all so agent records already exist.
+    def deploy_scheduled_tasks(document)
+      return [] if document.scheduled_tasks.empty?
+
+      result = Deployers::ScheduledTasksDeployer.call(
+        document:    document,
+        resolutions: @resolutions
+      )
+      return result.payload[:scheduled_tasks] if result.success?
+
+      Rails.logger.warn("[SwarmImporter] ScheduledTasksDeployer failed: #{result.message}")
+      []
+    end
+
+    # Deploy heartbeat config (Settings update).
+    def deploy_heartbeat_config(document)
+      result = Deployers::HeartbeatConfigDeployer.call(document: document)
+      return result.payload[:heartbeat_config] if result.success?
+
+      Rails.logger.warn("[SwarmImporter] HeartbeatConfigDeployer failed: #{result.message}")
+      HeartbeatConfigResult.new(action: :skipped)
+    end
+
+    # Convert ScheduledTask DeployResults into EntityResults for the report.
+    def scheduled_task_results_as_entity_results(task_results)
+      task_results.map do |dr|
+        EntityResult.new(
+          entity_type: :scheduled_task,
+          name:        dr.name,
+          action:      dr.action,
+          record:      dr.respond_to?(:record) ? dr.record : nil
+        )
+      end
+    end
+
     # -------------------------------------------------------------------------
     # Helpers
     # -------------------------------------------------------------------------
@@ -295,7 +357,10 @@ module Swarms
         channels:         Array(m[:channels]),
         mcp_servers:      Array(m[:mcp_servers]),
         api_integrations: Array(m[:api_integrations]),
-        variables:        original.variables
+        variables:        original.variables,
+        workspace_files:  Array(m[:workspace_files]),
+        scheduled_tasks:  Array(m[:scheduled_tasks]),
+        heartbeat_config: m[:heartbeat_config].presence || original.heartbeat_config
       )
     end
   end

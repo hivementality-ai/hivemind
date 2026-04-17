@@ -911,4 +911,192 @@ RSpec.describe Swarms::SwarmSchema do
       expect(validate(devops_swarm)).to be_valid
     end
   end
+
+  # ---------------------------------------------------------------------------
+  # workspace_files[] (top-level)
+  # ---------------------------------------------------------------------------
+
+  describe "workspace_files[] (top-level)" do
+    let(:base) { { swarm_version: "1.0", name: "Test" } }
+
+    it "accepts valid workspace file entries" do
+      raw = base.merge(workspace_files: [
+        { path: "scripts/boot.sh", content: Base64.strict_encode64("#!/bin/bash"), encoding: "base64" }
+      ])
+      expect(validate(raw)).to be_valid
+    end
+
+    it "accepts plain encoding" do
+      raw = base.merge(workspace_files: [
+        { path: "README.md", content: "# Hello", encoding: "plain" }
+      ])
+      expect(validate(raw)).to be_valid
+    end
+
+    it "rejects when not an array" do
+      raw    = base.merge(workspace_files: "scripts/boot.sh")
+      result = validate(raw)
+      expect(result).to be_invalid
+      expect(result.errors).to include("workspace_files must be an array")
+    end
+
+    it "rejects entries missing path" do
+      raw    = base.merge(workspace_files: [{ content: "data", encoding: "plain" }])
+      result = validate(raw)
+      expect(result.errors).to include("workspace_files[0].path is required")
+    end
+
+    it "rejects entries missing content" do
+      raw    = base.merge(workspace_files: [{ path: "file.txt" }])
+      result = validate(raw)
+      expect(result.errors).to include("workspace_files[0].content is required")
+    end
+
+    it "rejects path traversal" do
+      raw    = base.merge(workspace_files: [{ path: "../etc/passwd", content: "x", encoding: "plain" }])
+      result = validate(raw)
+      expect(result.errors.any? { |e| e.include?("directory traversal") }).to be true
+    end
+
+    it "rejects absolute paths" do
+      raw    = base.merge(workspace_files: [{ path: "/etc/passwd", content: "x", encoding: "plain" }])
+      result = validate(raw)
+      expect(result.errors.any? { |e| e.include?("directory traversal") }).to be true
+    end
+
+    it "rejects invalid encoding value" do
+      raw    = base.merge(workspace_files: [{ path: "file.txt", content: "x", encoding: "hex" }])
+      result = validate(raw)
+      expect(result.errors.any? { |e| e.include?("encoding") && e.include?("hex") }).to be true
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # scheduled_tasks[] (top-level)
+  # ---------------------------------------------------------------------------
+
+  describe "scheduled_tasks[] (top-level)" do
+    let(:base) { { swarm_version: "1.0", name: "Test" } }
+
+    it "accepts valid scheduled task entries" do
+      raw = base.merge(scheduled_tasks: [
+        { name: "Daily Report", schedule: "0 9 * * *", agent: "My Agent" }
+      ])
+      expect(validate(raw)).to be_valid
+    end
+
+    it "accepts optional fields" do
+      raw = base.merge(scheduled_tasks: [
+        {
+          name: "Full Task", schedule: "0 9 * * *", agent: "My Agent",
+          description: "Does things", enabled: false, params: { key: "value" }
+        }
+      ])
+      expect(validate(raw)).to be_valid
+    end
+
+    it "rejects when not an array" do
+      raw    = base.merge(scheduled_tasks: "not-an-array")
+      result = validate(raw)
+      expect(result.errors).to include("scheduled_tasks must be an array")
+    end
+
+    it "rejects entries missing name" do
+      raw    = base.merge(scheduled_tasks: [{ schedule: "0 9 * * *", agent: "Bot" }])
+      result = validate(raw)
+      expect(result.errors).to include("scheduled_tasks[0].name is required")
+    end
+
+    it "rejects entries missing schedule" do
+      raw    = base.merge(scheduled_tasks: [{ name: "Task", agent: "Bot" }])
+      result = validate(raw)
+      expect(result.errors).to include("scheduled_tasks[0].schedule is required")
+    end
+
+    it "rejects entries missing agent" do
+      raw    = base.merge(scheduled_tasks: [{ name: "Task", schedule: "0 9 * * *" }])
+      result = validate(raw)
+      expect(result.errors).to include("scheduled_tasks[0].agent is required")
+    end
+
+    it "rejects invalid cron expressions" do
+      raw    = base.merge(scheduled_tasks: [{ name: "Task", schedule: "not-a-cron", agent: "Bot" }])
+      result = validate(raw)
+      expect(result.errors.any? { |e| e.include?("valid cron expression") }).to be true
+    end
+
+    it "rejects non-boolean enabled" do
+      raw    = base.merge(scheduled_tasks: [{ name: "Task", schedule: "0 9 * * *", agent: "Bot", enabled: "yes" }])
+      result = validate(raw)
+      expect(result.errors.any? { |e| e.include?("enabled must be a boolean") }).to be true
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # heartbeat_config{}
+  # ---------------------------------------------------------------------------
+
+  describe "heartbeat_config{}" do
+    let(:base) { { swarm_version: "1.0", name: "Test" } }
+
+    it "accepts a minimal heartbeat_config" do
+      raw = base.merge(heartbeat_config: { enabled: true })
+      expect(validate(raw)).to be_valid
+    end
+
+    it "accepts a full heartbeat_config" do
+      raw = base.merge(heartbeat_config: {
+        enabled:          true,
+        interval_minutes: 30,
+        model:            "claude-3-5-haiku",
+        provider:         "anthropic",
+        prompt:           "Check tasks.",
+        light_context:    false,
+        checklist:        [{ task: "Review PRs" }]
+      })
+      expect(validate(raw)).to be_valid
+    end
+
+    it "rejects when not an object" do
+      raw    = base.merge(heartbeat_config: "enabled")
+      result = validate(raw)
+      expect(result.errors).to include("heartbeat_config must be an object")
+    end
+
+    it "rejects non-boolean enabled" do
+      raw    = base.merge(heartbeat_config: { enabled: "yes" })
+      result = validate(raw)
+      expect(result.errors.any? { |e| e.include?("heartbeat_config.enabled") }).to be true
+    end
+
+    it "rejects interval_minutes below 5" do
+      raw    = base.merge(heartbeat_config: { enabled: true, interval_minutes: 4 })
+      result = validate(raw)
+      expect(result.errors.any? { |e| e.include?("interval_minutes") }).to be true
+    end
+
+    it "rejects interval_minutes above 1440" do
+      raw    = base.merge(heartbeat_config: { enabled: true, interval_minutes: 1441 })
+      result = validate(raw)
+      expect(result.errors.any? { |e| e.include?("interval_minutes") }).to be true
+    end
+
+    it "rejects non-string model" do
+      raw    = base.merge(heartbeat_config: { model: 42 })
+      result = validate(raw)
+      expect(result.errors.any? { |e| e.include?("heartbeat_config.model") }).to be true
+    end
+
+    it "rejects checklist that is not an array" do
+      raw    = base.merge(heartbeat_config: { enabled: true, checklist: "do things" })
+      result = validate(raw)
+      expect(result.errors.any? { |e| e.include?("heartbeat_config.checklist") }).to be true
+    end
+
+    it "rejects checklist items missing task" do
+      raw    = base.merge(heartbeat_config: { enabled: true, checklist: [{ note: "no task key" }] })
+      result = validate(raw)
+      expect(result.errors.any? { |e| e.include?("task is required") }).to be true
+    end
+  end
 end

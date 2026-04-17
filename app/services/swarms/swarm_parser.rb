@@ -105,7 +105,10 @@ module Swarms
         channels:         normalize_array(h[:channels]),
         mcp_servers:      normalize_array(h[:mcp_servers]),
         api_integrations: normalize_array(h[:api_integrations]),
-        variables:        build_variables(h[:variables])
+        variables:        build_variables(h[:variables]),
+        workspace_files:  normalize_array(h[:workspace_files]),
+        scheduled_tasks:  normalize_array(h[:scheduled_tasks]),
+        heartbeat_config: h[:heartbeat_config].presence
       )
     end
 
