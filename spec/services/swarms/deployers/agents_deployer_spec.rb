@@ -306,7 +306,6 @@ RSpec.describe Swarms::Deployers::AgentsDeployer do
       expect(actions).to eq(%i[skipped created])
     end
   end
-end
 
   # ---------------------------------------------------------------------------
   # Agent config: egress_policy
@@ -400,3 +399,4 @@ end
       expect(agent.agent_budgets).to be_empty
     end
   end
+end
