@@ -56,160 +56,200 @@
             </div>
             
             <!-- Navigation -->
-            <nav class="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-              <%= link_to dashboard_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{current_page?(dashboard_path) ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-                <span>Dashboard</span>
-              <% end %>
-              
-              <%= link_to sessions_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{current_page?(sessions_path) ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-                <span>Chat</span>
-              <% end %>
+            <%
+              nav_item_class = ->(active) {
+                "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition nav-item #{active ? 'bg-surface-raised text-white nav-item-active' : ''}"
+              }
+            %>
+            <nav class="flex-1 px-4 py-6 overflow-y-auto">
 
-              <% team_chat_active = controller_name == "team_chats" %>
-              <%= link_to team_chats_index_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{team_chat_active ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a2 2 0 01-2-2v-1m0-3V4a2 2 0 012-2h6a2 2 0 012 2v4a2 2 0 01-2 2H9l-4 4V8z" />
-                </svg>
-                <span>Team Chat</span>
-                <span class="ml-auto text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400">Beta</span>
-              <% end %>
+              <%# ── Always-visible top-level items ── %>
+              <div class="space-y-1">
+                <%= link_to dashboard_path, class: nav_item_class.(current_page?(dashboard_path)) do %>
+                  <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                  <span>Dashboard</span>
+                <% end %>
 
-              <%= link_to agents_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{current_page?(agents_path) ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                <span>Agents</span>
-              <% end %>
+                <%= link_to sessions_path, class: nav_item_class.(request.path.start_with?('/sessions')) do %>
+                  <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  <span>Chat</span>
+                <% end %>
 
-              <%= link_to teams_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{current_page?(teams_path) ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-                <span>Teams</span>
-              <% end %>
+                <% team_chat_active = controller_name == "team_chats" %>
+                <%= link_to team_chats_index_path, class: nav_item_class.(team_chat_active) do %>
+                  <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a2 2 0 01-2-2v-1m0-3V4a2 2 0 012-2h6a2 2 0 012 2v4a2 2 0 01-2 2H9l-4 4V8z" />
+                  </svg>
+                  <span>Team Chat</span>
+                  <span class="ml-auto text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400">Beta</span>
+                <% end %>
 
-              <%= link_to projects_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{request.path.start_with?('/projects') ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
-                <span>Projects</span>
-              <% end %>
+                <%= link_to agents_path, class: nav_item_class.(request.path.start_with?('/agents')) do %>
+                  <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  <span>Agents</span>
+                <% end %>
 
-              <%= link_to workspace_files_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{request.path.start_with?('/files') ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                </svg>
-                <span>Files</span>
-              <% end %>
+                <%= link_to teams_path, class: nav_item_class.(request.path.start_with?('/teams')) do %>
+                  <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  <span>Teams</span>
+                <% end %>
 
-              <%= link_to tools_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{current_page?(tools_path) ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span>Tools</span>
-              <% end %>
+                <%= link_to projects_path, class: nav_item_class.(request.path.start_with?('/projects')) do %>
+                  <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  </svg>
+                  <span>Projects</span>
+                <% end %>
 
-              <%= link_to skills_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{request.path.start_with?('/skills') ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-                <span>Skills</span>
-              <% end %>
+                <%= link_to tasks_path, class: nav_item_class.(request.path.start_with?('/tasks')) do %>
+                  <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                  <span>Tasks</span>
+                <% end %>
 
-              <%= link_to agent_templates_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{current_page?(agent_templates_path) ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-                <span>Templates</span>
-              <% end %>
-              
-              <!-- Analytics moved to Dashboard tabs -->
+                <%= link_to workspace_files_path, class: nav_item_class.(request.path.start_with?('/files')) do %>
+                  <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
+                  <span>Files</span>
+                <% end %>
+              </div>
 
-              <%= link_to tasks_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{request.path.start_with?('/tasks') ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-                <span>Tasks</span>
-              <% end %>
+              <%# ── Automation collapsible group ── %>
+              <div class="mt-4" data-controller="nav-group" data-nav-group-name-value="automation">
+                <button type="button"
+                        class="w-full flex items-center justify-between px-4 py-2 text-xs font-semibold uppercase tracking-wider text-text-muted hover:text-text-primary transition"
+                        data-action="click->nav-group#toggle">
+                  <span>Automation</span>
+                  <svg class="w-3.5 h-3.5 transition-transform duration-200"
+                       data-nav-group-target="chevron"
+                       fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                <div class="space-y-1 overflow-hidden transition-all duration-200 ease-in-out"
+                     style="max-height: 0; opacity: 0;"
+                     data-nav-group-target="content">
+                  <%= link_to heartbeats_path, class: nav_item_class.(request.path.start_with?('/heartbeats')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                    <span>Heartbeats</span>
+                  <% end %>
 
-              <%= link_to hooks_overview_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{request.path.include?('/hook') ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <span>Hooks</span>
-              <% end %>
+                  <%= link_to scheduled_tasks_path, class: nav_item_class.(request.path.start_with?('/scheduled_tasks')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Scheduled Tasks</span>
+                  <% end %>
 
-              <%= link_to budgets_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{current_page?(budgets_path) ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>Budgets</span>
-              <% end %>
-              
-              <%= link_to heartbeats_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{current_page?(heartbeats_path) ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-                <span>Heartbeats</span>
-              <% end %>
+                  <%= link_to tools_path, class: nav_item_class.(request.path.start_with?('/tools')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span>Tools</span>
+                  <% end %>
 
-              <%= link_to scheduled_tasks_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{current_page?(scheduled_tasks_path) ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>Scheduled Tasks</span>
-              <% end %>
+                  <%= link_to skills_path, class: nav_item_class.(request.path.start_with?('/skills')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                    <span>Skills</span>
+                  <% end %>
 
-              <%= link_to providers_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{current_page?(providers_path) ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                </svg>
-                <span>Providers</span>
-              <% end %>
+                  <%= link_to hooks_overview_path, class: nav_item_class.(request.path.include?('/hook')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span>Hooks</span>
+                  <% end %>
+                </div>
+              </div>
 
-              <%= link_to integrations_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{current_page?(integrations_path) ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
-                <span>Integrations</span>
-              <% end %>
+              <%# ── Configuration collapsible group ── %>
+              <div class="mt-2" data-controller="nav-group" data-nav-group-name-value="configuration">
+                <button type="button"
+                        class="w-full flex items-center justify-between px-4 py-2 text-xs font-semibold uppercase tracking-wider text-text-muted hover:text-text-primary transition"
+                        data-action="click->nav-group#toggle">
+                  <span>Configuration</span>
+                  <svg class="w-3.5 h-3.5 transition-transform duration-200"
+                       data-nav-group-target="chevron"
+                       fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                <div class="space-y-1 overflow-hidden transition-all duration-200 ease-in-out"
+                     style="max-height: 0; opacity: 0;"
+                     data-nav-group-target="content">
+                  <%= link_to providers_path, class: nav_item_class.(request.path.start_with?('/providers')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                    </svg>
+                    <span>Providers</span>
+                  <% end %>
 
-              <%= link_to api_integrations_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{current_page?(api_integrations_path) ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                </svg>
-                <span>APIs</span>
-              <% end %>
+                  <%= link_to integrations_path, class: nav_item_class.(request.path.start_with?('/integrations')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    <span>Integrations</span>
+                  <% end %>
 
-              <%= link_to channels_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{current_page?(channels_path) ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0" />
-                </svg>
-                <span>Channels</span>
-              <% end %>
+                  <%= link_to api_integrations_path, class: nav_item_class.(request.path.start_with?('/api_integrations')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
+                    <span>APIs</span>
+                  <% end %>
 
-              <%= link_to migration_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{request.path.start_with?('/migration') ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-                <span>Migration</span>
-              <% end %>
+                  <%= link_to channels_path, class: nav_item_class.(request.path.start_with?('/channels')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0" />
+                    </svg>
+                    <span>Channels</span>
+                  <% end %>
 
-              <%= link_to audit_logs_path, class: "flex items-center gap-3 px-4 py-3 text-text-primary hover:bg-surface-raised hover:text-white rounded-lg transition #{current_page?(audit_logs_path) ? 'bg-surface-raised text-white' : ''}" do %>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
-                <span>Audit Log</span>
-              <% end %>
+                  <%= link_to agent_templates_path, class: nav_item_class.(request.path.start_with?('/agent_templates')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                    <span>Templates</span>
+                  <% end %>
 
-              <!-- Platform moved to Dashboard tabs -->
+                  <%= link_to budgets_path, class: nav_item_class.(request.path.start_with?('/budgets')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Budgets</span>
+                  <% end %>
+
+                  <%= link_to migration_path, class: nav_item_class.(request.path.start_with?('/migration')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    <span>Migration</span>
+                  <% end %>
+
+                  <%= link_to audit_logs_path, class: nav_item_class.(request.path.start_with?('/audit_logs')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                    <span>Audit Log</span>
+                  <% end %>
+                </div>
+              </div>
+
             </nav>
             
             <!-- Version -->
