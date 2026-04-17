@@ -71,6 +71,10 @@ Rails.application.routes.draw do
         patch :toggle
       end
     end
+    member do
+      get  :export
+      post :export
+    end
   end
   resources :team_chats, only: [ :show, :update ] do
     member do
