@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe Tasks::TaskHooksController, type: :controller do
   let(:user)  { create(:user, :owner) }
   let(:task)  { create(:task) }
-  let(:skill) { create(:skill, :enabled) }
+  let(:skill) { create(:skill) }
 
   before { sign_in user }
 

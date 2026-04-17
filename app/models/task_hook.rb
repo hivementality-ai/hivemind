@@ -6,11 +6,12 @@ class TaskHook < ApplicationRecord
   belongs_to :task, optional: true
   belongs_to :task_template, optional: true
   belongs_to :team, optional: true
-  belongs_to :skill
+  belongs_to :skill, optional: true
   belongs_to :agent, optional: true
 
   validates :trigger, inclusion: { in: TRIGGERS }
   validates :on_status, inclusion: { in: Task::STATUSES }
+  validates :skill, presence: true, if: -> { task_id.present? }
   validate :exactly_one_owner
 
   scope :enabled, -> { where(enabled: true) }
