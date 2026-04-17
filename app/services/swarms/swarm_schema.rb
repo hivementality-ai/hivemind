@@ -56,10 +56,17 @@ module Swarms
 
     def initialize
       @errors = []
+      @raw    = {}.with_indifferent_access
     end
 
     def validate(raw)
+      @errors = []
+      unless raw.is_a?(Hash)
+        @errors << "swarm document must be a JSON object, not #{raw.class.name.downcase}"
+        return ValidationResult.new(errors: @errors.freeze)
+      end
       @raw = raw.with_indifferent_access
+
       validate_version
       validate_top_level_metadata
       validate_requires

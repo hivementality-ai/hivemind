@@ -35,6 +35,29 @@ RSpec.describe Swarms::SwarmSchema do
   end
 
   # ---------------------------------------------------------------------------
+  # Document root type guard
+  # ---------------------------------------------------------------------------
+  describe "document root type guard" do
+    it "rejects an array root without raising" do
+      result = validate([1, 2, 3])
+      expect(result).to be_invalid
+      expect(result.errors).to include(match(/must be a JSON object/))
+    end
+
+    it "rejects a string root without raising" do
+      result = validate("not a hash")
+      expect(result).to be_invalid
+      expect(result.errors).to include(match(/must be a JSON object/))
+    end
+
+    it "rejects nil without raising" do
+      result = validate(nil)
+      expect(result).to be_invalid
+      expect(result.errors).to include(match(/must be a JSON object/))
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # Version
   # ---------------------------------------------------------------------------
   describe "version validation" do
