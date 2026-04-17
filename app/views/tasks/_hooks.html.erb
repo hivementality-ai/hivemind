@@ -1,0 +1,102 @@
+<%# Hooks section — shown on both edit and new task forms.
+    Locals: task (Task), skills (ActiveRecord::Relation<Skill>) %>
+
+<details class="group" <%= task.task_hooks.any? ? "open" : "" %>>
+  <summary class="flex items-center gap-2 cursor-pointer list-none select-none py-1">
+    <svg class="w-4 h-4 text-text-faint transition-transform group-open:rotate-90"
+         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+    </svg>
+    <span class="text-sm font-medium text-text-muted">Automations / Hooks</span>
+    <% if task.task_hooks.any? %>
+      <span class="ml-1 px-2 py-0.5 rounded-full text-xs bg-surface-raised text-text-faint">
+        <%= task.task_hooks.size %>
+      </span>
+    <% end %>
+  </summary>
+
+  <div class="mt-4 space-y-4">
+    <%# Existing hooks — only shown when editing a persisted task %>
+    <% if task.persisted? && task.task_hooks.any? %>
+      <div class="space-y-2">
+        <% task.task_hooks.ordered.each do |hook| %>
+          <div class="flex items-center gap-3 bg-surface-raised rounded-lg px-4 py-2.5">
+            <span class="px-2 py-0.5 rounded text-xs font-semibold uppercase flex-shrink-0
+              <%= hook.trigger == 'pre' ? 'bg-blue-900/40 text-blue-300' : 'bg-purple-900/40 text-purple-300' %>">
+              <%= hook.trigger %>
+            </span>
+            <span class="text-text-faint text-sm">on</span>
+            <%
+              status_color = case hook.on_status
+                when "backlog"     then "text-slate-400"
+                when "todo"        then "text-blue-400"
+                when "in_progress" then "text-yellow-400"
+                when "review"      then "text-purple-400"
+                when "done"        then "text-green-400"
+                else "text-text-primary"
+              end
+            %>
+            <span class="text-sm font-medium <%= status_color %>"><%= hook.on_status.humanize %></span>
+            <span class="text-text-faint">&rarr;</span>
+            <% if hook.skill %>
+              <span class="text-sm text-brand"><%= hook.skill.name %></span>
+            <% else %>
+              <span class="text-sm text-text-faint italic">default behavior</span>
+            <% end %>
+
+            <div class="ml-auto">
+              <%= button_to task_task_hook_path(task, hook), method: :delete,
+                    data: { turbo_confirm: "Remove this hook?" },
+                    class: "p-1.5 rounded-lg hover:bg-red-900/20 transition" do %>
+                <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% elsif task.persisted? %>
+      <p class="text-sm text-text-faint">No hooks on this task yet.</p>
+    <% else %>
+      <p class="text-sm text-text-faint">Save the task first to add hooks.</p>
+    <% end %>
+
+    <%# Add hook form — only available on persisted tasks %>
+    <% if task.persisted? %>
+      <%= form_with url: task_task_hooks_path(task), local: true do |f| %>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-text-muted mb-1.5">Trigger</label>
+            <%= f.select "task_hook[trigger]",
+                  TaskHook::TRIGGERS.map { |t| [t == "pre" ? "Pre (before)" : "Post (after)", t] },
+                  {},
+                  class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-brand/50" %>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-text-muted mb-1.5">On status</label>
+            <%= f.select "task_hook[on_status]",
+                  Task::STATUSES.map { |s| [s.humanize, s] },
+                  {},
+                  class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-brand/50" %>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-text-muted mb-1.5">Skill</label>
+            <%= f.select "task_hook[skill_id]",
+                  options_for_select(skills.map { |s| [s.name, s.id] }),
+                  { include_blank: "— Select skill —" },
+                  class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-brand/50" %>
+          </div>
+        </div>
+
+        <div class="flex justify-end mt-3">
+          <%= f.submit "Add hook",
+                class: "px-4 py-2 bg-surface-raised hover:bg-surface-card border border-border-default text-text-primary text-sm font-medium rounded-lg transition cursor-pointer" %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</details>
