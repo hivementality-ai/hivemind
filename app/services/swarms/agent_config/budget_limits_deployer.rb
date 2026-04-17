@@ -59,15 +59,17 @@ module Swarms
         periods = Array(b[:periods])
 
         # Replace all existing period budgets for this agent atomically.
-        @agent.agent_budgets.destroy_all
+        ActiveRecord::Base.transaction do
+          @agent.agent_budgets.destroy_all
 
-        periods.each do |entry|
-          e = entry.with_indifferent_access
-          @agent.agent_budgets.create!(
-            period:      e[:period].to_s,
-            limit_cents: e[:limit_cents].to_i,
-            spent_cents: 0
-          )
+          periods.each do |entry|
+            e = entry.with_indifferent_access
+            @agent.agent_budgets.create!(
+              period:      e[:period].to_s,
+              limit_cents: e[:limit_cents].to_i,
+              spent_cents: 0
+            )
+          end
         end
       end
     end

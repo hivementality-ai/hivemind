@@ -25,8 +25,6 @@ module Swarms
         circuit_breaker_threshold
       ].freeze
 
-      KNOWN_DETECTORS = %w[generic_repeat ping_pong no_progress].freeze
-
       def self.call(config:)
         new(config).call
       end
