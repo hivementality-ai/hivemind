@@ -182,7 +182,7 @@ class TasksController < ApplicationController
   private
 
   def set_task
-    @task = Task.includes(:task_attachments).find(params[:id])
+    @task = Task.includes(:task_attachments, task_hooks: :skill).find(params[:id])
   end
 
   def task_params

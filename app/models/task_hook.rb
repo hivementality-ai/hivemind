@@ -6,7 +6,7 @@ class TaskHook < ApplicationRecord
   belongs_to :task, optional: true
   belongs_to :task_template, optional: true
   belongs_to :team, optional: true
-  belongs_to :skill, optional: true
+  belongs_to :skill
   belongs_to :agent, optional: true
 
   validates :trigger, inclusion: { in: TRIGGERS }
