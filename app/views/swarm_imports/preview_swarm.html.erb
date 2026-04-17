@@ -1,0 +1,171 @@
+<div class="max-w-2xl mx-auto px-6 py-8">
+  <%= link_to "← Upload Different File", import_swarm_teams_path,
+              class: "text-brand-light hover:text-brand text-sm" %>
+
+  <div class="mt-6 mb-8">
+    <h1 class="text-2xl font-bold text-white">Preview Import</h1>
+    <p class="text-text-muted mt-1">
+      Review settings for
+      <span class="text-white font-medium"><%= @swarm_name %></span>
+      before deploying.
+    </p>
+  </div>
+
+  <% if @import_error.present? %>
+    <div class="mb-6 bg-red-900/50 border border-red-600 text-red-200 px-4 py-3 rounded-lg text-sm">
+      <% case @import_stage&.to_sym
+         when :variables %>
+        <p class="font-medium mb-1">Missing required variables:</p>
+        <p><%= @import_error %></p>
+      <% when :vault %>
+        <p class="font-medium mb-1">Missing vault entries:</p>
+        <p><%= @import_error %></p>
+      <% when :deploy %>
+        <p class="font-medium mb-1">Deploy failed:</p>
+        <p><%= @import_error %></p>
+      <% else %>
+        <p><%= @import_error %></p>
+      <% end %>
+    </div>
+  <% end %>
+
+  <%= form_tag confirm_swarm_teams_path, method: :post,
+              class: "space-y-6" do %>
+
+    <%# ── Variables section ── %>
+    <% if @variables.any? %>
+      <div class="bg-surface-card rounded-xl border border-border-default p-6">
+        <h2 class="text-sm font-medium text-text-primary mb-1">Variables</h2>
+        <p class="text-xs text-text-faint mb-4">
+          These placeholders appear in the swarm file.
+          <span class="text-yellow-400">Required</span> fields must be filled in.
+        </p>
+
+        <div class="space-y-4">
+          <% @variables.each do |var| %>
+            <% var_name = var[:name] || var["name"] %>
+            <% var_desc = var[:description] || var["description"] %>
+            <% var_required = var[:required] || var["required"] %>
+            <% var_default = var[:default] || var["default"] %>
+            <% var_type = var[:type] || var["type"] || "string" %>
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <label class="text-sm font-medium text-text-primary">
+                  <%= var_name %>
+                </label>
+                <% if var_required %>
+                  <span class="text-xs text-yellow-400 font-medium">required</span>
+                <% else %>
+                  <span class="text-xs text-text-faint">optional</span>
+                <% end %>
+                <span class="text-xs text-text-faint bg-surface-raised px-1.5 py-0.5 rounded"><%= var_type %></span>
+              </div>
+              <% if var_desc.present? %>
+                <p class="text-xs text-text-faint mb-1.5"><%= var_desc %></p>
+              <% end %>
+              <%= text_field_tag "variables[#{var_name}]",
+                  var_default,
+                  placeholder: var_required ? "Required" : "Optional — leave blank to use default",
+                  class: "w-full px-4 py-2.5 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent text-sm" %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <%# ── Vault secrets section ── %>
+    <% vault_vars = @variables.select { |v| (v[:default] || v["default"]).to_s.start_with?("vault:") } %>
+    <% if vault_vars.any? %>
+      <div class="bg-surface-card rounded-xl border border-border-default p-6">
+        <h2 class="text-sm font-medium text-text-primary mb-1">Vault Secrets</h2>
+        <p class="text-xs text-text-faint mb-4">
+          These variables reference vault entries. Ensure they are populated before importing.
+        </p>
+        <div class="space-y-2">
+          <% vault_vars.each do |var| %>
+            <% vault_path = (var[:default] || var["default"]).to_s.sub(/\Avault:/, "") %>
+            <div class="flex items-center justify-between bg-surface-raised rounded-lg px-4 py-2.5">
+              <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-text-faint" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <code class="text-xs text-text-primary"><%= var[:name] || var["name"] %></code>
+              </div>
+              <span class="text-xs text-text-faint font-mono"><%= vault_path %></span>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <%# ── Conflict resolution section ── %>
+    <% if @conflicts.any? %>
+      <div class="bg-surface-card rounded-xl border border-amber-600/40 p-6">
+        <h2 class="text-sm font-medium text-text-primary mb-1">
+          Naming Conflicts
+          <span class="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-amber-900/50 text-amber-300">
+            <%= @conflicts.size %>
+          </span>
+        </h2>
+        <p class="text-xs text-text-faint mb-4">
+          These names already exist in the platform. Choose how to handle each one.
+        </p>
+
+        <div class="space-y-3">
+          <% @conflicts.each do |conflict| %>
+            <% entity_type = conflict[:entity_type] || conflict["entity_type"] %>
+            <% entity_name = conflict[:name] || conflict["name"] %>
+            <div class="bg-surface-raised rounded-lg p-4">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-surface-overlay text-text-muted capitalize">
+                    <%= entity_type %>
+                  </span>
+                  <span class="text-sm font-medium text-white"><%= entity_name %></span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <% [
+                  ["skip",      "Skip",      "Keep existing — don't import this entity"],
+                  ["rename",    "Rename",    "Import with an auto-suffixed name"],
+                  ["overwrite", "Overwrite", "Replace the existing record"]
+                ].each do |value, label, tooltip| %>
+                  <label class="flex-1 cursor-pointer" title="<%= tooltip %>">
+                    <%= radio_button_tag "resolutions[#{entity_name}]", value,
+                        value == "skip",
+                        class: "sr-only peer",
+                        id: "resolution_#{entity_name.parameterize}_#{value}" %>
+                    <span class="block text-center px-3 py-2 rounded-lg border text-xs font-medium transition
+                                 border-border-default text-text-muted
+                                 peer-checked:border-brand peer-checked:text-brand-light peer-checked:bg-brand/10
+                                 hover:border-brand/50 hover:text-text-primary">
+                      <%= label %>
+                    </span>
+                  </label>
+                <% end %>
+              </div>
+              <p class="text-xs text-text-faint mt-2 italic">Default: skip (keep existing record)</p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <%# ── No variables or conflicts ── %>
+    <% if @variables.empty? && @conflicts.empty? %>
+      <div class="bg-surface-card rounded-xl border border-border-default p-6 text-center">
+        <p class="text-text-muted text-sm">No variables or conflicts to review.</p>
+        <p class="text-text-faint text-xs mt-1">The swarm is ready to deploy.</p>
+      </div>
+    <% end %>
+
+    <div class="flex items-center gap-3">
+      <%= submit_tag "Deploy Swarm →",
+          class: "px-6 py-3 bg-brand hover:bg-brand-dark text-white font-semibold rounded-lg transition cursor-pointer",
+          data: { turbo_confirm: @conflicts.any? ? "Deploy swarm with #{@conflicts.size} conflict(s)?" : nil } %>
+      <%= link_to "Cancel", teams_path,
+          class: "px-6 py-3 bg-surface-raised border border-border-default text-text-muted hover:text-white rounded-lg transition" %>
+    </div>
+  <% end %>
+</div>

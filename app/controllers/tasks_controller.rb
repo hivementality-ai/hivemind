@@ -28,6 +28,7 @@ class TasksController < ApplicationController
     @templates  = TaskTemplate.order(:name)
     @projects   = Project.order(:title)
     @milestones = ProjectMilestone.none
+    @skills     = Skill.enabled.order(:name)
   end
 
   def create
@@ -46,6 +47,7 @@ class TasksController < ApplicationController
       @templates  = TaskTemplate.order(:name)
       @projects   = Project.order(:title)
       @milestones = @task.project ? @task.project.milestones.ordered : ProjectMilestone.none
+      @skills     = Skill.enabled.order(:name)
       render :new, status: :unprocessable_entity
     end
   end
@@ -55,6 +57,7 @@ class TasksController < ApplicationController
     @templates  = TaskTemplate.order(:name)
     @projects   = Project.order(:title)
     @milestones = @task.project ? @task.project.milestones.ordered : ProjectMilestone.none
+    @skills     = Skill.enabled.order(:name)
   end
 
   def update
@@ -80,6 +83,7 @@ class TasksController < ApplicationController
             @templates  = TaskTemplate.order(:name)
             @projects   = Project.order(:title)
             @milestones = @task.project ? @task.project.milestones.ordered : ProjectMilestone.none
+            @skills     = Skill.enabled.order(:name)
             render :edit, status: :unprocessable_entity
           end
           format.json { render json: { error: result.error }, status: :unprocessable_entity }
@@ -98,6 +102,7 @@ class TasksController < ApplicationController
           @templates  = TaskTemplate.order(:name)
           @projects   = Project.order(:title)
           @milestones = @task.project ? @task.project.milestones.ordered : ProjectMilestone.none
+          @skills     = Skill.enabled.order(:name)
           render :edit, status: :unprocessable_entity
         end
         format.json { render json: { errors: @task.errors.full_messages }, status: :unprocessable_entity }
@@ -177,7 +182,7 @@ class TasksController < ApplicationController
   private
 
   def set_task
-    @task = Task.includes(:task_attachments).find(params[:id])
+    @task = Task.includes(:task_attachments, task_hooks: :skill).find(params[:id])
   end
 
   def task_params

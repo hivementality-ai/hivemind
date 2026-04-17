@@ -9,7 +9,14 @@ module Swarms
   #
   # Returns a ServiceResponse. On success, `result.payload` is a SwarmDocument.
   # On failure, `result.message` describes the error and `result.payload[:errors]`
-  # contains the array of validation error strings.
+  # contains an array of plain error strings normalized from all validation stages:
+  #
+  #   Stage 1: SwarmSchema    — structural validation (returns plain strings)
+  #   Stage 2: SwarmValidator — referential integrity + uniqueness + size limits
+  #                             (returns ValidationError structs; normalized here)
+  #
+  # SwarmValidator only runs when SwarmSchema passes — structural errors must be
+  # resolved before cross-section consistency can be meaningfully checked.
   class SwarmParser
     MAX_FILE_SIZE = 5.megabytes
 
@@ -70,17 +77,27 @@ module Swarms
     end
 
     def validate_and_build(parsed)
-      result = SwarmSchema.new.validate(parsed)
+      errors = []
 
-      if result.invalid?
+      schema_result = SwarmSchema.new.validate(parsed)
+      errors.concat(schema_result.errors) # plain strings
+
+      # Only run deep validation when structure is sound. SwarmValidator needs a
+      # coherent schema to reason about cross-section references and uniqueness.
+      if schema_result.valid?
+        validator_result = SwarmValidator.validate(parsed)
+        # Normalize ValidationError structs → plain strings for a uniform payload.
+        errors.concat(validator_result.errors.map(&:full_message))
+      end
+
+      if errors.any?
         return ServiceResponse.error(
           message: "Swarm file is invalid",
-          payload: { errors: result.errors }
+          payload: { errors: errors }
         )
       end
 
-      document = build_document(parsed)
-      ServiceResponse.success(payload: document)
+      ServiceResponse.success(payload: build_document(parsed))
     end
 
     def build_document(parsed)

@@ -7,14 +7,14 @@ module Providers
     def chat(messages:, tools: [], options: {}, &block)
       params = build_chat_params(messages:, tools:, options:)
 
-      if oauth_token?
+      result = if use_sdk_proxy_fallback? && oauth_token?
         sync_memories_for_oauth(messages, options)
-        result = proxy_client.chat(params:, options:, &block)
-        inject_request_payload(result, params)
+        proxy_client.chat(params:, options:, &block)
       else
-        result = gem_client.chat(client: ::Anthropic::Client.new(api_key:), params:, &block)
-        inject_request_payload(result, params)
+        faraday_client.chat(params:, options:, &block)
       end
+
+      inject_request_payload(result, params)
     rescue AgentInterrupted, AgentRedirected
       raise
     rescue StandardError => e
@@ -36,6 +36,10 @@ module Providers
       api_key&.start_with?("sk-ant-oat")
     end
 
+    def use_sdk_proxy_fallback?
+      ENV["USE_SDK_PROXY_FALLBACK"] == "true"
+    end
+
     def sync_memories_for_oauth(messages, options)
       return unless options[:agent_id]
       # Run async so memory sync doesn't block the chat response
@@ -44,8 +48,8 @@ module Providers
       Rails.logger.warn("[AnthropicAdapter] Memory sync enqueue failed: #{e.message}")
     end
 
-    def gem_client
-      @gem_client ||= Anthropic::GemClient.new
+    def faraday_client
+      @faraday_client ||= Anthropic::FaradayClient.new(api_key:)
     end
 
     def proxy_client
