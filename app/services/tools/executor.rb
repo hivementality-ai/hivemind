@@ -129,6 +129,22 @@ module Tools
         return execute_system_tool(executor_class)
       end
 
+      # Session-scoped file-read cache intercept.
+      if file_read_tool? && (cache_hit = Tools::FileCache.try_read_hit(session: @session, path: file_path_input))
+        execution = ToolExecution.create!(
+          tool: @tool,
+          agent: @agent,
+          session: @session,
+          input: @input,
+          status: "completed",
+          output: cache_hit[:output],
+          raw_output: cache_hit[:output],
+          exit_code: 0,
+          duration_ms: 0
+        )
+        return ServiceResponse.success(data: { output: cache_hit[:output], execution_id: execution.id })
+      end
+
       # Create execution record for regular tools
       execution = ToolExecution.create!(
         tool: @tool,
@@ -161,14 +177,17 @@ module Tools
         duration = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).to_i
 
         if result.success?
-          output = result.data[:output].to_s.truncate(50_000)
+          raw_output = result.data[:output].to_s.truncate(50_000)
+          compressed_output = Tools::OutputCompressor.compress(@tool.name, raw_output)
           execution.update!(
             status: "completed",
-            output: output,
+            output: compressed_output,
+            raw_output: raw_output,
             exit_code: result.data[:exit_code],
             duration_ms: duration
           )
-          ServiceResponse.success(data: { output: output, execution_id: execution.id })
+          update_file_cache_after_success!(raw_output)
+          ServiceResponse.success(data: { output: compressed_output, execution_id: execution.id })
         else
           execution.update!(
             status: "failed",
@@ -186,6 +205,33 @@ module Tools
     end
 
     private
+
+    FILE_READ_EXECUTORS = %w[file_read].freeze
+    FILE_WRITE_EXECUTORS = %w[file_write file_edit].freeze
+
+    def file_read_tool?
+      FILE_READ_EXECUTORS.include?(@tool.executor_type.to_s)
+    end
+
+    def file_write_tool?
+      FILE_WRITE_EXECUTORS.include?(@tool.executor_type.to_s)
+    end
+
+    def file_path_input
+      @input.is_a?(Hash) ? (@input["path"] || @input[:path]) : nil
+    end
+
+    def update_file_cache_after_success!(raw_output)
+      return unless @session
+      path = file_path_input
+      return if path.to_s.strip.empty?
+
+      if file_read_tool?
+        Tools::FileCache.record_read(session: @session, path: path, content: raw_output)
+      elsif file_write_tool?
+        Tools::FileCache.invalidate(session: @session, path: path)
+      end
+    end
 
     def extract_target_url
       case @tool.executor_type
