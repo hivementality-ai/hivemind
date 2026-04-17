@@ -13,12 +13,13 @@ module Swarms
   #   :overwrite – replace the existing platform record with the swarm definition
   #
   # Entity types checked:
-  #   :team        – Team.name
-  #   :agents      – Agent.name
-  #   :skills      – Skill.name
-  #   :tools       – Tool.name
-  #   :channels    – Channel.name
-  #   :mcp_servers – McpServer.name
+  #   :team             – Team.name
+  #   :agents           – Agent.name
+  #   :skills           – Skill.name
+  #   :tools            – Tool.name
+  #   :channels         – Channel.name
+  #   :mcp_servers      – McpServer.name
+  #   :api_integrations – ApiIntegration.name
   #
   # Usage:
   #   result = SwarmConflictDetector.call(document: swarm_doc)
@@ -70,16 +71,17 @@ module Swarms
     # -------------------------------------------------------------------------
 
     # Ordered list of entity types the detector inspects.
-    ENTITY_TYPES = %i[team agents skills tools channels mcp_servers].freeze
+    ENTITY_TYPES = %i[team agents skills tools channels mcp_servers api_integrations].freeze
 
     # Maps entity_type symbol → [AR model class, name column symbol].
     # :team is handled separately (single record, not an array).
     ARRAY_ENTITY_MAP = {
-      agents:      [Agent,     :name],
-      skills:      [Skill,     :name],
-      tools:       [Tool,      :name],
-      channels:    [Channel,   :name],
-      mcp_servers: [McpServer, :name]
+      agents:           [Agent,          :name],
+      skills:           [Skill,          :name],
+      tools:            [Tool,           :name],
+      channels:         [Channel,        :name],
+      mcp_servers:      [McpServer,      :name],
+      api_integrations: [ApiIntegration, :name]
     }.freeze
 
     # -------------------------------------------------------------------------
