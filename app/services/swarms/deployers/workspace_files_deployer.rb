@@ -79,12 +79,24 @@ module Swarms
       end
 
       # Returns the absolute path only when it safely resolves inside WORKSPACE_ROOT.
+      # Resolves symlinks so that symlink-indirection path traversal is blocked.
+      # When the target file does not yet exist, resolves the nearest existing
+      # ancestor — new files can't be realpath'd before they're written.
       def safe_absolute(relative_path)
         return nil if relative_path.blank?
         return nil if relative_path.include?("..")
         return nil if relative_path.start_with?("/")
 
-        File.join(WORKSPACE_ROOT, relative_path)
+        candidate = File.join(WORKSPACE_ROOT, relative_path)
+        root_real = File.realpath(WORKSPACE_ROOT) rescue WORKSPACE_ROOT
+
+        # Resolve the nearest existing ancestor to catch symlink traversal even
+        # when the leaf file doesn't exist yet.
+        resolved = File.realpath(candidate) rescue File.realpath(File.dirname(candidate)) rescue nil
+        return nil unless resolved
+        return nil unless resolved.start_with?("#{root_real}/") || resolved == root_real
+
+        candidate
       end
     end
   end

@@ -20,8 +20,10 @@ module Swarms
     #   :rename    – create new task with an auto-suffixed name
     #   (none)     – create new task (no conflict)
     #
-    # Agent lookup: tasks are associated by agent name. If the named agent does
-    # not exist the entry is skipped and a warning is added to the result.
+    # Agent lookup: tasks are scoped by agent. If the named agent does not exist
+    # the entry is skipped and a warning is added to the result.
+    # Conflict detection is scoped to the owning agent so same-named tasks
+    # belonging to different agents are not treated as conflicts.
     #
     # Usage:
     #   result = ScheduledTasksDeployer.call(document: swarm_doc, resolutions: {})
@@ -66,7 +68,9 @@ module Swarms
           return DeployResult.new(name: name, record: nil, action: :agent_missing)
         end
 
-        existing = ScheduledTask.find_by(name: name)
+        # Scope the conflict check to this agent — same-named tasks on different
+        # agents are independent and must not be treated as conflicts.
+        existing = agent.scheduled_tasks.find_by(name: name)
 
         if existing.nil?
           record = create_task(name, entry, agent)
@@ -88,7 +92,7 @@ module Swarms
           existing.update!(build_attributes(name, entry, agent))
           DeployResult.new(name: name, record: existing, action: :updated)
         when :rename
-          new_name = unique_name(name)
+          new_name = unique_name(name, agent)
           record   = create_task(new_name, entry.merge(name: new_name), agent)
           DeployResult.new(name: new_name, record: record, action: :renamed)
         else
@@ -111,11 +115,12 @@ module Swarms
         attrs
       end
 
-      def unique_name(base)
+      # Finds a unique name for the task scoped to the owning agent.
+      def unique_name(base, agent)
         candidate = "#{base}-2"
         counter   = 2
 
-        while ScheduledTask.exists?(name: candidate)
+        while agent.scheduled_tasks.exists?(name: candidate)
           counter  += 1
           candidate = "#{base}-#{counter}"
         end

@@ -167,4 +167,42 @@ RSpec.describe Swarms::Deployers::ScheduledTasksDeployer do
       expect(dr.record.name).to eq("Report Task-2")
     end
   end
+  # ---------------------------------------------------------------------------
+  # Multi-agent scoping — same task name on different agents must not conflict
+  # ---------------------------------------------------------------------------
+
+  describe "agent-scoped conflict detection" do
+    let!(:other_agent) { create(:agent, name: "Other Agent") }
+
+    it "does not treat a same-named task on a different agent as a conflict" do
+      # 'Morning Briefing' already exists — but owned by other_agent, not agent
+      create(:scheduled_task, name: "Morning Briefing", schedule: "0 9 * * *", agent: other_agent)
+
+      doc    = build_document(scheduled_tasks: [{
+        "name"     => "Morning Briefing",
+        "schedule" => "0 7 * * *",
+        "agent"    => agent.name
+      }])
+      result = described_class.call(document: doc)
+
+      dr = result.payload[:scheduled_tasks].first
+      expect(dr.action).to eq(:created)
+      expect(dr.record.agent).to eq(agent)
+    end
+
+    it "still detects a conflict when the same agent owns the duplicate" do
+      create(:scheduled_task, name: "Morning Briefing", schedule: "0 9 * * *", agent: agent)
+
+      doc    = build_document(scheduled_tasks: [{
+        "name"     => "Morning Briefing",
+        "schedule" => "0 7 * * *",
+        "agent"    => agent.name
+      }])
+      result = described_class.call(document: doc, resolutions: { "Morning Briefing" => :skip })
+
+      dr = result.payload[:scheduled_tasks].first
+      expect(dr.action).to eq(:skipped)
+    end
+  end
+
 end

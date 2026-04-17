@@ -137,4 +137,32 @@ RSpec.describe Swarms::Deployers::WorkspaceFilesDeployer do
       expect(actions).to eq([:skipped, :written])
     end
   end
+  # ---------------------------------------------------------------------------
+  # Symlink path traversal — must be blocked
+  # ---------------------------------------------------------------------------
+
+  describe "symlink path traversal" do
+    let(:symlink_path) { File.join(workspace_root, "evil_link") }
+
+    after do
+      FileUtils.rm_f(symlink_path)
+    end
+
+    it "skips a path that resolves via symlink to outside the workspace root" do
+      # Create a symlink inside /workspace pointing to /tmp
+      File.symlink("/tmp", symlink_path) unless File.exist?(symlink_path)
+
+      doc    = build_document(workspace_files: [{
+        "path"    => "evil_link/pwned.txt",
+        "content" => encoded("bad"),
+        "encoding" => "base64"
+      }])
+      result = described_class.call(document: doc)
+
+      expect(result).to be_success
+      expect(result.payload[:workspace_files].first.action).to eq(:skipped)
+      expect(File.exist?("/tmp/pwned.txt")).to be false
+    end
+  end
+
 end

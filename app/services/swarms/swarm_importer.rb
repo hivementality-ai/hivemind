@@ -158,17 +158,20 @@ module Swarms
       conflict_report = conflict_result.payload
       warnings        = build_conflict_warnings(conflict_report)
 
-      # Stage 5: deploy entities in a transaction
-      entity_results = nil
+      # Stage 5: deploy entities and scheduled tasks in a transaction.
+      # Scheduled tasks create AR records and must roll back with the rest of
+      # the deploy on failure — they belong inside the transaction.
+      entity_results         = nil
+      scheduled_task_results = nil
 
       ActiveRecord::Base.transaction do
-        entity_results = deploy_all(document)
+        entity_results         = deploy_all(document)
+        scheduled_task_results = deploy_scheduled_tasks(document)
       end
 
-      # Stage 5b: deploy workspace files, scheduled tasks, heartbeat config
-      # (outside the AR transaction — filesystem writes and Setting updates)
+      # Stage 5b: deploy workspace files and heartbeat config outside the AR
+      # transaction — these are filesystem writes and Setting updates, not AR records.
       workspace_file_results  = deploy_workspace_files(document)
-      scheduled_task_results  = deploy_scheduled_tasks(document)
       heartbeat_config_result = deploy_heartbeat_config(document)
 
       warnings.concat(workspace_file_results.select { |r| r.action == :skipped }.map { |r| "Workspace file skipped (unsafe path): #{r.path}" })
@@ -274,7 +277,8 @@ module Swarms
       []
     end
 
-    # Deploy scheduled tasks (inside or outside transaction — uses AR).
+    # Deploy scheduled tasks. Must be called inside an ActiveRecord::Base.transaction
+    # block — creates AR records that must roll back with the rest of the deploy on failure.
     # Called after deploy_all so agent records already exist.
     def deploy_scheduled_tasks(document)
       return [] if document.scheduled_tasks.empty?
