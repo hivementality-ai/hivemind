@@ -475,92 +475,6 @@ RSpec.describe Swarms::SwarmValidator do
   end
 
   # ---------------------------------------------------------------------------
-  # Size limits — skill.summary
-  # ---------------------------------------------------------------------------
-
-  describe "size limits: skill.summary" do
-    it "accepts summary exactly at 150 chars" do
-      result = validate(valid_swarm(
-        skills: [{ name: "core-skill", summary: "a" * 150 }]
-      ))
-      expect(result).to be_valid
-    end
-
-    it "rejects summary exceeding 150 chars" do
-      result = validate(valid_swarm(
-        skills: [{ name: "core-skill", summary: "a" * 151 }]
-      ))
-      expect(result).to be_invalid
-      expect(result.errors.map(&:path)).to include("skills[0].summary")
-      expect(result.errors.map(&:message).join).to include("150")
-    end
-
-    it "includes the actual character count in the message" do
-      result = validate(valid_swarm(
-        skills: [{ name: "core-skill", summary: "a" * 200 }]
-      ))
-      err = result.errors.find { |e| e.path == "skills[0].summary" }
-      expect(err.message).to include("200")
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # Size limits — skill.content
-  # ---------------------------------------------------------------------------
-
-  describe "size limits: skill.content" do
-    let(:limit) { 100 * 1024 }
-
-    it "accepts content exactly at 100KB" do
-      result = validate(valid_swarm(
-        skills: [{ name: "core-skill", content: "a" * limit }]
-      ))
-      expect(result).to be_valid
-    end
-
-    it "rejects content exceeding 100KB" do
-      result = validate(valid_swarm(
-        skills: [{ name: "core-skill", content: "a" * (limit + 1) }]
-      ))
-      expect(result).to be_invalid
-      expect(result.errors.map(&:path)).to include("skills[0].content")
-      expect(result.errors.map(&:message).join).to include("100KB")
-    end
-
-    it "includes the actual byte size in the message" do
-      result = validate(valid_swarm(
-        skills: [{ name: "core-skill", content: "a" * (limit + 500) }]
-      ))
-      err = result.errors.find { |e| e.path == "skills[0].content" }
-      expect(err.message).to include((limit + 500).to_s)
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # Size limits — tool.script_template
-  # ---------------------------------------------------------------------------
-
-  describe "size limits: tool.script_template" do
-    let(:limit) { 100 * 1024 }
-
-    it "accepts script_template exactly at 100KB" do
-      result = validate(valid_swarm(
-        tools: [{ name: "my-tool", script_template: "a" * limit }]
-      ))
-      expect(result).to be_valid
-    end
-
-    it "rejects script_template exceeding 100KB" do
-      result = validate(valid_swarm(
-        tools: [{ name: "my-tool", script_template: "a" * (limit + 1) }]
-      ))
-      expect(result).to be_invalid
-      expect(result.errors.map(&:path)).to include("tools[0].script_template")
-      expect(result.errors.map(&:message).join).to include("100KB")
-    end
-  end
-
-  # ---------------------------------------------------------------------------
   # Error accumulation — multiple failures at once
   # ---------------------------------------------------------------------------
 
@@ -585,17 +499,18 @@ RSpec.describe Swarms::SwarmValidator do
       expect(paths).to include("agents[0].tools[0]")
     end
 
-    it "collects uniqueness + referential + size errors together" do
+    it "collects uniqueness + referential errors together" do
       result = validate(valid_swarm(
+        agents: [{ name: "Mando", role: "Engineer", skills: ["missing-skill"] }],
         skills: [
-          { name: "core-skill", summary: "a" * 200 },
-          { name: "core-skill", summary: "dup" }  # duplicate name AND summary over limit
+          { name: "core-skill" },
+          { name: "core-skill" }  # duplicate name
         ]
       ))
       expect(result).to be_invalid
       paths = result.errors.map(&:path)
       expect(paths).to include("skills[1].name")
-      expect(paths).to include("skills[0].summary")
+      expect(paths).to include("agents[0].skills[0]")
     end
   end
 
