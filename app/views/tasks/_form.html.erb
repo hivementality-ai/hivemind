@@ -88,6 +88,13 @@
           class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white focus:outline-none focus:border-brand/50" %>
   </div>
 
+  <%# Hooks / Automations — collapsible section %>
+  <% if defined?(skills) && skills %>
+    <div class="border-t border-border-default pt-5">
+      <%= render "tasks/hooks", task: task, skills: skills %>
+    </div>
+  <% end %>
+
   <div class="flex items-center gap-3 pt-2">
     <%= f.submit task.persisted? ? "Save changes" : "Create task",
           class: "px-5 py-2 bg-brand hover:bg-brand/80 text-white font-medium rounded-lg transition cursor-pointer" %>
