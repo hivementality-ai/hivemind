@@ -120,8 +120,12 @@ class ChatStreamJob < ApplicationJob
         llm_options[:thinking_budget_tokens] = agent.thinking_budget_tokens || 10_000
       end
 
-      # Inject MCP tool context for OAuth path
-      oauth_mcp = adapter.is_a?(Providers::AnthropicAdapter) && adapter.send(:oauth_token?) && tools.any?
+      # Legacy SDK-proxy path — only used when USE_SDK_PROXY_FALLBACK=true.
+      # Default path drives the Ruby-side Agents::ToolLoop for every provider.
+      oauth_mcp = ENV["USE_SDK_PROXY_FALLBACK"] == "true" &&
+                  adapter.is_a?(Providers::AnthropicAdapter) &&
+                  adapter.send(:oauth_token?) &&
+                  tools.any?
       if oauth_mcp
         llm_options[:agent_id] = agent.id
         llm_options[:session_id] = session.id

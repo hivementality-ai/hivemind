@@ -152,6 +152,7 @@ Rails.application.routes.draw do
       patch :archive
     end
     resources :task_attachments, only: [ :create, :destroy ], shallow: true
+    resources :task_hooks, only: [ :create, :destroy ], module: :tasks
   end
 
 

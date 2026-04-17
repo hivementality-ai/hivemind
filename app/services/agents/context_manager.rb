@@ -46,10 +46,37 @@ module Agents
       @budget = [ limit - @max_output - RESERVE_TOKENS, limit / 2 ].max
     end
 
-    # Prune messages to stay within budget, keeping most recent messages
+    # Prune messages to stay within budget, keeping most recent messages.
+    # Runs a three-stage pipeline: micro-compact (replace old tool results
+    # with placeholders) → context-collapse (drop the middle of the
+    # conversation) → hard prune (oldest-first until under budget).
     def prune_messages(messages)
       return messages if messages.blank?
 
+      working = messages.dup
+
+      # Stage 1: micro-compact — only when we're nearing the budget, so we
+      # don't mutate cached message prefixes every single turn.
+      if estimate_tokens_for(working) > (@budget * 0.7)
+        Agents::MicroCompact.call(working, keep_recent: 2)
+      end
+
+      # Stage 2: context-collapse — try zero-LLM middle-snip before hard prune.
+      if estimate_tokens_for(working) > @budget
+        collapsed = Agents::ContextCollapse.call(working, threshold: @budget, keep_recent: 6)
+        working = collapsed if collapsed
+      end
+
+      # Stage 3: hard prune (the original behavior) — oldest-first until under budget.
+      hard_prune(working)
+    end
+
+    # Shared token estimator used by DecisionCompactor and the pipeline.
+    def estimate_tokens_for(messages)
+      (messages || []).sum { |m| estimate_tokens(m) }
+    end
+
+    def hard_prune(messages)
       system_msg = messages.find { |m| (m[:role] || m["role"])&.to_s == "system" }
       chat_msgs = messages.reject { |m| (m[:role] || m["role"])&.to_s == "system" }
 
@@ -57,7 +84,6 @@ module Agents
       pruned = [ system_msg ].compact
       messages_to_keep = []
 
-      # Add messages from newest backwards
       chat_msgs.reverse_each do |msg|
         msg_tokens = estimate_tokens(msg)
         if used_tokens + msg_tokens > @budget
@@ -65,7 +91,7 @@ module Agents
           break
         end
         used_tokens += msg_tokens
-        messages_to_keep.unshift(msg)  # unshift to maintain reverse order
+        messages_to_keep.unshift(msg)
       end
 
       pruned.concat(messages_to_keep)
