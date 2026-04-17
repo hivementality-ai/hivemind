@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Swarms
-  # Validates a parsed swarm hash for cross-section consistency and size constraints.
+  # Validates a parsed swarm hash for cross-section consistency.
   #
   # This runs AFTER SwarmSchema structural validation passes. It checks:
   #
@@ -22,11 +22,9 @@ module Swarms
   #        - mcp_servers[].name
   #        - api_integrations[].name
   #
-  #   3. Size limits:
-  #        - skill.summary ≤ 150 chars
-  #        - skill.content ≤ 100 KB (102_400 bytes)
-  #        - tool.script_template ≤ 100 KB (102_400 bytes)
-  #        - total file size is handled by SwarmParser, not here
+  # NOTE — Per-field size limits (skill.summary, skill.content, tool.script_template)
+  #        are owned by SwarmSchema, not this validator.
+  #        Total file size is handled by SwarmParser.
   #
   # NOTE — ValidationResult/ValidationError type contract:
   #   SwarmValidator returns a ValidationResult whose errors array contains
@@ -40,10 +38,6 @@ module Swarms
   #   result.errors                      # => [ValidationError, ...]
   #   result.errors.map(&:full_message)  # => ["agents[0].skills[0]: ..."]
   class SwarmValidator
-    SKILL_SUMMARY_MAX_CHARS = 150
-    SKILL_CONTENT_MAX_BYTES = 100 * 1024  # 100 KB
-    TOOL_SCRIPT_MAX_BYTES   = 100 * 1024  # 100 KB
-
     # Structured error object with path (JSON-pointer style) and message.
     ValidationError = Data.define(:path, :message) do
       def full_message = "#{path}: #{message}"
@@ -78,7 +72,6 @@ module Swarms
 
       validate_uniqueness
       validate_referential_integrity
-      validate_size_limits
 
       result
     end
@@ -227,58 +220,5 @@ module Swarms
       end
     end
 
-    # ------------------------------------------------------------------
-    # Size limits
-    # ------------------------------------------------------------------
-
-    def validate_size_limits
-      validate_skill_sizes
-      validate_tool_sizes
-    end
-
-    def validate_skill_sizes
-      skills = raw[:skills]
-      return unless skills.is_a?(Array)
-
-      skills.each_with_index do |skill, i|
-        next unless skill.is_a?(Hash)
-
-        s      = skill.with_indifferent_access
-        prefix = "skills[#{i}]"
-
-        if s[:summary].is_a?(String) && s[:summary].length > SKILL_SUMMARY_MAX_CHARS
-          add_error(
-            "#{prefix}.summary",
-            "exceeds #{SKILL_SUMMARY_MAX_CHARS} character limit (#{s[:summary].length} chars)"
-          )
-        end
-
-        if s[:content].is_a?(String) && s[:content].bytesize > SKILL_CONTENT_MAX_BYTES
-          add_error(
-            "#{prefix}.content",
-            "exceeds #{SKILL_CONTENT_MAX_BYTES / 1024}KB limit (#{s[:content].bytesize} bytes)"
-          )
-        end
-      end
-    end
-
-    def validate_tool_sizes
-      tools = raw[:tools]
-      return unless tools.is_a?(Array)
-
-      tools.each_with_index do |tool, i|
-        next unless tool.is_a?(Hash)
-
-        t      = tool.with_indifferent_access
-        prefix = "tools[#{i}]"
-
-        if t[:script_template].is_a?(String) && t[:script_template].bytesize > TOOL_SCRIPT_MAX_BYTES
-          add_error(
-            "#{prefix}.script_template",
-            "exceeds #{TOOL_SCRIPT_MAX_BYTES / 1024}KB limit (#{t[:script_template].bytesize} bytes)"
-          )
-        end
-      end
-    end
   end
 end
