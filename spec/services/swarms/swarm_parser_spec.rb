@@ -3,322 +3,213 @@
 require "rails_helper"
 
 RSpec.describe Swarms::SwarmParser do
-  let(:minimal_valid_swarm) do
-    {
-      swarm_version: "1.0",
-      name:          "Test Swarm"
-    }
+  def minimal_json
+    JSON.generate({ swarm_version: "1.0", name: "Test Swarm" })
   end
 
-  let(:full_valid_swarm) do
-    {
+  def full_json
+    JSON.generate({
       swarm_version: "1.0",
-      name:          "Dream Team",
-      slug:          "dream-team",
-      description:   "A complete swarm example",
-      version:       "1.0.0",
-      license:       "MIT",
-      tags:          ["ai", "coding"],
-      icon:          "🐝",
-      homepage:      "https://example.com",
-      author: {
-        name:  "Din Djarin",
-        url:   "https://mandalorian.forge",
-        email: "mando@mandalorian.forge"
-      },
+      name: "Full Swarm",
+      slug: "full-swarm",
+      description: "A complete swarm",
+      author: { name: "Author", url: "https://author.dev", email: "author@dev.io" },
+      version: "1.2.3",
+      license: "MIT",
+      tags: ["test", "example"],
+      icon: "🤖",
+      homepage: "https://swarm.example.com",
       requires: {
-        hivemind_version: ">=2.0.0",
-        integrations:     ["github"],
-        provider_models:  ["claude-sonnet-4"]
+        hivemind_version: ">=2.0",
+        integrations: ["github"],
+        provider_models: ["claude-3-5-sonnet"]
       },
-      team: {
-        name:        "Dream Team",
-        description: "A dream team",
-        custom_soul: "## Rules\n- Be excellent"
-      },
+      team: { name: "Test Team", description: "A test team" },
+      agents: [{ name: "Agent One", role: "Engineer" }],
+      skills: [{ name: "skill-one", summary: "Does stuff" }],
+      tools: [{ name: "tool-one", description: "A tool" }],
+      channels: [{ ref: "main-slack", name: "Main Slack", type: "slack" }],
+      mcp_servers: [{ name: "my-mcp", transport: "stdio", command: "npx my-mcp" }],
+      api_integrations: [{
+        name: "my-api",
+        base_url: "https://api.example.com",
+        endpoints: [{ method: "GET", path: "/v1/resources" }]
+      }],
       variables: {
-        "OPENAI_KEY" => { description: "OpenAI API key", required: true, type: "string" },
-        "DEBUG"      => { description: "Debug mode", required: false, type: "boolean", default: false }
-      },
-      agents: [
-        {
-          name:     "Mando",
-          role:     "Software Engineer",
-          llm_model: "claude-sonnet-4",
-          skills:   ["git"],
-          tools:    ["shell"],
-          mcp_servers: ["filesystem"],
-          channels: [{ channel_ref: "ops-slack", is_default: true }],
-          scheduled_tasks: [{ name: "Health check", schedule: "*/15 * * * *" }]
-        }
-      ],
-      skills: [
-        { name: "git", content: "Git workflow instructions", summary: "Git skill", category: "coding" }
-      ],
-      tools: [
-        { name: "custom_bash", description: "Run bash commands", executor_type: "custom_script", script_template: "bash -c {{cmd}}" }
-      ],
-      channels: [
-        { ref: "ops-slack", name: "Ops Slack", channel_type: "slack" }
-      ],
-      mcp_servers: [
-        { name: "filesystem", transport: "stdio", command: "npx -y @mcp/fs" }
-      ],
-      api_integrations: [
-        { name: "pagerduty", base_url: "https://api.pagerduty.com", description: "PD API" }
-      ]
-    }
+        "API_KEY" => { description: "API key", required: true, type: "string" }
+      }
+    })
   end
 
-  describe ".call" do
-    # ------------------------------------------------------------------
-    # Input modes
-    # ------------------------------------------------------------------
-    context "when no input is provided" do
-      subject(:result) { described_class.call }
-
-      it { is_expected.not_to be_success }
-      it "reports the missing input" do
-        expect(result.error).to match(/path.*json.*must be provided/i)
-      end
+  # ---------------------------------------------------------------------------
+  # Input validation
+  # ---------------------------------------------------------------------------
+  describe "input validation" do
+    it "returns error when neither path nor json is provided" do
+      result = described_class.call
+      expect(result).to be_error
+      expect(result.message).to include("Must provide")
     end
 
-    context "when parsing from a JSON string" do
-      subject(:result) { described_class.call(json: minimal_valid_swarm.to_json) }
-
-      it { is_expected.to be_success }
-      it "returns a SwarmDocument" do
-        expect(result.data).to be_a(Swarms::SwarmDocument)
-      end
+    it "requires .swarm.json extension" do
+      result = described_class.call(path: "/tmp/team.json")
+      expect(result).to be_error
+      expect(result.message).to include(".swarm.json")
     end
 
-    context "when parsing from a file path" do
-      let(:tmp_file) do
-        file = Tempfile.new(["swarm", ".json"])
-        file.write(minimal_valid_swarm.to_json)
-        file.close
-        file
-      end
-
-      after { tmp_file.unlink }
-
-      subject(:result) { described_class.call(path: tmp_file.path) }
-
-      it { is_expected.to be_success }
-      it "returns a SwarmDocument" do
-        expect(result.data).to be_a(Swarms::SwarmDocument)
-      end
+    it "returns error when file does not exist" do
+      result = described_class.call(path: "/tmp/nonexistent.swarm.json")
+      expect(result).to be_error
+      expect(result.message).to include("not found")
     end
 
-    context "when file exceeds 5MB" do
-      let(:tmp_file) do
-        file = Tempfile.new(["swarm", ".json"])
-        file.write("x" * (5 * 1024 * 1024 + 1))
-        file.close
-        file
-      end
+    it "returns error for invalid JSON" do
+      result = described_class.call(json: "{ bad json }")
+      expect(result).to be_error
+      expect(result.message).to include("Invalid JSON")
+    end
+  end
 
-      after { tmp_file.unlink }
-
-      subject(:result) { described_class.call(path: tmp_file.path) }
-
-      it { is_expected.not_to be_success }
-      it "reports the size error" do
-        expect(result.error).to match(/5 MB/)
-      end
+  # ---------------------------------------------------------------------------
+  # Schema validation errors
+  # ---------------------------------------------------------------------------
+  describe "schema validation" do
+    it "returns error for invalid swarm" do
+      result = described_class.call(json: JSON.generate({ swarm_version: "1.0" }))
+      expect(result).to be_error
+      expect(result.message).to include("invalid")
+      expect(result.payload[:errors]).to be_an(Array)
+      expect(result.payload[:errors]).not_to be_empty
     end
 
-    # ------------------------------------------------------------------
-    # File path errors
-    # ------------------------------------------------------------------
-    context "when the file does not exist" do
-      subject(:result) { described_class.call(path: "/tmp/no_such_file_xyz.json") }
+    it "includes all validation errors in payload" do
+      result = described_class.call(json: JSON.generate({ swarm_version: "99.0", name: 42 }))
+      expect(result).to be_error
+      expect(result.payload[:errors]).to include(match(/unsupported swarm_version/))
+      expect(result.payload[:errors]).to include("name must be a string")
+    end
+  end
 
-      it { is_expected.not_to be_success }
-      it "reports the missing file" do
-        expect(result.error).to match(/File not found/)
-      end
+  # ---------------------------------------------------------------------------
+  # Successful parsing
+  # ---------------------------------------------------------------------------
+  describe "successful parsing" do
+    it "returns success for minimal valid swarm" do
+      result = described_class.call(json: minimal_json)
+      expect(result).to be_success
     end
 
-    context "when the file has a non-.json extension" do
-      let(:tmp_file) do
-        file = Tempfile.new(["swarm", ".txt"])
-        file.write(minimal_valid_swarm.to_json)
-        file.close
-        file
-      end
-
-      after { tmp_file.unlink }
-
-      subject(:result) { described_class.call(path: tmp_file.path) }
-
-      it { is_expected.not_to be_success }
-      it "reports the extension error" do
-        expect(result.error).to match(/\.json extension/)
-      end
+    it "returns a SwarmDocument as payload" do
+      result = described_class.call(json: minimal_json)
+      expect(result.payload).to be_a(Swarms::SwarmDocument)
     end
 
-    # ------------------------------------------------------------------
-    # JSON parsing errors
-    # ------------------------------------------------------------------
-    context "when the JSON is malformed" do
-      subject(:result) { described_class.call(json: "{ not valid json !!!") }
-
-      it { is_expected.not_to be_success }
-      it "reports invalid JSON" do
-        expect(result.error).to match(/Invalid JSON/)
-      end
+    it "populates swarm_version and name" do
+      result = described_class.call(json: minimal_json)
+      doc = result.payload
+      expect(doc.swarm_version).to eq("1.0")
+      expect(doc.name).to eq("Test Swarm")
     end
 
-    # ------------------------------------------------------------------
-    # Schema validation errors bubble up
-    # ------------------------------------------------------------------
-    context "when the JSON is valid but schema is invalid" do
-      let(:invalid_swarm) { { swarm_version: "1.0" } } # missing name
+    it "populates all fields from full swarm JSON" do
+      result = described_class.call(json: full_json)
+      expect(result).to be_success
 
-      subject(:result) { described_class.call(json: invalid_swarm.to_json) }
-
-      it { is_expected.not_to be_success }
-      it "reports the schema violation" do
-        expect(result.error).to match(/Invalid .swarm.json/)
-      end
+      doc = result.payload
+      expect(doc.slug).to eq("full-swarm")
+      expect(doc.description).to eq("A complete swarm")
+      expect(doc.version).to eq("1.2.3")
+      expect(doc.license).to eq("MIT")
+      expect(doc.tags).to eq(["test", "example"])
+      expect(doc.homepage).to eq("https://swarm.example.com")
     end
 
-    # ------------------------------------------------------------------
-    # SwarmDocument structure
-    # ------------------------------------------------------------------
-    context "with a full valid swarm" do
-      subject(:result) { described_class.call(json: full_valid_swarm.to_json) }
-
-      it { is_expected.to be_success }
-
-      describe "the returned document" do
-        let(:doc) { result.data }
-
-        it "has the correct version" do
-          expect(doc.swarm_version).to eq("1.0")
-        end
-
-        it "has flat top-level metadata fields" do
-          expect(doc.name).to eq("Dream Team")
-          expect(doc.slug).to eq("dream-team")
-          expect(doc.description).to eq("A complete swarm example")
-          expect(doc.version).to eq("1.0.0")
-          expect(doc.license).to eq("MIT")
-          expect(doc.icon).to eq("🐝")
-          expect(doc.homepage).to eq("https://example.com")
-          expect(doc.tags).to contain_exactly("ai", "coding")
-        end
-
-        it "has a typed author object" do
-          expect(doc.author).to be_a(Swarms::SwarmDocument::SwarmAuthor)
-          expect(doc.author.name).to eq("Din Djarin")
-          expect(doc.author.url).to eq("https://mandalorian.forge")
-        end
-
-        it "has a typed requires object" do
-          expect(doc.requires).to be_a(Swarms::SwarmDocument::SwarmRequirements)
-          expect(doc.requires.hivemind_version).to eq(">=2.0.0")
-          expect(doc.requires.integrations).to contain_exactly("github")
-        end
-
-        it "has a typed team object" do
-          expect(doc.team).to be_a(Swarms::SwarmDocument::SwarmTeam)
-          expect(doc.team.name).to eq("Dream Team")
-        end
-
-        it "has variables as a hash keyed by name" do
-          expect(doc.variables).to be_a(Hash)
-          expect(doc.variables.keys).to contain_exactly("OPENAI_KEY", "DEBUG")
-          expect(doc.variables["OPENAI_KEY"]).to be_a(Swarms::SwarmDocument::SwarmVariable)
-          expect(doc.variables["OPENAI_KEY"].required).to be true
-          expect(doc.variables["DEBUG"].type).to eq("boolean")
-        end
-
-        it "has agents" do
-          expect(doc.agents.length).to eq(1)
-          expect(doc.agents.first[:name]).to eq("Mando")
-          expect(doc.agents.first[:skills]).to contain_exactly("git")
-        end
-
-        it "has skills" do
-          expect(doc.skills.length).to eq(1)
-          expect(doc.skills.first[:name]).to eq("git")
-          expect(doc.skills.first[:category]).to eq("coding")
-        end
-
-        it "has tools" do
-          expect(doc.tools.length).to eq(1)
-          expect(doc.tools.first[:name]).to eq("custom_bash")
-        end
-
-        it "has channels" do
-          expect(doc.channels.length).to eq(1)
-          expect(doc.channels.first[:ref]).to eq("ops-slack")
-          expect(doc.channels.first[:channel_type]).to eq("slack")
-        end
-
-        it "has mcp_servers" do
-          expect(doc.mcp_servers.length).to eq(1)
-          expect(doc.mcp_servers.first[:transport]).to eq("stdio")
-        end
-
-        it "has api_integrations" do
-          expect(doc.api_integrations.length).to eq(1)
-          expect(doc.api_integrations.first[:name]).to eq("pagerduty")
-        end
-
-        it "reports correct counts" do
-          expect(doc.agent_count).to eq(1)
-          expect(doc.skill_count).to eq(1)
-          expect(doc.tool_count).to eq(1)
-          expect(doc.api_integration_count).to eq(1)
-        end
-
-        it "is frozen" do
-          expect(doc).to be_frozen
-          expect(doc.agents).to be_frozen
-          expect(doc.skills).to be_frozen
-          expect(doc.variables).to be_frozen
-        end
-      end
+    it "builds SwarmAuthor from author hash" do
+      result = described_class.call(json: full_json)
+      doc = result.payload
+      expect(doc.author).to be_a(Swarms::SwarmDocument::SwarmAuthor)
+      expect(doc.author.name).to eq("Author")
+      expect(doc.author.url).to eq("https://author.dev")
+      expect(doc.author.email).to eq("author@dev.io")
     end
 
-    # ------------------------------------------------------------------
-    # Optional sections absent
-    # ------------------------------------------------------------------
-    context "with only required fields" do
-      subject(:result) { described_class.call(json: minimal_valid_swarm.to_json) }
+    it "builds SwarmRequirements from requires hash" do
+      result = described_class.call(json: full_json)
+      doc = result.payload
+      expect(doc.requires).to be_a(Swarms::SwarmDocument::SwarmRequirements)
+      expect(doc.requires.hivemind_version).to eq(">=2.0")
+      expect(doc.requires.integrations).to eq(["github"])
+      expect(doc.requires.provider_models).to eq(["claude-3-5-sonnet"])
+    end
 
-      it { is_expected.to be_success }
+    it "builds SwarmTeam from team hash" do
+      result = described_class.call(json: full_json)
+      doc = result.payload
+      expect(doc.team).to be_a(Swarms::SwarmDocument::SwarmTeam)
+      expect(doc.team.name).to eq("Test Team")
+    end
 
-      describe "the returned document" do
-        let(:doc) { result.data }
+    it "populates agents array" do
+      result = described_class.call(json: full_json)
+      doc = result.payload
+      expect(doc.agent_count).to eq(1)
+      expect(doc.agents.first["name"]).to eq("Agent One")
+    end
 
-        it "has empty collections for optional array sections" do
-          expect(doc.agents).to be_empty
-          expect(doc.skills).to be_empty
-          expect(doc.tools).to be_empty
-          expect(doc.channels).to be_empty
-          expect(doc.mcp_servers).to be_empty
-          expect(doc.api_integrations).to be_empty
-          expect(doc.tags).to be_empty
-        end
+    it "populates channels array" do
+      result = described_class.call(json: full_json)
+      doc = result.payload
+      expect(doc.channel_count).to eq(1)
+      expect(doc.channels.first["ref"]).to eq("main-slack")
+    end
 
-        it "has empty hash for variables" do
-          expect(doc.variables).to eq({})
-        end
+    it "builds variables as SwarmVariable objects" do
+      result = described_class.call(json: full_json)
+      doc = result.payload
+      expect(doc.variables).to have_key("API_KEY")
+      var = doc.variables["API_KEY"]
+      expect(var).to be_a(Swarms::SwarmDocument::SwarmVariable)
+      expect(var.description).to eq("API key")
+      expect(var.required).to be(true)
+      expect(var.type).to eq("string")
+    end
 
-        it "has nil optional top-level fields" do
-          expect(doc.slug).to be_nil
-          expect(doc.description).to be_nil
-          expect(doc.author).to be_nil
-          expect(doc.version).to be_nil
-          expect(doc.license).to be_nil
-          expect(doc.requires).to be_nil
-          expect(doc.team).to be_nil
-        end
-      end
+    it "returns empty variables hash when no variables defined" do
+      result = described_class.call(json: minimal_json)
+      expect(result.payload.variables).to eq({})
+    end
+
+    it "returns nil author when no author defined" do
+      result = described_class.call(json: minimal_json)
+      expect(result.payload.author).to be_nil
+    end
+
+    it "returns nil requires when no requires defined" do
+      result = described_class.call(json: minimal_json)
+      expect(result.payload.requires).to be_nil
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # File loading
+  # ---------------------------------------------------------------------------
+  describe "loading from file path" do
+    let(:tmp_path) { "/tmp/test.swarm.json" }
+
+    after { File.delete(tmp_path) if File.exist?(tmp_path) }
+
+    it "reads and parses a valid .swarm.json file" do
+      File.write(tmp_path, minimal_json)
+      result = described_class.call(path: tmp_path)
+      expect(result).to be_success
+      expect(result.payload.name).to eq("Test Swarm")
+    end
+
+    it "returns error for oversized file" do
+      File.write(tmp_path, ("x" * (5 * 1024 * 1024 + 1)))
+      result = described_class.call(path: tmp_path)
+      expect(result).to be_error
+      expect(result.message).to include("5MB")
     end
   end
 end

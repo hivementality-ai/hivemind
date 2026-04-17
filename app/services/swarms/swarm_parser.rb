@@ -1,26 +1,20 @@
 # frozen_string_literal: true
 
 module Swarms
-  # Parses a .swarm.json file (path or raw JSON string) into a SwarmDocument.
-  #
-  # Returns a ServiceResponse:
-  #   success: data is a SwarmDocument
-  #   failure: error is a human-readable message
+  # Entry point for loading a .swarm.json file.
   #
   # Usage:
-  #   result = SwarmParser.call(path: "/tmp/team.swarm.json")
+  #   result = SwarmParser.call(path: "/path/to/team.swarm.json")
   #   result = SwarmParser.call(json: raw_json_string)
   #
-  #   if result.success?
-  #     doc = result.data   # => SwarmDocument
-  #   else
-  #     Rails.logger.error(result.error)
-  #   end
+  # Returns a ServiceResponse. On success, `result.payload` is a SwarmDocument.
+  # On failure, `result.message` describes the error and `result.payload[:errors]`
+  # contains the array of validation error strings.
   class SwarmParser
-    MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024 # 5 MB per spec
+    MAX_FILE_SIZE = 5.megabytes
 
-    def self.call(path: nil, json: nil)
-      new(path:, json:).call
+    def self.call(**kwargs)
+      new(**kwargs).call
     end
 
     def initialize(path: nil, json: nil)
@@ -35,55 +29,58 @@ module Swarms
       parsed = parse_json(raw_json)
       return parsed if parsed.is_a?(ServiceResponse)
 
-      validation = SwarmSchema.validate(parsed)
-      return ServiceResponse.failure(error: validation_error_message(validation)) if validation.invalid?
-
-      ServiceResponse.success(data: build_document(parsed))
-    rescue StandardError => e
-      ServiceResponse.failure(error: "Unexpected error parsing swarm file: #{e.message}")
+      validate_and_build(parsed)
     end
 
     private
 
-    attr_reader :path, :json
-
     def load_json
-      if path.present?
-        load_from_path(path)
-      elsif json.present?
-        json
+      if @path.present?
+        load_from_path
+      elsif @json.present?
+        @json
       else
-        ServiceResponse.failure(error: "Either path: or json: must be provided")
+        ServiceResponse.error(message: "Must provide path: or json:")
       end
     end
 
-    def load_from_path(file_path)
-      unless File.exist?(file_path)
-        return ServiceResponse.failure(error: "File not found: #{file_path}")
+    def load_from_path
+      unless @path.end_with?(".swarm.json")
+        return ServiceResponse.error(message: "File must have .swarm.json extension")
       end
 
-      unless File.extname(file_path).end_with?(".json")
-        return ServiceResponse.failure(error: "File must have a .json extension (got: #{File.extname(file_path)})")
+      unless File.exist?(@path)
+        return ServiceResponse.error(message: "File not found: #{@path}")
       end
 
-      size = File.size(file_path)
-      if size > MAX_FILE_SIZE_BYTES
-        return ServiceResponse.failure(error: "File exceeds maximum size of 5 MB (got #{size} bytes)")
+      size = File.size(@path)
+      if size > MAX_FILE_SIZE
+        return ServiceResponse.error(message: "File exceeds 5MB limit (#{size} bytes)")
       end
 
-      File.read(file_path)
-    rescue SystemCallError => e
-      ServiceResponse.failure(error: "Could not read file '#{file_path}': #{e.message}")
+      File.read(@path)
+    rescue Errno::EACCES => e
+      ServiceResponse.error(message: "Permission denied reading file: #{e.message}")
     end
 
     def parse_json(raw)
       JSON.parse(raw)
     rescue JSON::ParserError => e
-      ServiceResponse.failure(error: "Invalid JSON: #{e.message}")
+      ServiceResponse.error(message: "Invalid JSON: #{e.message}")
     end
 
-    def validation_error_message(validation)
-      "Invalid .swarm.json: #{validation.errors.join('; ')}"
+    def validate_and_build(parsed)
+      result = SwarmSchema.new.validate(parsed)
+
+      if result.invalid?
+        return ServiceResponse.error(
+          message: "Swarm file is invalid",
+          payload: { errors: result.errors }
+        )
+      end
+
+      document = build_document(parsed)
+      ServiceResponse.success(payload: document)
     end
 
     def build_document(parsed)
@@ -97,7 +94,7 @@ module Swarms
         author:           SwarmDocument::SwarmAuthor.from_hash(h[:author]),
         version:          h[:version].presence,
         license:          h[:license].presence,
-        tags:             Array(h[:tags]).map(&:to_s),
+        tags:             Array(h[:tags]),
         icon:             h[:icon].presence,
         homepage:         h[:homepage].presence,
         requires:         SwarmDocument::SwarmRequirements.from_hash(h[:requires]),
@@ -112,8 +109,10 @@ module Swarms
       )
     end
 
-    def normalize_array(raw)
-      Array(raw).map { |item| item.with_indifferent_access }
+    def normalize_array(value)
+      return [] if value.nil?
+
+      Array(value)
     end
 
     def build_variables(raw)

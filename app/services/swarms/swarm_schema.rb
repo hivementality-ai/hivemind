@@ -3,14 +3,37 @@
 module Swarms
   # Validates a raw parsed Hash against the .swarm.json schema.
   #
+  # The schema mirrors the spec at docs/hivemind-planning/hivemind-swarms-spec.md.
+  # Top-level structure:
+  #
+  #   swarm_version      – required, "1.0"
+  #   name               – required string
+  #   slug               – optional URL-safe string
+  #   description        – optional string
+  #   author             – optional { name, url, email }
+  #   version            – optional semver string
+  #   license            – optional string
+  #   tags               – optional array of strings
+  #   icon               – optional string
+  #   homepage           – optional string
+  #   requires           – optional { hivemind_version, integrations[], provider_models[] }
+  #   team               – optional { name, description, custom_soul }
+  #   agents[]           – optional array of agent definitions
+  #   skills[]           – optional array of skill definitions
+  #   tools[]            – optional array of custom tool definitions
+  #   channels[]         – optional array of channel configurations
+  #   mcp_servers[]      – optional array of MCP server configurations
+  #   api_integrations[] – optional array of API integration configs
+  #   variables{}        – optional object of user-configurable variable definitions
+  #
   # Returns a ValidationResult with:
   #   valid?   – true/false
-  #   errors   – array of human-readable error strings
+  #   errors   – array of human-readable error strings (full accumulation, no fail-fast)
   #
   # Usage:
-  #   result = SwarmSchema.validate(raw_hash)
+  #   result = SwarmSchema.new.validate(raw_hash)
   #   result.valid?   # => true / false
-  #   result.errors   # => ["agents[0]: name is required", ...]
+  #   result.errors   # => ["agents[0].role is required", ...]
   class SwarmSchema
     SUPPORTED_VERSIONS        = %w[1.0].freeze
     VALID_MCP_TRANSPORTS      = %w[stdio sse].freeze
@@ -21,22 +44,29 @@ module Swarms
     VALID_THINKING_VISIBILITY = %w[hidden debug].freeze
 
     ValidationResult = Data.define(:errors) do
-      def valid? = errors.empty?
+      def valid?   = errors.empty?
       def invalid? = !valid?
     end
 
     # Validate a raw Hash (already JSON-parsed). Does NOT raise — always returns
     # a ValidationResult.
     def self.validate(raw)
-      new(raw).validate
+      new.validate(raw)
     end
 
-    def initialize(raw)
-      @raw    = raw.with_indifferent_access
+    def initialize
       @errors = []
+      @raw    = {}.with_indifferent_access
     end
 
-    def validate
+    def validate(raw)
+      @errors = []
+      unless raw.is_a?(Hash)
+        @errors << "swarm document must be a JSON object, not #{raw.class.name.downcase}"
+        return ValidationResult.new(errors: @errors.freeze)
+      end
+      @raw = raw.with_indifferent_access
+
       validate_version
       validate_top_level_metadata
       validate_requires
@@ -57,7 +87,7 @@ module Swarms
     attr_reader :raw, :errors
 
     # ------------------------------------------------------------------
-    # Top-level fields
+    # swarm_version
     # ------------------------------------------------------------------
 
     def validate_version
@@ -65,46 +95,45 @@ module Swarms
       if version.blank?
         errors << "swarm_version is required"
       elsif !SUPPORTED_VERSIONS.include?(version.to_s)
-        errors << "swarm_version '#{version}' is not supported (supported: #{SUPPORTED_VERSIONS.join(', ')})"
+        errors << "unsupported swarm_version '#{version}' (supported: #{SUPPORTED_VERSIONS.join(', ')})"
       end
     end
 
-    def validate_top_level_metadata
-      errors << "name is required" if raw[:name].blank?
+    # ------------------------------------------------------------------
+    # Top-level fields
+    # ------------------------------------------------------------------
 
-      if raw[:name].present? && !raw[:name].is_a?(String)
+    def validate_top_level_metadata
+      name = raw[:name]
+      if name.nil? || (name.is_a?(String) && name.blank?)
+        errors << "name is required"
+      elsif !name.is_a?(String)
         errors << "name must be a string"
       end
 
-      if raw[:slug].present? && !raw[:slug].is_a?(String)
-        errors << "slug must be a string"
+      if raw[:slug].present?
+        unless raw[:slug].is_a?(String) && raw[:slug].match?(/\A[a-z0-9][a-z0-9\-_]*\z/)
+          errors << "slug must be a lowercase URL-safe string (letters, numbers, hyphens, underscores)"
+        end
       end
 
-      if raw[:description].present? && !raw[:description].is_a?(String)
-        errors << "description must be a string"
+      errors << "description must be a string" if !raw[:description].nil? && !raw[:description].is_a?(String)
+      errors << "version must be a string"      if !raw[:version].nil?     && !raw[:version].is_a?(String)
+      errors << "license must be a string"      if !raw[:license].nil?     && !raw[:license].is_a?(String)
+      errors << "icon must be a string"         if !raw[:icon].nil?        && !raw[:icon].is_a?(String)
+      errors << "homepage must be a string"     if !raw[:homepage].nil?    && !raw[:homepage].is_a?(String)
+
+      if raw[:tags].present?
+        unless raw[:tags].is_a?(Array)
+          errors << "tags must be an array"
+        else
+          raw[:tags].each_with_index do |tag, i|
+            errors << "tags[#{i}] must be a string" unless tag.is_a?(String)
+          end
+        end
       end
 
-      validate_author(raw[:author]) if raw[:author].present?
-
-      if raw[:version].present? && !raw[:version].is_a?(String)
-        errors << "version must be a string"
-      end
-
-      if raw[:license].present? && !raw[:license].is_a?(String)
-        errors << "license must be a string"
-      end
-
-      if raw[:tags].present? && !raw[:tags].is_a?(Array)
-        errors << "tags must be an array"
-      end
-
-      if raw[:icon].present? && !raw[:icon].is_a?(String)
-        errors << "icon must be a string"
-      end
-
-      if raw[:homepage].present? && !raw[:homepage].is_a?(String)
-        errors << "homepage must be a string"
-      end
+      validate_author(raw[:author]) if raw.key?(:author) && !raw[:author].nil?
     end
 
     def validate_author(author)
@@ -114,20 +143,14 @@ module Swarms
       end
 
       a = author.with_indifferent_access
-      errors << "author.name is required" if a[:name].blank?
-
-      if a[:name].present? && !a[:name].is_a?(String)
-        errors << "author.name must be a string"
-      end
-
-      if a[:url].present? && !a[:url].is_a?(String)
-        errors << "author.url must be a string"
-      end
-
-      if a[:email].present? && !a[:email].is_a?(String)
-        errors << "author.email must be a string"
-      end
+      errors << "author.name is required"       if a[:name].blank?
+      errors << "author.url must be a string"   if !a[:url].nil?   && !a[:url].is_a?(String)
+      errors << "author.email must be a string" if !a[:email].nil? && !a[:email].is_a?(String)
     end
+
+    # ------------------------------------------------------------------
+    # requires{}
+    # ------------------------------------------------------------------
 
     def validate_requires
       req = raw[:requires]
@@ -140,30 +163,20 @@ module Swarms
 
       r = req.with_indifferent_access
 
-      if r[:hivemind_version].present? && !r[:hivemind_version].is_a?(String)
-        errors << "requires.hivemind_version must be a string"
+      errors << "requires.hivemind_version must be a string" if r[:hivemind_version].present? && !r[:hivemind_version].is_a?(String)
+
+      if r[:integrations].present? && !r[:integrations].is_a?(Array)
+        errors << "requires.integrations must be an array"
       end
 
-      if r[:integrations].present?
-        unless r[:integrations].is_a?(Array)
-          errors << "requires.integrations must be an array"
-        else
-          r[:integrations].each_with_index do |item, i|
-            errors << "requires.integrations[#{i}] must be a string" unless item.is_a?(String)
-          end
-        end
-      end
-
-      if r[:provider_models].present?
-        unless r[:provider_models].is_a?(Array)
-          errors << "requires.provider_models must be an array"
-        else
-          r[:provider_models].each_with_index do |item, i|
-            errors << "requires.provider_models[#{i}] must be a string" unless item.is_a?(String)
-          end
-        end
+      if r[:provider_models].present? && !r[:provider_models].is_a?(Array)
+        errors << "requires.provider_models must be an array"
       end
     end
+
+    # ------------------------------------------------------------------
+    # team{}
+    # ------------------------------------------------------------------
 
     def validate_team
       team = raw[:team]
@@ -175,20 +188,14 @@ module Swarms
       end
 
       t = team.with_indifferent_access
-      errors << "team.name is required" if t[:name].blank?
-
-      if t[:name].present? && !t[:name].is_a?(String)
-        errors << "team.name must be a string"
-      end
-
-      if t[:description].present? && !t[:description].is_a?(String)
-        errors << "team.description must be a string"
-      end
-
-      if t[:custom_soul].present? && !t[:custom_soul].is_a?(String)
-        errors << "team.custom_soul must be a string"
-      end
+      errors << "team.name must be a string"        if !t[:name].nil?        && !t[:name].is_a?(String)
+      errors << "team.description must be a string" if !t[:description].nil? && !t[:description].is_a?(String)
+      errors << "team.custom_soul must be a string" if !t[:custom_soul].nil? && !t[:custom_soul].is_a?(String)
     end
+
+    # ------------------------------------------------------------------
+    # variables{}
+    # ------------------------------------------------------------------
 
     def validate_variables
       vars = raw[:variables]
@@ -208,9 +215,10 @@ module Swarms
         end
 
         d = definition.with_indifferent_access
-        errors << "#{prefix}.description is required" if d[:description].blank?
 
-        if d[:required].present? && ![true, false].include?(d[:required])
+        errors << "#{prefix}.description must be a string" if d[:description].present? && !d[:description].is_a?(String)
+
+        if d.key?(:required) && !d[:required].nil? && ![true, false].include?(d[:required])
           errors << "#{prefix}.required must be a boolean"
         end
 
@@ -219,6 +227,10 @@ module Swarms
         end
       end
     end
+
+    # ------------------------------------------------------------------
+    # agents[]
+    # ------------------------------------------------------------------
 
     def validate_agents
       agents = raw[:agents]
@@ -229,9 +241,7 @@ module Swarms
         return
       end
 
-      agents.each_with_index do |agent, i|
-        validate_agent(agent, i)
-      end
+      agents.each_with_index { |agent, i| validate_agent(agent, i) }
     end
 
     def validate_agent(agent, index)
@@ -247,29 +257,29 @@ module Swarms
       errors << "#{prefix}.name is required" if a[:name].blank?
       errors << "#{prefix}.role is required" if a[:role].blank?
 
+      errors << "#{prefix}.soul must be a string"  if !a[:soul].nil?  && !a[:soul].is_a?(String)
+      errors << "#{prefix}.model must be a string" if !a[:model].nil? && !a[:model].is_a?(String)
+
       if a[:thinking_visibility].present? && !VALID_THINKING_VISIBILITY.include?(a[:thinking_visibility].to_s)
         errors << "#{prefix}.thinking_visibility '#{a[:thinking_visibility]}' is invalid (must be one of: #{VALID_THINKING_VISIBILITY.join(', ')})"
       end
 
-      if a[:thinking_budget_tokens].present?
+      if a.key?(:thinking_budget_tokens) && !a[:thinking_budget_tokens].nil?
         budget = a[:thinking_budget_tokens]
-        unless budget.is_a?(Integer) && budget >= 1 && budget <= 128_000
-          errors << "#{prefix}.thinking_budget_tokens must be an integer between 1 and 128000"
+        if !budget.is_a?(Integer)
+          errors << "#{prefix}.thinking_budget_tokens must be an integer"
+        elsif budget < 1 || budget > 128_000
+          errors << "#{prefix}.thinking_budget_tokens must be between 1 and 128000"
         end
       end
 
       validate_egress_policy(a[:egress_policy], "#{prefix}.egress_policy") if a[:egress_policy].present?
 
-      if a[:tool_loop_config].present? && !a[:tool_loop_config].is_a?(Hash)
-        errors << "#{prefix}.tool_loop_config must be an object"
-      end
-
-      if a[:model_config].present? && !a[:model_config].is_a?(Hash)
-        errors << "#{prefix}.model_config must be an object"
-      end
+      errors << "#{prefix}.tool_loop_config must be an object" if a[:tool_loop_config].present? && !a[:tool_loop_config].is_a?(Hash)
+      errors << "#{prefix}.model_config must be an object"     if a[:model_config].present?     && !a[:model_config].is_a?(Hash)
 
       %i[skills tools mcp_servers].each do |list_key|
-        next unless a[list_key].present?
+        next unless a.key?(list_key) && !a[list_key].nil?
 
         unless a[list_key].is_a?(Array)
           errors << "#{prefix}.#{list_key} must be an array"
@@ -281,9 +291,9 @@ module Swarms
         end
       end
 
-      validate_agent_channels(a[:channels], prefix) if a[:channels].present?
-      validate_agent_scheduled_tasks(a[:scheduled_tasks], prefix) if a[:scheduled_tasks].present?
-      validate_workspace_files(a[:workspace_files], prefix) if a[:workspace_files].present?
+      validate_agent_channels(a[:channels], prefix)               if a.key?(:channels) && !a[:channels].nil?
+      validate_agent_scheduled_tasks(a[:scheduled_tasks], prefix) if a.key?(:scheduled_tasks) && !a[:scheduled_tasks].nil?
+      validate_workspace_files(a[:workspace_files], prefix)       if a.key?(:workspace_files) && !a[:workspace_files].nil?
     end
 
     def validate_agent_channels(channels, prefix)
@@ -292,22 +302,16 @@ module Swarms
         return
       end
 
-      channels.each_with_index do |binding, i|
+      channels.each_with_index do |binding, j|
+        bp = "#{prefix}.channels[#{j}]"
+
         unless binding.is_a?(Hash)
-          errors << "#{prefix}.channels[#{i}] must be an object"
+          errors << "#{bp} must be an object"
           next
         end
 
         b = binding.with_indifferent_access
-        errors << "#{prefix}.channels[#{i}].channel_ref is required" if b[:channel_ref].blank?
-
-        if b[:channel_ref].present? && !b[:channel_ref].is_a?(String)
-          errors << "#{prefix}.channels[#{i}].channel_ref must be a string"
-        end
-
-        if b[:is_default].present? && ![true, false].include?(b[:is_default])
-          errors << "#{prefix}.channels[#{i}].is_default must be a boolean"
-        end
+        errors << "#{bp}.channel_ref is required" if b[:channel_ref].blank?
       end
     end
 
@@ -317,37 +321,38 @@ module Swarms
         return
       end
 
-      tasks.each_with_index do |task, i|
-        task_prefix = "#{prefix}.scheduled_tasks[#{i}]"
+      tasks.each_with_index do |task, j|
+        tp = "#{prefix}.scheduled_tasks[#{j}]"
 
         unless task.is_a?(Hash)
-          errors << "#{task_prefix} must be an object"
+          errors << "#{tp} must be an object"
           next
         end
 
         t = task.with_indifferent_access
-        errors << "#{task_prefix}.name is required" if t[:name].blank?
-        errors << "#{task_prefix}.schedule is required" if t[:schedule].blank?
+        errors << "#{tp}.name is required"     if t[:name].blank?
+        errors << "#{tp}.schedule is required" if t[:schedule].blank?
 
         if t[:schedule].present? && !valid_cron?(t[:schedule].to_s)
-          errors << "#{task_prefix}.schedule '#{t[:schedule]}' is not a valid cron expression"
+          errors << "#{tp}.schedule '#{t[:schedule]}' is not a valid cron expression (invalid cron expression)"
         end
       end
     end
 
     def validate_workspace_files(files, prefix)
-      unless files.is_a?(Hash)
-        errors << "#{prefix}.workspace_files must be an object"
+      unless files.is_a?(Array)
+        errors << "#{prefix}.workspace_files must be an array"
         return
       end
 
-      files.each do |path, content|
-        if path.to_s.include?("..") || path.to_s.start_with?("/")
-          errors << "#{prefix}.workspace_files key '#{path}' must be a relative path without directory traversal"
+      files.each_with_index do |path, i|
+        unless path.is_a?(String)
+          errors << "#{prefix}.workspace_files[#{i}] must be a string"
+          next
         end
 
-        if content.is_a?(String) && content.bytesize > 1_048_576
-          errors << "#{prefix}.workspace_files['#{path}'] exceeds 1MB limit"
+        if path.include?("..") || path.start_with?("/")
+          errors << "#{prefix}.workspace_files[#{i}] '#{path}' must be a relative path without directory traversal"
         end
       end
     end
@@ -359,25 +364,21 @@ module Swarms
       end
 
       p = policy.with_indifferent_access
-      mode = p[:mode]
 
-      if mode.present? && !VALID_EGRESS_MODES.include?(mode.to_s)
-        errors << "#{prefix}.mode '#{mode}' is invalid (must be one of: #{VALID_EGRESS_MODES.join(', ')})"
+      if p[:mode].present? && !VALID_EGRESS_MODES.include?(p[:mode].to_s)
+        errors << "#{prefix}.mode '#{p[:mode]}' is invalid (must be one of: #{VALID_EGRESS_MODES.join(', ')})"
       end
 
-      if p[:rules].present?
-        unless p[:rules].is_a?(Array)
-          errors << "#{prefix}.rules must be an array"
-          return
-        end
-
-        p[:rules].each_with_index do |rule, i|
-          unless rule.is_a?(Hash) && rule.with_indifferent_access[:pattern].present?
-            errors << "#{prefix}.rules[#{i}] must have a 'pattern' field"
-          end
+      if p.key?(:domains) && !p[:domains].nil?
+        unless p[:domains].is_a?(Array)
+          errors << "#{prefix}.domains must be an array"
         end
       end
     end
+
+    # ------------------------------------------------------------------
+    # skills[]
+    # ------------------------------------------------------------------
 
     def validate_skills
       skills = raw[:skills]
@@ -398,22 +399,24 @@ module Swarms
 
         s = skill.with_indifferent_access
         errors << "#{prefix}.name is required" if s[:name].blank?
-        errors << "#{prefix}.content is required" if s[:content].blank?
-        errors << "#{prefix}.summary is required" if s[:summary].blank?
 
-        if s[:summary].present? && s[:summary].to_s.length > 150
-          errors << "#{prefix}.summary exceeds 150 character limit"
+        if s[:summary].present?
+          unless s[:summary].is_a?(String)
+            errors << "#{prefix}.summary must be a string"
+          else
+            errors << "#{prefix}.summary exceeds 150 character limit" if s[:summary].length > 150
+          end
         end
 
-        if s[:content].present? && s[:content].to_s.bytesize > 100 * 1024
-          errors << "#{prefix}.content exceeds 100KB limit"
+        if s[:content].present? && s[:content].is_a?(String)
+          errors << "#{prefix}.content exceeds 100KB limit" if s[:content].bytesize > 100 * 1024
         end
 
         if s[:category].present? && !VALID_SKILL_CATEGORIES.include?(s[:category].to_s)
           errors << "#{prefix}.category '#{s[:category]}' is invalid (must be one of: #{VALID_SKILL_CATEGORIES.join(', ')})"
         end
 
-        if s[:tools].present?
+        if s.key?(:tools) && !s[:tools].nil?
           unless s[:tools].is_a?(Array)
             errors << "#{prefix}.tools must be an array"
           else
@@ -424,6 +427,10 @@ module Swarms
         end
       end
     end
+
+    # ------------------------------------------------------------------
+    # tools[]
+    # ------------------------------------------------------------------
 
     def validate_tools
       tools = raw[:tools]
@@ -444,14 +451,14 @@ module Swarms
 
         t = tool.with_indifferent_access
         errors << "#{prefix}.name is required" if t[:name].blank?
-        errors << "#{prefix}.description is required" if t[:description].blank?
-        errors << "#{prefix}.executor_type is required" if t[:executor_type].blank?
 
-        if t[:executor_type] == "custom_script" && t[:script_template].blank?
-          errors << "#{prefix}.script_template is required when executor_type is 'custom_script'"
-        end
+        errors << "#{prefix}.description must be a string" if t[:description].present? && !t[:description].is_a?(String)
       end
     end
+
+    # ------------------------------------------------------------------
+    # channels[]
+    # ------------------------------------------------------------------
 
     def validate_channels
       channels = raw[:channels]
@@ -471,16 +478,20 @@ module Swarms
         end
 
         c = channel.with_indifferent_access
-        errors << "#{prefix}.ref is required" if c[:ref].blank?
+        errors << "#{prefix}.ref is required"  if c[:ref].blank?
         errors << "#{prefix}.name is required" if c[:name].blank?
 
-        if c[:channel_type].blank?
-          errors << "#{prefix}.channel_type is required"
-        elsif !VALID_CHANNEL_TYPES.include?(c[:channel_type].to_s)
-          errors << "#{prefix}.channel_type '#{c[:channel_type]}' is invalid (must be one of: #{VALID_CHANNEL_TYPES.join(', ')})"
+        if c[:type].blank?
+          errors << "#{prefix}.type is required"
+        elsif !VALID_CHANNEL_TYPES.include?(c[:type].to_s)
+          errors << "#{prefix}.type '#{c[:type]}' is invalid (must be one of: #{VALID_CHANNEL_TYPES.join(', ')})"
         end
       end
     end
+
+    # ------------------------------------------------------------------
+    # mcp_servers[]
+    # ------------------------------------------------------------------
 
     def validate_mcp_servers
       servers = raw[:mcp_servers]
@@ -491,9 +502,7 @@ module Swarms
         return
       end
 
-      servers.each_with_index do |server, i|
-        validate_mcp_server(server, i)
-      end
+      servers.each_with_index { |server, i| validate_mcp_server(server, i) }
     end
 
     def validate_mcp_server(server, index)
@@ -514,21 +523,18 @@ module Swarms
         errors << "#{prefix}.transport '#{transport}' is invalid (must be one of: #{VALID_MCP_TRANSPORTS.join(', ')})"
       else
         case transport
-        when "stdio"
-          errors << "#{prefix}.command is required for stdio transport" if s[:command].blank?
-        when "sse"
-          errors << "#{prefix}.url is required for sse transport" if s[:url].blank?
+        when "stdio" then errors << "#{prefix}.command is required for stdio transport" if s[:command].blank?
+        when "sse"   then errors << "#{prefix}.url is required for sse transport"       if s[:url].blank?
         end
       end
 
-      if s[:env_vars].present? && !s[:env_vars].is_a?(Hash)
-        errors << "#{prefix}.env_vars must be an object"
-      end
-
-      if s[:auth_config].present? && !s[:auth_config].is_a?(Hash)
-        errors << "#{prefix}.auth_config must be an object"
-      end
+      errors << "#{prefix}.env_vars must be an object"    if s[:env_vars].present?    && !s[:env_vars].is_a?(Hash)
+      errors << "#{prefix}.auth_config must be an object" if s[:auth_config].present? && !s[:auth_config].is_a?(Hash)
     end
+
+    # ------------------------------------------------------------------
+    # api_integrations[]
+    # ------------------------------------------------------------------
 
     def validate_api_integrations
       integrations = raw[:api_integrations]
@@ -553,18 +559,13 @@ module Swarms
       end
 
       g = integration.with_indifferent_access
-      errors << "#{prefix}.name is required" if g[:name].blank?
+      errors << "#{prefix}.name is required"     if g[:name].blank?
       errors << "#{prefix}.base_url is required" if g[:base_url].blank?
 
-      if g[:auth_config].present? && !g[:auth_config].is_a?(Hash)
-        errors << "#{prefix}.auth_config must be an object"
-      end
+      errors << "#{prefix}.auth_config must be an object"     if g[:auth_config].present?     && !g[:auth_config].is_a?(Hash)
+      errors << "#{prefix}.default_headers must be an object" if g[:default_headers].present? && !g[:default_headers].is_a?(Hash)
 
-      if g[:default_headers].present? && !g[:default_headers].is_a?(Hash)
-        errors << "#{prefix}.default_headers must be an object"
-      end
-
-      if g[:endpoints].present?
+      if g.key?(:endpoints) && !g[:endpoints].nil?
         unless g[:endpoints].is_a?(Array)
           errors << "#{prefix}.endpoints must be an array"
         else
@@ -574,10 +575,9 @@ module Swarms
               errors << "#{ep_prefix} must be an object"
               next
             end
-
             ep = ep.with_indifferent_access
             errors << "#{ep_prefix}.method is required" if ep[:method].blank?
-            errors << "#{ep_prefix}.path is required" if ep[:path].blank?
+            errors << "#{ep_prefix}.path is required"   if ep[:path].blank?
           end
         end
       end
@@ -595,16 +595,8 @@ module Swarms
     # Helpers
     # ------------------------------------------------------------------
 
-    # Matches 5-part cron expressions. Supports digits, wildcards, ranges,
-    # steps, and named day abbreviations (MON-FRI etc).
-    # Does not validate field-level numeric ranges — that belongs in a
-    # dedicated cron parser.
-    CRON_PART_PATTERN = /\A(\*|(\d+|\*)([\/\-]\d+)?|
-                          (MON|TUE|WED|THU|FRI|SAT|SUN)
-                          (\-(MON|TUE|WED|THU|FRI|SAT|SUN))?
-                         )(,((\d+|\*)([\/\-]\d+)?|
-                          (MON|TUE|WED|THU|FRI|SAT|SUN)
-                          (\-(MON|TUE|WED|THU|FRI|SAT|SUN))?))*\z/xi
+    # Matches numeric cron parts and named day/month abbreviations (MON-FRI, JAN-DEC, etc.)
+    CRON_PART_PATTERN = /\A(?:[\d\*,\-\/]+|[A-Z]{3}(?:[,\-][A-Z]{3})*)\z/
 
     def valid_cron?(expression)
       parts = expression.strip.split(/\s+/)
