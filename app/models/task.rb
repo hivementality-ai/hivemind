@@ -11,6 +11,7 @@ class Task < ApplicationRecord
   belongs_to :project_milestone, optional: true
   belongs_to :session, optional: true
 
+  has_many :task_attachments, dependent: :destroy
   has_many :task_hooks, dependent: :destroy
   has_many :task_events, dependent: :destroy
   has_many :task_dependencies, dependent: :destroy
@@ -162,6 +163,7 @@ class Task < ApplicationRecord
     parts << "Blocked" if blocked_by_dependencies?
     parts << "Checklist: #{checklist.count { |i| i['checked'] }}/#{checklist.size}" if checklist.present?
     parts << "Artifacts: #{artifacts.size}" if artifacts.present?
+    parts << "Attachments: #{task_attachments.size}" if task_attachments.exists?
     parts << "Description: #{description.truncate(120)}" if description.present?
     parts.join(" | ")
   end

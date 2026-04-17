@@ -114,6 +114,78 @@
         <% end %>
       </div>
 
+      <!-- Attachments -->
+      <div class="bg-surface-card rounded-xl border border-border-default p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider">
+            Attachments (<%= @task.task_attachments.size %>)
+          </h2>
+        </div>
+
+        <% attachments = @task.task_attachments.recent %>
+        <% if attachments.any? %>
+          <div class="space-y-2 mb-5">
+            <% attachments.each do |attachment| %>
+              <div class="flex items-center gap-3 px-4 py-2.5 bg-surface-raised rounded-lg border border-border-default group">
+                <%
+                  icon_color = case attachment.kind
+                    when "image"       then "text-pink-400"
+                    when "pdf"         then "text-red-400"
+                    when "spreadsheet" then "text-green-400"
+                    when "document"    then "text-blue-400"
+                    else                    "text-cyan-400"
+                  end
+                %>
+                <svg class="w-4 h-4 flex-shrink-0 <%= icon_color %>" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+                <div class="flex-1 min-w-0">
+                  <%= link_to attachment.url, target: "_blank", rel: "noopener",
+                        class: "text-sm font-medium text-accent-primary hover:underline truncate block" do %>
+                    <%= attachment.title %>
+                  <% end %>
+                  <div class="flex items-center gap-2 mt-0.5">
+                    <span class="text-xs text-text-faint"><%= attachment.kind %></span>
+                    <% if attachment.uploaded_by.present? %>
+                      <span class="text-xs text-text-faint">&middot; <%= attachment.uploaded_by %></span>
+                    <% end %>
+                    <span class="text-xs text-text-faint">&middot; <%= attachment.created_at.strftime("%b %-d, %H:%M") %></span>
+                  </div>
+                </div>
+                <%= button_to task_attachment_path(attachment), method: :delete,
+                      data: { turbo_confirm: "Remove this attachment?" },
+                      class: "opacity-0 group-hover:opacity-100 p-1 text-text-faint hover:text-red-400 rounded transition" do %>
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        <% else %>
+          <p class="text-text-faint text-sm mb-4">No attachments yet.</p>
+        <% end %>
+
+        <!-- Add attachment form -->
+        <%= form_with url: task_task_attachments_path(@task), method: :post, local: true, class: "space-y-3" do |f| %>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label class="block text-xs font-medium text-text-muted mb-1">Title</label>
+              <%= f.text_field :title,
+                    placeholder: "Design mockup, spec doc…",
+                    class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white placeholder-text-faint text-sm focus:outline-none focus:border-brand/50" %>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-text-muted mb-1">URL</label>
+              <%= f.url_field :url,
+                    placeholder: "https://…",
+                    class: "w-full bg-surface-raised border border-border-default rounded-lg px-3 py-2 text-white placeholder-text-faint text-sm focus:outline-none focus:border-brand/50" %>
+            </div>
+          </div>
+          <%= f.submit "Attach", class: "px-4 py-2 bg-surface-raised hover:bg-surface-card border border-border-default text-text-primary text-sm font-medium rounded-lg transition cursor-pointer" %>
+        <% end %>
+      </div>
+
       <!-- Dependencies -->
       <% if @task.blocking_tasks.any? || @task.dependent_tasks.any? %>
         <div class="bg-surface-card rounded-xl border border-border-default p-6">
