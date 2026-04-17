@@ -212,4 +212,100 @@ RSpec.describe Swarms::SwarmParser do
       expect(result.message).to include("5MB")
     end
   end
+
+  # ---------------------------------------------------------------------------
+  # SwarmValidator integration — referential integrity & uniqueness
+  # ---------------------------------------------------------------------------
+  describe "validator integration" do
+    def swarm_with(**overrides)
+      base = {
+        swarm_version: "1.0",
+        name: "Test Swarm",
+        agents: [{ name: "Agent One", role: "Engineer" }],
+        skills: [{ name: "skill-one" }],
+        tools:  [{ name: "tool-one" }],
+        channels: [{ ref: "ch-slack", name: "Slack", type: "slack" }]
+      }
+      JSON.generate(base.merge(overrides))
+    end
+
+    it "rejects a swarm where an agent references a non-existent skill" do
+      json = JSON.generate({
+        swarm_version: "1.0",
+        name: "Bad Refs",
+        agents: [{ name: "Agent", role: "Eng", skills: ["missing-skill"] }]
+      })
+      result = described_class.call(json: json)
+      expect(result).to be_error
+      expect(result.payload[:errors]).to include(match(/missing-skill/))
+    end
+
+    it "rejects a swarm with duplicate agent names" do
+      json = JSON.generate({
+        swarm_version: "1.0",
+        name: "Dupe Agents",
+        agents: [
+          { name: "Mando", role: "Engineer" },
+          { name: "Mando", role: "Reviewer" }
+        ]
+      })
+      result = described_class.call(json: json)
+      expect(result).to be_error
+      expect(result.payload[:errors]).to include(match(/duplicate.*Mando/i))
+    end
+
+    it "rejects a swarm where an agent channel_ref does not exist in channels[]" do
+      json = JSON.generate({
+        swarm_version: "1.0",
+        name: "Bad Channel Ref",
+        agents: [{ name: "A", role: "B", channels: [{ channel_ref: "ghost-channel" }] }],
+        channels: [{ ref: "real-channel", name: "Real", type: "slack" }]
+      })
+      result = described_class.call(json: json)
+      expect(result).to be_error
+      expect(result.payload[:errors]).to include(match(/ghost-channel/))
+    end
+
+    it "passes a structurally valid swarm with consistent cross-references" do
+      json = JSON.generate({
+        swarm_version: "1.0",
+        name: "Consistent Swarm",
+        agents: [
+          {
+            name: "Mando",
+            role: "Engineer",
+            skills: ["my-skill"],
+            tools: ["my-tool"],
+            channels: [{ channel_ref: "main-slack" }]
+          }
+        ],
+        skills: [{ name: "my-skill" }],
+        tools:  [{ name: "my-tool" }],
+        channels: [{ ref: "main-slack", name: "Main Slack", type: "slack" }]
+      })
+      result = described_class.call(json: json)
+      expect(result).to be_success
+    end
+
+    it "does not run SwarmValidator when SwarmSchema fails" do
+      # A structurally broken doc (no name) — validator should not fire
+      json = JSON.generate({ swarm_version: "1.0" })
+      result = described_class.call(json: json)
+      expect(result).to be_error
+      # Should get schema errors (plain strings), not validator errors (path: message format)
+      expect(result.payload[:errors]).to all(be_a(String))
+      expect(result.payload[:errors]).to include("name is required")
+    end
+
+    it "returns validator errors as plain strings (normalized from ValidationError structs)" do
+      json = JSON.generate({
+        swarm_version: "1.0",
+        name: "Bad Refs",
+        agents: [{ name: "Agent", role: "Eng", tools: ["no-such-tool"] }]
+      })
+      result = described_class.call(json: json)
+      expect(result).to be_error
+      expect(result.payload[:errors]).to all(be_a(String))
+    end
+  end
 end

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Swarms
-  # Validates a parsed swarm hash for cross-section consistency and size constraints.
+  # Validates a parsed swarm hash for cross-section consistency.
   #
   # This runs AFTER SwarmSchema structural validation passes. It checks:
   #
@@ -15,9 +15,6 @@ module Swarms
   #
   #   2. Uniqueness — no duplicate names (or refs) within each top-level section.
   #      Comparisons are case-sensitive (e.g. "Tool" and "tool" are distinct names).
-  #      This mirrors JSON conventions and how the runtime resolves refs by exact string
-  #      match. If case-insensitive deduplication is ever required, it must be added
-  #      deliberately here and documented in the spec.
   #        - agents[].name
   #        - skills[].name
   #        - tools[].name
@@ -25,31 +22,22 @@ module Swarms
   #        - mcp_servers[].name
   #        - api_integrations[].name
   #
-  #   3. Size limits — enforced with structured errors:
-  #        - skill.summary ≤ 150 chars
-  #        - skill.content ≤ 100 KB (102_400 bytes)
-  #        - tool.script_template ≤ 100 KB (102_400 bytes)
-  #        - total file size is handled by SwarmParser, not here
+  # NOTE — Per-field size limits (skill.summary, skill.content, tool.script_template)
+  #        are owned by SwarmSchema, not this validator.
+  #        Total file size is handled by SwarmParser.
   #
   # NOTE — ValidationResult/ValidationError type contract:
   #   SwarmValidator returns a ValidationResult whose errors array contains
   #   ValidationError structs (Data objects with :path and :message fields).
-  #   This differs from SwarmSchema, which returns a ValidationResult whose
-  #   errors array contains plain Strings. Both expose the same valid?/invalid?
-  #   interface, but callers that inspect individual errors must account for this
-  #   difference. SwarmParser (#200) should normalise the two before surfacing
-  #   them to callers.
+  #   This differs from SwarmSchema, which returns plain Strings. SwarmParser
+  #   normalises both to plain strings before surfacing errors to callers.
   #
   # Usage:
   #   result = SwarmValidator.validate(raw_hash)
   #   result.valid?                      # => true / false
   #   result.errors                      # => [ValidationError, ...]
-  #   result.errors.map(&:full_message)  # => ["agents[0].skills[0]: ...]
+  #   result.errors.map(&:full_message)  # => ["agents[0].skills[0]: ..."]
   class SwarmValidator
-    SKILL_SUMMARY_MAX_CHARS  = 150
-    SKILL_CONTENT_MAX_BYTES  = 100 * 1024  # 100 KB
-    TOOL_SCRIPT_MAX_BYTES    = 100 * 1024  # 100 KB
-
     # Structured error object with path (JSON-pointer style) and message.
     ValidationError = Data.define(:path, :message) do
       def full_message = "#{path}: #{message}"
@@ -84,7 +72,6 @@ module Swarms
 
       validate_uniqueness
       validate_referential_integrity
-      validate_size_limits
 
       result
     end
@@ -93,8 +80,7 @@ module Swarms
 
     attr_reader :raw, :errors
 
-    # Lookup sets built from the top-level sections. Used during referential
-    # integrity checks so we don't repeatedly iterate the arrays.
+    # Lookup sets built from the top-level sections.
     attr_reader :skill_names, :tool_names, :mcp_server_names, :channel_refs
 
     def result
@@ -110,13 +96,12 @@ module Swarms
     # ------------------------------------------------------------------
 
     def build_lookup_tables
-      @skill_names       = extract_names(raw[:skills],       :name)
-      @tool_names        = extract_names(raw[:tools],        :name)
-      @mcp_server_names  = extract_names(raw[:mcp_servers],  :name)
-      @channel_refs      = extract_names(raw[:channels],     :ref)
+      @skill_names      = extract_names(raw[:skills],      :name)
+      @tool_names       = extract_names(raw[:tools],       :name)
+      @mcp_server_names = extract_names(raw[:mcp_servers], :name)
+      @channel_refs     = extract_names(raw[:channels],    :ref)
     end
 
-    # Returns a Set of non-blank string values for the given key across an array.
     def extract_names(array, key)
       return Set.new unless array.is_a?(Array)
 
@@ -144,8 +129,8 @@ module Swarms
     def validate_unique_names(array, section, key)
       return unless array.is_a?(Array)
 
-      seen   = {}
-      key_s  = key.to_s
+      seen  = {}
+      key_s = key.to_s
 
       array.each_with_index do |item, index|
         next unless item.is_a?(Hash)
@@ -191,7 +176,6 @@ module Swarms
       validate_channel_refs(a[:channels], prefix)
     end
 
-    # Skills may declare a tools[] list — each entry must name a top-level tool.
     def validate_skill_refs(skill, index)
       return unless skill.is_a?(Hash)
 
@@ -201,7 +185,6 @@ module Swarms
       validate_string_refs(s[:tools], "#{prefix}.tools", tool_names, "tools")
     end
 
-    # Validates an array of string names against a known Set.
     def validate_string_refs(refs, path_prefix, known_set, section_label)
       return unless refs.is_a?(Array)
 
@@ -217,7 +200,6 @@ module Swarms
       end
     end
 
-    # Validates channel bindings — each must have a channel_ref that exists in channels[].
     def validate_channel_refs(channels, agent_prefix)
       return unless channels.is_a?(Array)
 
@@ -238,58 +220,5 @@ module Swarms
       end
     end
 
-    # ------------------------------------------------------------------
-    # Size limits
-    # ------------------------------------------------------------------
-
-    def validate_size_limits
-      validate_skill_sizes
-      validate_tool_sizes
-    end
-
-    def validate_skill_sizes
-      skills = raw[:skills]
-      return unless skills.is_a?(Array)
-
-      skills.each_with_index do |skill, i|
-        next unless skill.is_a?(Hash)
-
-        s      = skill.with_indifferent_access
-        prefix = "skills[#{i}]"
-
-        if s[:summary].is_a?(String) && s[:summary].length > SKILL_SUMMARY_MAX_CHARS
-          add_error(
-            "#{prefix}.summary",
-            "exceeds #{SKILL_SUMMARY_MAX_CHARS} character limit (#{s[:summary].length} chars)"
-          )
-        end
-
-        if s[:content].is_a?(String) && s[:content].bytesize > SKILL_CONTENT_MAX_BYTES
-          add_error(
-            "#{prefix}.content",
-            "exceeds #{SKILL_CONTENT_MAX_BYTES / 1024}KB limit (#{s[:content].bytesize} bytes)"
-          )
-        end
-      end
-    end
-
-    def validate_tool_sizes
-      tools = raw[:tools]
-      return unless tools.is_a?(Array)
-
-      tools.each_with_index do |tool, i|
-        next unless tool.is_a?(Hash)
-
-        t      = tool.with_indifferent_access
-        prefix = "tools[#{i}]"
-
-        if t[:script_template].is_a?(String) && t[:script_template].bytesize > TOOL_SCRIPT_MAX_BYTES
-          add_error(
-            "#{prefix}.script_template",
-            "exceeds #{TOOL_SCRIPT_MAX_BYTES / 1024}KB limit (#{t[:script_template].bytesize} bytes)"
-          )
-        end
-      end
-    end
   end
 end
