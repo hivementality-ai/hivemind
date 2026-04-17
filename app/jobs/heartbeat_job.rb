@@ -269,7 +269,7 @@ class HeartbeatJob < ApplicationJob
       6. **Check projects** (if any): Call project_list / project_status to get a read on milestone progress. Include in handoff.
 
       ## RULES:
-      - NEVER fabricate or simulate tool results. If you didn't call it, you don't know.
+      - NEVER fabricate or invent tool results. If you didn't call it, you don't know.
       - A heartbeat without tool calls is INVALID.
       - Do NOT ask the user questions. Flag issues in the handoff.
       - Do NOT chase Trello, links, or tangents from the previous handoff. Stick to the checklist.

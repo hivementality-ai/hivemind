@@ -13,6 +13,14 @@ FactoryBot.define do
     declared_capabilities { {} }
     security_scan_result { {} }
 
+    trait :enabled do
+      enabled { true }
+    end
+
+    trait :disabled do
+      enabled { false }
+    end
+
     trait :scanned_clean do
       security_scan_result do
         {

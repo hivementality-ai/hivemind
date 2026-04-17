@@ -43,7 +43,7 @@ class SessionsController < ApplicationController
       sessions_scope = sessions_scope.where(team_chat_session_id: nil)
     end
 
-    @sessions = sessions_scope.limit(100)
+    @sessions = sessions_scope.limit(50)
 
     # One most-recent session per agent, sorted by recency (for compact cards section)
     @recent_agent_sessions = @agents.map do |agent|

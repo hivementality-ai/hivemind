@@ -23,7 +23,7 @@ RSpec.describe AuditLogsController, type: :controller do
     context 'with existing audit logs' do
       let!(:agent_log)  { create(:audit_log, actor_type: 'agent',  actor_id: '1', action: 'session.start', created_at: 1.hour.ago) }
       let!(:user_log)   { create(:audit_log, actor_type: 'user',   actor_id: '2', action: 'vault.read',    created_at: 2.hours.ago) }
-      let!(:system_log) { create(:audit_log, actor_type: 'system', actor_id: 'system', action: 'startup',  created_at: 3.hours.ago) }
+      let!(:system_log) { create(:audit_log, actor_type: 'system', actor_id: 'system', action: 'startup',  created_at: 2.days.ago) }
 
       it 'returns a successful response' do
         get :index
