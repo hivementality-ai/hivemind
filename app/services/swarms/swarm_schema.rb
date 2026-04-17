@@ -51,15 +51,15 @@ module Swarms
     # Validate a raw Hash (already JSON-parsed). Does NOT raise — always returns
     # a ValidationResult.
     def self.validate(raw)
-      new(raw).validate
+      new.validate(raw)
     end
 
-    def initialize(raw)
-      @raw    = raw.with_indifferent_access
+    def initialize
       @errors = []
     end
 
-    def validate
+    def validate(raw)
+      @raw = raw.with_indifferent_access
       validate_version
       validate_top_level_metadata
       validate_requires
@@ -88,7 +88,7 @@ module Swarms
       if version.blank?
         errors << "swarm_version is required"
       elsif !SUPPORTED_VERSIONS.include?(version.to_s)
-        errors << "swarm_version '#{version}' is not supported (supported: #{SUPPORTED_VERSIONS.join(', ')})"
+        errors << "unsupported swarm_version '#{version}' (supported: #{SUPPORTED_VERSIONS.join(', ')})"
       end
     end
 
@@ -339,7 +339,10 @@ module Swarms
       end
 
       files.each_with_index do |path, i|
-        next unless path.is_a?(String)
+        unless path.is_a?(String)
+          errors << "#{prefix}.workspace_files[#{i}] must be a string"
+          next
+        end
 
         if path.include?("..") || path.start_with?("/")
           errors << "#{prefix}.workspace_files[#{i}] '#{path}' must be a relative path without directory traversal"
@@ -585,7 +588,8 @@ module Swarms
     # Helpers
     # ------------------------------------------------------------------
 
-    CRON_PART_PATTERN = /\A[\d\*,\-\/]+\z/
+    # Matches numeric cron parts and named day/month abbreviations (MON-FRI, JAN-DEC, etc.)
+    CRON_PART_PATTERN = /\A(?:[\d\*,\-\/]+|[A-Z]{3}(?:[,\-][A-Z]{3})*)\z/
 
     def valid_cron?(expression)
       parts = expression.strip.split(/\s+/)
