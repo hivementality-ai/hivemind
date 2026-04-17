@@ -100,12 +100,18 @@ module Swarms
     def assemble_manifest
       agents = @team.agents.includes(:skills, :tools).order(:name).to_a
 
-      team_hash   = Serializers::TeamSerializer.call(team: @team)
+      team_hash    = Serializers::TeamSerializer.call(team: @team)
       agent_hashes = agents.map { |a| Serializers::AgentSerializer.call(agent: a) }
 
       # Collect unique skills and tools across all agents (by name, preserving order)
       skills = collect_skills(agents)
       tools  = collect_tools(agents)
+
+      # Collect platform-wide entity lists (channels, MCP servers, and API integrations
+      # are platform-scoped, not team-scoped — export all enabled records).
+      channels         = Channel.order(:name).to_a
+      mcp_servers      = McpServer.order(:name).to_a
+      api_integrations = ApiIntegration.order(:name).to_a
 
       manifest = {
         "swarm_version" => SWARM_VERSION,
@@ -117,10 +123,13 @@ module Swarms
       manifest["description"] = resolved_description
       manifest["author"]      = build_author_hash if author_present?
 
-      manifest["team"]   = team_hash   if team_hash.present?
+      manifest["team"]   = team_hash    if team_hash.present?
       manifest["agents"] = agent_hashes if agent_hashes.any?
-      manifest["skills"] = skills.map { |s| Serializers::SkillSerializer.call(skill: s) } if skills.any?
-      manifest["tools"]  = tools.map  { |t| Serializers::ToolSerializer.call(tool: t) }   if tools.any?
+      manifest["skills"] = skills.map { |s| Serializers::SkillSerializer.call(skill: s) }                         if skills.any?
+      manifest["tools"]  = tools.map  { |t| Serializers::ToolSerializer.call(tool: t) }                          if tools.any?
+      manifest["channels"]         = channels.map         { |c| Serializers::ChannelSerializer.call(channel: c) }                         if channels.any?
+      manifest["mcp_servers"]      = mcp_servers.map      { |s| Serializers::McpServerSerializer.call(mcp_server: s) }                    if mcp_servers.any?
+      manifest["api_integrations"] = api_integrations.map { |i| Serializers::ApiIntegrationSerializer.call(api_integration: i) }          if api_integrations.any?
 
       manifest.compact
     end

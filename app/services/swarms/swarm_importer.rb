@@ -233,6 +233,39 @@ module Swarms
         results << EntityResult.new(entity_type: :tool, name: dr.name, action: dr.action, record: dr.record)
       end
 
+      # Channels — independent of agents; deploy before agents for completeness.
+      channels_result = Deployers::ChannelsDeployer.call(
+        document:    document,
+        resolutions: @resolutions
+      )
+      raise deploy_error("channels", channels_result) unless channels_result.success?
+
+      channels_result.payload[:channels].each do |dr|
+        results << EntityResult.new(entity_type: :channel, name: dr.name, action: dr.action, record: dr.record)
+      end
+
+      # MCP servers — independent of agents; deploy before agents for completeness.
+      mcp_result = Deployers::McpServersDeployer.call(
+        document:    document,
+        resolutions: @resolutions
+      )
+      raise deploy_error("mcp_servers", mcp_result) unless mcp_result.success?
+
+      mcp_result.payload[:mcp_servers].each do |dr|
+        results << EntityResult.new(entity_type: :mcp_server, name: dr.name, action: dr.action, record: dr.record)
+      end
+
+      # API integrations — independent of agents; deploy before agents for completeness.
+      api_result = Deployers::ApiIntegrationsDeployer.call(
+        document:    document,
+        resolutions: @resolutions
+      )
+      raise deploy_error("api_integrations", api_result) unless api_result.success?
+
+      api_result.payload[:api_integrations].each do |dr|
+        results << EntityResult.new(entity_type: :api_integration, name: dr.name, action: dr.action, record: dr.record)
+      end
+
       # Agents last — references skills, tools, and team.
       agents_result = Deployers::AgentsDeployer.call(
         document:    document,
