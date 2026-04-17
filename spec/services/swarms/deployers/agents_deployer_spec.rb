@@ -307,3 +307,96 @@ RSpec.describe Swarms::Deployers::AgentsDeployer do
     end
   end
 end
+
+  # ---------------------------------------------------------------------------
+  # Agent config: egress_policy
+  # ---------------------------------------------------------------------------
+
+  describe "egress_policy deployment" do
+    it "applies egress_policy when present in the agent hash" do
+      policy = { "mode" => "allowlist", "rules" => [{ "pattern" => "api.example.com" }] }
+      doc    = build_document(agents: [{
+        "name"          => "Policy Agent",
+        "role"          => "Engineer",
+        "egress_policy" => policy
+      }])
+      agent = described_class.call(document: doc).payload[:agents].first.record
+      expect(agent.egress_policy).to include("mode" => "allowlist")
+    end
+
+    it "leaves egress_policy blank when not provided" do
+      doc   = build_document(agents: [{ "name" => "Plain Agent", "role" => "R" }])
+      agent = described_class.call(document: doc).payload[:agents].first.record
+      expect(agent.egress_policy).to eq({})
+    end
+
+    it "applies egress_policy when overwriting an existing agent" do
+      existing = create(:agent, name: "Gated", role: "R", egress_policy: {})
+      policy   = { "mode" => "blocklist", "rules" => [] }
+      doc      = build_document(agents: [{ "name" => "Gated", "role" => "R", "egress_policy" => policy }])
+
+      described_class.call(document: doc, resolutions: { "Gated" => :overwrite })
+
+      expect(existing.reload.egress_policy).to include("mode" => "blocklist")
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Agent config: tool_loop_config
+  # ---------------------------------------------------------------------------
+
+  describe "tool_loop_config deployment" do
+    it "applies tool_loop_config when present" do
+      config = { "history_size" => 50, "warning_threshold" => 8 }
+      doc    = build_document(agents: [{
+        "name"             => "Loop Agent",
+        "role"             => "Engineer",
+        "tool_loop_config" => config
+      }])
+      agent = described_class.call(document: doc).payload[:agents].first.record
+      expect(agent.tool_loop_config).to include("history_size" => 50)
+    end
+
+    it "leaves tool_loop_config as default when not provided" do
+      doc   = build_document(agents: [{ "name" => "Plain Agent", "role" => "R" }])
+      agent = described_class.call(document: doc).payload[:agents].first.record
+      expect(agent.tool_loop_config).to eq({})
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Agent config: budget_limits
+  # ---------------------------------------------------------------------------
+
+  describe "budget_limits deployment" do
+    it "sets daily_budget_limit when provided" do
+      doc = build_document(agents: [{
+        "name"          => "Budget Agent",
+        "role"          => "Engineer",
+        "budget_limits" => { "daily_limit" => 25.0 }
+      }])
+      agent = described_class.call(document: doc).payload[:agents].first.record
+      expect(agent.daily_budget_limit.to_f).to eq(25.0)
+    end
+
+    it "creates AgentBudget rows from periods" do
+      doc = build_document(agents: [{
+        "name"          => "Budget Agent",
+        "role"          => "Engineer",
+        "budget_limits" => {
+          "periods" => [
+            { "period" => "daily",   "limit_cents" => 1000 },
+            { "period" => "monthly", "limit_cents" => 10000 }
+          ]
+        }
+      }])
+      agent = described_class.call(document: doc).payload[:agents].first.record
+      expect(agent.agent_budgets.count).to eq(2)
+    end
+
+    it "does not create AgentBudget rows when budget_limits is absent" do
+      doc   = build_document(agents: [{ "name" => "Plain Agent", "role" => "R" }])
+      agent = described_class.call(document: doc).payload[:agents].first.record
+      expect(agent.agent_budgets).to be_empty
+    end
+  end
