@@ -9,7 +9,7 @@ class ProjectsController < ApplicationController
   end
 
   def show
-    @milestones = @project.milestones.includes(:agent, :session).ordered
+    @milestones = @project.milestones.includes(:agent, :session, :tasks).ordered
     @events = @project.events.includes(:agent, :user, :project_milestone).recent.limit(50)
     @pending_milestones = @milestones.select { |m| m.status == "needs_review" }
     @project_files = @project.project_files
