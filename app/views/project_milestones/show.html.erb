@@ -96,6 +96,49 @@
           </div>
         <% end %>
 
+        <!-- Linked Tasks -->
+        <div class="bg-surface-card rounded-lg p-6 border border-border-default">
+          <h2 class="text-lg font-semibold mb-4">Linked Tasks (<%= @linked_tasks.size %>)</h2>
+
+          <% if @linked_tasks.any? %>
+            <div class="space-y-2">
+              <% @linked_tasks.each do |task| %>
+                <%
+                  status_dot = case task.status
+                  when "done"        then "bg-emerald-500"
+                  when "in_progress" then "bg-blue-500"
+                  when "review"      then "bg-amber-500"
+                  when "todo"        then "bg-slate-400"
+                  else                     "bg-slate-600"
+                  end
+
+                  priority_badge = case task.priority
+                  when "urgent" then "bg-red-900/40 text-red-300"
+                  when "high"   then "bg-orange-900/40 text-orange-300"
+                  when "medium" then "bg-yellow-900/40 text-yellow-300"
+                  else                "bg-slate-700/40 text-slate-400"
+                  end
+                %>
+                <%= link_to task_path(task), class: "flex items-center gap-3 px-4 py-2.5 bg-surface-raised rounded-lg border border-border-default hover:border-brand/30 transition" do %>
+                  <div class="w-2.5 h-2.5 rounded-full flex-shrink-0 <%= status_dot %>"></div>
+                  <span class="flex-1 text-sm text-text-primary truncate"><%= task.title %></span>
+                  <span class="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded flex-shrink-0 <%= priority_badge %>">
+                    <%= task.priority %>
+                  </span>
+                  <span class="text-xs text-text-faint flex-shrink-0"><%= task.status.humanize %></span>
+                  <% if task.assigned_to_agent %>
+                    <div class="w-5 h-5 rounded-full bg-brand/20 flex items-center justify-center flex-shrink-0" title="<%= task.assigned_to_agent.name %>">
+                      <span class="text-[9px] font-bold text-brand"><%= task.assigned_to_agent.name[0].upcase %></span>
+                    </div>
+                  <% end %>
+                <% end %>
+              <% end %>
+            </div>
+          <% else %>
+            <p class="text-text-faint text-sm">No tasks linked to this milestone yet.</p>
+          <% end %>
+        </div>
+
         <!-- Activity -->
         <% if @events.any? %>
           <div class="bg-surface-card rounded-lg p-6 border border-border-default">

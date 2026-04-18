@@ -388,7 +388,11 @@
           <% if @task.project_milestone %>
             <div>
               <dt class="text-xs text-text-faint mb-1">Milestone</dt>
-              <dd class="text-sm text-text-primary"><%= @task.project_milestone.title %></dd>
+              <dd class="text-sm text-brand">
+                <%= link_to @task.project_milestone.title,
+                      project_milestone_path(@task.project_milestone.project, @task.project_milestone),
+                      class: "hover:underline" %>
+              </dd>
             </div>
           <% end %>
           <% if @task.session %>

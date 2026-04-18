@@ -7,6 +7,7 @@ class ProjectMilestonesController < ApplicationController
   def show
     @dependency_milestones = @milestone.depends_on.present? ? @project.milestones.where(id: @milestone.depends_on) : []
     @events = @project.events.where(project_milestone: @milestone).order(created_at: :desc).limit(30)
+    @linked_tasks = @milestone.tasks.includes(:assigned_to_agent).by_priority.recent
   end
 
   def approve

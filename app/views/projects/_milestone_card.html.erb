@@ -87,6 +87,28 @@
           </span>
         <% end %>
 
+        <%# Linked task count %>
+        <% task_count = milestone.tasks.size %>
+        <% if task_count > 0 %>
+          <%
+            done_count       = milestone.tasks.count { |t| t.status == "done" }
+            in_progress_count = milestone.tasks.count { |t| t.status == "in_progress" }
+          %>
+          <span class="inline-flex items-center gap-1 text-xs text-text-faint">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <%= task_count %> <%= "task".pluralize(task_count) %>
+            <% if done_count > 0 || in_progress_count > 0 %>
+              &mdash;
+              <% parts = [] %>
+              <% parts << "#{done_count} done" if done_count > 0 %>
+              <% parts << "#{in_progress_count} in progress" if in_progress_count > 0 %>
+              <%= parts.join(", ") %>
+            <% end %>
+          </span>
+        <% end %>
+
         <%# Checkpoint info %>
         <% if milestone.respond_to?(:checkpoint) && milestone.checkpoint.present? %>
           <span class="inline-flex items-center gap-1 text-xs text-text-faint">
