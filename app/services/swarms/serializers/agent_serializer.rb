@@ -75,12 +75,12 @@ module Swarms
       end
 
       def serialize_skills(hash)
-        skill_names = @agent.skills.order(:name).pluck(:name)
+        skill_names = @agent.skills.map(&:name).sort
         hash["skills"] = skill_names if skill_names.any?
       end
 
       def serialize_tools(hash)
-        tool_names = @agent.tools.order(:name).pluck(:name)
+        tool_names = @agent.tools.map(&:name).sort
         hash["tools"] = tool_names if tool_names.any?
       end
 

@@ -135,13 +135,14 @@ module Swarms
     end
 
     # Collect all unique skills referenced by the given agents, deduplicated by name.
+    # Uses sort_by on the already-eager-loaded association to avoid N+1 queries.
     def collect_skills(agents)
-      seen  = Set.new
+      seen   = Set.new
       skills = []
       agents.each do |agent|
-        agent.skills.order(:name).each do |skill|
+        agent.skills.sort_by(&:name).each do |skill|
           next if seen.include?(skill.name)
-          seen  << skill.name
+          seen   << skill.name
           skills << skill
         end
       end
@@ -149,11 +150,12 @@ module Swarms
     end
 
     # Collect all unique tools referenced by the given agents, deduplicated by name.
+    # Uses sort_by on the already-eager-loaded association to avoid N+1 queries.
     def collect_tools(agents)
       seen  = Set.new
       tools = []
       agents.each do |agent|
-        agent.tools.order(:name).each do |tool|
+        agent.tools.sort_by(&:name).each do |tool|
           next if seen.include?(tool.name)
           seen  << tool.name
           tools << tool
