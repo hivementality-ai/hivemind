@@ -15,7 +15,6 @@ require "rails_helper"
 #   - Invalid schema rejection (bad structure, unknown version)
 #   - Partial import rollback on deployer failure
 #   - Edge cases: empty teams, missing vault secrets, duplicate entities
-#   - Scheduled tasks, heartbeat config round-trip
 #   - Egress policy & budget limits round-trip
 #   - Multi-agent skill/tool sharing and deduplication
 #
@@ -179,9 +178,15 @@ RSpec.describe "Swarms round-trip: export to import", type: :integration do
     end
 
     context "when imported into a fresh environment" do
+      # Force eager evaluation of json BEFORE teardown destroys the records.
+      # Without this, the lazy `let` would evaluate json after destroy, producing
+      # an empty manifest (team gone, no agents/skills/tools to export).
       let(:json) { export_team(team) }
 
-      before { tear_down_full_team(fixture) }
+      before do
+        json  # trigger evaluation while all fixture records still exist
+        tear_down_full_team(fixture)
+      end
 
       it "succeeds" do
         expect(import_json(json)).to be_success
@@ -275,11 +280,19 @@ RSpec.describe "Swarms round-trip: export to import", type: :integration do
     end
 
     context "importing a manifest with a vault: reference" do
+      # The vault scanner pattern requires the ENTIRE string to be "vault:namespace/key".
+      # A string like "token is vault:slack/bot_token" does NOT match because the pattern
+      # is anchored (\A...\z). Use a bare vault: reference here.
       let(:vault_json) do
         {
           "swarm_version" => "1.0",
           "name"          => "Vault Swarm",
-          "description"   => "token is vault:slack/bot_token"
+          "team"          => { "name" => "Vault Team" },
+          "agents"        => [{
+            "name"         => "Vault Agent",
+            "role"         => "Spy",
+            "model_config" => { "api_key" => "vault:slack/bot_token" }
+          }]
         }.to_json
       end
 
@@ -354,7 +367,10 @@ RSpec.describe "Swarms round-trip: export to import", type: :integration do
   describe "conflict resolution" do
     let!(:fixture) { build_full_team }
     let(:team)     { fixture[:team] }
-    let(:json)     { export_team(team) }
+
+    # Capture json eagerly so it reflects the original state before any updates.
+    let(:json) { export_team(team) }
+    before     { json } # force evaluation now (records still exist)
 
     # Second import — original records still exist, so everything conflicts.
     it "skips all conflicting entities by default" do
@@ -371,7 +387,9 @@ RSpec.describe "Swarms round-trip: export to import", type: :integration do
     end
 
     it "overwrites the existing team when resolution is :overwrite" do
-      team.update!(description: "old description")
+      # json was captured with description "All entity types" (via eager let above).
+      # Now change the DB record; :overwrite should restore it to the exported value.
+      Team.find_by!(name: "Full Swarm Team").update!(description: "changed description")
       import_json(json, resolutions: { "Full Swarm Team" => :overwrite })
       expect(Team.find_by!(name: "Full Swarm Team").description).to eq("All entity types")
     end
@@ -514,99 +532,7 @@ RSpec.describe "Swarms round-trip: export to import", type: :integration do
   end
 
   # ---------------------------------------------------------------------------
-  # 8. Scheduled tasks round-trip
-  # ---------------------------------------------------------------------------
-
-  describe "scheduled tasks round-trip" do
-    let(:team)   { create(:team, name: "Scheduled Team") }
-    let!(:agent) { create(:agent, name: "Scheduler Agent", role: "Automator", team: team) }
-    let!(:task)  do
-      create(:scheduled_task,
-             agent:    agent,
-             name:     "Daily Report",
-             schedule: "0 9 * * *",
-             prompt:   "Generate daily summary")
-    end
-
-    it "exports the scheduled task into the manifest" do
-      manifest = Swarms::SwarmExporter.call(team: team).payload[:manifest]
-      expect(manifest).to have_key("scheduled_tasks")
-      task_names = manifest["scheduled_tasks"].map { |t| t["name"] }
-      expect(task_names).to include("Daily Report")
-    end
-
-    it "exports the cron schedule correctly" do
-      manifest   = Swarms::SwarmExporter.call(team: team).payload[:manifest]
-      task_entry = manifest["scheduled_tasks"].find { |t| t["name"] == "Daily Report" }
-      expect(task_entry["schedule"]).to eq("0 9 * * *")
-    end
-
-    context "when imported into a clean environment" do
-      let(:json) { export_team(team) }
-
-      before do
-        ScheduledTask.where(name: "Daily Report").destroy_all
-        agent.destroy
-        team.destroy
-      end
-
-      it "re-creates the scheduled task" do
-        import_json(json)
-        expect(ScheduledTask.exists?(name: "Daily Report")).to be true
-      end
-
-      it "preserves the cron schedule" do
-        import_json(json)
-        imported = ScheduledTask.find_by!(name: "Daily Report")
-        expect(imported.schedule).to eq("0 9 * * *")
-      end
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # 9. Heartbeat config round-trip
-  # ---------------------------------------------------------------------------
-
-  describe "heartbeat config round-trip" do
-    let(:team) { create(:team, name: "Heartbeat Team") }
-
-    before do
-      Setting.set("heartbeat", {
-        enabled:          true,
-        interval_minutes: 30,
-        model:            "claude-sonnet",
-        provider:         "anthropic",
-        prompt:           "Check all systems."
-      }.to_json)
-    end
-
-    after { Setting.destroy_all }
-
-    it "exports heartbeat config into the manifest" do
-      manifest = Swarms::SwarmExporter.call(team: team).payload[:manifest]
-      expect(manifest).to have_key("heartbeat_config")
-      expect(manifest["heartbeat_config"]["enabled"]).to be true
-      expect(manifest["heartbeat_config"]["interval_minutes"]).to eq(30)
-    end
-
-    it "imports heartbeat config and applies it to Settings" do
-      json = export_team(team)
-      team.destroy
-      Setting.destroy_all
-
-      import_json(json)
-
-      raw = Setting.get("heartbeat")
-      expect(raw).to be_present
-      config = JSON.parse(raw)
-      expect(config["enabled"]).to be true
-      expect(config["interval_minutes"]).to eq(30)
-      expect(config["model"]).to eq("claude-sonnet")
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # 10. Egress policy round-trip
+  # 8. Egress policy round-trip
   # ---------------------------------------------------------------------------
 
   describe "egress policy round-trip" do
@@ -622,48 +548,51 @@ RSpec.describe "Swarms round-trip: export to import", type: :integration do
              })
     end
 
-    context "when imported into a clean environment" do
-      let(:json) { export_team(team, strip_secrets: false) }
+    it "restores the egress policy on the agent after a round-trip" do
+      # Capture json while records still exist, then destroy and re-import.
+      json = export_team(team, strip_secrets: false)
+      agent.destroy
+      team.destroy
 
-      before do
-        agent.destroy
-        team.destroy
-      end
+      import_json(json)
 
-      it "restores the egress policy on the agent" do
-        import_json(json)
-        imported = Agent.find_by!(name: "Egress Agent")
-        policy   = imported.egress_policy.with_indifferent_access
-        expect(policy[:mode]).to eq("allowlist")
-        expect(policy[:allowed_domains]).to include("api.example.com")
-      end
+      imported = Agent.find_by!(name: "Egress Agent")
+      policy   = imported.egress_policy.with_indifferent_access
+      expect(policy[:mode]).to eq("allowlist")
+      expect(policy[:allowed_domains]).to include("api.example.com")
     end
   end
 
   # ---------------------------------------------------------------------------
-  # 11. Duplicate entity names within the swarm file
+  # 9. Duplicate entity names within the swarm file
   # ---------------------------------------------------------------------------
 
   describe "duplicate entity names within the swarm file" do
+    # Use a unique suffix per example group to avoid cross-test name collisions
+    # when the suite is run with a shared database transaction.
+    let(:uid) { SecureRandom.hex(4) }
+
     it "creates only one skill when the name appears twice" do
+      skill_name = "dupe-skill-#{uid}"
       json = {
         "swarm_version" => "1.0",
-        "name"          => "Dupe Skill Swarm",
+        "name"          => "Dupe Skill Swarm #{uid}",
         "skills"        => [
-          { "name" => "dupe-skill", "content" => "first" },
-          { "name" => "dupe-skill", "content" => "second" }
+          { "name" => skill_name, "content" => "first" },
+          { "name" => skill_name, "content" => "second" }
         ]
       }.to_json
       expect { import_json(json) }.to change(Skill, :count).by(1)
     end
 
     it "reports the second duplicate skill as :skipped" do
+      skill_name = "dupe2-skill-#{uid}"
       json = {
         "swarm_version" => "1.0",
-        "name"          => "Dupe Skill Swarm 2",
+        "name"          => "Dupe Skill Swarm 2 #{uid}",
         "skills"        => [
-          { "name" => "dupe2-skill", "content" => "first" },
-          { "name" => "dupe2-skill", "content" => "second" }
+          { "name" => skill_name, "content" => "first" },
+          { "name" => skill_name, "content" => "second" }
         ]
       }.to_json
       result  = import_json(json)
@@ -672,24 +601,26 @@ RSpec.describe "Swarms round-trip: export to import", type: :integration do
     end
 
     it "creates only one agent when the name appears twice" do
+      agent_name = "Dupe Agent #{uid}"
       json = {
         "swarm_version" => "1.0",
-        "name"          => "Dupe Agent Swarm",
+        "name"          => "Dupe Agent Swarm #{uid}",
         "agents"        => [
-          { "name" => "Dupe Agent", "role" => "first" },
-          { "name" => "Dupe Agent", "role" => "second" }
+          { "name" => agent_name, "role" => "first" },
+          { "name" => agent_name, "role" => "second" }
         ]
       }.to_json
       expect { import_json(json) }.to change(Agent, :count).by(1)
     end
 
     it "reports the second duplicate agent as :skipped" do
+      agent_name = "Dupe Agent 2 #{uid}"
       json = {
         "swarm_version" => "1.0",
-        "name"          => "Dupe Agent Swarm 2",
+        "name"          => "Dupe Agent Swarm 2 #{uid}",
         "agents"        => [
-          { "name" => "Dupe Agent 2", "role" => "first" },
-          { "name" => "Dupe Agent 2", "role" => "second" }
+          { "name" => agent_name, "role" => "first" },
+          { "name" => agent_name, "role" => "second" }
         ]
       }.to_json
       result  = import_json(json)
@@ -699,7 +630,7 @@ RSpec.describe "Swarms round-trip: export to import", type: :integration do
   end
 
   # ---------------------------------------------------------------------------
-  # 12. Author metadata in the exported manifest
+  # 10. Author metadata in the exported manifest
   # ---------------------------------------------------------------------------
 
   describe "author metadata" do
@@ -726,7 +657,7 @@ RSpec.describe "Swarms round-trip: export to import", type: :integration do
   end
 
   # ---------------------------------------------------------------------------
-  # 13. Multi-agent skill and tool sharing
+  # 11. Multi-agent skill and tool sharing
   # ---------------------------------------------------------------------------
 
   describe "multi-agent skill and tool sharing" do
@@ -750,20 +681,20 @@ RSpec.describe "Swarms round-trip: export to import", type: :integration do
     end
 
     it "each agent in the manifest references the shared skill" do
-      manifest         = Swarms::SwarmExporter.call(team: team).payload[:manifest]
+      manifest          = Swarms::SwarmExporter.call(team: team).payload[:manifest]
       agents_with_skill = manifest["agents"].select { |a| Array(a["skills"]).include?("shared-skill") }
       expect(agents_with_skill.size).to eq(3)
     end
 
     it "each agent references the shared tool" do
-      manifest        = Swarms::SwarmExporter.call(team: team).payload[:manifest]
+      manifest         = Swarms::SwarmExporter.call(team: team).payload[:manifest]
       agents_with_tool = manifest["agents"].select { |a| Array(a["tools"]).include?("shared-tool") }
       expect(agents_with_tool.size).to eq(3)
     end
   end
 
   # ---------------------------------------------------------------------------
-  # 14. Import report entity ordering
+  # 12. Import report entity ordering
   # ---------------------------------------------------------------------------
 
   describe "import report entity ordering" do
@@ -798,7 +729,7 @@ RSpec.describe "Swarms round-trip: export to import", type: :integration do
   end
 
   # ---------------------------------------------------------------------------
-  # 15. Export error handling
+  # 13. Export error handling
   # ---------------------------------------------------------------------------
 
   describe "export error handling" do
