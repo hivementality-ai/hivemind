@@ -1,20 +1,26 @@
-FROM mcr.microsoft.com/playwright:v1.59.1-noble
+FROM python:3.11-slim
 
-RUN addgroup --system sidecar && adduser --system sidecar --ingroup sidecar
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl wget gnupg fonts-liberation libnss3 libatk1.0-0 \
+    libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 \
+    libxdamage1 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 \
+    libasound2 libxshmfence1 xdg-utils \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN npm install --production
+RUN pip install --no-cache-dir \
+    fastapi \
+    "uvicorn[standard]" \
+    playwright
 
-COPY . .
-RUN chown -R sidecar:sidecar /app
+RUN python -m playwright install chromium --with-deps
 
-USER sidecar
+COPY server.py /app/server.py
 
-EXPOSE 3004
+EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD wget -qO- http://localhost:3004/health || exit 1
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
 
-CMD ["node", "server.js"]
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

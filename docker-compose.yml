@@ -41,7 +41,7 @@ services:
       - MEMORY_EMBEDDINGS_ENABLED=${MEMORY_EMBEDDINGS_ENABLED:-true}
       - MEMORY_EMBEDDINGS_PROVIDER=${MEMORY_EMBEDDINGS_PROVIDER:-ollama}
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
-      - BROWSER_SIDECAR_URL=http://browser-sidecar:3004
+      - BROWSER_SIDECAR_URL=http://browser-sidecar:8000
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -74,7 +74,7 @@ services:
       - MEMORY_EMBEDDINGS_ENABLED=${MEMORY_EMBEDDINGS_ENABLED:-true}
       - MEMORY_EMBEDDINGS_PROVIDER=${MEMORY_EMBEDDINGS_PROVIDER:-ollama}
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
-      - BROWSER_SIDECAR_URL=http://browser-sidecar:3004
+      - BROWSER_SIDECAR_URL=http://browser-sidecar:8000
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -114,8 +114,11 @@ services:
     build:
       context: ./browser-sidecar
       dockerfile: Dockerfile
-    environment:
-      - PORT=3004
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     networks:
       - internal
     restart: unless-stopped
