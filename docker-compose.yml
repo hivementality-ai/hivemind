@@ -121,6 +121,7 @@ services:
       retries: 3
     networks:
       - internal
+      - web
     restart: unless-stopped
     deploy:
       resources:

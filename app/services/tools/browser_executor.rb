@@ -25,18 +25,20 @@ module Tools
       action = input["action"].to_s.strip.downcase
       action = "navigate" if action.empty?
 
-      # Auto-manage sessions: create on first use, store in Redis keyed by session.
-      ensure_session! unless action == "done"
-
+      # Validate inputs before touching the sidecar or creating a session.
+      # Each branch guards its own required params and returns early on bad input,
+      # then calls ensure_session! only once inputs are known-good.
       case action
       when "navigate", "get"
         url = input["url"].to_s.strip
         return ServiceResponse.failure(error: "No URL provided") if url.empty?
 
+        ensure_session!
         result = post("session/#{session_id}/navigate", { url: url })
         format_state_response(result, prefix: "Navigated to #{url}")
 
       when "state"
+        ensure_session!
         result = post("session/#{session_id}/state", {})
         format_state_response(result)
 
@@ -44,6 +46,7 @@ module Tools
         index = input["index"].to_i
         return ServiceResponse.failure(error: "No element index provided") if index < 1
 
+        ensure_session!
         result = post("session/#{session_id}/click", { index: index })
         format_state_response(result, prefix: "Clicked element #{index}")
 
@@ -54,10 +57,12 @@ module Tools
         return ServiceResponse.failure(error: "No element index provided") if index < 1
         return ServiceResponse.failure(error: "No text provided") if text.empty?
 
+        ensure_session!
         result = post("session/#{session_id}/type", { index: index, text: text, clear: clear })
         format_state_response(result, prefix: "Typed into element #{index}")
 
       when "scroll"
+        ensure_session!
         direction = input.fetch("direction", "down")
         pages     = input.fetch("pages", 1.0).to_f
         result    = post("session/#{session_id}/scroll", { direction: direction, pages: pages })
@@ -67,10 +72,12 @@ module Tools
         keys = input["keys"].to_s.strip
         return ServiceResponse.failure(error: "No keys provided") if keys.empty?
 
+        ensure_session!
         result = post("session/#{session_id}/keys", { keys: keys })
         format_state_response(result, prefix: "Sent keys: #{keys}")
 
       when "screenshot"
+        ensure_session!
         result = post("session/#{session_id}/screenshot", {})
         if result["success"]
           path = save_screenshot(result["screenshot_base64"])
@@ -83,6 +90,7 @@ module Tools
         end
 
       when "extract"
+        ensure_session!
         result = post("session/#{session_id}/extract", {})
         if result["success"]
           output = "Title: #{result['title']}\nURL: #{result['url']}\n\n#{result['content']}"
