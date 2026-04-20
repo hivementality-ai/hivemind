@@ -185,7 +185,9 @@ module Tasks
         end
         hook_agent
       else
-        fallback_agent || @task.assigned_to_agent || @task.created_by_agent
+        # Task assignee takes priority over the transitioning agent — whoever is
+        # assigned to the task should run the hook, not whoever clicked the button.
+        @task.assigned_to_agent || fallback_agent || @task.created_by_agent
       end
     end
 
