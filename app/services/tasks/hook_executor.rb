@@ -185,7 +185,8 @@ module Tasks
         end
         hook_agent
       else
-        fallback_agent || @task.assigned_to_agent || @task.created_by_agent
+        # Task assignee takes priority over the agent who triggered the transition
+        @task.assigned_to_agent || fallback_agent || @task.created_by_agent
       end
     end
 
