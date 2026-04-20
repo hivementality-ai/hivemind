@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class ChatStreamJob < ApplicationJob
+  include TaskPipelineContinuation
+
   queue_as :default
 
   def perform(session_id, user_message, attachment_ids = [])
@@ -226,6 +228,9 @@ class ChatStreamJob < ApplicationJob
     ensure
       set_processing(session.id, false)
       ActionCable.server.broadcast(channel, { type: "processing", active: false })
+
+      # Continue task hook pipeline if this session is part of one
+      continue_task_pipeline_if_needed(session)
     end
   end
 

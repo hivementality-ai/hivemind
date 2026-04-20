@@ -13,7 +13,8 @@ module Tasks
 
       # Hook agent takes priority — this is the "hand off to next agent" behavior.
       # If the hook specifies an agent, reassign the task and use that agent.
-      # Otherwise fall back to the passed agent, then task's current assignment.
+      # Otherwise: task's current assignee wins over the transitioning agent.
+      # We reload the task to pick up any reassignments from earlier hooks in the pipeline.
       @agent = resolve_and_reassign_agent(agent)
     end
 
@@ -55,9 +56,15 @@ module Tasks
       ServiceResponse.failure(error: "Hook execution failed: #{e.message}")
     end
 
+    # Public: Build the prompt for a hook execution. Used by pipeline jobs
+    # that need to construct prompts without going through the full executor flow.
+    def build_prompt(skill = @hook.skill)
+      build_hook_prompt(skill)
+    end
+
     private
 
-    def build_prompt(skill)
+    def build_hook_prompt(skill)
       parts = []
       parts << "## Task Hook Execution"
       parts << ""
@@ -170,6 +177,9 @@ module Tasks
     end
 
     def resolve_and_reassign_agent(fallback_agent)
+      # Reload to pick up any reassignment from a prior hook in the pipeline
+      @task.reload
+
       hook_agent = @hook.agent
 
       if hook_agent
@@ -185,7 +195,9 @@ module Tasks
         end
         hook_agent
       else
-        fallback_agent || @task.assigned_to_agent || @task.created_by_agent
+        # Task assignee takes priority over the agent who triggered the transition.
+        # This ensures hooks route to whoever owns the ticket NOW, not whoever clicked a button.
+        @task.assigned_to_agent || fallback_agent || @task.created_by_agent
       end
     end
 

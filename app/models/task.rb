@@ -69,6 +69,30 @@ class Task < ApplicationRecord
     task_dependencies.exists? && !dependencies_met?
   end
 
+  # ─── Transition Locking ──────────────────────────────────────────
+  # Prevents concurrent transitions/hooks from racing on the same task.
+  TRANSITION_LOCK_TIMEOUT = 5.minutes
+
+  def transition_locked?
+    transition_locked_at.present? && transition_locked_at > TRANSITION_LOCK_TIMEOUT.ago
+  end
+
+  def lock_transition!(agent = nil)
+    raise "Task ##{id} is already locked for transition" if transition_locked?
+
+    update!(
+      transition_locked_at: Time.current,
+      transition_locked_by_agent_id: agent&.id
+    )
+  end
+
+  def unlock_transition!
+    update!(
+      transition_locked_at: nil,
+      transition_locked_by_agent_id: nil
+    )
+  end
+
   def checklist_complete?
     return true if checklist.blank?
 

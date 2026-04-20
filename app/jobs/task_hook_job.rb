@@ -1,17 +1,23 @@
 # frozen_string_literal: true
 
+# DEPRECATED: This job is superseded by the 3-phase pipeline:
+#   Tasks::PreTransitionJob → Tasks::TransitionJob → Tasks::PostTransitionJob
+#
+# Kept for backward compatibility. If called directly, it delegates to
+# PostTransitionJob since the old behavior was post-hook execution only.
 class TaskHookJob < ApplicationJob
   queue_as :default
 
   def perform(task_id, status, trigger, agent_id, context_json)
-    task = Task.find(task_id)
-    agent = agent_id ? Agent.find(agent_id) : nil
-    context = JSON.parse(context_json)
+    Rails.logger.info("[TaskHookJob] DEPRECATED: routing to new pipeline jobs")
 
-    task.effective_hooks_for(status, trigger).each do |hook|
-      # The hook's own agent takes priority inside HookExecutor,
-      # but we still pass the transitioning agent as fallback context.
-      Tasks::HookExecutor.call(hook: hook, task: task, agent: agent, context: context)
+    case trigger
+    when "pre"
+      Tasks::PreTransitionJob.perform_later(task_id, status, agent_id, context_json)
+    when "post"
+      Tasks::PostTransitionJob.perform_later(task_id, status, agent_id, context_json)
+    else
+      Rails.logger.warn("[TaskHookJob] Unknown trigger '#{trigger}', ignoring")
     end
   rescue ActiveRecord::RecordNotFound => e
     Rails.logger.warn("[TaskHookJob] Record not found: #{e.message}")
