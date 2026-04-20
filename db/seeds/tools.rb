@@ -82,15 +82,25 @@ BUILTIN_TOOLS = [
   },
   {
     name: "browser",
-    description: "Navigate to a URL with a real browser (JavaScript rendering). Extracts page content or takes screenshots. Use when web_fetch fails on JS-heavy sites.",
+    description: "Navigate and interact with web pages using a real browser (JavaScript rendering). Supports multi-step interactions: click, type, scroll, keyboard shortcuts, screenshots, and text extraction. Use when web_fetch fails on JS-heavy sites or when you need to fill forms, click buttons, or do multi-step flows.",
     executor_type: "browser",
     requires_approval: false,
     parameters_schema: {
       "properties" => {
-        "url" => { "type" => "string", "description" => "URL to navigate to" },
-        "action" => { "type" => "string", "description" => "Action: navigate (default) or screenshot", "enum" => [ "navigate", "screenshot" ] }
+        "action" => {
+          "type" => "string",
+          "description" => "Browser action to perform",
+          "enum" => [ "navigate", "state", "click", "type", "scroll", "keys", "screenshot", "extract", "done" ]
+        },
+        "url" => { "type" => "string", "description" => "URL to navigate to (required for navigate action)" },
+        "index" => { "type" => "integer", "description" => "Element index from state response (required for click/type actions)" },
+        "text" => { "type" => "string", "description" => "Text to type (required for type action)" },
+        "clear" => { "type" => "boolean", "description" => "Clear field before typing (default: true)" },
+        "direction" => { "type" => "string", "description" => "Scroll direction: up or down (default: down)", "enum" => [ "up", "down" ] },
+        "pages" => { "type" => "number", "description" => "Number of pages to scroll (default: 1.0)" },
+        "keys" => { "type" => "string", "description" => "Keyboard keys to send (e.g. Enter, Escape, Control+a)" }
       },
-      "required" => [ "url" ]
+      "required" => [ "action" ]
     }
   },
   {
