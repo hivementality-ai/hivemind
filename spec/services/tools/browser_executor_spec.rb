@@ -67,6 +67,16 @@ RSpec.describe Tools::BrowserExecutor, type: :service do
     # Redis not available in test env — executor handles nil redis gracefully
   end
 
+  def clear_redis_session
+    redis = Redis.new(url: ENV.fetch("REDIS_URL", "redis://cache:6379/0"))
+    redis.del("browser_session:#{hivemind_session.id}")
+  rescue StandardError
+    nil
+  end
+
+  # Prevent Redis state from bleeding between examples
+  after { clear_redis_session }
+
   # ── Input validation ──────────────────────────────────────────────────────
 
   describe "#call — input validation" do
@@ -395,9 +405,8 @@ RSpec.describe Tools::BrowserExecutor, type: :service do
   describe "#call — done" do
     let(:input) { { "action" => "done" } }
 
-    before { seed_redis_session }
-
     it "closes session and returns confirmation" do
+      seed_redis_session
       stub_sidecar_post("/session/abc123def456", { success: true })
       result = executor.call
       expect(result).to be_success
@@ -406,6 +415,7 @@ RSpec.describe Tools::BrowserExecutor, type: :service do
 
     it "succeeds even when no session exists" do
       # No Redis session — done should still succeed without hitting sidecar
+      expect(Net::HTTP).not_to receive(:new)
       result = executor.call
       expect(result).to be_success
     end

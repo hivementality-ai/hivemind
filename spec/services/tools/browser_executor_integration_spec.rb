@@ -48,6 +48,16 @@ RSpec.describe "Tools::Executor browser dispatch", type: :service do
     nil
   end
 
+  def clear_redis_session(hivemind_session)
+    redis = Redis.new(url: ENV.fetch("REDIS_URL", "redis://cache:6379/0"))
+    redis.del("browser_session:#{hivemind_session.id}")
+  rescue StandardError
+    nil
+  end
+
+  # Prevent Redis state from bleeding between examples
+  after { clear_redis_session(session) }
+
   # ── Executor registration ─────────────────────────────────────────────────
 
   describe "executor registration" do

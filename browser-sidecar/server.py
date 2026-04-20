@@ -75,7 +75,7 @@ class ClickRequest(BaseModel):
 
 
 class TypeRequest(BaseModel):
-    index: int = Field(ge=0, description="Element index from state response")
+    index: int = Field(ge=1, description="Element index from state response")
     text: str
     clear: bool = True
 
