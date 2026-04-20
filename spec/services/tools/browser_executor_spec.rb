@@ -220,6 +220,8 @@ RSpec.describe Tools::BrowserExecutor, type: :service do
     end
 
     context "no session in Redis (auto-creates one)" do
+      before { clear_redis_session }
+
       it "calls session/create then navigates" do
         stub_session_create_then(success_state_response)
         result = executor.call
