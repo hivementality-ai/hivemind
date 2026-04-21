@@ -6,6 +6,7 @@ module Tools
 
     BUILTIN_EXECUTORS = {
       "shell" => Tools::ShellExecutor,
+      "sleep" => Tools::SleepExecutor,
       "file_read" => Tools::FileReadExecutor,
       "file_write" => Tools::FileWriteExecutor,
       "file_send" => Tools::FileSendExecutor,
