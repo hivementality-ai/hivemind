@@ -138,8 +138,9 @@ module Tools
         scope = scope.for_agent(target)
       end
 
-      limit = (input["limit"] || 20).to_i.clamp(1, 50)
-      tasks = scope.limit(limit).includes(:assigned_to_agent, :created_by_agent, :project)
+      limit = input["limit"].present? ? input["limit"].to_i.clamp(1, 1000) : nil
+      scope = scope.limit(limit) if limit
+      tasks = scope.includes(:assigned_to_agent, :created_by_agent, :project)
 
       return ServiceResponse.success(data: { output: "No tasks found." }) if tasks.empty?
 
@@ -152,9 +153,11 @@ module Tools
         return ServiceResponse.failure(error: "No agent context available")
       end
 
-      tasks = Task.for_agent(agent).open.by_priority.recent
+      limit = input["limit"].present? ? input["limit"].to_i.clamp(1, 1000) : nil
+      scope = Task.for_agent(agent).open.by_priority.recent
                   .includes(:created_by_agent, :project)
-                  .limit(20)
+      scope = scope.limit(limit) if limit
+      tasks = scope
 
       return ServiceResponse.success(data: { output: "You have no open tasks." }) if tasks.empty?
 
