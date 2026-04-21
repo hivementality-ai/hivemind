@@ -364,11 +364,18 @@ RSpec.describe Tools::TaskManagerExecutor do
         expect(result.data[:output]).to include("Tasks (2)")
       end
 
-      it "clamps limit to 50 maximum" do
-        input["limit"] = "999"
+      it "returns all tasks when no limit is provided" do
+        result = subject.call
+        expect(result).to be_success
+        expect(result.data[:output]).to include("Tasks (4)")
+      end
+
+      it "clamps limit to 1000 maximum" do
+        input["limit"] = "9999"
         result = subject.call
         # 4 tasks exist — should not raise and returns all within clamp
         expect(result).to be_success
+        expect(result.data[:output]).to include("Tasks (4)")
       end
 
       context "when assigned_to names a nonexistent agent" do
@@ -395,6 +402,22 @@ RSpec.describe Tools::TaskManagerExecutor do
         expect(result.data[:output]).to include(mine.title)
         expect(result.data[:output]).not_to include(others.title)
         expect(result.data[:output]).not_to include(done.title)
+      end
+
+      it "returns all open tasks when no limit is provided" do
+        create_list(:task, 3, assigned_to_agent: agent, status: "in_progress")
+        result = subject.call
+        expect(result).to be_success
+        # 1 original + 3 new = 4 open tasks
+        expect(result.data[:output]).to include("Your open tasks (4)")
+      end
+
+      it "respects a custom limit" do
+        create_list(:task, 3, assigned_to_agent: agent, status: "in_progress")
+        input["limit"] = "2"
+        result = subject.call
+        expect(result).to be_success
+        expect(result.data[:output]).to include("Your open tasks (2)")
       end
 
       it "returns a friendly message when agent has no open tasks" do
