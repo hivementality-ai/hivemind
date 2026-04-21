@@ -198,6 +198,8 @@ module Tools
           )
           ServiceResponse.failure(error: result.error)
         end
+      rescue AgentInterrupted, AgentRedirected
+        raise
       rescue StandardError => e
         duration = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).to_i
         execution.update!(status: "failed", error: e.message, duration_ms: duration)
