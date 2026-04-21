@@ -30,6 +30,9 @@ jobs:
           - image: sdk-proxy
             context: ./sdk-proxy
             dockerfile: Dockerfile
+          - image: browser-sidecar
+            context: ./browser-sidecar
+            dockerfile: Dockerfile
 
     steps:
       - name: Checkout
@@ -89,7 +92,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        image: [app, workspace, connector, sdk-proxy]
+        image: [app, workspace, connector, sdk-proxy, browser-sidecar]
     steps:
       - name: Make ${{ matrix.image }} package public
         run: |
