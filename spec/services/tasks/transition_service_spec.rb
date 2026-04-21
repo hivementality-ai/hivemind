@@ -6,28 +6,49 @@ RSpec.describe Tasks::TransitionService do
   let(:agent) { create(:agent) }
 
   describe ".call" do
-    context "happy path" do
-      it "transitions the task and logs an event" do
-        task = create(:task, status: "backlog")
-
-        result = described_class.call(task: task, new_status: "todo", agent: agent)
-
-        expect(result).to be_success
-        expect(task.reload.status).to eq("todo")
-        expect(result.data[:old_status]).to eq("backlog")
-
-        event = task.task_events.last
-        expect(event.event_type).to eq("status_change")
-        expect(event.summary).to include("backlog")
-        expect(event.summary).to include("todo")
-      end
-
-      it "enqueues post-hooks via TaskHookJob" do
-        task = create(:task, status: "todo")
+    context "happy path without pre-hooks" do
+      it "locks the task and enqueues TransitionJob (skipping pre-phase)" do
+        task = create(:task, status: "backlog", assigned_to_agent: agent)
 
         expect {
-          described_class.call(task: task, new_status: "in_progress", agent: agent)
-        }.to have_enqueued_job(TaskHookJob)
+          result = described_class.call(task: task, new_status: "todo", agent: agent)
+          expect(result).to be_success
+          expect(result.data[:pipeline]).to be true
+          expect(result.data[:has_pre_hooks]).to be false
+        }.to have_enqueued_job(Tasks::TransitionJob)
+
+        task.reload
+        expect(task.transition_locked?).to be true
+      end
+
+      it "logs a transition_requested event" do
+        task = create(:task, status: "backlog")
+
+        expect {
+          described_class.call(task: task, new_status: "todo", agent: agent)
+        }.to change(TaskEvent, :count).by(1)
+
+        event = TaskEvent.last
+        expect(event.event_type).to eq("transition_requested")
+        expect(event.summary).to include("skip-pre")
+      end
+    end
+
+    context "with pre-hooks" do
+      it "enqueues PreTransitionJob for the full 3-phase pipeline" do
+        task = create(:task, status: "todo", assigned_to_agent: agent)
+        skill = create(:skill)
+        create(:task_hook, :pre, task: task, skill: skill, on_status: "in_progress")
+
+        expect {
+          result = described_class.call(task: task, new_status: "in_progress", agent: agent)
+          expect(result).to be_success
+          expect(result.data[:has_pre_hooks]).to be true
+        }.to have_enqueued_job(Tasks::PreTransitionJob)
+
+        # Task should NOT be locked yet — PreTransitionJob does that
+        task.reload
+        expect(task.transition_locked?).to be false
       end
     end
 
@@ -47,6 +68,16 @@ RSpec.describe Tasks::TransitionService do
         expect(result).not_to be_success
         expect(result.error).to include("already")
       end
+
+      it "fails when the task is already locked for transition" do
+        task = create(:task, status: "todo")
+        task.lock_transition!(agent)
+
+        result = described_class.call(task: task, new_status: "in_progress", agent: agent)
+
+        expect(result).not_to be_success
+        expect(result.error).to include("currently being transitioned")
+      end
     end
 
     context "dependency enforcement" do
@@ -63,37 +94,22 @@ RSpec.describe Tasks::TransitionService do
 
       it "allows transition when dependencies are met" do
         blocker = create(:task, :done)
-        task = create(:task, status: "todo")
+        task = create(:task, status: "todo", assigned_to_agent: agent)
         create(:task_dependency, task: task, depends_on: blocker)
 
-        result = described_class.call(task: task, new_status: "in_progress")
+        result = described_class.call(task: task, new_status: "in_progress", agent: agent)
 
         expect(result).to be_success
-        expect(task.reload.status).to eq("in_progress")
       end
 
       it "allows backward transitions even with unmet dependencies" do
         blocker = create(:task, status: "todo")
-        task = create(:task, status: "in_progress")
+        task = create(:task, status: "in_progress", assigned_to_agent: agent)
         create(:task_dependency, task: task, depends_on: blocker)
 
-        result = described_class.call(task: task, new_status: "backlog")
+        result = described_class.call(task: task, new_status: "backlog", agent: agent)
 
         expect(result).to be_success
-      end
-    end
-
-    context "pre-hooks" do
-      it "blocks transition when pre-hook fails" do
-        task = create(:task, status: "todo")
-        skill = create(:skill)
-        create(:task_hook, :pre, task: task, skill: skill, on_status: "in_progress")
-
-        # Pre-hook will fail because there's no agent to execute it
-        result = described_class.call(task: task, new_status: "in_progress")
-
-        expect(result).not_to be_success
-        expect(result.error).to include("Pre-hook blocked")
       end
     end
   end

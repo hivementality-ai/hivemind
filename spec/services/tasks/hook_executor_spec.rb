@@ -53,23 +53,24 @@ RSpec.describe Tasks::HookExecutor do
     end
   end
 
-  describe "agent auto-assignment" do
+  describe "agent resolution priority" do
     let(:hook_agent) { create(:agent, name: "armorer") }
-    let(:original_agent) { create(:agent, name: "mando") }
-    let(:assigned_task) { create(:task, title: "Build beskar armor", assigned_to_agent: original_agent) }
+    let(:transitioning_agent) { create(:agent, name: "grogu") }
+    let(:assigned_agent) { create(:agent, name: "mando") }
+    let(:assigned_task) { create(:task, title: "Build beskar armor", assigned_to_agent: assigned_agent) }
 
     context "when hook has an agent assigned" do
       let(:hook_with_agent) { create(:task_hook, :post, task: assigned_task, skill: skill, on_status: "review", agent: hook_agent) }
 
       it "reassigns the task to the hook's agent" do
-        described_class.call(hook: hook_with_agent, task: assigned_task, agent: original_agent)
+        described_class.call(hook: hook_with_agent, task: assigned_task, agent: transitioning_agent)
         assigned_task.reload
         expect(assigned_task.assigned_to_agent).to eq(hook_agent)
       end
 
       it "creates an auto_assigned event" do
         expect {
-          described_class.call(hook: hook_with_agent, task: assigned_task, agent: original_agent)
+          described_class.call(hook: hook_with_agent, task: assigned_task, agent: transitioning_agent)
         }.to change(TaskEvent, :count).by(2) # auto_assigned + hook_fired
 
         auto_event = TaskEvent.where(event_type: "auto_assigned").last
@@ -77,8 +78,8 @@ RSpec.describe Tasks::HookExecutor do
         expect(auto_event.summary).to include("post-hook")
       end
 
-      it "uses the hook agent for the session, not the original agent" do
-        result = described_class.call(hook: hook_with_agent, task: assigned_task, agent: original_agent)
+      it "uses the hook agent for the session, not the transitioning agent" do
+        result = described_class.call(hook: hook_with_agent, task: assigned_task, agent: transitioning_agent)
         session = Session.find(result.data[:session_id])
         expect(session.agent).to eq(hook_agent)
       end
@@ -91,29 +92,61 @@ RSpec.describe Tasks::HookExecutor do
       end
     end
 
-    context "when hook has no agent assigned" do
+    context "when hook has no agent — task assignee wins over transitioning agent" do
       let(:hook_no_agent) { create(:task_hook, :post, task: assigned_task, skill: skill, on_status: "review", agent: nil) }
 
-      it "uses the fallback agent passed in" do
-        result = described_class.call(hook: hook_no_agent, task: assigned_task, agent: original_agent)
+      it "uses the task's assigned agent, NOT the transitioning agent" do
+        result = described_class.call(hook: hook_no_agent, task: assigned_task, agent: transitioning_agent)
         session = Session.find(result.data[:session_id])
-        expect(session.agent).to eq(original_agent)
+
+        # This is the KEY behavioral change — assignee wins over clicker
+        expect(session.agent).to eq(assigned_agent)
       end
 
       it "does not change task assignment" do
-        described_class.call(hook: hook_no_agent, task: assigned_task, agent: original_agent)
+        described_class.call(hook: hook_no_agent, task: assigned_task, agent: transitioning_agent)
         assigned_task.reload
-        expect(assigned_task.assigned_to_agent).to eq(original_agent)
+        expect(assigned_task.assigned_to_agent).to eq(assigned_agent)
       end
 
-      it "falls back to task assigned agent when no agent passed" do
-        result = described_class.call(hook: hook_no_agent, task: assigned_task)
+      it "falls back to transitioning agent when task is unassigned" do
+        unassigned_task = create(:task, title: "Unassigned task", assigned_to_agent: nil, created_by_agent: nil)
+        hook = create(:task_hook, :post, task: unassigned_task, skill: skill, on_status: "review", agent: nil)
+
+        result = described_class.call(hook: hook, task: unassigned_task, agent: transitioning_agent)
         session = Session.find(result.data[:session_id])
-        expect(session.agent).to eq(original_agent)
+        expect(session.agent).to eq(transitioning_agent)
+      end
+
+      it "falls back to task creator when both assignee and transitioning agent are nil" do
+        creator = create(:agent, name: "creator")
+        task_with_creator = create(:task, title: "Created task", assigned_to_agent: nil, created_by_agent: creator)
+        hook = create(:task_hook, :post, task: task_with_creator, skill: skill, on_status: "review", agent: nil)
+
+        result = described_class.call(hook: hook, task: task_with_creator)
+        session = Session.find(result.data[:session_id])
+        expect(session.agent).to eq(creator)
+      end
+    end
+
+    context "when task is reassigned between hooks (pipeline behavior)" do
+      let(:hook_no_agent) { create(:task_hook, :post, task: assigned_task, skill: skill, on_status: "review", agent: nil) }
+
+      it "picks up reassignment from a prior hook via reload" do
+        new_agent = create(:agent, name: "new_owner")
+
+        # Simulate a prior hook reassigning the task in the DB
+        assigned_task.update!(assigned_to_agent: new_agent)
+
+        # The executor should reload and pick up new_agent, not assigned_agent
+        result = described_class.call(hook: hook_no_agent, task: assigned_task, agent: transitioning_agent)
+        session = Session.find(result.data[:session_id])
+        expect(session.agent).to eq(new_agent)
       end
     end
 
     context "with an unassigned task and a hook agent" do
+      let(:original_agent) { create(:agent, name: "mando") }
       let(:unassigned_task) { create(:task, title: "Unassigned task", assigned_to_agent: nil, created_by_agent: original_agent) }
       let(:hook_assigns) { create(:task_hook, :post, task: unassigned_task, skill: skill, on_status: "in_progress", agent: hook_agent) }
 
@@ -126,7 +159,6 @@ RSpec.describe Tasks::HookExecutor do
   end
 
   describe "prompt enrichment" do
-    # We test the prompt content by inspecting what ChatStreamJob receives
     it "includes task description in the prompt" do
       task.update!(description: "Implement the flux capacitor")
 
@@ -173,7 +205,6 @@ RSpec.describe Tasks::HookExecutor do
         expect(prompt).to include("https://github.com/org/repo/pull/42")
         expect(prompt).to include("Core time travel logic")
         expect(prompt).to include("feat/flux-capacitor")
-        # Should NOT contain huge content blocks or truncation
         expect(prompt).not_to include("truncate")
       end
 

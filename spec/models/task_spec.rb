@@ -475,6 +475,58 @@ RSpec.describe Task, type: :model do
     end
   end
 
+  describe "transition locking" do
+    let(:agent) { create(:agent) }
+    let(:task) { create(:task) }
+
+    describe "#lock_transition!" do
+      it "sets transition_locked_at and agent" do
+        task.lock_transition!(agent)
+        task.reload
+        expect(task.transition_locked_at).to be_present
+        expect(task.transition_locked_by_agent_id).to eq(agent.id)
+      end
+
+      it "raises when already locked" do
+        task.lock_transition!(agent)
+        expect { task.lock_transition!(agent) }.to raise_error(RuntimeError, /already locked/)
+      end
+
+      it "allows locking without an agent" do
+        task.lock_transition!
+        task.reload
+        expect(task.transition_locked_at).to be_present
+        expect(task.transition_locked_by_agent_id).to be_nil
+      end
+    end
+
+    describe "#unlock_transition!" do
+      it "clears lock fields" do
+        task.lock_transition!(agent)
+        task.unlock_transition!
+        task.reload
+        expect(task.transition_locked_at).to be_nil
+        expect(task.transition_locked_by_agent_id).to be_nil
+      end
+    end
+
+    describe "#transition_locked?" do
+      it "returns false when not locked" do
+        expect(task.transition_locked?).to be false
+      end
+
+      it "returns true when locked recently" do
+        task.lock_transition!(agent)
+        expect(task.transition_locked?).to be true
+      end
+
+      it "returns false when lock has expired" do
+        task.update!(transition_locked_at: 10.minutes.ago)
+        expect(task.transition_locked?).to be false
+      end
+    end
+  end
+
   describe "archiving" do
     describe ".not_archived" do
       it "returns tasks without an archived_at timestamp" do
