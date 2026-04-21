@@ -16,6 +16,19 @@ BUILTIN_TOOLS = [
     }
   },
   {
+    name: "sleep",
+    description: "Pause execution for a specified number of seconds (max 180). Use this when you need to wait for an external process to finish, a deployment to complete, or any situation where you need to stall before checking status again.",
+    executor_type: "sleep",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "seconds" => { "type" => "integer", "description" => "Number of seconds to wait (1-180)" },
+        "reason" => { "type" => "string", "description" => "Why you're waiting (shown in the chat UI)" }
+      },
+      "required" => [ "seconds" ]
+    }
+  },
+  {
     name: "file_read",
     description: "Read the contents of a file in the workspace.",
     executor_type: "file_read",
