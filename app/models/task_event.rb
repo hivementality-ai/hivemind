@@ -6,6 +6,7 @@ class TaskEvent < ApplicationRecord
     dependency_added dependency_removed checklist_updated created
     attachment_added attachment_removed
     archived auto_assigned artifact_added artifact_removed
+    transition_requested pipeline_failed
   ].freeze
 
   belongs_to :task
