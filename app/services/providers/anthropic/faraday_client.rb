@@ -20,10 +20,16 @@ module Providers
     class FaradayClient
       API_URL = "https://api.anthropic.com/v1/messages"
       ANTHROPIC_VERSION = "2023-06-01"
-      OAUTH_BETA = "oauth-2025-04-20"
+      # Same OAuth beta + claude-code-20250219 (Claude Code session beta) so the
+      # gateway routes through the Claude Code quota path the same way the CLI
+      # does. Mirrors openclaw/openclaw's anthropic-transport-stream.ts.
+      OAUTH_BETA = "claude-code-20250219,oauth-2025-04-20"
       OAUTH_USER_AGENT = "claude-code/2.1.79"
       OAUTH_GATE = "You are Claude Code, Anthropic's official CLI for Claude."
-      CACHE_EPHEMERAL = { type: "ephemeral" }.freeze
+      # 1-hour TTL is supported on direct api.anthropic.com (and Vertex). Paying
+      # ~2× per cache write buys 12× the cache window — net win for any session
+      # with idle gaps > 5 minutes, which is most chat workloads.
+      CACHE_EPHEMERAL = { type: "ephemeral", ttl: "1h" }.freeze
 
       def initialize(api_key:)
         @api_key = api_key

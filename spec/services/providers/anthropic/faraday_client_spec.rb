@@ -43,7 +43,7 @@ RSpec.describe Providers::Anthropic::FaradayClient, type: :service do
         expect(result.data[:content]).to eq("Hi")
         expect(result.data[:usage][:input_tokens]).to eq(10)
         expect(captured_body["system"]).to eq([
-          { "type" => "text", "text" => "You are helpful", "cache_control" => { "type" => "ephemeral" } }
+          { "type" => "text", "text" => "You are helpful", "cache_control" => { "type" => "ephemeral", "ttl" => "1h" } }
         ])
       end
 
@@ -110,7 +110,7 @@ RSpec.describe Providers::Anthropic::FaradayClient, type: :service do
         stub = stub_request(:post, described_class::API_URL)
           .with(headers: {
             "Authorization" => "Bearer #{oauth_key}",
-            "Anthropic-Beta" => "oauth-2025-04-20",
+            "Anthropic-Beta" => "claude-code-20250219,oauth-2025-04-20",
             "User-Agent" => described_class::OAUTH_USER_AGENT,
             "X-App" => "cli"
           })
@@ -138,10 +138,10 @@ RSpec.describe Providers::Anthropic::FaradayClient, type: :service do
         expect(captured_body["system"].first).to eq(
           "type" => "text",
           "text" => described_class::OAUTH_GATE,
-          "cache_control" => { "type" => "ephemeral" }
+          "cache_control" => { "type" => "ephemeral", "ttl" => "1h" }
         )
         expect(captured_body["system"][1]["text"]).to eq("You are helpful")
-        expect(captured_body["system"][1]["cache_control"]).to eq("type" => "ephemeral")
+        expect(captured_body["system"][1]["cache_control"]).to eq("type" => "ephemeral", "ttl" => "1h")
       end
 
       it "emits exactly 2 system markers with OAuth regardless of caller block count" do
@@ -163,8 +163,8 @@ RSpec.describe Providers::Anthropic::FaradayClient, type: :service do
         # OAUTH_GATE (tier-1) and the last caller block (tier-2).
         system_markers = captured_body["system"].count { |b| b["cache_control"] }
         expect(system_markers).to eq(2)
-        expect(captured_body["system"].first["cache_control"]).to eq("type" => "ephemeral")
-        expect(captured_body["system"].last["cache_control"]).to eq("type" => "ephemeral")
+        expect(captured_body["system"].first["cache_control"]).to eq("type" => "ephemeral", "ttl" => "1h")
+        expect(captured_body["system"].last["cache_control"]).to eq("type" => "ephemeral", "ttl" => "1h")
         expect(captured_body["system"][1]).not_to have_key("cache_control")
         expect(captured_body["system"][2]).not_to have_key("cache_control")
       end
@@ -218,7 +218,7 @@ RSpec.describe Providers::Anthropic::FaradayClient, type: :service do
         ))
 
         expect(captured_body["tools"].first).not_to have_key("cache_control")
-        expect(captured_body["tools"].last["cache_control"]).to eq("type" => "ephemeral")
+        expect(captured_body["tools"].last["cache_control"]).to eq("type" => "ephemeral", "ttl" => "1h")
       end
 
       it "tags the last message's content with cache_control" do
@@ -237,7 +237,7 @@ RSpec.describe Providers::Anthropic::FaradayClient, type: :service do
 
         last_msg_content = captured_body["messages"].last["content"]
         expect(last_msg_content).to be_an(Array)
-        expect(last_msg_content.last["cache_control"]).to eq("type" => "ephemeral")
+        expect(last_msg_content.last["cache_control"]).to eq("type" => "ephemeral", "ttl" => "1h")
         expect(last_msg_content.last["text"]).to eq("last")
       end
 
@@ -257,7 +257,7 @@ RSpec.describe Providers::Anthropic::FaradayClient, type: :service do
 
         last_msg_content = captured_body["messages"].last["content"]
         expect(last_msg_content.size).to eq(1)
-        expect(last_msg_content.last["cache_control"]).to eq("type" => "ephemeral")
+        expect(last_msg_content.last["cache_control"]).to eq("type" => "ephemeral", "ttl" => "1h")
       end
     end
   end
