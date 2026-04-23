@@ -125,14 +125,19 @@ module Agents
     private
 
     def call_llm(llm_tools)
-      @adapter.chat(
+      result = @adapter.chat(
         messages: @messages,
         tools: llm_tools,
         options: @options
       )
+      if result && !result.success?
+        Rails.logger.error("[ToolLoop] LLM call returned failure: #{result.error}")
+      end
+      result
     rescue AgentInterrupted, AgentRedirected
       raise
     rescue StandardError => e
+      Rails.logger.error("[ToolLoop] LLM call raised: #{e.class}: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")
       ServiceResponse.failure(error: "LLM call failed: #{e.message}")
     end
 
