@@ -15,7 +15,7 @@ module Providers
       end
 
       inject_request_payload(result, params)
-    rescue AgentInterrupted, AgentRedirected
+    rescue AgentInterrupted, AgentRedirected, PromptTooLongError
       raise
     rescue StandardError => e
       ServiceResponse.failure(error: "Anthropic API error: #{e.message}")

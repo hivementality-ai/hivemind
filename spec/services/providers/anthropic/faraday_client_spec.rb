@@ -101,6 +101,30 @@ RSpec.describe Providers::Anthropic::FaradayClient, type: :service do
         expect(result.error).to include("500")
         expect(result.error).to include("Server error")
       end
+
+      it "raises PromptTooLongError on 400 with a prompt-too-long message" do
+        stub_request(:post, described_class::API_URL)
+          .to_return(
+            status: 400,
+            body: { error: { type: "invalid_request_error", message: "Prompt is too long: 210000 tokens > 200000 maximum" } }.to_json
+          )
+
+        expect {
+          described_class.new(api_key: api_key).chat(params: base_params)
+        }.to raise_error(PromptTooLongError, /too long/i)
+      end
+
+      it "still returns a plain failure on unrelated 400s" do
+        stub_request(:post, described_class::API_URL)
+          .to_return(
+            status: 400,
+            body: { error: { type: "invalid_request_error", message: "model is not supported" } }.to_json
+          )
+
+        result = described_class.new(api_key: api_key).chat(params: base_params)
+        expect(result).not_to be_success
+        expect(result.error).to include("400")
+      end
     end
 
     context "with an OAuth token" do

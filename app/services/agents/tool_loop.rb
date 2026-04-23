@@ -136,9 +136,26 @@ module Agents
       result
     rescue AgentInterrupted, AgentRedirected
       raise
+    rescue PromptTooLongError => e
+      recover_from_prompt_too_long(e, llm_tools)
     rescue StandardError => e
       Rails.logger.error("[ToolLoop] LLM call raised: #{e.class}: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")
       ServiceResponse.failure(error: "LLM call failed: #{e.message}")
+    end
+
+    # Anthropic rejected the request as over-context. Force an auto-compact
+    # (LLM summarization of the whole tail) and retry once. A second failure
+    # is fatal — fall through to ServiceResponse.failure so the user sees it.
+    def recover_from_prompt_too_long(original_error, llm_tools)
+      Rails.logger.warn("[ToolLoop] Prompt too long, auto-compacting and retrying: #{original_error.message}")
+      @messages = @context_manager.force_auto_compact!(@messages)
+      @adapter.chat(messages: @messages, tools: llm_tools, options: @options)
+    rescue PromptTooLongError => e
+      Rails.logger.error("[ToolLoop] Prompt still too long after auto-compact — giving up: #{e.message}")
+      ServiceResponse.failure(error: "LLM call failed: prompt too long even after auto-compact")
+    rescue StandardError => e
+      Rails.logger.error("[ToolLoop] Retry after auto-compact raised: #{e.class}: #{e.message}")
+      ServiceResponse.failure(error: "LLM call failed during auto-compact retry: #{e.message}")
     end
 
     def feed_decision_signals(tool_calls, tool_results)

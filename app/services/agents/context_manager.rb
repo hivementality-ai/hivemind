@@ -47,9 +47,9 @@ module Agents
     end
 
     # Prune messages to stay within budget, keeping most recent messages.
-    # Runs a three-stage pipeline: micro-compact (replace old tool results
-    # with placeholders) → context-collapse (drop the middle of the
-    # conversation) → hard prune (oldest-first until under budget).
+    # Four-stage pipeline: micro-compact (replace old tool results with
+    # placeholders) → context-collapse (drop the middle) → auto-compact
+    # (LLM summarization of the tail) → hard prune (oldest-first).
     def prune_messages(messages)
       return messages if messages.blank?
 
@@ -61,14 +61,40 @@ module Agents
         Agents::MicroCompact.call(working, keep_recent: 2)
       end
 
-      # Stage 2: context-collapse — try zero-LLM middle-snip before hard prune.
+      # Stage 2: context-collapse — zero-LLM middle-snip before any
+      # LLM summarization.
       if estimate_tokens_for(working) > @budget
         collapsed = Agents::ContextCollapse.call(working, threshold: @budget, keep_recent: 6)
         working = collapsed if collapsed
       end
 
-      # Stage 3: hard prune (the original behavior) — oldest-first until under budget.
+      # Stage 3: auto-compact — LLM summarization of the full tail. Only
+      # triggered if the zero-LLM stages above couldn't get us under budget.
+      if estimate_tokens_for(working) > @budget
+        compacted = compactor.auto_compact!(working)
+        working = compacted if compacted.present?
+      end
+
+      # Stage 4: hard prune — last-resort oldest-first truncation if the
+      # LLM call failed or no Anthropic provider is configured.
       hard_prune(working)
+    end
+
+    # Forced LLM summarization, bypassing thresholds. Called by ToolLoop
+    # when the provider returns a prompt-too-long error and we need to
+    # aggressively shrink the context before retrying.
+    def force_auto_compact!(messages)
+      compactor.auto_compact!(messages) || hard_prune(messages)
+    end
+
+    # User-triggered summarization with an optional focus prompt. Hashtag
+    # action /compact wires through here.
+    def manual_compact!(messages, focus: nil)
+      compactor.manual_compact!(messages, focus: focus) || messages
+    end
+
+    def compactor
+      @compactor ||= Agents::Compactor.new(agent: @agent, threshold: @budget)
     end
 
     # Shared token estimator used by DecisionCompactor and the pipeline.

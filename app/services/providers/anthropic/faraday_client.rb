@@ -203,11 +203,22 @@ module Providers
 
         unless response.success?
           err = parse_error_body(response.body)
+          raise PromptTooLongError, err if prompt_too_long?(response.status, err)
           return ServiceResponse.failure(error: "Anthropic API error (#{response.status}): #{err}")
         end
 
         parsed = JSON.parse(response.body)
         ServiceResponse.success(data: build_sync_data(parsed))
+      end
+
+      # Detects Anthropic's prompt-too-long response. Raised as a typed
+      # error so Agents::ToolLoop can trigger an auto-compact and retry
+      # instead of failing the whole turn.
+      def prompt_too_long?(status, body_snippet)
+        return false unless status == 400
+        text = body_snippet.to_s.downcase
+        text.include?("prompt is too long") || text.include?("prompt too long") ||
+          text.include?("context length") || text.include?("exceeds the maximum")
       end
 
       # ─── Debug logging (gated by Setting "prompt_debug_enabled") ─────
@@ -305,6 +316,7 @@ module Providers
         unless response.status == 200
           log_inbound(response.status, error_chunks.join)
           err = parse_error_body(error_chunks.join)
+          raise PromptTooLongError, err if prompt_too_long?(response.status, err)
           return ServiceResponse.failure(error: "Anthropic API error (#{response.status}): #{err}")
         end
 
