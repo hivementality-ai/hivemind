@@ -68,26 +68,43 @@ module Providers
         body
       end
 
-      # Breakpoint 1: system blocks. OAUTH_GATE precedes the caller's system
-      # prompt when running with an OAuth token.
+      # System-section caching (matches rubyn-code's two-breakpoint OAuth
+      # strategy). Anthropic allows a max of 4 cache_control markers per
+      # request and caches everything up to and including a marker, so we
+      # place at most 2 markers in system:
+      #
+      #   1. OAUTH_GATE (OAuth only) — cached independently so it survives
+      #      any change to the caller's system prompt.
+      #   2. The last caller system block — caches OAUTH_GATE + every
+      #      caller block as one prefix.
+      #
+      # This reserves 2 of the 4 markers for tools (breakpoint 3) and the
+      # last message (breakpoint 4), hitting the Anthropic cap exactly.
       def apply_system_blocks(body, system)
-        blocks = []
-
-        if oauth?
-          blocks << { type: "text", text: OAUTH_GATE, cache_control: CACHE_EPHEMERAL }
-        end
-
+        caller_blocks = []
         Array(system).each do |entry|
           if entry.is_a?(Hash)
             text = entry[:text] || entry["text"]
             next if text.to_s.strip.empty?
-            blocks << { type: "text", text: text.to_s, cache_control: CACHE_EPHEMERAL }
+            caller_blocks << { type: "text", text: text.to_s }
           elsif entry.is_a?(String) && !entry.strip.empty?
-            blocks << { type: "text", text: entry, cache_control: CACHE_EPHEMERAL }
+            caller_blocks << { type: "text", text: entry }
           end
         end
 
-        body[:system] = blocks if blocks.any?
+        blocks = []
+        if oauth?
+          blocks << { type: "text", text: OAUTH_GATE, cache_control: CACHE_EPHEMERAL }
+        end
+        blocks.concat(caller_blocks)
+
+        return if blocks.empty?
+
+        # Tier-2 marker: caches the full system prefix (OAUTH_GATE +
+        # every caller block). Falls on OAUTH_GATE itself if no caller
+        # blocks exist — the assignment is idempotent.
+        blocks.last[:cache_control] = CACHE_EPHEMERAL
+        body[:system] = blocks
       end
 
       # Breakpoint 2: tool definitions. Anthropic caches the prefix up to the

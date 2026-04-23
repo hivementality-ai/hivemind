@@ -124,7 +124,7 @@ RSpec.describe Providers::Anthropic::FaradayClient, type: :service do
         expect(stub).to have_been_requested
       end
 
-      it "prepends OAUTH_GATE as the first system block" do
+      it "prepends OAUTH_GATE as the first system block with its own cache marker" do
         captured_body = nil
         stub_request(:post, described_class::API_URL)
           .with { |req|
@@ -141,6 +141,63 @@ RSpec.describe Providers::Anthropic::FaradayClient, type: :service do
           "cache_control" => { "type" => "ephemeral" }
         )
         expect(captured_body["system"][1]["text"]).to eq("You are helpful")
+        expect(captured_body["system"][1]["cache_control"]).to eq("type" => "ephemeral")
+      end
+
+      it "emits exactly 2 system markers with OAuth regardless of caller block count" do
+        captured_body = nil
+        multi_system_params = base_params.merge(
+          system: [
+            { type: "text", text: "Block A" },
+            { type: "text", text: "Block B" },
+            { type: "text", text: "Block C" }
+          ]
+        )
+        stub_request(:post, described_class::API_URL)
+          .with { |req| captured_body = JSON.parse(req.body); true }
+          .to_return(status: 200, body: { content: [], usage: {} }.to_json)
+
+        client.chat(params: multi_system_params)
+
+        # OAUTH_GATE + 3 caller blocks = 4 system blocks; markers only on
+        # OAUTH_GATE (tier-1) and the last caller block (tier-2).
+        system_markers = captured_body["system"].count { |b| b["cache_control"] }
+        expect(system_markers).to eq(2)
+        expect(captured_body["system"].first["cache_control"]).to eq("type" => "ephemeral")
+        expect(captured_body["system"].last["cache_control"]).to eq("type" => "ephemeral")
+        expect(captured_body["system"][1]).not_to have_key("cache_control")
+        expect(captured_body["system"][2]).not_to have_key("cache_control")
+      end
+
+      it "stays within Anthropic's 4-cache-control-marker limit end-to-end" do
+        captured_body = nil
+        big_params = base_params.merge(
+          system: [
+            { type: "text", text: "Block A" },
+            { type: "text", text: "Block B" },
+            { type: "text", text: "Block C" }
+          ],
+          tools: [
+            { name: "a", description: "a", input_schema: { type: "object" } },
+            { name: "b", description: "b", input_schema: { type: "object" } }
+          ]
+        )
+        stub_request(:post, described_class::API_URL)
+          .with { |req| captured_body = JSON.parse(req.body); true }
+          .to_return(status: 200, body: { content: [], usage: {} }.to_json)
+
+        client.chat(params: big_params)
+
+        total_markers = 0
+        total_markers += Array(captured_body["system"]).count { |b| b["cache_control"] }
+        total_markers += Array(captured_body["tools"]).count { |t| t["cache_control"] }
+        Array(captured_body["messages"]).each do |m|
+          total_markers += Array(m["content"]).count { |c| c.is_a?(Hash) && c["cache_control"] }
+        end
+
+        # OAuth + system + tools + last-message should use all 4 markers
+        # (leaving nothing on the table) without exceeding Anthropic's cap.
+        expect(total_markers).to eq(4)
       end
     end
 
