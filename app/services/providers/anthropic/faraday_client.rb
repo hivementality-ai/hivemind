@@ -187,10 +187,13 @@ module Providers
       # ─── Sync ────────────────────────────────────────────────────────
 
       def sync_request(body)
+        log_outbound(body)
         response = connection.post(API_URL) do |req|
           apply_headers(req)
           req.body = JSON.generate(body)
         end
+
+        log_inbound(response.status, response.body)
 
         unless response.success?
           err = parse_error_body(response.body)
@@ -199,6 +202,30 @@ module Providers
 
         parsed = JSON.parse(response.body)
         ServiceResponse.success(data: build_sync_data(parsed))
+      end
+
+      # ─── Debug logging (gated by Setting "prompt_debug_enabled") ─────
+
+      def prompt_debug?
+        Setting.get("prompt_debug_enabled") == "true"
+      rescue StandardError
+        false
+      end
+
+      def log_outbound(body)
+        return unless prompt_debug?
+        Rails.logger.info("[Anthropic→] POST #{API_URL} oauth=#{oauth?} body=\n#{JSON.pretty_generate(body)}")
+      rescue StandardError => e
+        Rails.logger.warn("[Anthropic→] log_outbound failed: #{e.message}")
+      end
+
+      def log_inbound(status, body)
+        return unless prompt_debug?
+        snippet = body.to_s
+        snippet = snippet[0..10_000] + "\n…[truncated #{snippet.length} bytes]" if snippet.length > 10_000
+        Rails.logger.info("[Anthropic←] status=#{status} body=\n#{snippet}")
+      rescue StandardError => e
+        Rails.logger.warn("[Anthropic←] log_inbound failed: #{e.message}")
       end
 
       def build_sync_data(body)
@@ -253,6 +280,7 @@ module Providers
       # ─── Streaming (SSE) ─────────────────────────────────────────────
 
       def stream_request(body, &block)
+        log_outbound(body)
         streamer = StreamParser.new(&block)
         error_chunks = []
 
@@ -269,11 +297,23 @@ module Providers
         end
 
         unless response.status == 200
+          log_inbound(response.status, error_chunks.join)
           err = parse_error_body(error_chunks.join)
           return ServiceResponse.failure(error: "Anthropic API error (#{response.status}): #{err}")
         end
 
-        ServiceResponse.success(data: streamer.finalize)
+        data = streamer.finalize
+        log_stream_summary(data) if prompt_debug?
+        ServiceResponse.success(data: data)
+      end
+
+      def log_stream_summary(data)
+        content_len = data[:content].to_s.length
+        tool_count = Array(data[:tool_calls]).size
+        usage = data[:usage] || {}
+        Rails.logger.info("[Anthropic←] stream done content_chars=#{content_len} tool_calls=#{tool_count} usage=#{usage.inspect}")
+      rescue StandardError => e
+        Rails.logger.warn("[Anthropic←] log_stream_summary failed: #{e.message}")
       end
 
       # Inline SSE parser that maps Anthropic stream events to hivemind's

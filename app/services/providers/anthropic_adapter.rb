@@ -37,6 +37,17 @@ module Providers
     end
 
     def use_sdk_proxy_fallback?
+      self.class.sdk_proxy_enabled?
+    end
+
+    # Setting-first so the flag can be toggled from the provider edit
+    # page without a redeploy; ENV retained as a fallback for bootstrap
+    # scenarios where the DB isn't reachable yet.
+    def self.sdk_proxy_enabled?
+      val = Setting.get("anthropic_use_sdk_proxy")
+      return val == "true" if val.present?
+      ENV["USE_SDK_PROXY_FALLBACK"] == "true"
+    rescue StandardError
       ENV["USE_SDK_PROXY_FALLBACK"] == "true"
     end
 

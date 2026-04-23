@@ -230,6 +230,39 @@
         </div>
       <% end %>
 
+      <% if @provider.adapter_type == "anthropic" %>
+        <!-- Anthropic Debug & Routing -->
+        <div class="bg-surface-raised rounded-lg border border-border-default p-5 space-y-4">
+          <h3 class="text-white font-semibold text-sm">Debug & Routing</h3>
+
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input type="hidden" name="provider_config[prompt_debug_enabled]" value="0">
+            <input type="checkbox"
+                   name="provider_config[prompt_debug_enabled]"
+                   value="1"
+                   <%= "checked" if Setting.get("prompt_debug_enabled") == "true" %>
+                   class="mt-1 w-4 h-4 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay flex-shrink-0">
+            <div class="flex-1">
+              <span class="text-white text-sm font-medium block">Log API requests & responses</span>
+              <p class="text-text-muted text-xs">Writes full outbound body + response body (or streaming summary) to Rails logs. Look for <code class="text-text-primary font-mono">[Anthropic→]</code> / <code class="text-text-primary font-mono">[Anthropic←]</code>.</p>
+            </div>
+          </label>
+
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input type="hidden" name="provider_config[anthropic_use_sdk_proxy]" value="0">
+            <input type="checkbox"
+                   name="provider_config[anthropic_use_sdk_proxy]"
+                   value="1"
+                   <%= "checked" if Providers::AnthropicAdapter.sdk_proxy_enabled? %>
+                   class="mt-1 w-4 h-4 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay flex-shrink-0">
+            <div class="flex-1">
+              <span class="text-white text-sm font-medium block">Use Node SDK proxy for OAuth (fallback)</span>
+              <p class="text-text-muted text-xs">When off (default), OAuth tokens hit <code class="text-text-primary font-mono">/v1/messages</code> via the Ruby Faraday client. Toggle on to fall back to the legacy <code class="text-text-primary font-mono">sdk-proxy</code> container — useful for A/B testing a broken request.</p>
+            </div>
+          </label>
+        </div>
+      <% end %>
+
       <!-- Form Actions -->
       <div class="flex gap-3 pt-4 border-t border-border-default">
         <%= f.submit "Save Changes", class: "px-6 py-2 bg-brand hover:bg-brand-dark text-white font-semibold rounded-lg transition" %>

@@ -108,6 +108,14 @@ class ProvidersController < ApplicationController
         Setting.set("default_model_#{@provider.adapter_type}", default_model)
       end
 
+      # Anthropic-only debug toggles (always write both so unchecking
+      # actually clears the flag — checkboxes don't post when unchecked,
+      # but the hidden twin in the form posts "0" as a floor value).
+      if @provider.adapter_type == "anthropic"
+        Setting.set("prompt_debug_enabled", bool_param(provider_params[:prompt_debug_enabled]).to_s)
+        Setting.set("anthropic_use_sdk_proxy", bool_param(provider_params[:anthropic_use_sdk_proxy]).to_s)
+      end
+
       redirect_to provider_path(@provider), notice: "Provider updated successfully."
     else
       @available_models = available_models_for(@provider.adapter_type)
@@ -130,9 +138,13 @@ class ProvidersController < ApplicationController
   end
 
   def provider_params
-    permitted = [ :api_key, :default_model, :base_url, models: [] ]
+    permitted = [ :api_key, :default_model, :base_url, :prompt_debug_enabled, :anthropic_use_sdk_proxy, models: [] ]
     permitted.unshift(:adapter_type, :name) if action_name == "create"
     params.require(:provider_config).permit(*permitted)
+  end
+
+  def bool_param(val)
+    %w[1 true on yes].include?(val.to_s.downcase)
   end
 
   def available_models_for(provider_type)
