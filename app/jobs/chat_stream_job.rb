@@ -229,6 +229,11 @@ class ChatStreamJob < ApplicationJob
       set_processing(session.id, false)
       ActionCable.server.broadcast(channel, { type: "processing", active: false })
 
+      # Close hook sessions so they don't accumulate as zombies
+      if session.metadata&.dig("type")&.start_with?("task_hook")
+        session.update_columns(status: "completed", last_activity_at: Time.current)
+      end
+
       # Continue task hook pipeline if this session is part of one
       continue_task_pipeline_if_needed(session)
     end
