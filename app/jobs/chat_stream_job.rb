@@ -143,9 +143,16 @@ class ChatStreamJob < ApplicationJob
         result = Agents::ToolLoop.call(
           adapter:, agent:, session:, messages:, tools:, channel:, options: llm_options
         )
-        full_content = result&.data&.dig(:content).to_s
-        thinking_content = result&.data&.dig(:thinking)
-        tool_history = result&.data&.dig(:tool_history)
+        if result && !result.success?
+          error_msg = "⚠️ LLM error: #{result.error}"
+          ActionCable.server.broadcast(channel, { type: "error", content: error_msg })
+          Rails.logger.error("ChatStreamJob ToolLoop failure: #{result.error}")
+          full_content = error_msg
+        else
+          full_content = result&.data&.dig(:content).to_s
+          thinking_content = result&.data&.dig(:thinking)
+          tool_history = result&.data&.dig(:tool_history)
+        end
       else
         full_content = +""
         full_thinking = +""
