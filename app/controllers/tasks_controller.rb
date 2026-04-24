@@ -19,7 +19,7 @@ class TasksController < ApplicationController
     @agents     = Agent.visible.enabled.order(:name)
     @projects   = Project.order(:title)
     @milestones = @task.project ? @task.project.milestones.ordered : ProjectMilestone.none
-    @events     = @task.task_events.recent_first.limit(20)
+    @events     = @task.task_events.recent_first.includes(:agent).limit(50)
   end
 
   def new
@@ -94,7 +94,16 @@ class TasksController < ApplicationController
       other_params = task_params.except(:status)
       @task.update!(other_params) if other_params.any?
     elsif @task.update(task_params)
-      # No status change — normal update
+      # No status change — log field-level updates
+      changed = @task.previous_changes.keys - %w[updated_at]
+      if changed.any?
+        Tasks::EventLogger.call(
+          task: @task,
+          event_type: "updated",
+          summary: "Task updated via UI: #{changed.join(', ')}",
+          metadata: { changed_fields: changed, source: "web" }
+        )
+      end
     else
       respond_to do |format|
         format.html do

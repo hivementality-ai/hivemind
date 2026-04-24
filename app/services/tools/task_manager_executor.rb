@@ -24,9 +24,10 @@ module Tools
       when "remove_hook"      then remove_hook
       when "add_artifact"     then add_artifact
       when "remove_artifact"  then remove_artifact
+      when "activity"         then task_activity
       else
         ServiceResponse.failure(
-          error: "Unknown action: #{action}. Supported: create, update, move, assign, list, my_tasks, add_comment, close, add_dependency, remove_dependency, update_checklist, add_hook, remove_hook, add_artifact, remove_artifact"
+          error: "Unknown action: #{action}. Supported: create, update, move, assign, list, my_tasks, add_comment, close, add_dependency, remove_dependency, update_checklist, add_hook, remove_hook, add_artifact, remove_artifact, activity"
         )
       end
     rescue StandardError => e
@@ -81,18 +82,54 @@ module Tools
 
     def update_task
       task = find_task!
+      changes = []
 
-      task.title       = input["title"]                    if input["title"].present?
-      task.description = input["description"]              if input.key?("description")
-      task.priority    = valid_priority(input["priority"]) if input["priority"].present?
-      task.due_at      = parse_date(input["due_at"])       if input.key?("due_at")
+      if input["title"].present? && input["title"] != task.title
+        changes << "title"
+        task.title = input["title"]
+      end
+      if input.key?("description") && input["description"] != task.description
+        changes << "description"
+        task.description = input["description"]
+      end
+      if input["priority"].present?
+        new_priority = valid_priority(input["priority"])
+        if new_priority && new_priority != task.priority
+          changes << "priority (#{task.priority} -> #{new_priority})"
+          task.priority = new_priority
+        end
+      end
+      if input.key?("due_at")
+        changes << "due_at"
+        task.due_at = parse_date(input["due_at"])
+      end
 
       # Optional linkage updates
-      task.project           = find_project(input["project_id"])     if input.key?("project_id")
-      task.project_milestone = find_milestone(input["milestone_id"]) if input.key?("milestone_id")
-      task.session           = resolve_session(input["session_id"])  if input.key?("session_id")
+      if input.key?("project_id")
+        changes << "project"
+        task.project = find_project(input["project_id"])
+      end
+      if input.key?("milestone_id")
+        changes << "milestone"
+        task.project_milestone = find_milestone(input["milestone_id"])
+      end
+      if input.key?("session_id")
+        changes << "session"
+        task.session = resolve_session(input["session_id"])
+      end
 
       task.save!
+
+      if changes.any?
+        Tasks::EventLogger.call(
+          task: task,
+          agent: agent,
+          event_type: "updated",
+          summary: "Task updated: #{changes.join(', ')}",
+          metadata: { changed_fields: changes }
+        )
+      end
+
       ServiceResponse.success(data: { output: "Updated task ##{task.id}: #{task.title}" })
     end
 
@@ -296,7 +333,16 @@ module Tools
           position: task.task_hooks.count
         )
         label = skill ? "skill '#{skill.name}'" : "default behavior"
-        agent_label = hook_agent ? " → #{hook_agent.name}" : ""
+        agent_label = hook_agent ? " -> #{hook_agent.name}" : ""
+
+        Tasks::EventLogger.call(
+          task: task,
+          agent: agent,
+          event_type: "hook_added",
+          summary: "Hook added: #{trigger} on '#{on_status}' (#{label}#{agent_label})",
+          metadata: { hook_id: hook.id, trigger: trigger, on_status: on_status, skill: skill&.name }
+        )
+
         ServiceResponse.success(data: { output: "Added #{trigger}-hook on '#{on_status}' (#{label}#{agent_label}) to task ##{task.id}" })
       else
         # Team-level default hook
@@ -325,7 +371,16 @@ module Tools
       hook_id = require_param!("hook_id")
 
       hook = task.task_hooks.find(hook_id)
+      summary = "Hook removed: #{hook.trigger} on '#{hook.on_status}'"
       hook.destroy!
+
+      Tasks::EventLogger.call(
+        task: task,
+        agent: agent,
+        event_type: "hook_removed",
+        summary: summary,
+        metadata: { hook_id: hook_id.to_i }
+      )
 
       ServiceResponse.success(data: { output: "Removed hook ##{hook_id} from task ##{task.id}" })
     rescue ActiveRecord::RecordNotFound
@@ -370,6 +425,25 @@ module Tools
       else
         ServiceResponse.failure(error: "Artifact '#{artifact_id}' not found on task ##{task.id}")
       end
+    end
+
+    def task_activity
+      task = find_task!
+      limit = input["limit"].present? ? input["limit"].to_i.clamp(1, 100) : 20
+
+      scope = task.task_events.recent_first
+      scope = scope.by_type(input["event_type"]) if input["event_type"].present?
+      scope = scope.since(Time.zone.parse(input["since"])) if input["since"].present?
+
+      events = scope.limit(limit).includes(:agent)
+
+      if events.empty?
+        return ServiceResponse.success(data: { output: "No activity found for task ##{task.id}." })
+      end
+
+      lines = events.map(&:to_activity_line)
+      header = "Activity for task ##{task.id} (#{events.size} events):"
+      ServiceResponse.success(data: { output: "#{header}\n\n#{lines.join("\n")}" })
     end
 
     # ─── Helpers ───────────────────────────────────────────────────

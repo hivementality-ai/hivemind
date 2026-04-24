@@ -153,6 +153,26 @@ RSpec.describe Tools::TaskManagerExecutor do
         expect(result.data[:output]).to include("Updated title")
       end
 
+      it "logs an 'updated' event when fields change" do
+        expect { subject.call }.to change(TaskEvent, :count).by(1)
+        event = TaskEvent.last
+        expect(event.event_type).to eq("updated")
+        expect(event.summary).to include("title")
+      end
+
+      it "does not log an event when nothing changes" do
+        input["title"] = task.title
+        input.delete("description")
+        expect { subject.call }.not_to change(TaskEvent, :count)
+      end
+
+      it "tracks priority changes in the summary" do
+        input["priority"] = "urgent"
+        subject.call
+        event = TaskEvent.last
+        expect(event.summary).to include("priority (medium -> urgent)")
+      end
+
       it "updates priority when provided" do
         input["priority"] = "urgent"
         subject.call
@@ -804,6 +824,131 @@ RSpec.describe Tools::TaskManagerExecutor do
           result = subject.call
           expect(result).not_to be_success
           expect(result.error).to include("artifact_id is required")
+        end
+      end
+    end
+
+    # ─── add_hook event logging ──────────────────────────────────
+
+    context "action: add_hook event logging" do
+      let!(:task)  { create(:task) }
+      let!(:skill) { create(:skill, name: "deploy_skill") }
+      let(:input) do
+        {
+          "action" => "add_hook",
+          "task_id" => task.id.to_s,
+          "skill_name" => "deploy_skill",
+          "hook_trigger" => "post",
+          "hook_on_status" => "done"
+        }
+      end
+
+      it "logs a hook_added event" do
+        expect { subject.call }.to change { TaskEvent.where(event_type: "hook_added").count }.by(1)
+      end
+
+      it "includes hook details in the summary" do
+        subject.call
+        event = TaskEvent.where(event_type: "hook_added").last
+        expect(event.summary).to include("post")
+        expect(event.summary).to include("done")
+        expect(event.summary).to include("deploy_skill")
+      end
+    end
+
+    # ─── remove_hook event logging ─────────────────────────────
+
+    context "action: remove_hook event logging" do
+      let!(:task)  { create(:task) }
+      let!(:skill) { create(:skill) }
+      let!(:hook)  { create(:task_hook, task: task, skill: skill, trigger: "post", on_status: "done") }
+      let(:input)  { { "action" => "remove_hook", "task_id" => task.id.to_s, "hook_id" => hook.id.to_s } }
+
+      it "logs a hook_removed event" do
+        expect { subject.call }.to change { TaskEvent.where(event_type: "hook_removed").count }.by(1)
+      end
+
+      it "includes trigger and status in the summary" do
+        subject.call
+        event = TaskEvent.where(event_type: "hook_removed").last
+        expect(event.summary).to include("post")
+        expect(event.summary).to include("done")
+      end
+    end
+
+    # ─── activity ──────────────────────────────────────────────────
+
+    context "action: activity" do
+      let!(:task)  { create(:task) }
+      let(:input)  { { "action" => "activity", "task_id" => task.id.to_s } }
+
+      before do
+        create(:task_event, task: task, event_type: "created", summary: "Task created", agent: agent, created_at: 2.hours.ago)
+        create(:task_event, task: task, event_type: "assigned", summary: "Assigned to Mando", agent: agent, created_at: 1.hour.ago)
+        create(:task_event, task: task, event_type: "status_change", summary: "Moved to in_progress", agent: agent, created_at: 30.minutes.ago)
+      end
+
+      it "returns activity for the task" do
+        result = subject.call
+        expect(result).to be_success
+        expect(result.data[:output]).to include("Activity for task ##{task.id}")
+        expect(result.data[:output]).to include("3 events")
+      end
+
+      it "returns events in reverse chronological order" do
+        result = subject.call
+        lines = result.data[:output].split("\n").reject(&:blank?)
+        # First event line (after header) should be the most recent
+        expect(lines[1]).to include("Moved to in_progress")
+      end
+
+      it "filters by event_type" do
+        input["event_type"] = "assigned"
+        result = subject.call
+        expect(result).to be_success
+        expect(result.data[:output]).to include("1 events")
+        expect(result.data[:output]).to include("Assigned to Mando")
+      end
+
+      it "filters by since timestamp" do
+        input["since"] = 45.minutes.ago.iso8601
+        result = subject.call
+        expect(result).to be_success
+        expect(result.data[:output]).to include("1 events")
+        expect(result.data[:output]).to include("Moved to in_progress")
+      end
+
+      it "respects the limit parameter" do
+        input["limit"] = "1"
+        result = subject.call
+        expect(result).to be_success
+        expect(result.data[:output]).to include("1 events")
+      end
+
+      it "returns a friendly message when no activity exists" do
+        TaskEvent.delete_all
+        result = subject.call
+        expect(result).to be_success
+        expect(result.data[:output]).to include("No activity found")
+      end
+
+      context "when task_id is missing" do
+        let(:input) { { "action" => "activity" } }
+
+        it "returns failure" do
+          result = subject.call
+          expect(result).not_to be_success
+          expect(result.error).to include("task_id is required")
+        end
+      end
+
+      context "when task does not exist" do
+        let(:input) { { "action" => "activity", "task_id" => "99999" } }
+
+        it "returns failure" do
+          result = subject.call
+          expect(result).not_to be_success
+          expect(result.error).to include("not found")
         end
       end
     end
