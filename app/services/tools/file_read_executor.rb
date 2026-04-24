@@ -26,9 +26,34 @@ module Tools
         end
       end
 
-      ServiceResponse.success(data: { output: content, exit_code: 0 })
+      output = load_related? ? render_with_related(full_path, content) : content
+      ServiceResponse.success(data: { output: output, exit_code: 0 })
     rescue StandardError => e
       ServiceResponse.failure(error: "Read failed: #{e.message}")
+    end
+
+    private
+
+    def load_related?
+      val = input["load_related"] || input[:load_related]
+      %w[1 true on yes].include?(val.to_s.downcase)
+    end
+
+    # When load_related=true, use Agents::ContextBudget to pull in
+    # Rails-convention-related files (specs, factories, controllers) up
+    # to a 4k-token budget. Primary content stays at the top; related
+    # files come labeled with their mode (full or signatures-only).
+    def render_with_related(primary_path, primary_content)
+      budget = Agents::ContextBudget.new
+      results = budget.load_for(primary_path)
+      return primary_content if results.size <= 1
+
+      sections = [ "=== #{primary_path} (primary) ===", primary_content ]
+      results.drop(1).each do |entry|
+        sections << "=== #{entry[:file]} (#{entry[:mode]}) ===" << entry[:content].to_s
+      end
+      sections << "\n[Loaded #{results.size} files, #{budget.tokens_used} tokens used of #{budget.stats[:budget]} budget]"
+      sections.join("\n")
     end
   end
 end
