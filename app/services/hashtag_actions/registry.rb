@@ -16,6 +16,7 @@ module HashtagActions
       "summarize" => "HashtagActions::Actions::Summarize",
       "status"    => "HashtagActions::Actions::Status",
       "reset"     => "HashtagActions::Actions::Reset",
+      "compact"   => "HashtagActions::Actions::Compact",
       "help"      => "HashtagActions::Actions::Help",
       "mood"      => "HashtagActions::Actions::Mood",
       "voice"     => "HashtagActions::Actions::Voice",
