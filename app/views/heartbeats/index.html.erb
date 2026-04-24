@@ -149,6 +149,28 @@
     </div>
   </div>
 
+  <!-- Current Memory -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-lg font-semibold text-white">Memory</h2>
+      <% if @heartbeat_memory.present? %>
+        <%= button_to "Clear", clear_heartbeat_memories_path, method: :delete,
+            data: { turbo_confirm: "Clear all heartbeat memories? The next heartbeat run will create a fresh one." },
+            class: "px-3 py-1 bg-red-900/40 hover:bg-red-800/60 text-red-400 text-xs rounded-lg transition" %>
+      <% end %>
+    </div>
+    <p class="text-text-faint text-sm mb-4">The system assistant keeps a single memory that gets overwritten each heartbeat. If it contains bad data, clear it and the next run will start fresh.</p>
+
+    <% if @heartbeat_memory.present? %>
+      <div class="p-4 bg-surface-base rounded-lg">
+        <pre class="text-text-primary text-xs whitespace-pre-wrap leading-relaxed font-mono"><%= @heartbeat_memory.content %></pre>
+        <p class="text-gray-600 text-xs mt-3">Last updated <%= time_ago_in_words(@heartbeat_memory.updated_at) %> ago</p>
+      </div>
+    <% else %>
+      <p class="text-text-faint text-sm text-center py-4">No memory stored. One will be created after the next heartbeat run.</p>
+    <% end %>
+  </div>
+
   <!-- Task Checklist -->
   <div class="bg-surface-card rounded-xl border border-border-default p-6">
     <h2 class="text-lg font-semibold text-white mb-1">Checklist</h2>

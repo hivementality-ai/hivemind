@@ -359,6 +359,50 @@ RSpec.describe HeartbeatJob, type: :job do
       expect(Session.exists?(other_session.id)).to be true
     end
 
+    # ─── Memory overwrite ───────────────────────────────────────
+
+    it "overwrites the system assistant memory with the latest summary" do
+      # Pre-existing memory should be replaced
+      create(:memory_entry, agent: agent, content: "old heartbeat memory")
+
+      described_class.perform_now
+
+      memories = agent.memory_entries.reload
+      expect(memories.count).to eq(1)
+      expect(memories.first.content).to eq("Everything looks good")
+      expect(memories.first.memory_type).to eq("semantic")
+      expect(memories.first.importance).to eq(1.0)
+      expect(memories.first.metadata["source"]).to eq("heartbeat")
+    end
+
+    it "replaces multiple old memories with a single new one" do
+      create(:memory_entry, agent: agent, content: "old memory 1")
+      create(:memory_entry, agent: agent, content: "old memory 2")
+      create(:memory_entry, agent: agent, content: "old memory 3")
+
+      described_class.perform_now
+
+      expect(agent.memory_entries.reload.count).to eq(1)
+    end
+
+    it "does not create a memory when the heartbeat fails" do
+      allow(Sessions::Chat).to receive(:call).and_return(double(success?: false, error: "timeout"))
+
+      described_class.perform_now
+
+      expect(agent.memory_entries.count).to eq(0)
+    end
+
+    it "does not affect other agents' memories" do
+      other_agent = create(:agent, name: "Other")
+      other_memory = create(:memory_entry, agent: other_agent, content: "should survive")
+
+      described_class.perform_now
+
+      expect(other_agent.memory_entries.reload.count).to eq(1)
+      expect(other_memory.reload.content).to eq("should survive")
+    end
+
     # ─── light_context mode ───────────────────────────────────────
 
     context "with light_context enabled" do
