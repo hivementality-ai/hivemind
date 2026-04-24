@@ -64,82 +64,50 @@ module Tasks
 
     private
 
+    # Slim prompt — send the directive, task summary, and instructions.
+    # The agent pulls full details (comments, artifacts, checklist, dependencies)
+    # via `task_manager` at runtime, saving potentially thousands of tokens.
     def build_hook_prompt(skill)
       parts = []
+
+      # --- Directive header ---
       parts << "## Work Order — Task ##{@task.id}"
       parts << ""
       parts << status_directive
       parts << ""
-      parts << "### Task Details"
+
+      # --- Minimal task context (just enough to orient the agent) ---
+      parts << "### Task Summary"
       parts << "- **Task ID**: ##{@task.id}"
       parts << "- **Title**: #{@task.title}"
       parts << "- **Status**: #{@task.status}"
       parts << "- **Priority**: #{@task.priority}"
       parts << "- **Assigned to**: #{@task.assigned_to_agent&.name}" if @task.assigned_to_agent
-      parts << "- **Created by**: #{@task.created_by_agent&.name}" if @task.created_by_agent
       parts << "- **Due**: #{@task.due_at.strftime('%Y-%m-%d %H:%M')}" if @task.due_at.present?
       parts << "- **Project**: #{@task.project.title}" if @task.project
       parts << "- **Milestone**: #{@task.project_milestone.title}" if @task.project_milestone
       parts << ""
 
+      # Include description — this is the core "what to build" context
       if @task.description.present?
         parts << "### Description"
         parts << @task.description
         parts << ""
       end
 
-      # Include checklist items
-      if @task.checklist.present?
-        parts << "### Checklist"
-        @task.checklist.each_with_index do |item, idx|
-          check = item["checked"] ? "x" : " "
-          parts << "- [#{check}] (index #{idx}) #{item['title']}"
-        end
-        parts << ""
-      end
+      # --- Self-serve instructions ---
+      # Instead of dumping full comments, artifacts, checklist, and dependencies
+      # into the prompt (which can be thousands of tokens on mature tasks),
+      # tell the agent to pull them via task_manager.
+      parts << "### Before You Start"
+      parts << "Use `task_manager` to read the full task context before beginning work:"
+      parts << "```"
+      parts << "task_manager action: \"get\", task_id: #{@task.id}"
+      parts << "```"
+      parts << "This will show you the complete checklist, all comments (including review feedback), artifacts (PRs, branches), and dependencies. **Read it all before writing code.**"
+      parts << ""
 
-      # Include artifacts as compact references
-      if @task.artifacts.present?
-        parts << "### Artifacts"
-        @task.artifacts.each do |artifact|
-          line = "- **#{artifact['title']}** (#{artifact['type']})"
-          line += " — #{artifact['url']}" if artifact["url"].present?
-          line += " by #{artifact['created_by']}" if artifact["created_by"].present?
-          line += ": #{artifact['description']}" if artifact["description"].present?
-          parts << line
-        end
-        parts << ""
-      end
-
-      # Include comments (full history)
-      if @task.comments.present?
-        parts << "### Comments"
-        @task.comments.each do |comment|
-          parts << "**#{comment['author']}** (#{comment['created_at']}):"
-          parts << comment["body"]
-          parts << ""
-        end
-      end
-
-      # Include dependency info
-      if @task.task_dependencies.exists?
-        parts << "### Dependencies"
-        @task.blocking_tasks.each do |dep|
-          status_icon = dep.status == "done" ? "✅" : "⏳"
-          parts << "- #{status_icon} ##{dep.id}: #{dep.title} (#{dep.status})"
-        end
-        parts << ""
-      end
-
-      # Include tasks that depend on this one
-      if @task.inverse_dependencies.exists?
-        parts << "### Downstream Tasks (blocked by this task)"
-        @task.dependent_tasks.each do |dep|
-          parts << "- ##{dep.id}: #{dep.title} (#{dep.status})"
-        end
-        parts << ""
-      end
-
+      # --- Skill or default instructions ---
       if skill
         parts << "### Skill Instructions"
         parts << skill.content
@@ -150,13 +118,13 @@ module Tasks
         parts << ""
       end
 
-      # Always remind agents to record their output as artifacts
+      # --- Recording work ---
       parts << "### Recording Your Work"
-      parts << "When you produce deliverables, record each one as a task artifact using the `task_manager` tool with `add_artifact`:"
-      parts << "- **title**: Short name (e.g. \"feat: auth service (#42)\", \"feature/auth-module\")"
+      parts << "When you produce deliverables, record each one as a task artifact using `task_manager` with `add_artifact`:"
+      parts << "- **title**: Short name (e.g. \"feat: auth service (#42)\")"
       parts << "- **type**: `pr`, `branch`, `commit`, `file`, `url`, or `document`"
-      parts << "- **url**: Link to the resource (GitHub PR URL, branch URL, doc link, etc.)"
-      parts << "- **description**: One-line summary of what it is"
+      parts << "- **url**: Link to the resource"
+      parts << "- **description**: One-line summary"
       parts << ""
       parts << "This ensures the next agent in the pipeline knows what you produced and where to find it."
       parts << ""
@@ -204,33 +172,24 @@ module Tasks
     def status_directive
       case @hook.on_status
       when "in_progress"
-        "**This is a work order, not a notification.** You are assigned to task ##{@task.id} " \
-        "and you must produce deliverables before this session ends. Read the task details below, " \
-        "then do the work — write code, open a PR, run tests, whatever the task requires. " \
-        "When finished, move the task to `review`. If blocked, comment with specifics and stop.\n\n" \
-        "**Do NOT** simply acknowledge, queue, or defer this task. " \
-        "Responding with \"acknowledged\" or \"I'll get to it\" without producing work is not acceptable. " \
-        "Complete the work NOW."
+        "**This is a work order.** Task ##{@task.id} has moved to `in_progress` and is assigned to you. " \
+        "Read the task, write the code, open a PR, and move the task to `review` when complete. " \
+        "Do NOT acknowledge and close — produce deliverables before this session ends."
       when "review"
-        "**This is a review order, not a notification.** Task ##{@task.id} is ready for your review. " \
-        "Check the artifacts/PRs attached below, review the code, and make a decision NOW:\n\n" \
-        "- **Approve**: Move the task to `done` if the work meets acceptance criteria.\n" \
-        "- **Request changes**: Move the task back to `in_progress` with a comment listing specific fixes needed.\n\n" \
-        "**Do NOT** simply acknowledge this review request. Produce a review with a clear verdict before this session ends."
+        "**This task is ready for review.** Task ##{@task.id} has moved to `review` and is assigned to you. " \
+        "Read the task, check the PR, and make a decision: approve and move to `done`, or request changes and move back to `in_progress` with specific feedback. " \
+        "Do NOT just acknowledge — complete your review before this session ends."
       when "done"
-        "Task ##{@task.id} has been completed. Verify the deliverables are recorded as artifacts " \
-        "and perform any post-completion cleanup (close branches, update docs, notify downstream)."
+        "Task ##{@task.id} has been marked `done`. Verify completion, clean up resources, and close out."
       else
-        "You are handling a task transition to '#{@hook.on_status}' for task ##{@task.id}. " \
-        "Read the details below and take the appropriate action. Produce output — do not just acknowledge."
+        "Task ##{@task.id} has transitioned to `#{@hook.on_status}`. " \
+        "Read the task details and take the appropriate action. Produce output — do not just acknowledge."
       end
     end
 
     def default_task_instructions
       <<~INSTRUCTIONS.strip
         You have been assigned this task. **Produce deliverables before this session ends.**
-
-        Read the task details, description, checklist, comments, and dependencies carefully before starting.
 
         For code tasks: use `git worktree` so you're working in an isolated branch — don't work directly on main. Push to the required repo (check the task description/comments for which repo). Create a PR if appropriate and clean up the worktree when done.
 
