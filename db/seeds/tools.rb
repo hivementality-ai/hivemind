@@ -809,7 +809,7 @@ BUILTIN_TOOLS = [
   # ── Task Manager ──────────────────────────────────────────────
   {
     name: "task_manager",
-    description: "Manage tasks on the shared team task board. Create, update, move, assign, list, comment on, close tasks, manage dependencies, checklists, hooks, and artifacts. Supports task templates for reusable workflows.",
+    description: "Manage tasks on the shared team task board. Create, update, move, assign, list, comment on, close tasks, manage dependencies, checklists, hooks, and artifacts. Supports task templates for reusable workflows. Use 'activity' action to view the audit trail of all changes to a task.",
     executor_type: "task_manager",
     requires_approval: false,
     parameters_schema: {
@@ -817,7 +817,7 @@ BUILTIN_TOOLS = [
         "action" => {
           "type" => "string",
           "description" => "Action to perform",
-          "enum" => %w[create update move assign list my_tasks add_comment close add_dependency remove_dependency update_checklist add_hook remove_hook add_artifact remove_artifact]
+          "enum" => %w[create update move assign list my_tasks add_comment close add_dependency remove_dependency update_checklist add_hook remove_hook add_artifact remove_artifact activity]
         },
         "task_id" => { "type" => "integer", "description" => "Task ID (required for most actions except create, list, my_tasks)" },
         "title" => { "type" => "string", "description" => "Task title (required for create)" },
@@ -843,7 +843,9 @@ BUILTIN_TOOLS = [
         "artifact_url" => { "type" => "string", "description" => "Artifact URL (for add_artifact)" },
         "artifact_description" => { "type" => "string", "description" => "Artifact description (for add_artifact)" },
         "artifact_type" => { "type" => "string", "description" => "Artifact type (for add_artifact)", "enum" => %w[pr branch commit file url document other] },
-        "artifact_id" => { "type" => "string", "description" => "Artifact ID (required for remove_artifact)" }
+        "artifact_id" => { "type" => "string", "description" => "Artifact ID (required for remove_artifact)" },
+        "event_type" => { "type" => "string", "description" => "Filter activity by event type (for activity action)", "enum" => %w[status_change hook_fired comment_added assigned dependency_added dependency_removed checklist_updated created updated hook_added hook_removed artifact_added artifact_removed archived transition_requested pipeline_failed] },
+        "since" => { "type" => "string", "description" => "Show activity since this timestamp, ISO 8601 (for activity action)" }
       },
       "required" => [ "action" ]
     }

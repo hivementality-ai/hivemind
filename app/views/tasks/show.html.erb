@@ -307,16 +307,37 @@
       <!-- Activity Log -->
       <% if @events.any? %>
         <div class="bg-surface-card rounded-xl border border-border-default p-6">
-          <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-4">Activity</h2>
+          <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wider mb-4">
+            Activity
+            <span class="text-text-faint font-normal normal-case tracking-normal ml-1">(<%= @events.size %> events)</span>
+          </h2>
           <div class="space-y-3">
             <% @events.each do |event| %>
               <div class="flex items-start gap-3">
-                <div class="w-1.5 h-1.5 rounded-full bg-text-faint mt-2 flex-shrink-0"></div>
-                <div class="flex-1">
+                <%# Event type indicator dot with color coding %>
+                <% dot_color = case event.event_type
+                     when "status_change", "transition_requested" then "bg-blue-400"
+                     when "created" then "bg-green-400"
+                     when "assigned", "auto_assigned" then "bg-purple-400"
+                     when "comment_added" then "bg-yellow-400"
+                     when "dependency_added", "dependency_removed" then "bg-orange-400"
+                     when "hook_fired", "hook_added", "hook_removed" then "bg-cyan-400"
+                     when "artifact_added", "artifact_removed" then "bg-indigo-400"
+                     when "checklist_updated" then "bg-teal-400"
+                     when "updated" then "bg-slate-400"
+                     when "pipeline_failed" then "bg-red-400"
+                     when "archived" then "bg-gray-500"
+                     else "bg-text-faint"
+                   end %>
+                <div class="w-2 h-2 rounded-full <%= dot_color %> mt-1.5 flex-shrink-0"></div>
+                <div class="flex-1 min-w-0">
                   <p class="text-sm text-text-primary"><%= event.summary %></p>
                   <p class="text-xs text-text-faint mt-0.5">
-                    <%= event.created_at.strftime("%b %-d, %H:%M") %>
-                    <% if event.agent %> &middot; <%= event.agent.name %><% end %>
+                    <%= event.created_at.strftime("%b %-d, %Y %H:%M") %>
+                    <% if event.agent %>
+                      &middot; <span class="text-text-muted"><%= event.agent.name %></span>
+                    <% end %>
+                    &middot; <span class="text-text-faint"><%= event.event_type.humanize %></span>
                   </p>
                 </div>
               </div>
