@@ -66,9 +66,9 @@ module Tasks
 
     def build_hook_prompt(skill)
       parts = []
-      parts << "## Task Hook Execution"
+      parts << "## Work Order — Task ##{@task.id}"
       parts << ""
-      parts << "You are executing a #{@hook.trigger}-hook for task status transition to '#{@hook.on_status}'."
+      parts << status_directive
       parts << ""
       parts << "### Task Details"
       parts << "- **Task ID**: ##{@task.id}"
@@ -201,15 +201,42 @@ module Tasks
       end
     end
 
+    def status_directive
+      case @hook.on_status
+      when "in_progress"
+        "**This is a work order, not a notification.** You are assigned to task ##{@task.id} " \
+        "and you must produce deliverables before this session ends. Read the task details below, " \
+        "then do the work — write code, open a PR, run tests, whatever the task requires. " \
+        "When finished, move the task to `review`. If blocked, comment with specifics and stop.\n\n" \
+        "**Do NOT** simply acknowledge, queue, or defer this task. " \
+        "Responding with \"acknowledged\" or \"I'll get to it\" without producing work is not acceptable. " \
+        "Complete the work NOW."
+      when "review"
+        "**This is a review order, not a notification.** Task ##{@task.id} is ready for your review. " \
+        "Check the artifacts/PRs attached below, review the code, and make a decision NOW:\n\n" \
+        "- **Approve**: Move the task to `done` if the work meets acceptance criteria.\n" \
+        "- **Request changes**: Move the task back to `in_progress` with a comment listing specific fixes needed.\n\n" \
+        "**Do NOT** simply acknowledge this review request. Produce a review with a clear verdict before this session ends."
+      when "done"
+        "Task ##{@task.id} has been completed. Verify the deliverables are recorded as artifacts " \
+        "and perform any post-completion cleanup (close branches, update docs, notify downstream)."
+      else
+        "You are handling a task transition to '#{@hook.on_status}' for task ##{@task.id}. " \
+        "Read the details below and take the appropriate action. Produce output — do not just acknowledge."
+      end
+    end
+
     def default_task_instructions
       <<~INSTRUCTIONS.strip
-        You have been assigned this task. Work through it using your available tools.
+        You have been assigned this task. **Produce deliverables before this session ends.**
 
         Read the task details, description, checklist, comments, and dependencies carefully before starting.
 
         For code tasks: use `git worktree` so you're working in an isolated branch — don't work directly on main. Push to the required repo (check the task description/comments for which repo). Create a PR if appropriate and clean up the worktree when done.
 
         Check off checklist items as you go. When you're done, add a summary comment to the task and move it to `review`. If you get blocked, comment explaining why and stop — don't move to review.
+
+        IMPORTANT: Do NOT respond with just "acknowledged", "queued", or "I'll get to it". You must write code, open PRs, or produce whatever the task requires within this session. If you end this session without deliverables, the task will stall.
       INSTRUCTIONS
     end
   end
