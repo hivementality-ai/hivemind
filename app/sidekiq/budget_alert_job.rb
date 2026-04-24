@@ -33,10 +33,11 @@ class BudgetAlertJob
 
     # Could also send email, Slack notification, etc.
 
-    Audit::Log.call(
-      actor: "system",
+    Audit::Record.call(
+      actor_type: "system",
+      actor_id: "system",
       action: "budget.alert_sent",
-      resource: agent,
+      resource: "agents/#{agent.id}",
       metadata: {
         budget_id: budget.id,
         alert_type: alert_type,

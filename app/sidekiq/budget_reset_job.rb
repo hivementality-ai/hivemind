@@ -18,8 +18,9 @@ class BudgetResetJob
 
     Rails.logger.info "Reset #{count} #{period_type} budgets"
 
-    Audit::Log.call(
-      actor: "system",
+    Audit::Record.call(
+      actor_type: "system",
+      actor_id: "system",
       action: "budgets.reset",
       resource: nil,
       metadata: { period_type: period_type, count: count }
