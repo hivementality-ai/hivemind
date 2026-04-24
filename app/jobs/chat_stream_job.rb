@@ -115,7 +115,8 @@ class ChatStreamJob < ApplicationJob
 
     begin
       # Build LLM options (with thinking if enabled)
-      llm_options = { model: agent.llm_model, max_tokens: agent.max_output_tokens || 8192 }
+      resolved_model = resolve_model(agent, effective_message)
+      llm_options = { model: resolved_model, max_tokens: agent.max_output_tokens || 8192 }
       llm_options.merge!(agent.inference_options)
       if agent.thinking_enabled?
         llm_options[:thinking_enabled] = true
@@ -285,5 +286,35 @@ class ChatStreamJob < ApplicationJob
     tools << SystemTool::LOAD_SKILL if agent.skills.enabled.any?
 
     tools
+  end
+
+  # Resolves the agent's llm_model. If the agent is pinned to "auto" and
+  # its provider supports routing (anthropic or openai), delegate to
+  # Agents::ModelRouter and log the picked model. Otherwise use the
+  # pinned model verbatim.
+  def resolve_model(agent, user_message)
+    return agent.llm_model unless agent.llm_model.to_s == "auto"
+    return agent.llm_model unless Agents::ModelRouter.auto_supported?(agent.model_provider)
+
+    picked = Agents::ModelRouter.route(
+      provider: agent.model_provider,
+      message_text: user_message.to_s,
+      recent_tools: recent_tool_names(agent)
+    )
+    Rails.logger.info("[ModelRouter] agent=#{agent.id} provider=#{agent.model_provider} picked=#{picked}")
+    picked || Agents::ModelRouter::DEFAULT_RULES.dig(agent.model_provider, "tiers", "mid")
+  end
+
+  # Peek at the last few tool executions on this agent so ModelRouter can
+  # factor tool-trajectory into its routing. Bounded to avoid a big query.
+  def recent_tool_names(agent)
+    agent.tool_executions
+         .joins(:tool)
+         .order(created_at: :desc)
+         .limit(5)
+         .pluck("tools.name")
+         .reverse
+  rescue StandardError
+    []
   end
 end
