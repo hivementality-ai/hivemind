@@ -184,6 +184,7 @@ Rails.application.routes.draw do
   patch "heartbeat/soul", to: "heartbeats#update_soul", as: :update_soul_heartbeat
   post "heartbeat/tasks/standing", to: "heartbeats#add_standing_task", as: :add_standing_heartbeat_task
   delete "heartbeat/tasks/standing", to: "heartbeats#delete_standing_task", as: :delete_standing_heartbeat_task
+  delete "heartbeat/memories", to: "heartbeats#clear_memories", as: :clear_heartbeat_memories
 
   # Scheduled Tasks
   resources :scheduled_tasks, only: [ :index, :edit, :update, :destroy ] do

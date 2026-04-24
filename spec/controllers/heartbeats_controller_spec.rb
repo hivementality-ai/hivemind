@@ -39,6 +39,23 @@ RSpec.describe HeartbeatsController, type: :controller do
       expect(groups.map { |g| g[:adapter_type] }).not_to include("openai")
     end
 
+    it 'assigns @heartbeat_memory from system assistant memories' do
+      soul = create(:agent, name: 'Assistant', system_agent: true, role: 'General Assistant', enabled: true)
+      mem = create(:memory_entry, agent: soul, content: 'Latest heartbeat summary')
+
+      get :index
+
+      expect(assigns(:heartbeat_memory)).to eq(mem)
+    end
+
+    it 'assigns nil @heartbeat_memory when no memories exist' do
+      create(:agent, name: 'Assistant', system_agent: true, role: 'General Assistant', enabled: true)
+
+      get :index
+
+      expect(assigns(:heartbeat_memory)).to be_nil
+    end
+
     it 'excludes disabled providers from @provider_models' do
       create(:provider_config,
              name: "Disabled Anthropic",
@@ -145,6 +162,45 @@ RSpec.describe HeartbeatsController, type: :controller do
 
       it 'redirects to sign in' do
         patch :update_soul, params: { system_prompt: 'anything' }
+        expect(response).to redirect_to(new_user_session_path)
+      end
+    end
+  end
+
+  describe 'DELETE #clear_memories' do
+    let!(:soul_agent) { create(:agent, name: 'Assistant', system_agent: true, role: 'General Assistant', enabled: true) }
+
+    it 'deletes all memory entries for the system assistant and redirects' do
+      create(:memory_entry, agent: soul_agent, content: 'old memory 1')
+      create(:memory_entry, agent: soul_agent, content: 'old memory 2')
+
+      expect { delete :clear_memories }.to change { soul_agent.memory_entries.count }.from(2).to(0)
+      expect(response).to redirect_to(heartbeats_path)
+      expect(flash[:notice]).to include('Cleared 2')
+    end
+
+    it 'handles the case when no memories exist' do
+      delete :clear_memories
+      expect(response).to redirect_to(heartbeats_path)
+      expect(flash[:notice]).to include('Cleared 0')
+    end
+
+    it 'does not delete memories belonging to other agents' do
+      other_agent = create(:agent, name: 'Other Agent')
+      create(:memory_entry, agent: other_agent, content: 'should survive')
+      create(:memory_entry, agent: soul_agent, content: 'should be deleted')
+
+      delete :clear_memories
+
+      expect(other_agent.memory_entries.count).to eq(1)
+      expect(soul_agent.memory_entries.count).to eq(0)
+    end
+
+    context 'when not authenticated' do
+      before { sign_out user }
+
+      it 'redirects to sign in' do
+        delete :clear_memories
         expect(response).to redirect_to(new_user_session_path)
       end
     end

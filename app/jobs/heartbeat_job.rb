@@ -86,6 +86,10 @@ class HeartbeatJob < ApplicationJob
       metadata: { tasks_count: load_tasks.size, tool_calls_count: tool_count, tool_history: tool_history&.first(20) }
     )
 
+    # Overwrite the system assistant's single memory with the latest summary.
+    # The system assistant should only ever have one memory — each heartbeat replaces it.
+    overwrite_system_memory(agent, reply) if result&.success? && reply.present?
+
     # Clean up old ephemeral heartbeat sessions (keep last 24h)
     cleanup_old_sessions
 
@@ -281,6 +285,24 @@ class HeartbeatJob < ApplicationJob
       Format: 'HANDOFF: [what you did, what's pending, anything the next heartbeat should know]'
       If nothing needs attention, reply HEARTBEAT_OK.
     INSTRUCTIONS
+  end
+
+  # Replace all existing memories for the system assistant with a single
+  # memory containing the latest heartbeat summary. This prevents memory
+  # accumulation and ensures the assistant always has exactly one memory.
+  def overwrite_system_memory(agent, summary)
+    ActiveRecord::Base.transaction do
+      agent.memory_entries.destroy_all
+      MemoryEntry.create!(
+        agent: agent,
+        content: summary.truncate(2000),
+        memory_type: "semantic",
+        importance: 1.0,
+        metadata: { source: "heartbeat", updated_at: Time.current.iso8601 }
+      )
+    end
+  rescue StandardError => e
+    Rails.logger.warn("[Heartbeat] Memory overwrite failed: #{e.message}")
   end
 
   # Remove ephemeral heartbeat sessions older than 24 hours.

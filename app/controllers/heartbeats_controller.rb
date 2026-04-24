@@ -8,6 +8,7 @@ class HeartbeatsController < ApplicationController
     @runs = HeartbeatRun.includes(:agent, :session).recent
     @provider_models = enabled_provider_models
     @soul_agent = Agent.system_assistant
+    @heartbeat_memory = @soul_agent.memory_entries.order(updated_at: :desc).first
   end
 
   def update
@@ -35,6 +36,13 @@ class HeartbeatsController < ApplicationController
     redirect_to heartbeats_path, notice: "Soul updated"
   rescue ActiveRecord::RecordInvalid => e
     redirect_to heartbeats_path, alert: "Failed to update soul: #{e.message}"
+  end
+
+  def clear_memories
+    agent = Agent.system_assistant
+    count = agent.memory_entries.count
+    agent.memory_entries.destroy_all
+    redirect_to heartbeats_path, notice: "Cleared #{count} heartbeat #{"memory".pluralize(count)}"
   end
 
   def add_standing_task
