@@ -53,6 +53,7 @@ module Api
 
       def fetch_anthropic_models
         [
+          { id: "auto", name: "Auto (route per task)" },
           { id: "claude-opus-4-6", name: "Claude Opus 4.6" },
           { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
           { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5" },
@@ -62,6 +63,7 @@ module Api
 
       def fetch_openai_models
         [
+          { id: "auto", name: "Auto (route per task)" },
           { id: "gpt-5.4", name: "GPT-5.4" },
           { id: "gpt-5.4-mini", name: "GPT-5.4 Mini" },
           { id: "gpt-5.4-nano", name: "GPT-5.4 Nano" },
