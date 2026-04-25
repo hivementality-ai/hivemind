@@ -262,11 +262,10 @@ RSpec.describe SwarmImportsController, type: :controller do
       end
 
       it "passes report locals to the template" do
+        render_views
+
         post :confirm_swarm
-        # The :report local should be an ImportReport with a summary
-        report = controller.view_assigns["report"] rescue nil
-        # Template receives it as a local — check the response body instead
-        expect(response.body).to include("Spec Swarm").or include("deployed")
+        expect(response.body).to include("Spec Swarm").or include("Swarm Deployed")
       end
     end
 
