@@ -29,8 +29,10 @@ module Swarms
       end
 
       def call
-        # nil/blank policy is valid — the field is optional
-        return ServiceResponse.success(payload: { errors: [] }) if @policy.blank?
+        # nil/blank policy is valid — the field is optional.
+        # Note: [].blank? is true in Rails, but an empty Array is still the wrong
+        # type so we must not short-circuit on it.
+        return ServiceResponse.success(payload: { errors: [] }) if @policy.nil? || (@policy.is_a?(Hash) && @policy.empty?)
 
         unless @policy.is_a?(Hash)
           @errors << "egress_policy must be an object"

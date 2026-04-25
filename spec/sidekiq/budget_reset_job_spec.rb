@@ -3,6 +3,8 @@
 require 'rails_helper'
 
 RSpec.describe BudgetResetJob, type: :job do
+  include ActiveSupport::Testing::TimeHelpers
+
   describe '#perform' do
     let(:agent) { create(:agent) }
 

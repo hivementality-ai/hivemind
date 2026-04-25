@@ -386,7 +386,7 @@ RSpec.describe HeartbeatJob, type: :job do
     end
 
     it "does not create a memory when the heartbeat fails" do
-      allow(Sessions::Chat).to receive(:call).and_return(double(success?: false, error: "timeout"))
+      allow(Sessions::Chat).to receive(:call).and_return(double(success?: false, error: "timeout", data: nil))
 
       described_class.perform_now
 

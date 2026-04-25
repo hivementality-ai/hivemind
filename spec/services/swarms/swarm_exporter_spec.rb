@@ -21,8 +21,8 @@ RSpec.describe Swarms::SwarmExporter do
     )
   end
 
-  def call(opts = {})
-    described_class.call({ team: team }.merge(opts))
+  def call(**opts)
+    described_class.call(team: team, **opts)
   end
 
   # ---------------------------------------------------------------------------

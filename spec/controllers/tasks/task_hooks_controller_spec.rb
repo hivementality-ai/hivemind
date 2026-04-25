@@ -124,10 +124,10 @@ RSpec.describe Tasks::TaskHooksController, type: :controller do
       let(:other_task) { create(:task) }
       let!(:other_hook) { create(:task_hook, :for_task, task: other_task, skill: skill) }
 
-      it "raises ActiveRecord::RecordNotFound" do
-        expect {
-          delete :destroy, params: { task_id: task.id, id: other_hook.id }
-        }.to raise_error(ActiveRecord::RecordNotFound)
+      it "redirects with an alert" do
+        delete :destroy, params: { task_id: task.id, id: other_hook.id }
+        expect(response).to redirect_to(edit_task_path(task))
+        expect(flash[:alert]).to eq("Hook not found.")
       end
     end
 

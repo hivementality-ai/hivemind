@@ -141,10 +141,11 @@ module Tools
         return ServiceResponse.failure(error: "Invalid status '#{status}'. Valid: #{Task::STATUSES.join(', ')}")
       end
 
+      old_status = task.status
       result = Tasks::TransitionService.call(task: task, new_status: status, agent: agent)
       return ServiceResponse.failure(error: result.error) unless result.success?
 
-      ServiceResponse.success(data: { output: "Moved task ##{task.id} from '#{result.data[:old_status]}' to '#{status}'" })
+      ServiceResponse.success(data: { output: "Moved task ##{task.id} from '#{old_status}' to '#{status}'" })
     end
 
     def assign_task

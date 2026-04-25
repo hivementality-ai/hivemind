@@ -218,6 +218,16 @@ RSpec.describe Swarms::SwarmValidator do
 
     it "accepts channels with distinct refs" do
       result = validate(valid_swarm(
+        agents: [
+          {
+            name: "Mando",
+            role: "Engineer",
+            skills:      ["core-skill"],
+            tools:       ["my-tool"],
+            mcp_servers: ["my-mcp"],
+            channels:    [{ channel_ref: "slack-1" }]
+          }
+        ],
         channels: [
           { ref: "slack-1", name: "Slack 1", type: "slack" },
           { ref: "slack-2", name: "Slack 2", type: "slack" }

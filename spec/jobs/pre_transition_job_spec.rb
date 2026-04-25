@@ -64,12 +64,12 @@ RSpec.describe Tasks::PreTransitionJob, type: :job do
     end
 
     context "when task is already locked" do
-      it "raises and does not double-lock" do
+      it "does not double-lock and does not enqueue TransitionJob" do
         task.lock_transition!(agent)
 
         expect {
           described_class.new.perform(task.id, "in_progress", agent.id, "{}")
-        }.to raise_error(RuntimeError, /already locked/)
+        }.not_to have_enqueued_job(Tasks::TransitionJob)
       end
     end
 

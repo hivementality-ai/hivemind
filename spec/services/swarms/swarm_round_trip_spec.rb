@@ -572,7 +572,7 @@ RSpec.describe "Swarms round-trip: export to import", type: :integration do
     # when the suite is run with a shared database transaction.
     let(:uid) { SecureRandom.hex(4) }
 
-    it "creates only one skill when the name appears twice" do
+    it "rejects a swarm with duplicate skill names at parse stage" do
       skill_name = "dupe-skill-#{uid}"
       json = {
         "swarm_version" => "1.0",
@@ -582,10 +582,12 @@ RSpec.describe "Swarms round-trip: export to import", type: :integration do
           { "name" => skill_name, "content" => "second" }
         ]
       }.to_json
-      expect { import_json(json) }.to change(Skill, :count).by(1)
+      result = import_json(json)
+      expect(result).to be_error
+      expect(result.payload[:stage]).to eq(:parse)
     end
 
-    it "reports the second duplicate skill as :skipped" do
+    it "does not create any skills when duplicate names are present" do
       skill_name = "dupe2-skill-#{uid}"
       json = {
         "swarm_version" => "1.0",
@@ -595,12 +597,10 @@ RSpec.describe "Swarms round-trip: export to import", type: :integration do
           { "name" => skill_name, "content" => "second" }
         ]
       }.to_json
-      result  = import_json(json)
-      actions = result.payload[:report].results_for(:skill).map(&:action)
-      expect(actions).to eq(%i[created skipped])
+      expect { import_json(json) }.not_to change(Skill, :count)
     end
 
-    it "creates only one agent when the name appears twice" do
+    it "rejects a swarm with duplicate agent names at parse stage" do
       agent_name = "Dupe Agent #{uid}"
       json = {
         "swarm_version" => "1.0",
@@ -610,10 +610,12 @@ RSpec.describe "Swarms round-trip: export to import", type: :integration do
           { "name" => agent_name, "role" => "second" }
         ]
       }.to_json
-      expect { import_json(json) }.to change(Agent, :count).by(1)
+      result = import_json(json)
+      expect(result).to be_error
+      expect(result.payload[:stage]).to eq(:parse)
     end
 
-    it "reports the second duplicate agent as :skipped" do
+    it "does not create any agents when duplicate names are present" do
       agent_name = "Dupe Agent 2 #{uid}"
       json = {
         "swarm_version" => "1.0",
@@ -623,9 +625,7 @@ RSpec.describe "Swarms round-trip: export to import", type: :integration do
           { "name" => agent_name, "role" => "second" }
         ]
       }.to_json
-      result  = import_json(json)
-      actions = result.payload[:report].results_for(:agent).map(&:action)
-      expect(actions).to eq(%i[created skipped])
+      expect { import_json(json) }.not_to change(Agent, :count)
     end
   end
 

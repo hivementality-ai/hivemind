@@ -40,12 +40,12 @@ RSpec.describe TaskHook, type: :model do
     end
 
     it "is valid with just a team" do
-      hook = build(:task_hook, :for_team, skill: create(:skill))
+      hook = build(:task_hook, team: create(:team), skill: create(:skill))
       expect(hook).to be_valid
     end
 
     it "is valid without a skill (uses default behavior)" do
-      hook = build(:task_hook, :for_team, :without_skill)
+      hook = build(:task_hook, team: create(:team), skill: nil)
       expect(hook).to be_valid
     end
   end

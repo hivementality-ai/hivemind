@@ -120,7 +120,7 @@ RSpec.describe ChatStreamJob, type: :job do
 
     context "with tool-equipped agent" do
       let(:tool) { create(:tool, enabled: true, builtin: true) }
-      let(:tool_result) { double(data: { content: "Tool result", thinking: nil, usage: {} }) }
+      let(:tool_result) { double(success?: true, data: { content: "Tool result", thinking: nil, usage: {} }) }
 
       before do
         allow(Tool).to receive_message_chain(:enabled, :builtin, :to_a).and_return([ tool ])
