@@ -124,7 +124,7 @@ RSpec.describe Swarms::SwarmImporter do
       {
         "swarm_version" => "1.0",
         "name"          => "Vault Swarm",
-        "description"   => "token is vault:slack/bot_token"
+        "description"   => "vault:slack/bot_token"
       }.to_json
     end
 
@@ -390,32 +390,28 @@ RSpec.describe Swarms::SwarmImporter do
       }.to_json
     end
 
-    it "creates only one skill when the same skill name appears twice" do
+    it "rejects a swarm with duplicate skill names at parse stage" do
+      result = described_class.call(json: swarm_with_duplicate_skills)
+      expect(result).to be_error
+      expect(result.payload[:stage]).to eq(:parse)
+    end
+
+    it "does not create any skills when duplicate names are present" do
       expect {
         described_class.call(json: swarm_with_duplicate_skills)
-      }.to change(Skill, :count).by(1)
+      }.not_to change(Skill, :count)
     end
 
-    it "reports the second duplicate skill as :skipped" do
-      result = described_class.call(json: swarm_with_duplicate_skills)
-      expect(result).to be_success
-      skill_results = result.payload[:report].results_for(:skill)
-      actions = skill_results.map(&:action)
-      expect(actions).to eq(%i[created skipped])
+    it "rejects a swarm with duplicate agent names at parse stage" do
+      result = described_class.call(json: swarm_with_duplicate_agents)
+      expect(result).to be_error
+      expect(result.payload[:stage]).to eq(:parse)
     end
 
-    it "creates only one agent when the same agent name appears twice" do
+    it "does not create any agents when duplicate names are present" do
       expect {
         described_class.call(json: swarm_with_duplicate_agents)
-      }.to change(Agent, :count).by(1)
-    end
-
-    it "reports the second duplicate agent as :skipped" do
-      result = described_class.call(json: swarm_with_duplicate_agents)
-      expect(result).to be_success
-      agent_results = result.payload[:report].results_for(:agent)
-      actions = agent_results.map(&:action)
-      expect(actions).to eq(%i[created skipped])
+      }.not_to change(Agent, :count)
     end
   end
 end
