@@ -124,7 +124,7 @@ RSpec.describe Swarms::SwarmImporter do
       {
         "swarm_version" => "1.0",
         "name"          => "Vault Swarm",
-        "description"   => "token is vault:slack/bot_token"
+        "description"   => "vault:slack/bot_token"
       }.to_json
     end
 
