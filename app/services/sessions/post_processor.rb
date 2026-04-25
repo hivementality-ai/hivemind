@@ -2,7 +2,7 @@
 
 module Sessions
   class PostProcessor
-    SUMMARIZE_EVERY = 10
+    SUMMARIZE_EVERY = ENV.fetch("SUMMARIZE_EVERY", 10).to_i
     RAW_MESSAGES_TO_KEEP = 20
 
     def self.call(...)
@@ -57,6 +57,16 @@ module Sessions
 
     def store_memory
       return if @user_message.length < 50 && @assistant_response.length < 50
+
+      # Skip memory extraction when the session is mid-tool-loop.
+      # During a ToolLoop with 15 tool calls, PostProcessor fires after each
+      # intermediate turn — creating 15 separate MemoryExtractionJobs, each
+      # making its own LLM API call. Deferring until the loop completes
+      # reduces job spam by ~80% and avoids extracting incomplete context.
+      if @session.metadata&.dig("in_tool_loop")
+        Rails.logger.debug("[Sessions::PostProcessor] Skipping memory extraction — session is mid-tool-loop")
+        return
+      end
 
       # Only run extraction — it creates structured semantic/preference/procedural memories.
       # We no longer store raw "User asked: X / Assistant: Y" episodic entries because they

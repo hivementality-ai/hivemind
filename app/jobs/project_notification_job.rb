@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class ProjectNotificationJob < ApplicationJob
-  queue_as :default
+  queue_as :system
 
   def perform(project_id, message, milestone_id = nil, notification_type = "info")
     project = Project.find_by(id: project_id)

@@ -5,7 +5,7 @@ require "shellwords"
 require "timeout"
 
 class ScheduledScriptJob < ApplicationJob
-  queue_as :default
+  queue_as :agents
 
   EXEC_TIMEOUT = 120
   MAX_OUTPUT = 50_000

@@ -1,0 +1,10 @@
+# Sidekiq Agent Worker — handles long-running LLM agent sessions.
+# Isolated from system jobs so agent work never blocks heartbeats,
+# task pipeline transitions, or other system-critical operations.
+#
+# Run with: bundle exec sidekiq -C config/sidekiq_agents.yml
+---
+:concurrency: <%= ENV.fetch('SIDEKIQ_AGENT_CONCURRENCY', 5).to_i %>
+:queues:
+  - [agents, 5]
+  - [research, 3]

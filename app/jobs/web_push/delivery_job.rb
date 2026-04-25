@@ -2,7 +2,7 @@
 
 module WebPush
   class DeliveryJob < ApplicationJob
-    queue_as :default
+    queue_as :system
     retry_on StandardError, wait: :polynomially_longer, attempts: 3
 
     def perform(subscription_id, payload_json)

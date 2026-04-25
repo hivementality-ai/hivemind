@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class ProjectDigestJob < ApplicationJob
-  queue_as :default
+  queue_as :low
 
   def perform(project_id)
     project = Project.find_by(id: project_id)

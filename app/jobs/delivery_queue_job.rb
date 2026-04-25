@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class DeliveryQueueJob < ApplicationJob
-  queue_as :default
+  queue_as :system
 
   def perform
     result = Channels::DeliveryQueue.process_pending

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class UpdateCheckJob < ApplicationJob
-  queue_as :default
+  queue_as :low
 
   # Runs daily via sidekiq-cron. Checks GitHub for new Hivemind releases
   # and caches the result for the admin UI banner.

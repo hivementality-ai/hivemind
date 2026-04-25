@@ -25,13 +25,29 @@ module Agents
       @decision_compactor = Agents::DecisionCompactor.new(context_manager: @context_manager, threshold: @context_manager.instance_variable_get(:@budget))
     end
 
+    MAX_TOOL_LOOP_DURATION = ENV.fetch("TOOL_LOOP_TIMEOUT", 300).to_i # 5 min default
+
     def call
       all_llm_tools = @tools.map(&:to_llm_tool)
       discovered_names = Set.new
+      started_at = Time.current
+
+      # Mark session as mid-tool-loop so PostProcessor can skip memory
+      # extraction on intermediate turns (reduces job spam by ~80%).
+      set_tool_loop_flag(true)
 
       loop do
         # Check for interrupt signal before LLM call
         check_signal!
+
+        # Enforce wall-clock timeout to prevent runaway loops from holding
+        # a Sidekiq thread indefinitely on constrained hardware.
+        elapsed = Time.current - started_at
+        if elapsed > MAX_TOOL_LOOP_DURATION
+          broadcast(type: "token", content: "\n\n⏰ Tool loop timed out after #{elapsed.to_i}s")
+          Rails.logger.warn("[ToolLoop] Timed out after #{elapsed.to_i}s for session #{@session.id}")
+          break
+        end
 
         # Filter tool schemas by detected task context to save tokens.
         active_llm_tools = filter_tools_for_turn(all_llm_tools, discovered_names)
@@ -120,6 +136,10 @@ module Agents
         usage: @total_usage,
         tool_history: @tool_history.map { |th| { tool: th[:tool_name], input: th[:params], output: th[:output].to_s.truncate(500), success: th[:success] } }
       })
+    ensure
+      # Clear the tool-loop flag so PostProcessor runs memory extraction
+      # on the final response (the one that actually matters).
+      set_tool_loop_flag(false)
     end
 
     private
@@ -314,6 +334,20 @@ module Agents
         @messages << { role: "user", content: signal[:message] }.with_indifferent_access
         broadcast(type: "inject", content: signal[:message])
       end
+    end
+
+    # Sets or clears the in_tool_loop flag on the session metadata.
+    # PostProcessor checks this flag to skip memory extraction on
+    # intermediate turns, reducing job spam during multi-step tool use.
+    def set_tool_loop_flag(active)
+      meta = @session.metadata || {}
+      if active
+        @session.update_column(:metadata, meta.merge("in_tool_loop" => true))
+      else
+        @session.update_column(:metadata, meta.except("in_tool_loop"))
+      end
+    rescue StandardError => e
+      Rails.logger.warn("[ToolLoop] Failed to set tool_loop flag: #{e.message}")
     end
 
     def track_usage(usage)

@@ -1,8 +1,11 @@
+# Sidekiq System Worker — handles system-critical + lightweight jobs.
+# This process must NEVER stall behind long-running agent work.
+#
+# Run with: bundle exec sidekiq -C config/sidekiq.yml
 ---
-:concurrency: 10
+:concurrency: <%= ENV.fetch('SIDEKIQ_SYSTEM_CONCURRENCY', 5).to_i %>
 :queues:
   - [critical, 6]
-  - [default, 4]
+  - [system, 5]
+  - [default, 3]
   - [low, 2]
-  - [agents, 4]
-  - [research, 3]

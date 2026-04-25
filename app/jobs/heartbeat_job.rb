@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class HeartbeatJob < ApplicationJob
-  queue_as :default
+  queue_as :system
 
   def perform
     config = load_config
@@ -43,62 +43,27 @@ class HeartbeatJob < ApplicationJob
 
     prompt = build_prompt(config, previous_summary)
 
-    Rails.logger.info("[Heartbeat] Running with model #{agent.llm_model} via #{agent.model_provider} (ephemeral session #{session.session_key})")
+    # Store metadata the completion callback needs to create HeartbeatRun
+    session.update!(metadata: session.metadata.merge(
+      "original_model" => original_model,
+      "original_provider" => original_provider,
+      "heartbeat_model" => agent.llm_model,
+      "previous_summary" => previous_summary&.truncate(2000),
+      "tasks_count" => load_tasks.size,
+      "started_at" => Time.current.iso8601
+    ))
 
-    started_at = Time.current
-    result = Sessions::Chat.call(session: session, message: prompt, agent: agent)
-    duration_ms = ((Time.current - started_at) * 1000).to_i
+    Rails.logger.info("[Heartbeat] Dispatching async via ChatStreamJob — model #{agent.llm_model} via #{agent.model_provider} (session #{session.session_key})")
 
-    # Capture the model that was actually used before restoring
-    effective_model = agent.llm_model
-
-    # Restore original model and provider
-    if config["model"].present? && config["model"] != original_model
-      agent.update_column(:llm_model, original_model)
-      agent.update_column(:model_provider, original_provider) if original_provider.present?
-    end
-
-    usage = result&.data&.dig(:usage) || {}
-    reply = result&.success? ? result.data[:content].to_s.strip : nil
-    tool_history = result&.success? ? result.data[:tool_history] : nil
-    is_ok = reply.blank? || reply.match?(/\AHEARTBEAT_OK\z/i)
-
-    # Validate: if no tools were called, this is a failed heartbeat
-    tool_count = tool_history&.size || 0
-    if tool_count == 0 && result&.success?
-      Rails.logger.warn("[Heartbeat] Model returned response with ZERO tool calls — likely fabricated results")
-    end
-
-    # Mark ephemeral session as completed
-    session.update!(status: "completed")
-
-    # Track the run (summary becomes the relay note for the next heartbeat)
-    HeartbeatRun.create!(
-      agent: agent,
-      session: session,
-      status: result&.success? ? (is_ok ? "ok" : "action_taken") : "error",
-      summary: result&.success? ? reply&.truncate(2000) : result&.error&.truncate(2000),
-      previous_summary: previous_summary&.truncate(2000),
-      input_tokens: usage[:input_tokens] || 0,
-      output_tokens: usage[:output_tokens] || 0,
-      duration_ms: duration_ms,
-      model: effective_model,
-      metadata: { tasks_count: load_tasks.size, tool_calls_count: tool_count, tool_history: tool_history&.first(20) }
-    )
-
-    # Overwrite the system assistant's single memory with the latest summary.
-    # The system assistant should only ever have one memory — each heartbeat replaces it.
-    overwrite_system_memory(agent, reply) if result&.success? && reply.present?
+    # Dispatch to the agents queue via ChatStreamJob instead of holding
+    # a system-queue thread for the entire LLM call. The heartbeat job
+    # completes in <1s; ChatStreamJob handles the actual work on the
+    # agents queue. HeartbeatRun tracking happens in ChatStreamJob's
+    # ensure block (see finalize_heartbeat_session).
+    ChatStreamJob.perform_later(session.id, prompt, [])
 
     # Clean up old ephemeral heartbeat sessions (keep last 24h)
     cleanup_old_sessions
-
-    return if !result&.success? || is_ok
-
-    ActionCable.server.broadcast(
-      "session_#{session.session_key}",
-      { type: "heartbeat", content: reply, timestamp: Time.current.iso8601 }
-    )
     # DISABLED: Projects::Coordinator was auto-kicking off milestone sessions
     # every heartbeat cycle without explicit user approval. Milestones should
     # use the task board instead — agents pick up work via task_manager, not

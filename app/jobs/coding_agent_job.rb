@@ -4,7 +4,7 @@ require "open3"
 require "fileutils"
 
 class CodingAgentJob < ApplicationJob
-  queue_as :default
+  queue_as :agents
 
   WORKSPACE_CONTAINER = "hivemind-workspace-1"
   EXEC_DIR = "/workspace/.hivemind/exec"

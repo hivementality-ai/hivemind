@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class SubAgentJob < ApplicationJob
-  queue_as :default
+  queue_as :agents
 
   MAX_CALLBACK_DEPTH = 3
 
