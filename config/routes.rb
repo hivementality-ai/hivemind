@@ -72,10 +72,12 @@ Rails.application.routes.draw do
       end
     end
     collection do
-      get  :import_swarm
-      post :upload_swarm
-      get  :preview_swarm
-      post :confirm_swarm
+      controller :swarm_imports do
+        get  :import_swarm
+        post :upload_swarm
+        get  :preview_swarm
+        post :confirm_swarm
+      end
     end
     member do
       get  :export

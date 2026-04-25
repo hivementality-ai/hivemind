@@ -223,11 +223,13 @@ RSpec.describe Tools::TaskManagerExecutor do
     # ─── move ─────────────────────────────────────────────────────
 
     context "action: move" do
+      include ActiveJob::TestHelper
+
       let!(:task)  { create(:task, status: "backlog") }
       let(:input)  { { "action" => "move", "task_id" => task.id.to_s, "status" => "in_progress" } }
 
       it "updates the task status" do
-        subject.call
+        perform_enqueued_jobs { subject.call }
         expect(task.reload.status).to eq("in_progress")
       end
 
@@ -240,7 +242,7 @@ RSpec.describe Tools::TaskManagerExecutor do
 
       it "sets completed_at when moved to done" do
         input["status"] = "done"
-        subject.call
+        perform_enqueued_jobs { subject.call }
         expect(task.reload.completed_at).to be_present
       end
 
@@ -517,16 +519,18 @@ RSpec.describe Tools::TaskManagerExecutor do
     # ─── close ────────────────────────────────────────────────────
 
     context "action: close" do
+      include ActiveJob::TestHelper
+
       let!(:task) { create(:task, status: "review") }
       let(:input) { { "action" => "close", "task_id" => task.id.to_s } }
 
       it "sets status to done" do
-        subject.call
+        perform_enqueued_jobs { subject.call }
         expect(task.reload.status).to eq("done")
       end
 
       it "sets completed_at" do
-        subject.call
+        perform_enqueued_jobs { subject.call }
         expect(task.reload.completed_at).to be_present
       end
 
@@ -704,10 +708,10 @@ RSpec.describe Tools::TaskManagerExecutor do
         {
           "action" => "add_artifact",
           "task_id" => task.id.to_s,
-          "title" => "feat: add auth service (#42)",
-          "type" => "pr",
-          "url" => "https://github.com/org/repo/pull/42",
-          "description" => "Authentication service implementation"
+          "artifact_title" => "feat: add auth service (#42)",
+          "artifact_type" => "pr",
+          "artifact_url" => "https://github.com/org/repo/pull/42",
+          "artifact_description" => "Authentication service implementation"
         }
       end
 
@@ -737,14 +741,14 @@ RSpec.describe Tools::TaskManagerExecutor do
       end
 
       it "defaults type to url when not provided" do
-        input.delete("type")
+        input.delete("artifact_type")
         subject.call
         task.reload
         expect(task.artifacts.first["type"]).to eq("url")
       end
 
       context "without url" do
-        before { input.delete("url") }
+        before { input.delete("artifact_url") }
 
         it "creates artifact without url" do
           result = subject.call
@@ -760,12 +764,12 @@ RSpec.describe Tools::TaskManagerExecutor do
         it "returns failure" do
           result = subject.call
           expect(result).not_to be_success
-          expect(result.error).to include("title is required")
+          expect(result.error).to include("artifact_title is required")
         end
       end
 
       context "when task_id is missing" do
-        let(:input) { { "action" => "add_artifact", "title" => "orphan" } }
+        let(:input) { { "action" => "add_artifact", "artifact_title" => "orphan" } }
 
         it "returns failure" do
           result = subject.call
@@ -775,7 +779,7 @@ RSpec.describe Tools::TaskManagerExecutor do
       end
 
       context "when task does not exist" do
-        let(:input) { { "action" => "add_artifact", "task_id" => "99999", "title" => "ghost" } }
+        let(:input) { { "action" => "add_artifact", "task_id" => "99999", "artifact_title" => "ghost" } }
 
         it "returns failure" do
           result = subject.call

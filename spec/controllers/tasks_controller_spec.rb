@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe TasksController, type: :controller do
+  include ActiveJob::TestHelper
+
   let(:user) { create(:user, :owner) }
 
   before { sign_in user }
@@ -195,13 +197,17 @@ RSpec.describe TasksController, type: :controller do
     let!(:task) { create(:task, status: "backlog") }
 
     it "moves the task to the requested status" do
-      patch :move, params: { id: task.id, status: "in_progress" }, format: :json
+      perform_enqueued_jobs do
+        patch :move, params: { id: task.id, status: "in_progress" }, format: :json
+      end
       expect(task.reload.status).to eq("in_progress")
       expect(response).to have_http_status(:ok)
     end
 
     it "returns JSON with updated task" do
-      patch :move, params: { id: task.id, status: "done" }, format: :json
+      perform_enqueued_jobs do
+        patch :move, params: { id: task.id, status: "done" }, format: :json
+      end
       body = JSON.parse(response.body)
       expect(body["status"]).to eq("ok")
       expect(body["task"]["status"]).to eq("done")
