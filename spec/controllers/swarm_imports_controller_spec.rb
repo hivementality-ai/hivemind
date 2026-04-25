@@ -261,11 +261,13 @@ RSpec.describe SwarmImportsController, type: :controller do
         expect(session[:swarm_import_key]).to be_nil
       end
 
-      it "passes report locals to the template" do
+      describe "report rendering" do
         render_views
 
-        post :confirm_swarm
-        expect(response.body).to include("Spec Swarm").or include("Swarm Deployed")
+        it "passes report locals to the template" do
+          post :confirm_swarm
+          expect(response.body).to include("Spec Swarm").or include("Swarm Deployed")
+        end
       end
     end
 
