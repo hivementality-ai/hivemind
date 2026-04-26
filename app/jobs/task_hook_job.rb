@@ -6,7 +6,7 @@
 # Kept for backward compatibility. If called directly, it delegates to
 # PostTransitionJob since the old behavior was post-hook execution only.
 class TaskHookJob < ApplicationJob
-  queue_as :default
+  queue_as :system
 
   def perform(task_id, status, trigger, agent_id, context_json)
     Rails.logger.info("[TaskHookJob] DEPRECATED: routing to new pipeline jobs")

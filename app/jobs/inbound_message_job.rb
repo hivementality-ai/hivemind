@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class InboundMessageJob < ApplicationJob
-  queue_as :default
+  queue_as :agents
 
   def perform(inbound_message_id)
     message = InboundMessage.find(inbound_message_id)

@@ -1,0 +1,84 @@
+# Light Tier Override — for 2-core / 2GB RAM systems
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.light.yml up -d
+#
+# This override reduces resource limits across all services to fit within
+# constrained hardware (e.g. Raspberry Pi, old laptops, small VPS).
+# Expect 2-3 agents max with this configuration.
+
+services:
+  app:
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+
+  worker-system:
+    environment:
+      - SIDEKIQ_SYSTEM_CONCURRENCY=3
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.25"
+
+  worker-agents:
+    environment:
+      - SIDEKIQ_AGENT_CONCURRENCY=2
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.75"
+
+  db:
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+
+  cache:
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.25"
+
+  workspace:
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+
+  sdk-proxy:
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.25"
+
+  browser-sidecar:
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+
+  connector:
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.25"
+
+  signal-cli:
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.25"

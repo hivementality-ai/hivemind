@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class TeamChatJob < ApplicationJob
-  queue_as :default
+  queue_as :agents
 
   # Process a message in a team chat — route to targeted agent(s), handle responses.
   # Agent-to-agent communication is handled via the talk_to_teammate tool.

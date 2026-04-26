@@ -2,7 +2,7 @@
 
 module Tasks
   class PreTransitionJob < ApplicationJob
-    queue_as :default
+    queue_as :system
 
     # Fires pre-hooks for a task transition. Locks the task to prevent races.
     # If pre-hooks create sessions (async agent work), the pipeline continues

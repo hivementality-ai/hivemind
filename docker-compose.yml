@@ -44,11 +44,19 @@ services:
       - BROWSER_SIDECAR_URL=http://browser-sidecar:8000
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          memory: ${APP_MEMORY:-1g}
+          cpus: "${APP_CPUS:-1.0}"
     networks:
       - internal
       - web
 
-  worker:
+  # System worker — handles heartbeats, task pipeline transitions, notifications,
+  # delivery queues, and lightweight housekeeping jobs. This process must NEVER
+  # stall behind long-running agent LLM work.
+  worker-system:
     image: ghcr.io/hivementality-ai/hivemind/app:${HIVEMIND_VERSION:-latest}
     command: bundle exec sidekiq -C config/sidekiq.yml
     depends_on:
@@ -77,6 +85,51 @@ services:
       - BROWSER_SIDECAR_URL=http://browser-sidecar:8000
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          memory: ${SIDEKIQ_SYSTEM_MEMORY:-512m}
+          cpus: "${SIDEKIQ_SYSTEM_CPUS:-0.5}"
+    networks:
+      - internal
+
+  # Agent worker — handles ChatStreamJob, InboundMessageJob, SubAgentJob,
+  # and other long-running LLM sessions. Isolated from system jobs so agent
+  # work can never starve heartbeats or task transitions.
+  worker-agents:
+    image: ghcr.io/hivementality-ai/hivemind/app:${HIVEMIND_VERSION:-latest}
+    command: bundle exec sidekiq -C config/sidekiq_agents.yml
+    depends_on:
+      app:
+        condition: service_started
+      cache:
+        condition: service_healthy
+    volumes:
+      - workspace_data:/workspace
+      - active_storage_data:/rails/storage
+      - rclone_config:/rails/storage/rclone
+      - ${HOME}/hivemind-agents-shared:/app/agents-shared
+      - ./plugins:/rails/plugins
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgres://hivemind:hivemind@db:5432/hivemind_production
+      - REDIS_URL=redis://cache:6379/0
+      - RAILS_ENV=production
+      - RAILS_MASTER_KEY=${RAILS_MASTER_KEY}
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE:-${RAILS_MASTER_KEY}}
+      - DOCKER_HOST=tcp://docker-proxy:2375
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - MEMORY_EMBEDDINGS_ENABLED=${MEMORY_EMBEDDINGS_ENABLED:-true}
+      - MEMORY_EMBEDDINGS_PROVIDER=${MEMORY_EMBEDDINGS_PROVIDER:-ollama}
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      - BROWSER_SIDECAR_URL=http://browser-sidecar:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          memory: ${SIDEKIQ_AGENT_MEMORY:-1g}
+          cpus: "${SIDEKIQ_AGENT_CPUS:-1.0}"
     networks:
       - internal
 
@@ -93,6 +146,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: ${DB_MEMORY:-1g}
+          cpus: "${DB_CPUS:-1.0}"
     networks:
       - internal
 
@@ -126,8 +184,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2g
-          cpus: "1.0"
+          memory: ${BROWSER_MEMORY:-2g}
+          cpus: "${BROWSER_CPUS:-1.0}"
 
   workspace:
     image: ghcr.io/hivementality-ai/hivemind/workspace:${HIVEMIND_VERSION:-latest}
@@ -143,8 +201,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 4g
-          cpus: "2.0"
+          memory: ${WORKSPACE_MEMORY:-4g}
+          cpus: "${WORKSPACE_CPUS:-2.0}"
     networks:
       - web
 
@@ -166,8 +224,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2g
-          cpus: "0.5"
+          memory: ${SDK_PROXY_MEMORY:-2g}
+          cpus: "${SDK_PROXY_CPUS:-0.5}"
 
   connector:
     image: ghcr.io/hivementality-ai/hivemind/connector:${HIVEMIND_VERSION:-latest}
@@ -189,6 +247,11 @@ services:
       - connector_auth:/app/auth
     ports:
       - "3002:3002"
+    deploy:
+      resources:
+        limits:
+          memory: ${CONNECTOR_MEMORY:-256m}
+          cpus: "${CONNECTOR_CPUS:-0.5}"
     networks:
       - internal
       - web
@@ -199,6 +262,11 @@ services:
       - MODE=normal
     volumes:
       - signal_data:/home/.local/share/signal-cli
+    deploy:
+      resources:
+        limits:
+          memory: ${SIGNAL_MEMORY:-256m}
+          cpus: "${SIGNAL_CPUS:-0.25}"
     networks:
       - internal
     restart: unless-stopped

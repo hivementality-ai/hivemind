@@ -5,7 +5,7 @@
 # team_chat_messages relation (unlike SessionTitleJob, which reads JSONB).
 # Guards atomically against overwriting user-set titles.
 class TeamChatTitleJob < ApplicationJob
-  queue_as :default
+  queue_as :low
 
   MAX_TITLE_CHARS  = 100
   MIN_MESSAGE_COUNT = 2 # at least 1 user message + 1 agent response

@@ -5,7 +5,7 @@
 # model to keep cost near zero. Guards atomically against overwriting
 # user-set titles.
 class SessionTitleJob < ApplicationJob
-  queue_as :default
+  queue_as :low
 
   MAX_TITLE_CHARS = 100
   MIN_TRANSCRIPT_SIZE = 2 # at least 1 user + 1 assistant message

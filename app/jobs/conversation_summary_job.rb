@@ -4,7 +4,7 @@
 # Keeps last N messages raw and compresses everything else into ~200 tokens.
 # Triggered after every SUMMARIZE_EVERY turns in ChatStreamJob.
 class ConversationSummaryJob < ApplicationJob
-  queue_as :default
+  queue_as :low
 
   KEEP_RAW = 4          # Keep last 4 messages (2 user + 2 assistant turns) raw
   MAX_SUMMARY_CHARS = 800 # Target ~200 tokens for the summary

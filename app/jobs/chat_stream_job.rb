@@ -3,7 +3,7 @@
 class ChatStreamJob < ApplicationJob
   include TaskPipelineContinuation
 
-  queue_as :default
+  queue_as :agents
 
   def perform(session_id, user_message, attachment_ids = [])
     session = Session.find(session_id)
@@ -243,6 +243,12 @@ class ChatStreamJob < ApplicationJob
         session.update_columns(status: "completed", last_activity_at: Time.current)
       end
 
+      # Finalize heartbeat sessions — create HeartbeatRun record and restore
+      # the system assistant's model/provider. This runs here because the
+      # HeartbeatJob now dispatches async via ChatStreamJob instead of calling
+      # Sessions::Chat synchronously (freeing the system-queue thread).
+      finalize_heartbeat_session(session, full_content, tool_history) if session.metadata&.dig("type") == "heartbeat"
+
       # Continue task hook pipeline if this session is part of one
       continue_task_pipeline_if_needed(session)
     end
@@ -277,6 +283,72 @@ class ChatStreamJob < ApplicationJob
     return nil unless attachment.file.attached?
 
     Rails.application.routes.url_helpers.rails_blob_path(attachment.file, only_path: true)
+  end
+
+  # Called from the ensure block when a heartbeat session completes.
+  # Creates the HeartbeatRun record, restores the system assistant's
+  # original model/provider, and handles memory overwrite — all the
+  # work that HeartbeatJob used to do synchronously.
+  def finalize_heartbeat_session(session, reply, tool_history)
+    meta = session.metadata || {}
+    agent = session.agent
+    reply = reply.to_s.strip
+
+    started_at = meta["started_at"] ? Time.parse(meta["started_at"]) : session.created_at
+    duration_ms = ((Time.current - started_at) * 1000).to_i
+    is_ok = reply.blank? || reply.match?(/\AHEARTBEAT_OK\z/i)
+    tool_count = tool_history&.size || 0
+
+    if tool_count == 0
+      Rails.logger.warn("[Heartbeat] Model returned response with ZERO tool calls — likely fabricated results")
+    end
+
+    session.update_columns(status: "completed", last_activity_at: Time.current)
+
+    HeartbeatRun.create!(
+      agent: agent,
+      session: session,
+      status: reply.present? ? (is_ok ? "ok" : "action_taken") : "error",
+      summary: reply.presence&.truncate(2000),
+      previous_summary: meta["previous_summary"]&.truncate(2000),
+      input_tokens: 0,
+      output_tokens: 0,
+      duration_ms: duration_ms,
+      model: meta["heartbeat_model"] || agent.llm_model,
+      metadata: { tasks_count: meta["tasks_count"] || 0, tool_calls_count: tool_count, tool_history: tool_history&.first(20) }
+    )
+
+    # Restore original model and provider on the system assistant
+    original_model = meta["original_model"]
+    original_provider = meta["original_provider"]
+    if original_model.present? && original_model != agent.llm_model
+      agent.update_column(:llm_model, original_model)
+      agent.update_column(:model_provider, original_provider) if original_provider.present?
+    end
+
+    # Overwrite the system assistant's single memory with the latest summary
+    if reply.present?
+      ActiveRecord::Base.transaction do
+        agent.memory_entries.destroy_all
+        MemoryEntry.create!(
+          agent: agent,
+          content: reply.truncate(2000),
+          memory_type: "semantic",
+          importance: 1.0,
+          metadata: { source: "heartbeat", updated_at: Time.current.iso8601 }
+        )
+      end
+    end
+
+    # Broadcast if action was taken
+    unless is_ok
+      ActionCable.server.broadcast(
+        "session_#{session.session_key}",
+        { type: "heartbeat", content: reply, timestamp: Time.current.iso8601 }
+      )
+    end
+  rescue StandardError => e
+    Rails.logger.error("[Heartbeat] Finalization failed: #{e.message}\n#{e.backtrace&.first(3)&.join("\n")}")
   end
 
   def resolve_tools(agent)

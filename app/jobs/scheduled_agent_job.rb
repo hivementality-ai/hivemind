@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class ScheduledAgentJob < ApplicationJob
-  queue_as :default
+  queue_as :agents
 
   # Runs a scheduled task by sending a prompt to the agent
   # @param scheduled_task_id [Integer] The ScheduledTask record ID

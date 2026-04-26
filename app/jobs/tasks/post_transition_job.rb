@@ -2,7 +2,7 @@
 
 module Tasks
   class PostTransitionJob < ApplicationJob
-    queue_as :default
+    queue_as :system
 
     # Runs post-hooks after the status change. Resolves agent FRESH from task state.
     # Unlocks the task after all post-hooks complete (or immediately if none).

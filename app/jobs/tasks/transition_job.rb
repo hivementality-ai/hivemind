@@ -2,7 +2,7 @@
 
 module Tasks
   class TransitionJob < ApplicationJob
-    queue_as :default
+    queue_as :system
 
     # Performs the actual status change. Called after pre-hooks complete.
     # Fires PostTransitionJob after the status change.
