@@ -13,9 +13,9 @@ RSpec.describe Swarms::AgentConfig::ToolLoopConfigSerializer do
       expect(call(agent)).to be_nil
     end
 
-    it "returns nil when tool_loop_config is nil" do
-      agent = create(:agent, name: "Mando", role: "Engineer")
-      agent.update_column(:tool_loop_config, nil)
+    it "returns nil when tool_loop_config is the default empty hash" do
+      agent = create(:agent, name: "Mando", role: "Engineer", tool_loop_config: {})
+      agent.reload
       expect(call(agent)).to be_nil
     end
   end

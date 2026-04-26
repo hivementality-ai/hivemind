@@ -139,21 +139,21 @@ RSpec.describe SwarmImportsController, type: :controller do
         key = session[:swarm_import_key]
         expect(key).to be_present
         cached = Rails.cache.read(key)
-        expect(cached).to include("swarm_name" => "Spec Swarm")
+        expect(cached).to include(swarm_name: "Spec Swarm")
       end
 
       it "stores the raw JSON for later re-parsing" do
         post :upload_swarm, params: { swarm_file: valid_swarm_file }
         key = session[:swarm_import_key]
         cached = Rails.cache.read(key)
-        expect(cached["raw_json"]).to be_present
+        expect(cached[:raw_json]).to be_present
       end
 
       it "stores serialized conflicts (empty for a fresh team name)" do
         post :upload_swarm, params: { swarm_file: valid_swarm_file }
         key = session[:swarm_import_key]
         cached = Rails.cache.read(key)
-        expect(cached["conflicts"]).to eq([])
+        expect(cached[:conflicts]).to eq([])
       end
     end
 
@@ -164,9 +164,9 @@ RSpec.describe SwarmImportsController, type: :controller do
         post :upload_swarm, params: { swarm_file: valid_swarm_file }
         key = session[:swarm_import_key]
         cached = Rails.cache.read(key)
-        conflicts = cached["conflicts"]
+        conflicts = cached[:conflicts]
         expect(conflicts).to include(
-          a_hash_including("entity_type" => "team", "name" => "Spec Team")
+          a_hash_including(entity_type: "team", name: "Spec Team")
         )
       end
 
@@ -191,6 +191,9 @@ RSpec.describe SwarmImportsController, type: :controller do
     context "with a cached import" do
       before do
         post :upload_swarm, params: { swarm_file: valid_swarm_file }
+        # Clear multipart content-type left over from the file upload so
+        # subsequent GET/POST requests don't trigger Rack::Multipart::EmptyContentError.
+        request.env.delete("CONTENT_TYPE")
       end
 
       it "returns 200" do
@@ -217,6 +220,7 @@ RSpec.describe SwarmImportsController, type: :controller do
     context "with a swarm that has variables" do
       before do
         post :upload_swarm, params: { swarm_file: swarm_with_variables_file }
+        request.env.delete("CONTENT_TYPE")
       end
 
       it "assigns @variables with all variable descriptors" do
@@ -239,7 +243,10 @@ RSpec.describe SwarmImportsController, type: :controller do
     end
 
     context "with a valid swarm and no conflicts" do
-      before { post :upload_swarm, params: { swarm_file: valid_swarm_file } }
+      before do
+        post :upload_swarm, params: { swarm_file: valid_swarm_file }
+        request.env.delete("CONTENT_TYPE")
+      end
 
       it "renders the report template on success" do
         post :confirm_swarm
@@ -254,17 +261,21 @@ RSpec.describe SwarmImportsController, type: :controller do
         expect(session[:swarm_import_key]).to be_nil
       end
 
-      it "passes report locals to the template" do
-        post :confirm_swarm
-        # The :report local should be an ImportReport with a summary
-        report = controller.view_assigns["report"] rescue nil
-        # Template receives it as a local — check the response body instead
-        expect(response.body).to include("Spec Swarm").or include("deployed")
+      describe "report rendering" do
+        render_views
+
+        it "passes report locals to the template" do
+          post :confirm_swarm
+          expect(response.body).to include("Spec Swarm").or include("Swarm Deployed")
+        end
       end
     end
 
     context "with variable overrides" do
-      before { post :upload_swarm, params: { swarm_file: swarm_with_variables_file } }
+      before do
+        post :upload_swarm, params: { swarm_file: swarm_with_variables_file }
+        request.env.delete("CONTENT_TYPE")
+      end
 
       it "passes variable overrides to the importer" do
         expect(Swarms::SwarmImporter).to receive(:call).with(

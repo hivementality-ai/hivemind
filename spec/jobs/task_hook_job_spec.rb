@@ -20,10 +20,13 @@ RSpec.describe TaskHookJob, type: :job do
     end
 
     it "ignores unknown triggers" do
-      described_class.new.perform(task.id, "done", "unknown", agent.id, "{}")
+      expect {
+        described_class.new.perform(task.id, "done", "unknown", agent.id, "{}")
+      }.not_to have_enqueued_job(Tasks::PreTransitionJob)
 
-      expect(Tasks::PreTransitionJob).not_to have_been_enqueued
-      expect(Tasks::PostTransitionJob).not_to have_been_enqueued
+      expect {
+        described_class.new.perform(task.id, "done", "unknown", agent.id, "{}")
+      }.not_to have_enqueued_job(Tasks::PostTransitionJob)
     end
 
     it "handles missing task gracefully" do
