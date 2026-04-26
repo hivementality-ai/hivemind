@@ -158,7 +158,7 @@ RSpec.describe Tasks::HookExecutor do
     end
   end
 
-  describe "prompt enrichment" do
+  describe "prompt content — slim format" do
     it "includes task description in the prompt" do
       task.update!(description: "Implement the flux capacitor")
 
@@ -170,50 +170,61 @@ RSpec.describe Tasks::HookExecutor do
       described_class.call(hook: hook, task: task, agent: agent)
     end
 
-    it "includes checklist items in the prompt" do
-      task.update!(checklist: [
-        { "title" => "Write tests", "checked" => false },
-        { "title" => "Update docs", "checked" => true }
-      ])
-
+    it "includes task ID and metadata in the prompt" do
       expect(ChatStreamJob).to receive(:perform_later) do |_session_id, prompt, _files|
-        expect(prompt).to include("### Checklist")
-        expect(prompt).to include("[ ] (index 0) Write tests")
-        expect(prompt).to include("[x] (index 1) Update docs")
+        expect(prompt).to include("##{task.id}")
+        expect(prompt).to include(task.title)
+        expect(prompt).to include(task.priority)
       end
 
       described_class.call(hook: hook, task: task, agent: agent)
     end
 
-    it "includes artifact references as compact lines in the prompt" do
-      task.add_artifact(
-        type: "pr",
-        title: "feat: flux capacitor (#42)",
-        url: "https://github.com/org/repo/pull/42",
-        description: "Core time travel logic",
-        created_by: "Mando"
-      )
-      task.add_artifact(
-        type: "branch",
-        title: "feat/flux-capacitor",
-        created_by: "Mando"
-      )
-
+    it "includes Work Order header with task ID" do
       expect(ChatStreamJob).to receive(:perform_later) do |_session_id, prompt, _files|
-        expect(prompt).to include("### Artifacts")
-        expect(prompt).to include("feat: flux capacitor (#42)")
-        expect(prompt).to include("https://github.com/org/repo/pull/42")
-        expect(prompt).to include("Core time travel logic")
-        expect(prompt).to include("feat/flux-capacitor")
-        expect(prompt).not_to include("truncate")
+        expect(prompt).to include("## Work Order — Task ##{task.id}")
       end
 
       described_class.call(hook: hook, task: task, agent: agent)
     end
 
-    it "omits artifacts section when task has no artifacts" do
+    it "does NOT inline checklist, comments, artifacts, or dependencies" do
+      task.update!(
+        checklist: [{ "title" => "Write tests", "checked" => false }],
+        description: "Build it"
+      )
+      task.add_comment(author_name: "Doc Brown", body: "Great Scott!")
+      task.add_artifact(type: "pr", title: "PR #42", url: "https://github.com/org/repo/pull/42", created_by: "Mando")
+
+      blocker = create(:task, title: "Build time circuits", status: "in_progress")
+      create(:task_dependency, task: task, depends_on: blocker)
+
       expect(ChatStreamJob).to receive(:perform_later) do |_session_id, prompt, _files|
+        # These sections should NOT be in the prompt anymore
+        expect(prompt).not_to include("### Checklist")
+        expect(prompt).not_to include("### Comments")
         expect(prompt).not_to include("### Artifacts")
+        expect(prompt).not_to include("### Dependencies")
+        expect(prompt).not_to include("### Downstream Tasks")
+
+        # Instead, the agent should be told to self-serve
+        expect(prompt).to include("### Before You Start")
+        expect(prompt).to include("task_manager")
+        expect(prompt).to include("task_id: #{task.id}")
+      end
+
+      described_class.call(hook: hook, task: task, agent: agent)
+    end
+
+    it "includes self-serve instructions pointing to task_manager" do
+      expect(ChatStreamJob).to receive(:perform_later) do |_session_id, prompt, _files|
+        expect(prompt).to include("### Before You Start")
+        expect(prompt).to include("task_manager")
+        expect(prompt).to include("action: \"get\"")
+        expect(prompt).to include("task_id: #{task.id}")
+        expect(prompt).to include("checklist")
+        expect(prompt).to include("comments")
+        expect(prompt).to include("artifacts")
       end
 
       described_class.call(hook: hook, task: task, agent: agent)
@@ -231,48 +242,10 @@ RSpec.describe Tasks::HookExecutor do
       described_class.call(hook: hook, task: task, agent: agent)
     end
 
-    it "includes comments in the prompt" do
-      task.add_comment(author_name: "Doc Brown", body: "Great Scott! Don't forget the 1.21 gigawatts.")
-
+    it "includes skill content when skill is present" do
       expect(ChatStreamJob).to receive(:perform_later) do |_session_id, prompt, _files|
-        expect(prompt).to include("### Comments")
-        expect(prompt).to include("Doc Brown")
-        expect(prompt).to include("1.21 gigawatts")
-      end
-
-      described_class.call(hook: hook, task: task, agent: agent)
-    end
-
-    it "includes dependency info in the prompt" do
-      blocker = create(:task, title: "Build time circuits", status: "in_progress")
-      create(:task_dependency, task: task, depends_on: blocker)
-
-      expect(ChatStreamJob).to receive(:perform_later) do |_session_id, prompt, _files|
-        expect(prompt).to include("### Dependencies")
-        expect(prompt).to include("Build time circuits")
-        expect(prompt).to include("in_progress")
-      end
-
-      described_class.call(hook: hook, task: task, agent: agent)
-    end
-
-    it "includes downstream tasks in the prompt" do
-      downstream = create(:task, title: "Test at 88mph", status: "backlog")
-      create(:task_dependency, task: downstream, depends_on: task)
-
-      expect(ChatStreamJob).to receive(:perform_later) do |_session_id, prompt, _files|
-        expect(prompt).to include("### Downstream Tasks")
-        expect(prompt).to include("Test at 88mph")
-      end
-
-      described_class.call(hook: hook, task: task, agent: agent)
-    end
-
-    it "includes task ID and metadata in the prompt" do
-      expect(ChatStreamJob).to receive(:perform_later) do |_session_id, prompt, _files|
-        expect(prompt).to include("##{task.id}")
-        expect(prompt).to include(task.title)
-        expect(prompt).to include(task.priority)
+        expect(prompt).to include("### Skill Instructions")
+        expect(prompt).to include("Do the thing")
       end
 
       described_class.call(hook: hook, task: task, agent: agent)
@@ -296,6 +269,41 @@ RSpec.describe Tasks::HookExecutor do
         result = described_class.call(hook: skillless_hook, task: task, agent: agent)
         expect(result).to be_success
         expect(result.data[:session_id]).to be_present
+      end
+    end
+
+    context "status-specific directives" do
+      let(:in_progress_hook) { create(:task_hook, :post, task: task, skill: skill, on_status: "in_progress") }
+      let(:review_hook) { create(:task_hook, :post, task: task, skill: skill, on_status: "review") }
+      let(:done_hook) { create(:task_hook, :post, task: task, skill: skill, on_status: "done") }
+
+      it "includes work order directive for in_progress" do
+        expect(ChatStreamJob).to receive(:perform_later) do |_session_id, prompt, _files|
+          expect(prompt).to include("This is a work order")
+          expect(prompt).to include("write the code")
+          expect(prompt).to include("open a PR")
+        end
+
+        described_class.call(hook: in_progress_hook, task: task, agent: agent)
+      end
+
+      it "includes review directive for review status" do
+        expect(ChatStreamJob).to receive(:perform_later) do |_session_id, prompt, _files|
+          expect(prompt).to include("ready for review")
+          expect(prompt).to include("check the PR")
+          expect(prompt).to include("approve and move to `done`")
+        end
+
+        described_class.call(hook: review_hook, task: task, agent: agent)
+      end
+
+      it "includes completion directive for done status" do
+        expect(ChatStreamJob).to receive(:perform_later) do |_session_id, prompt, _files|
+          expect(prompt).to include("marked `done`")
+          expect(prompt).to include("Verify completion")
+        end
+
+        described_class.call(hook: done_hook, task: task, agent: agent)
       end
     end
   end
