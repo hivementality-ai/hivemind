@@ -2,7 +2,7 @@
 
 class ChannelsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_channel, only: %i[edit update destroy connect]
+  before_action :set_channel, only: %i[edit update destroy connect connector_health connector_qr connector_logout]
 
   def index
     @channels = Channel.order(:name)
@@ -29,7 +29,48 @@ class ChannelsController < ApplicationController
   def edit; end
 
   def connect
-    @connector_url = @channel.config&.dig("connector_url") || "http://localhost:3002"
+    @connector_url = @channel.config&.dig("connector_url") || "http://connector:3002"
+
+    # Trigger WhatsApp connection on the connector (so it starts generating QR)
+    begin
+      uri = URI("#{@connector_url}/connect")
+      Net::HTTP.post(uri, "", "Content-Type" => "application/json")
+    rescue StandardError => e
+      Rails.logger.warn("[Channels] Failed to trigger WhatsApp connect: #{e.message}")
+    end
+  end
+
+  # Proxy health check to connector (browser can't reach Docker network)
+  def connector_health
+    connector_url = @channel.config&.dig("connector_url") || "http://connector:3002"
+
+    uri = URI("#{connector_url}/health")
+    response = Net::HTTP.get_response(uri)
+    render json: response.body, status: response.code.to_i
+  rescue StandardError => e
+    render json: { status: "unreachable", error: e.message }, status: 503
+  end
+
+  # Proxy QR code request to connector
+  def connector_qr
+    connector_url = @channel.config&.dig("connector_url") || "http://connector:3002"
+
+    uri = URI("#{connector_url}/qr")
+    response = Net::HTTP.get_response(uri)
+    render json: response.body, status: response.code.to_i
+  rescue StandardError => e
+    render json: { status: "error", error: e.message }, status: 503
+  end
+
+  # Proxy logout/reconnect request to connector
+  def connector_logout
+    connector_url = @channel.config&.dig("connector_url") || "http://connector:3002"
+
+    uri = URI("#{connector_url}/logout")
+    response = Net::HTTP.post(uri, "", "Content-Type" => "application/json")
+    render json: response.body, status: response.code.to_i
+  rescue StandardError => e
+    render json: { status: "error", error: e.message }, status: 503
   end
 
   def update
