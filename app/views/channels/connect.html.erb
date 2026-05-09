@@ -1,4 +1,4 @@
-<div class="max-w-2xl mx-auto px-6 py-8" data-controller="qr-pair" data-qr-pair-url-value="<%= @connector_url %>">
+<div class="max-w-2xl mx-auto px-6 py-8" data-controller="qr-pair" data-qr-pair-health-url-value="<%= connector_health_channel_path(@channel) %>" data-qr-pair-qr-url-value="<%= connector_qr_channel_path(@channel) %>" data-qr-pair-logout-url-value="<%= connector_logout_channel_path(@channel) %>">
   <%= link_to "← Channels", channels_path, class: "text-brand-light hover:text-brand-light text-sm" %>
 
   <div class="mt-6 mb-8 text-center">
