@@ -285,6 +285,9 @@ Rails.application.routes.draw do
   resources :channels, except: [ :show ] do
     member do
       get :connect
+      get :connector_health
+      get :connector_qr
+      post :connector_logout
     end
     resources :agent_channels, only: [ :create, :update, :destroy ]
   end
