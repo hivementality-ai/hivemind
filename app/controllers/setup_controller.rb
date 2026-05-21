@@ -86,6 +86,19 @@ class SetupController < ApplicationController
           ve.save
         end
       end
+
+      # Persist a custom Ollama base_url for embeddings even when the Ollama
+      # chat provider isn't toggled on (e.g. remote-only embedding use-case).
+      if embedding_provider == "ollama"
+        ollama_base_url = provider_params.dig(:ollama, :base_url).presence
+        if ollama_base_url
+          pc = ProviderConfig.find_or_initialize_by(adapter_type: "ollama")
+          pc.name ||= "ollama"
+          pc.vault_key ||= "providers/ollama_api_key"
+          pc.base_url = ollama_base_url
+          pc.save
+        end
+      end
     end
 
     if ProviderConfig.enabled_providers.any?
