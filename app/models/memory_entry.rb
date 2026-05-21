@@ -8,12 +8,6 @@ class MemoryEntry < ApplicationRecord
   has_neighbors :embedding
   has_neighbors :shadow_embedding
 
-  before_save :sanitize_content_encoding
-  validates :content, presence: true
-  validates :memory_type, inclusion: { in: %w[episodic semantic procedural preference] }
-  validates :category, inclusion: { in: CATEGORIES }
-  validates :status, inclusion: { in: STATUSES }
-
   MEMORY_TYPES = {
     "episodic" => "What happened (conversation summaries, events)",
     "semantic" => "Facts and knowledge (names, roles, preferences)",
@@ -32,6 +26,12 @@ class MemoryEntry < ApplicationRecord
     "factual"          => "Facts about the world the agent has learned",
     "general"          => "Uncategorized (default)"
   }.freeze
+
+  before_save :sanitize_content_encoding
+  validates :content, presence: true
+  validates :memory_type, inclusion: { in: %w[episodic semantic procedural preference] }
+  validates :category, inclusion: { in: CATEGORIES }
+  validates :status, inclusion: { in: STATUSES }
 
   # --- Scopes ---
   scope :for_agent,       ->(agent) { where(agent: agent) }
