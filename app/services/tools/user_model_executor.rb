@@ -96,11 +96,14 @@ module Tools
     def classify_section(content)
       lower = content.downcase
 
-      SECTIONS.each do |section, keywords|
-        return section if keywords.any? { |kw| lower.include?(kw) }
+      scores = SECTIONS.transform_values do |keywords|
+        keywords.count { |kw| lower.include?(kw) }
       end
 
-      OTHER_SECTION
+      best_section, best_score = scores.max_by { |_, score| score }
+      return OTHER_SECTION if best_score.zero?
+
+      best_section
     end
 
     def empty_model_response

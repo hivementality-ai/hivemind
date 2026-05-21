@@ -47,7 +47,7 @@ module Tools
 
       unless dry_run
         ids = matches.map(&:id)
-        MemoryEntry.where(id: ids).update_all(category: "user_preference") # rubocop:disable Rails/SkipsModelValidations
+        MemoryEntry.where(id: ids).update_all(category: "user_preference", updated_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
       end
 
       ServiceResponse.success(data: {
