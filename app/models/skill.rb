@@ -7,18 +7,25 @@ class Skill < ApplicationRecord
   has_many :agents, through: :agent_skills
   has_many :skill_tools, dependent: :destroy
   has_many :tools, through: :skill_tools
+  has_many :skill_load_events, dependent: :destroy
 
   validates :name, presence: true, uniqueness: true
   validates :content, presence: true
   validates :summary, presence: true, length: { maximum: 150 }
+  validates :tier, inclusion: { in: %w[core contextual manual] }
 
   before_save :compute_checksum, if: :content_changed?
 
   scope :enabled, -> { where(enabled: true) }
   scope :builtin, -> { where(builtin: true) }
   scope :custom, -> { where(builtin: false) }
+  scope :core_tier, -> { where(tier: "core") }
+  scope :contextual_tier, -> { where(tier: "contextual") }
+  scope :manual_tier, -> { where(tier: "manual") }
+  scope :with_tag, ->(tag) { where("? = ANY(tags)", tag) }
 
   CATEGORIES = %w[coding productivity automation messaging lifestyle utilities integrations].freeze
+  TIERS = %w[core contextual manual].freeze
 
   # Parse OpenClaw-compatible SKILL.md content
   def self.from_skill_md(text)
@@ -61,6 +68,25 @@ class Skill < ApplicationRecord
     result = SkillSecurityScanner.call(content: content, name: name)
     update!(security_scan_result: result.data) if result.success?
     result
+  end
+
+  # Returns the tags array, always as strings.
+  def tags
+    self[:tags] || []
+  end
+
+  # Returns the trigger_patterns array, always as strings.
+  def trigger_patterns
+    self[:trigger_patterns] || []
+  end
+
+  # Computes a relevance score (0.0–1.0) for this skill against a given text context.
+  # Checks both tags and trigger_patterns against the context.
+  def relevance_score_for(context_text)
+    return 0.0 if context_text.blank?
+    return 0.0 if tags.empty? && trigger_patterns.empty?
+
+    Skills::RelevanceScorer.score(skill: self, context: context_text)
   end
 
   private

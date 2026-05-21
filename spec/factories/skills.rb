@@ -7,6 +7,9 @@ FactoryBot.define do
     summary { "A brief test skill summary" }
     content { "# Test Skill\n\nThis is test skill content." }
     category { "utilities" }
+    tier { "manual" }
+    tags { [] }
+    trigger_patterns { [] }
     enabled { true }
     builtin { false }
     source { "manual" }

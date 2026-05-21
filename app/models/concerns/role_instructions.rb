@@ -150,10 +150,10 @@ module RoleInstructions
       **Security:** This container is fully isolated — no database or Redis access. You have full control. Install what you need, run what you need.
     ENV
 
-    # Skills catalog (full instructions loaded on-demand via load_skill tool)
+    # Skills: core content injected always; manual skills listed as catalog
     if respond_to?(:skills) && skills.enabled.any?
-      skill_lines = skills.enabled.map { |s| "- #{s.name}: #{s.summary || s.description || s.name}" }
-      parts << "## Skills\nCall `load_skill` by name when you need one.\n#{skill_lines.join("\n")}"
+      skill_parts = build_skills_prompt_section(skills.enabled.to_a)
+      parts << skill_parts if skill_parts.present?
     end
 
     parts.join("\n\n")
@@ -197,17 +197,47 @@ module RoleInstructions
 
     blocks = [ { type: "text", text: core_parts.join("\n\n") } ]
 
-    # Skills catalog (full content loaded on-demand via load_skill tool)
+    # Skills: core content + manual catalog as a separate, cache-friendly block.
+    # Contextual skills are injected dynamically per-request by MessageBuilder.
     if respond_to?(:skills) && skills.enabled.any?
-      skill_lines = skills.enabled.map { |s| "- #{s.name}: #{s.summary || s.description || s.name}" }
-      catalog = "## Skills\nCall `load_skill` by name when you need one.\n#{skill_lines.join("\n")}"
-      blocks << { type: "text", text: catalog }
+      skill_text = build_skills_prompt_section(skills.enabled.to_a)
+      blocks << { type: "text", text: skill_text } if skill_text.present?
     end
 
     blocks
   end
 
   private
+
+  # Builds the skills section of the system prompt.
+  # Core skills: content injected directly (always active, no load_skill needed).
+  # Contextual skills: listed in catalog only (auto-injected at message-build time).
+  # Manual skills: listed in catalog only (agent must call load_skill explicitly).
+  def build_skills_prompt_section(enabled_skills)
+    return nil if enabled_skills.empty?
+
+    parts = []
+
+    core_skills = enabled_skills.select { |s| s.tier == "core" }
+    if core_skills.any?
+      parts << "## Core Skills (always active)"
+      core_skills.each do |skill|
+        parts << "### #{skill.name}"
+        parts << skill.content
+      end
+    end
+
+    on_demand_skills = enabled_skills.reject { |s| s.tier == "core" }
+    if on_demand_skills.any?
+      lines = on_demand_skills.map do |s|
+        tier_label = s.tier == "contextual" ? " [auto]" : ""
+        "- #{s.name}#{tier_label}: #{s.summary || s.description || s.name}"
+      end
+      parts << "## Skills\nCall `load_skill` by name when you need one.\n#{lines.join("\n")}"
+    end
+
+    parts.join("\n\n").presence
+  end
 
   INJECTION_PATTERNS = [
     /ignore (?:all )?(?:previous|prior|above) instructions/i,
