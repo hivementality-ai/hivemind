@@ -95,9 +95,15 @@ RSpec.describe SetupController, "embedding provider selection", type: :controlle
       end
 
       it "does not let the embedding-only ProviderConfig satisfy the chat provider gate" do
-        post :save_provider, params: params_with_remote_url
+        # Submit without any chat provider params so no Anthropic record is created.
+        # This isolates the assertion to whether the embedding-only Ollama config
+        # leaks into ProviderConfig.enabled_providers.
+        post :save_provider, params: {
+          embedding_provider: "ollama",
+          ollama_embedding_base_url: remote_url
+        }
 
-        expect(ProviderConfig.enabled_providers.any?).to be(false)
+        expect(ProviderConfig.enabled_providers.where(adapter_type: "ollama").any?).to be(false)
       end
     end
 
