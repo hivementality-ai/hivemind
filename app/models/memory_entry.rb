@@ -3,6 +3,7 @@
 class MemoryEntry < ApplicationRecord
   belongs_to :agent
   belongs_to :source, polymorphic: true, optional: true
+  belongs_to :superseded_by, class_name: "MemoryEntry", optional: true
 
   has_neighbors :embedding
   has_neighbors :shadow_embedding
@@ -10,6 +11,8 @@ class MemoryEntry < ApplicationRecord
   before_save :sanitize_content_encoding
   validates :content, presence: true
   validates :memory_type, inclusion: { in: %w[episodic semantic procedural preference] }
+  validates :category, inclusion: { in: CATEGORIES }
+  validates :status, inclusion: { in: STATUSES }
 
   MEMORY_TYPES = {
     "episodic" => "What happened (conversation summaries, events)",
@@ -17,6 +20,9 @@ class MemoryEntry < ApplicationRecord
     "procedural" => "How to do things (commands, workflows)",
     "preference" => "User preferences (style, tools, habits)"
   }.freeze
+
+  CATEGORIES = %w[user_preference project_context decision learned_behavior factual general].freeze
+  STATUSES = %w[active archived superseded].freeze
 
   # --- Scopes ---
   scope :for_agent, ->(agent) { where(agent: agent) }
@@ -32,13 +38,21 @@ class MemoryEntry < ApplicationRecord
   scope :multimodal, -> { where(modality: "multimodal") }
   scope :text_only, -> { where(modality: "text") }
 
+  # Lifecycle scopes
+  scope :active, -> { where(status: "active") }
+  scope :archived, -> { where(status: "archived") }
+  scope :superseded, -> { where(status: "superseded") }
+  scope :by_category, ->(cat) { where(category: cat) }
+
   # --- Vector Search ---
 
-  # Search for similar memories using pgvector cosine similarity
-  def self.search_similar(embedding:, agent:, limit: 10)
-    where(agent: agent)
-      .nearest_neighbors(:embedding, embedding, distance: "cosine")
-      .limit(limit)
+  # Search for similar memories using pgvector cosine similarity.
+  # Optionally filtered by category and/or status (default: active only).
+  def self.search_similar(embedding:, agent:, limit: 10, category: nil, status: "active")
+    scope = where(agent: agent)
+    scope = scope.where(status: status) if status.present?
+    scope = scope.where(category: category) if category.present?
+    scope.nearest_neighbors(:embedding, embedding, distance: "cosine").limit(limit)
   end
 
   # Search with a minimum similarity threshold
@@ -86,6 +100,13 @@ class MemoryEntry < ApplicationRecord
   # Touch last_accessed_at when a memory is retrieved
   def touch_accessed!
     update_column(:last_accessed_at, Time.current)
+  end
+
+  # Archive this memory and optionally link the replacement
+  def archive!(superseded_by: nil)
+    attrs = { status: "archived" }
+    attrs[:superseded_by_id] = superseded_by.id if superseded_by.present?
+    update!(attrs)
   end
 
   private

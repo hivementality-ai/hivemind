@@ -154,3 +154,121 @@ RSpec.describe MemoryEntry, type: :model do
     end
   end
 end
+
+# ---- New lifecycle/category specs ----
+
+RSpec.describe MemoryEntry, type: :model do
+  describe "category and status validations" do
+    let(:agent) { create(:agent) }
+
+    it "defaults category to general" do
+      entry = create(:memory_entry, agent: agent)
+      expect(entry.category).to eq("general")
+    end
+
+    it "defaults status to active" do
+      entry = create(:memory_entry, agent: agent)
+      expect(entry.status).to eq("active")
+    end
+
+    it "rejects invalid categories" do
+      entry = build(:memory_entry, agent: agent, category: "invalid_cat")
+      expect(entry).not_to be_valid
+      expect(entry.errors[:category]).to be_present
+    end
+
+    it "rejects invalid statuses" do
+      entry = build(:memory_entry, agent: agent, status: "deleted")
+      expect(entry).not_to be_valid
+      expect(entry.errors[:status]).to be_present
+    end
+
+    it "accepts all defined categories" do
+      MemoryEntry::CATEGORIES.each do |cat|
+        entry = build(:memory_entry, agent: agent, category: cat)
+        expect(entry).to be_valid, "expected #{cat} to be valid"
+      end
+    end
+
+    it "accepts all defined statuses" do
+      MemoryEntry::STATUSES.each do |s|
+        entry = build(:memory_entry, agent: agent, status: s)
+        expect(entry).to be_valid, "expected #{s} to be valid"
+      end
+    end
+  end
+
+  describe "lifecycle scopes" do
+    let(:agent) { create(:agent) }
+    let!(:active_entry)     { create(:memory_entry, agent: agent, status: "active") }
+    let!(:archived_entry)   { create(:memory_entry, agent: agent, status: "archived") }
+    let!(:superseded_entry) { create(:memory_entry, agent: agent, status: "superseded") }
+
+    it ".active returns only active entries" do
+      expect(MemoryEntry.active).to contain_exactly(active_entry)
+    end
+
+    it ".archived returns only archived entries" do
+      expect(MemoryEntry.archived).to contain_exactly(archived_entry)
+    end
+
+    it ".superseded returns only superseded entries" do
+      expect(MemoryEntry.superseded).to contain_exactly(superseded_entry)
+    end
+  end
+
+  describe "category scope" do
+    let(:agent) { create(:agent) }
+    let!(:pref_entry)    { create(:memory_entry, agent: agent, category: "user_preference") }
+    let!(:context_entry) { create(:memory_entry, agent: agent, category: "project_context") }
+
+    it ".by_category filters by category" do
+      expect(MemoryEntry.by_category("user_preference")).to contain_exactly(pref_entry)
+    end
+  end
+
+  describe "#archive!" do
+    let(:agent)     { create(:agent) }
+    let!(:entry)    { create(:memory_entry, agent: agent, status: "active") }
+    let!(:new_entry) { create(:memory_entry, agent: agent, status: "active") }
+
+    it "sets status to archived" do
+      entry.archive!
+      expect(entry.reload.status).to eq("archived")
+    end
+
+    it "links superseded_by when provided" do
+      entry.archive!(superseded_by: new_entry)
+      expect(entry.reload.superseded_by_id).to eq(new_entry.id)
+    end
+
+    it "does not set superseded_by_id when not provided" do
+      entry.archive!
+      expect(entry.reload.superseded_by_id).to be_nil
+    end
+  end
+
+  describe ".search_similar with category/status filters" do
+    let(:agent) { create(:agent) }
+    let(:embedding) { Array.new(768) { |i| (i % 10) * 0.1 } }
+    let!(:active_general)    { create(:memory_entry, agent: agent, embedding: embedding, category: "general",         status: "active") }
+    let!(:active_pref)       { create(:memory_entry, agent: agent, embedding: embedding, category: "user_preference", status: "active") }
+    let!(:archived_general)  { create(:memory_entry, agent: agent, embedding: embedding, category: "general",         status: "archived") }
+
+    it "defaults to active status only" do
+      results = MemoryEntry.search_similar(embedding: embedding, agent: agent, limit: 10)
+      expect(results).to include(active_general, active_pref)
+      expect(results).not_to include(archived_general)
+    end
+
+    it "filters by category" do
+      results = MemoryEntry.search_similar(embedding: embedding, agent: agent, limit: 10, category: "user_preference")
+      expect(results).to contain_exactly(active_pref)
+    end
+
+    it "filters by status when specified" do
+      results = MemoryEntry.search_similar(embedding: embedding, agent: agent, limit: 10, status: "archived")
+      expect(results).to contain_exactly(archived_general)
+    end
+  end
+end

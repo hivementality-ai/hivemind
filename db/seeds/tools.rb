@@ -123,10 +123,71 @@ BUILTIN_TOOLS = [
     requires_approval: false,
     parameters_schema: {
       "properties" => {
-        "query" => { "type" => "string", "description" => "What to search for in your memories" },
-        "limit" => { "type" => "integer", "description" => "Max results to return (1-20, default 10)" }
+        "query"    => { "type" => "string", "description" => "What to search for in your memories" },
+        "limit"    => { "type" => "integer", "description" => "Max results to return (1-20, default 10)" },
+        "category" => {
+          "type" => "string",
+          "description" => "Filter by category (optional). Values: user_preference, project_context, decision, learned_behavior, factual, general",
+          "enum" => %w[user_preference project_context decision learned_behavior factual general]
+        },
+        "status"   => {
+          "type" => "string",
+          "description" => "Filter by status (default: active). Values: active, archived, superseded",
+          "enum" => %w[active archived superseded]
+        }
       },
       "required" => [ "query" ]
+    }
+  },
+  {
+    name: "memory_store",
+    description: "Store a new memory with an explicit category. Optionally supersede an existing memory by ID, which archives the old one. Returns the new memory ID for future reference.",
+    executor_type: "memory_store",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "content"           => { "type" => "string", "description" => "The memory content to store" },
+        "category"          => {
+          "type" => "string",
+          "description" => "Memory category. Values: user_preference, project_context, decision, learned_behavior, factual, general (default: general)",
+          "enum" => %w[user_preference project_context decision learned_behavior factual general]
+        },
+        "related_memory_id" => { "type" => "integer", "description" => "ID of an existing memory this supersedes. That memory will be archived." }
+      },
+      "required" => [ "content" ]
+    }
+  },
+  {
+    name: "memory_update",
+    description: "Update an existing memory by ID. Can change content (re-vectorizes), recategorize, or change status (archive/supersede).",
+    executor_type: "memory_update",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "memory_id" => { "type" => "integer", "description" => "ID of the memory to update" },
+        "content"   => { "type" => "string", "description" => "New content (optional — re-vectorizes if changed)" },
+        "category"  => {
+          "type" => "string",
+          "description" => "New category (optional)",
+          "enum" => %w[user_preference project_context decision learned_behavior factual general]
+        },
+        "status"    => {
+          "type" => "string",
+          "description" => "New status (optional)",
+          "enum" => %w[active archived superseded]
+        }
+      },
+      "required" => [ "memory_id" ]
+    }
+  },
+  {
+    name: "memory_stats",
+    description: "Show counts of your memories grouped by category and status. Use this to understand your knowledge inventory and decide what to prune or update.",
+    executor_type: "memory_stats",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {},
+      "required" => []
     }
   },
   {
