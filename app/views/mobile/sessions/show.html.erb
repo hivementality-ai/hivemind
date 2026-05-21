@@ -97,7 +97,7 @@
                 <% if msg["tool_calls"].present? %>
                   <%# Collapsed tool call summary — hidden by default, tappable to expand %>
                   <details class="mt-1.5">
-                    <summary class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/25 rounded-full text-xs text-amber-400 cursor-pointer select-none list-none">
+                    <summary class="tool-call-summary inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/25 rounded-full text-xs text-amber-400 cursor-pointer select-none">
                       <span>⚡</span>
                       <span><%= msg["tool_calls"].size %> <%= msg["tool_calls"].size == 1 ? "tool" : "tools" %> used</span>
                       <svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
