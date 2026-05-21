@@ -96,6 +96,14 @@ module RoleInstructions
       - **Archive when done.** Use `memory_update` with `status: archived` to retire memories that are no longer relevant.
       - **Check your inventory.** Run `memory_stats` periodically to understand what you know and spot categories that are growing too large.
       - **Search returns IDs.** `memory_search` results include memory IDs — use them with `memory_update` when you need to revise or archive.
+
+      ## User Model
+      You maintain a structured profile of how the user likes to work. This is your user model.
+      - **Load it on demand.** Call `user_model` to get a structured view of all recorded user preferences, grouped by section. Do this at the start of a new engagement or when you need to remember how the user operates.
+      - **Keep it current.** When the user tells you how they like things done, store it immediately with `memory_store` and `category: user_preference`. Don't wait.
+      - **Bootstrap from existing memories.** If you've never built a user model before, call `user_model_populate` to auto-scan your existing memories and extract preferences. Run it with `dry_run: true` first to preview.
+      - **One source of truth.** The user model is built from `user_preference` memories. When a preference changes, update the existing memory with `memory_update` rather than creating a duplicate.
+      - **What belongs in the user model:** communication style, tone, formatting preferences, workflow rules, tool choices, domain expertise, recurring instructions, and any explicit "always/never" rules the user has stated.
     PERSONALITY
   end
 
@@ -193,7 +201,11 @@ module RoleInstructions
                   "Use memory actively. `memory_store` to save with a category (user_preference, project_context, " \
                   "decision, learned_behavior, factual, general). `memory_update` to revise or archive by ID. " \
                   "`memory_search` returns IDs — use them. `memory_stats` to check your inventory. " \
-                  "Prefer updating over duplicating. Supersede stale memories with related_memory_id."
+                  "Prefer updating over duplicating. Supersede stale memories with related_memory_id.\n\n" \
+                  "## User Model\n" \
+                  "Call `user_model` to load a structured view of all user preferences at the start of a session. " \
+                  "Store new preferences immediately with `memory_store` and `category: user_preference`. " \
+                  "Call `user_model_populate` (with `dry_run: true` first) to bootstrap the model from existing memories."
 
     blocks = [ { type: "text", text: core_parts.join("\n\n") } ]
 
