@@ -37,40 +37,44 @@ class SetupController < ApplicationController
   def save_provider
     errors = []
 
-    provider_params.each do |provider, config|
-      # Cloud providers (anthropic, openai) require an API key.
-      # Toggle-based providers (ollama, openai_compatible) use the enabled flag;
-      # API key is optional (e.g. local servers don't need one, but Minimax does).
-      toggle_provider = %w[ollama openai_compatible].include?(provider)
-      next if toggle_provider ? config[:enabled].blank? : config[:api_key].blank?
+    # Guard against missing providers key — submitting only an embedding provider
+    # (no chat providers) must not raise ActionController::ParameterMissing.
+    if params[:providers].present?
+      provider_params.each do |provider, config|
+        # Cloud providers (anthropic, openai) require an API key.
+        # Toggle-based providers (ollama, openai_compatible) use the enabled flag;
+        # API key is optional (e.g. local servers don't need one, but Minimax does).
+        toggle_provider = %w[ollama openai_compatible].include?(provider)
+        next if toggle_provider ? config[:enabled].blank? : config[:api_key].blank?
 
-      # Create or update the provider config
-      pc = ProviderConfig.find_or_initialize_by(name: provider)
-      pc.adapter_type = provider
-      pc.enabled = true
-      pc.vault_key = "providers/#{provider}_api_key"
-      pc.base_url = config[:base_url].presence if config.key?(:base_url)
+        # Create or update the provider config
+        pc = ProviderConfig.find_or_initialize_by(name: provider)
+        pc.adapter_type = provider
+        pc.enabled = true
+        pc.vault_key = "providers/#{provider}_api_key"
+        pc.base_url = config[:base_url].presence if config.key?(:base_url)
 
-      # Save selected models and default
-      selected_models = config[:models] || []
-      default_model = config[:default_model]
-      pc.model_definitions = selected_models.map do |model_id|
-        { "id" => model_id, "default" => (model_id == default_model) }
-      end
-
-      if pc.save
-        # Store the key in vault (only if an actual API key was provided)
-        if config[:api_key].present?
-          VaultEntry.find_or_initialize_by(namespace: "providers", key: "#{provider}_api_key").tap do |ve|
-            ve.encrypted_value = config[:api_key]
-            errors << ve.errors.full_messages unless ve.save
-          end
+        # Save selected models and default
+        selected_models = config[:models] || []
+        default_model = config[:default_model]
+        pc.model_definitions = selected_models.map do |model_id|
+          { "id" => model_id, "default" => (model_id == default_model) }
         end
 
-        # Store default model in settings
-        Setting.set("default_model_#{provider}", default_model) if default_model.present?
-      else
-        errors << pc.errors.full_messages
+        if pc.save
+          # Store the key in vault (only if an actual API key was provided)
+          if config[:api_key].present?
+            VaultEntry.find_or_initialize_by(namespace: "providers", key: "#{provider}_api_key").tap do |ve|
+              ve.encrypted_value = config[:api_key]
+              errors << ve.errors.full_messages unless ve.save
+            end
+          end
+
+          # Store default model in settings
+          Setting.set("default_model_#{provider}", default_model) if default_model.present?
+        else
+          errors << pc.errors.full_messages
+        end
       end
     end
 
