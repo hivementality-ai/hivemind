@@ -96,6 +96,7 @@ class SetupController < ApplicationController
           pc.name ||= "ollama"
           pc.vault_key ||= "providers/ollama_api_key"
           pc.base_url = ollama_base_url
+          pc.enabled = true
           pc.save
         end
       end
