@@ -3,6 +3,7 @@
 class MemoryEntry < ApplicationRecord
   belongs_to :agent
   belongs_to :source, polymorphic: true, optional: true
+  belongs_to :superseded_by, class_name: "MemoryEntry", optional: true
 
   has_neighbors :embedding
   has_neighbors :shadow_embedding
@@ -10,6 +11,8 @@ class MemoryEntry < ApplicationRecord
   before_save :sanitize_content_encoding
   validates :content, presence: true
   validates :memory_type, inclusion: { in: %w[episodic semantic procedural preference] }
+  validates :category, inclusion: { in: CATEGORIES }
+  validates :status, inclusion: { in: STATUSES }
 
   MEMORY_TYPES = {
     "episodic" => "What happened (conversation summaries, events)",
@@ -18,56 +21,91 @@ class MemoryEntry < ApplicationRecord
     "preference" => "User preferences (style, tools, habits)"
   }.freeze
 
+  CATEGORIES = %w[user_preference project_context decision learned_behavior factual general].freeze
+  STATUSES   = %w[active archived superseded].freeze
+
+  CATEGORY_DESCRIPTIONS = {
+    "user_preference"  => "How the user likes things done (formatting, tone, workflow preferences)",
+    "project_context"  => "Project-specific facts (repo structure, tech stack, team members)",
+    "decision"         => "Decisions made in past sessions (why we chose X over Y)",
+    "learned_behavior" => "Patterns the agent has learned (e.g. this user always wants PRs)",
+    "factual"          => "Facts about the world the agent has learned",
+    "general"          => "Uncategorized (default)"
+  }.freeze
+
   # --- Scopes ---
-  scope :for_agent, ->(agent) { where(agent: agent) }
-  scope :by_type, ->(type) { where(memory_type: type) }
-  scope :episodic, -> { by_type("episodic") }
-  scope :semantic, -> { by_type("semantic") }
-  scope :procedural, -> { by_type("procedural") }
-  scope :preferences, -> { by_type("preference") }
+  scope :for_agent,       ->(agent) { where(agent: agent) }
+  scope :by_type,         ->(type)  { where(memory_type: type) }
+  scope :by_category,     ->(cat)   { where(category: cat) }
+  scope :by_status,       ->(st)    { where(status: st) }
+  scope :active,          -> { by_status("active") }
+  scope :archived,        -> { by_status("archived") }
+  scope :superseded,      -> { by_status("superseded") }
+  scope :episodic,        -> { by_type("episodic") }
+  scope :semantic,        -> { by_type("semantic") }
+  scope :procedural,      -> { by_type("procedural") }
+  scope :preferences,     -> { by_type("preference") }
   scope :not_consolidated, -> { where(consolidated: false) }
-  scope :consolidated, -> { where(consolidated: true) }
-  scope :by_importance, -> { order(importance: :desc) }
-  scope :by_source_type, ->(type) { where(source_type: type) }
-  scope :multimodal, -> { where(modality: "multimodal") }
-  scope :text_only, -> { where(modality: "text") }
+  scope :consolidated,    -> { where(consolidated: true) }
+  scope :by_importance,   -> { order(importance: :desc) }
+  scope :by_source_type,  ->(type) { where(source_type: type) }
+  scope :multimodal,      -> { where(modality: "multimodal") }
+  scope :text_only,       -> { where(modality: "text") }
 
   # --- Vector Search ---
 
-  # Search for similar memories using pgvector cosine similarity
-  def self.search_similar(embedding:, agent:, limit: 10)
-    where(agent: agent)
-      .nearest_neighbors(:embedding, embedding, distance: "cosine")
-      .limit(limit)
+  # Search for similar memories using pgvector cosine similarity.
+  # Filters to active-only by default; pass status: nil for no filter.
+  def self.search_similar(embedding:, agent:, limit: 10, category: nil, status: "active")
+    scope = where(agent: agent)
+    scope = scope.by_category(category) if category.present?
+    scope = scope.by_status(status)     if status.present?
+    scope.nearest_neighbors(:embedding, embedding, distance: "cosine").limit(limit)
   end
 
-  # Search with a minimum similarity threshold
-  # neighbor_distance is cosine distance (0 = identical, 2 = opposite)
-  # threshold is similarity (1 = identical, 0 = unrelated)
-  def self.search_with_threshold(embedding:, agent:, threshold: 0.7, limit: 10)
-    results = search_similar(embedding: embedding, agent: agent, limit: limit)
+  # Search with a minimum similarity threshold.
+  # neighbor_distance is cosine distance (0 = identical, 2 = opposite).
+  # threshold is similarity (1 = identical, 0 = unrelated).
+  def self.search_with_threshold(embedding:, agent:, threshold: 0.7, limit: 10, category: nil, status: "active")
+    results = search_similar(embedding: embedding, agent: agent, limit: limit, category: category, status: status)
     results.select { |entry| (1 - entry.neighbor_distance) >= threshold }
   end
 
-  # Relevance-weighted search: 70% semantic similarity + 30% recency
-  def self.relevance_search(embedding:, agent:, limit: 10, recency_half_life_days: 7)
-    candidates = search_similar(embedding: embedding, agent: agent, limit: limit * 2)
+  # Relevance-weighted search: 70% semantic similarity + 30% recency.
+  def self.relevance_search(embedding:, agent:, limit: 10, recency_half_life_days: 7, category: nil, status: "active")
+    candidates = search_similar(embedding: embedding, agent: agent, limit: limit * 2, category: category, status: status)
 
     candidates.map do |entry|
       similarity = 1 - entry.neighbor_distance
-      recency = recency_score(entry.created_at, half_life_days: recency_half_life_days)
-      score = (0.7 * similarity) + (0.3 * recency)
-
+      recency    = recency_score(entry.created_at, half_life_days: recency_half_life_days)
+      score      = (0.7 * similarity) + (0.3 * recency)
       [ entry, score ]
     end.sort_by { |_, score| -score }.first(limit).map(&:first)
   end
 
   # --- Deduplication ---
 
-  # Find near-duplicates for a given embedding
+  # Find near-duplicates for a given embedding.
   def self.find_duplicate(embedding:, agent:, threshold: 0.92)
-    candidates = search_similar(embedding: embedding, agent: agent, limit: 3)
+    candidates = search_similar(embedding: embedding, agent: agent, limit: 3, status: nil)
     candidates.find { |entry| (1 - entry.neighbor_distance) >= threshold }
+  end
+
+  # --- Lifecycle helpers ---
+
+  # Marks this memory as superseded by another and archives it.
+  def supersede_with!(replacement)
+    update!(status: "superseded", superseded_by: replacement)
+  end
+
+  # Archives this memory (soft-delete).
+  def archive!
+    update!(status: "archived")
+  end
+
+  # Reactivates an archived/superseded memory.
+  def reactivate!
+    update!(status: "active", superseded_by: nil)
   end
 
   # --- Helpers ---
@@ -83,20 +121,18 @@ class MemoryEntry < ApplicationRecord
     embedding.zip(other_embedding).sum { |a, b| a * b }
   end
 
-  # Touch last_accessed_at when a memory is retrieved
+  # Touch last_accessed_at when a memory is retrieved.
   def touch_accessed!
     update_column(:last_accessed_at, Time.current)
   end
 
   private
 
-  # Exponential decay: score of 1.0 at t=0, 0.5 at t=half_life
+  # Exponential decay: score of 1.0 at t=0, 0.5 at t=half_life.
   def self.recency_score(created_at, half_life_days: 7)
     age_days = (Time.current - created_at) / 1.day
     Math.exp(-Math.log(2) * age_days / half_life_days)
   end
-
-  private
 
   def sanitize_content_encoding
     return unless content.is_a?(String)
