@@ -398,6 +398,22 @@ BUILTIN_TOOLS = [
     }
   },
   {
+    name: "session_search",
+    description: "Search session history using full-text search. Find past conversations by keyword across all sessions you have access to. Supports date range and agent filtering.",
+    executor_type: "session_search",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "query"        => { "type" => "string",  "description" => "Keywords to search for in session history" },
+        "limit"        => { "type" => "integer", "description" => "Max results to return (1-20, default 10)" },
+        "agent_filter" => { "type" => "string",  "description" => "Agent name or slug to restrict results to" },
+        "from"         => { "type" => "string",  "description" => "ISO8601 date — only sessions updated after this date" },
+        "to"           => { "type" => "string",  "description" => "ISO8601 date — only sessions updated before this date" }
+      },
+      "required" => ["query"]
+    }
+  },
+  {
     name: "agents_list",
     description: "List all available agents with their roles, models, teams, and tool counts.",
     executor_type: "agents_list",

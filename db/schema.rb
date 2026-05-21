@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_17_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_21_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -586,6 +586,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_17_120000) do
     t.string "title"
     t.bigint "total_tokens"
     t.jsonb "transcript"
+    t.tsvector "fts_vector"
     t.datetime "updated_at", null: false
     t.index ["agent_id", "status"], name: "index_sessions_on_agent_id_and_status"
     t.index ["agent_id"], name: "index_sessions_on_agent_id"
@@ -593,6 +594,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_17_120000) do
     t.index ["origin_channel_type", "origin_sender"], name: "index_sessions_on_origin_channel_type_and_origin_sender"
     t.index ["origin_channel_type"], name: "index_sessions_on_origin_channel_type"
     t.index ["session_key"], name: "index_sessions_on_session_key", unique: true
+    t.index ["fts_vector"], name: "index_sessions_on_fts_vector", using: :gin
     t.index ["team_chat_session_id"], name: "index_sessions_on_team_chat_session_id"
   end
 

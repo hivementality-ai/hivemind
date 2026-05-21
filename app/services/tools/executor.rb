@@ -32,6 +32,7 @@ module Tools
       "sessions_send" => Tools::SessionsSendExecutor,
       "sessions_history" => Tools::SessionsHistoryExecutor,
       "session_status" => Tools::SessionStatusExecutor,
+      "session_search" => Tools::SessionSearchExecutor,
       "agents_list" => Tools::AgentsListExecutor,
       "gateway" => Tools::GatewayExecutor,
       "tts" => Tools::TtsExecutor,
