@@ -53,7 +53,7 @@ RSpec.describe Tools::SessionSearchExecutor, type: :service do
 
       it "returns failure" do
         result = executor.call
-        expect(result).to be_failure
+        expect(result).not_to be_success
         expect(result.error).to include("No query provided")
       end
     end
@@ -63,7 +63,7 @@ RSpec.describe Tools::SessionSearchExecutor, type: :service do
 
       it "returns failure" do
         result = executor.call
-        expect(result).to be_failure
+        expect(result).not_to be_success
         expect(result.error).to include("No query provided")
       end
     end
