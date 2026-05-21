@@ -9,26 +9,27 @@ module Tools
 
       base = MemoryEntry.where(agent: agent)
 
-      by_category = MemoryEntry::CATEGORIES.map do |cat|
-        count = base.where(category: cat).count
-        "  #{cat}: #{count}"
+      # Two GROUP BY queries instead of N individual COUNTs
+      by_category = base.group(:category).count
+      by_status   = base.group(:status).count
+      total       = by_status.values.sum
+
+      category_lines = MemoryEntry::CATEGORIES.map do |cat|
+        "  #{cat}: #{by_category.fetch(cat, 0)}"
       end
 
-      by_status = MemoryEntry::STATUSES.map do |st|
-        count = base.where(status: st).count
-        "  #{st}: #{count}"
+      status_lines = MemoryEntry::STATUSES.map do |st|
+        "  #{st}: #{by_status.fetch(st, 0)}"
       end
-
-      total = base.count
 
       output = <<~TEXT.strip
         Memory inventory for #{agent.name}:
 
         By category:
-        #{by_category.join("\n")}
+        #{category_lines.join("\n")}
 
         By status:
-        #{by_status.join("\n")}
+        #{status_lines.join("\n")}
 
         Total: #{total}
       TEXT
