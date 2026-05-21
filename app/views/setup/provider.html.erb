@@ -491,22 +491,86 @@
           <p class="text-text-muted text-xs mb-4">Embeddings power agent memory search. Choose how memories are indexed.</p>
 
           <div class="space-y-3">
-            <label class="flex items-start gap-3 p-4 bg-surface-raised rounded-lg border border-border-default cursor-pointer hover:border-purple-500/50 transition has-[:checked]:border-purple-500 has-[:checked]:bg-purple-900/10">
-              <input type="radio" name="embedding_provider" value="ollama" checked
-                     class="mt-0.5 w-4 h-4 text-purple-600 focus:ring-purple-500 bg-surface-overlay border-gray-500">
-              <div class="flex-1">
-                <div class="flex items-center gap-2">
-                  <span class="text-white text-sm font-medium">Ollama</span>
-                  <span class="px-1.5 py-0.5 bg-green-900/40 text-green-400 text-xs rounded">Free</span>
-                  <span class="px-1.5 py-0.5 bg-purple-900/40 text-purple-400 text-xs rounded">Local</span>
+            <div class="p-4 bg-surface-raised rounded-lg border border-border-default has-[:checked]:border-purple-500 has-[:checked]:bg-purple-900/10 transition">
+              <label class="flex items-start gap-3 cursor-pointer">
+                <input type="radio" name="embedding_provider" value="ollama" checked
+                       class="mt-0.5 w-4 h-4 text-purple-600 focus:ring-purple-500 bg-surface-overlay border-gray-500"
+                       onchange="toggleOllamaEmbeddingSection(true)">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-white text-sm font-medium">Ollama</span>
+                    <span class="px-1.5 py-0.5 bg-green-900/40 text-green-400 text-xs rounded">Free</span>
+                    <span class="px-1.5 py-0.5 bg-purple-900/40 text-purple-400 text-xs rounded">Local / Remote</span>
+                  </div>
+                  <p class="text-text-muted text-xs mt-1">Text-only embeddings via nomic-embed-text. No API key needed. Works with local or remote Ollama.</p>
                 </div>
-                <p class="text-text-muted text-xs mt-1">Text-only embeddings via nomic-embed-text. Runs locally, no API key needed. Requires Ollama enabled above.</p>
+              </label>
+
+              <!-- Ollama embedding URL — separate from the chat provider toggle/URL above -->
+              <div id="ollama-embedding-section" class="mt-3 space-y-2">
+                <label class="text-text-primary text-xs font-medium block">Ollama URL</label>
+                <div class="flex gap-2">
+                  <input type="text"
+                         id="ollama-embedding-url"
+                         name="ollama_embedding_base_url"
+                         class="flex-1 px-3 py-2 bg-surface-overlay border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-xs"
+                         placeholder="http://host.docker.internal:11434"
+                         value="http://host.docker.internal:11434">
+                  <button type="button"
+                          onclick="detectOllamaEmbeddingConnection()"
+                          class="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded-lg transition cursor-pointer whitespace-nowrap">
+                    Check Connection
+                  </button>
+                </div>
+                <p class="text-text-faint text-xs">
+                  Change this if Ollama is running on another machine (e.g. <code class="text-text-muted">http://192.168.1.100:11434</code>).
+                  Leave as-is for local Ollama.
+                </p>
+                <p id="ollama-embedding-status" class="text-xs hidden"></p>
               </div>
-            </label>
+            </div>
+
+            <script>
+              function detectOllamaEmbeddingConnection() {
+                const urlInput = document.getElementById('ollama-embedding-url');
+                const statusEl = document.getElementById('ollama-embedding-status');
+                const url = (urlInput ? urlInput.value : '').trim() || 'http://host.docker.internal:11434';
+
+                statusEl.textContent = 'Checking…';
+                statusEl.className = 'text-xs text-text-muted';
+                statusEl.classList.remove('hidden');
+
+                fetch(`/setup/ollama_models?url=${encodeURIComponent(url)}`)
+                  .then(r => r.json())
+                  .then(data => {
+                    const hasEmbed = data.models && data.models.some(m => m.id && m.id.includes('nomic-embed-text'));
+                    if (hasEmbed) {
+                      statusEl.textContent = '✓ Connected — nomic-embed-text found';
+                      statusEl.className = 'text-xs text-green-400';
+                    } else if (data.models && data.models.length > 0) {
+                      statusEl.textContent = '⚠ Connected, but nomic-embed-text not found. Run: ollama pull nomic-embed-text';
+                      statusEl.className = 'text-xs text-yellow-400';
+                    } else {
+                      statusEl.textContent = '✗ Could not connect to Ollama at ' + url;
+                      statusEl.className = 'text-xs text-red-400';
+                    }
+                  })
+                  .catch(() => {
+                    statusEl.textContent = '✗ Could not connect to Ollama at ' + url;
+                    statusEl.className = 'text-xs text-red-400';
+                  });
+              }
+
+              function toggleOllamaEmbeddingSection(show) {
+                const section = document.getElementById('ollama-embedding-section');
+                if (section) section.classList.toggle('hidden', !show);
+              }
+            </script>
 
             <label class="flex items-start gap-3 p-4 bg-surface-raised rounded-lg border border-border-default cursor-pointer hover:border-blue-500/50 transition has-[:checked]:border-blue-500 has-[:checked]:bg-blue-900/10">
               <input type="radio" name="embedding_provider" value="gemini"
-                     class="mt-0.5 w-4 h-4 text-blue-600 focus:ring-blue-500 bg-surface-overlay border-gray-500">
+                     class="mt-0.5 w-4 h-4 text-blue-600 focus:ring-blue-500 bg-surface-overlay border-gray-500"
+                     onchange="toggleOllamaEmbeddingSection(false)">
               <div class="flex-1">
                 <div class="flex items-center gap-2">
                   <span class="text-white text-sm font-medium">Gemini</span>
@@ -528,7 +592,8 @@
 
             <label class="flex items-start gap-3 p-4 bg-surface-raised rounded-lg border border-border-default cursor-pointer hover:border-green-500/50 transition has-[:checked]:border-green-500 has-[:checked]:bg-green-900/10">
               <input type="radio" name="embedding_provider" value="openai"
-                     class="mt-0.5 w-4 h-4 text-green-600 focus:ring-green-500 bg-surface-overlay border-gray-500">
+                     class="mt-0.5 w-4 h-4 text-green-600 focus:ring-green-500 bg-surface-overlay border-gray-500"
+                     onchange="toggleOllamaEmbeddingSection(false)">
               <div class="flex-1">
                 <div class="flex items-center gap-2">
                   <span class="text-white text-sm font-medium">OpenAI</span>

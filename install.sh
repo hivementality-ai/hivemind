@@ -371,13 +371,79 @@ setup_memory_embeddings() {
     echo -e "  ${GREEN}✓${NC} Ollama is already installed."
     echo -e "  Just need to pull the embedding model (~274MB)."
   else
-    echo -e "  This requires a local embedding model via ${BOLD}Ollama${NC} (~274MB download, ~500MB RAM)."
-    echo -e "  It runs locally — no API keys, no external calls, fully private."
+    echo -e "  This requires Ollama with the nomic-embed-text model."
+    echo -e "  You can use a ${BOLD}local${NC} install (~274MB download, ~500MB RAM)"
+    echo -e "  or connect to an ${BOLD}existing remote${NC} Ollama instance."
   fi
 
   echo ""
   echo -e "  ${YELLOW}Without this, agents still remember — but search is keyword-only.${NC}"
   echo ""
+
+  # If no local Ollama, offer remote as a first option before installing locally
+  if [ "$has_ollama" = false ]; then
+    echo -e "  Do you have a ${BOLD}remote Ollama instance${NC} running on another machine?"
+    echo -e "  Press ${BOLD}Y${NC} to use a remote URL"
+    echo -e "  Press ${BOLD}n${NC} to install Ollama locally (or skip)"
+    echo ""
+
+    local use_remote
+    if [ -t 0 ] || [ -e /dev/tty ]; then
+      read -rp "$(echo -e "${CYAN}▸${NC}") Use remote Ollama? [y/N] " use_remote < /dev/tty 2>/dev/null || use_remote="N"
+    else
+      use_remote="N"
+      info "Non-interactive install — skipping remote Ollama prompt"
+    fi
+    use_remote="${use_remote:-N}"
+
+    if [[ "$use_remote" =~ ^[Yy] ]]; then
+      # Remote Ollama path
+      local remote_url
+      if [ -t 0 ] || [ -e /dev/tty ]; then
+        read -rp "$(echo -e "${CYAN}▸${NC}") Remote Ollama URL [e.g. http://192.168.1.100:11434]: " remote_url < /dev/tty 2>/dev/null || remote_url=""
+      else
+        remote_url=""
+      fi
+
+      # Strip trailing slash for consistency
+      remote_url="${remote_url%/}"
+
+      if [ -z "$remote_url" ]; then
+        warn "No URL entered — skipping semantic memory"
+        echo "MEMORY_EMBEDDINGS_ENABLED=false" >> "$HIVEMIND_DIR/.env"
+        return
+      fi
+
+      # Validate connectivity
+      info "Checking connection to ${remote_url}..."
+      local tags_response
+      tags_response=$(curl -sf --connect-timeout 5 --max-time 10 "${remote_url}/api/tags" 2>/dev/null)
+      if [ $? -ne 0 ] || [ -z "$tags_response" ]; then
+        warn "Could not reach ${remote_url}/api/tags — verify the URL and that Ollama is running"
+        warn "Skipping semantic memory — you can configure the URL later in Settings → Providers"
+        echo "MEMORY_EMBEDDINGS_ENABLED=false" >> "$HIVEMIND_DIR/.env"
+        return
+      fi
+
+      ok "Connected to remote Ollama at ${remote_url}"
+
+      # Check if nomic-embed-text is available on the remote instance
+      if echo "$tags_response" | grep -q "nomic-embed-text"; then
+        ok "nomic-embed-text model found on remote instance"
+      else
+        warn "nomic-embed-text not found on remote Ollama instance"
+        echo -e "  Run on your remote machine: ${BOLD}ollama pull nomic-embed-text${NC}"
+        echo -e "  Continuing setup — you can pull the model later."
+      fi
+
+      echo "MEMORY_EMBEDDINGS_ENABLED=true" >> "$HIVEMIND_DIR/.env"
+      echo "MEMORY_EMBEDDINGS_PROVIDER=ollama" >> "$HIVEMIND_DIR/.env"
+      echo "OLLAMA_BASE_URL=${remote_url}" >> "$HIVEMIND_DIR/.env"
+      ok "Semantic memory configured (remote Ollama at ${remote_url})"
+      return
+    fi
+  fi
+
   echo -e "  Press ${BOLD}Y${NC} to install Ollama and enable semantic memory"
   echo -e "  Press ${BOLD}n${NC} to skip (you can enable it later)"
   echo ""
