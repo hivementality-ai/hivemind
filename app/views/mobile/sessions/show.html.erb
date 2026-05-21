@@ -22,7 +22,7 @@
   </div>
 
   <!-- Messages -->
-  <div class="flex-1 overflow-y-auto px-4 py-4 space-y-4" data-mobile-chat-target="messages" id="messages">
+  <div class="flex-1 overflow-y-auto px-4 py-4 space-y-6" data-mobile-chat-target="messages" id="messages">
     <% if @messages.empty? %>
       <div class="flex items-center justify-center h-full" data-mobile-chat-target="emptyState">
         <div class="text-center px-6">
@@ -40,9 +40,9 @@
         <!-- Sub-agent message -->
         <div class="flex justify-start">
           <div class="max-w-[85%]">
-            <div class="flex items-start gap-2">
+            <div class="flex items-start gap-3">
               <div class="w-7 h-7 rounded-full bg-purple-600/30 border border-purple-500/50 flex items-center justify-center text-purple-300 text-xs font-bold flex-shrink-0 mt-1">S</div>
-              <div class="bg-purple-900/20 border border-purple-500/30 rounded-2xl rounded-bl-md px-3 py-2 text-gray-100">
+              <div class="bg-purple-900/20 border border-purple-500/30 rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
                 <div class="text-xs text-purple-400 font-medium mb-1"><%= msg["agent_name"] || "Sub-agent" %></div>
                 <div class="text-sm chat-content"><%= msg["content"] %></div>
               </div>
@@ -78,7 +78,7 @@
                 <% end %>
               </div>
             <% end %>
-            <div class="bg-brand rounded-2xl rounded-br-md px-3 py-2 text-white">
+            <div class="bg-brand rounded-2xl rounded-br-md px-4 py-3 text-white">
               <p class="text-sm whitespace-pre-wrap"><%= msg["content"] %></p>
             </div>
           </div>
@@ -88,24 +88,36 @@
         <!-- Agent message -->
         <div class="flex justify-start">
           <div class="max-w-[85%]">
-            <div class="flex items-start gap-2">
+            <div class="flex items-start gap-3">
               <%= agent_avatar(@agent, size: :xs) %>
               <div>
-                <div class="bg-surface-raised rounded-2xl rounded-bl-md px-3 py-2 text-gray-100">
+                <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
                   <div class="text-sm chat-content"><%= msg["content"] %></div>
                 </div>
                 <% if msg["tool_calls"].present? %>
-                  <% msg["tool_calls"].each do |tc| %>
-                    <details class="mt-1">
-                      <summary class="text-xs text-text-faint cursor-pointer hover:text-text-muted flex items-center gap-1 px-1">
-                        <span class="<%= tc["success"] ? "text-green-400" : "text-red-400" %>"><%= tc["success"] ? "+" : "x" %></span>
-                        <%= tc["tool"] %>
-                      </summary>
-                      <div class="bg-surface-card border border-border-default rounded-lg px-2 py-1.5 mt-1 text-xs">
-                        <code class="text-text-muted block break-all"><%= tc["output"].to_s.truncate(200) %></code>
-                      </div>
-                    </details>
-                  <% end %>
+                  <%# Collapsed tool call summary — hidden by default, tappable to expand %>
+                  <details class="mt-1.5">
+                    <summary class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/25 rounded-full text-xs text-amber-400 cursor-pointer select-none list-none">
+                      <span>⚡</span>
+                      <span><%= msg["tool_calls"].size %> <%= msg["tool_calls"].size == 1 ? "tool" : "tools" %> used</span>
+                      <svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </summary>
+                    <div class="mt-1.5 space-y-1">
+                      <% msg["tool_calls"].each do |tc| %>
+                        <div class="bg-surface-card border border-border-default rounded-lg px-2.5 py-1.5 text-xs">
+                          <div class="flex items-center gap-1.5">
+                            <span class="<%= tc["success"] ? "text-green-400" : "text-red-400" %>"><%= tc["success"] ? "✓" : "✗" %></span>
+                            <span class="font-mono text-text-muted"><%= tc["tool"] %></span>
+                          </div>
+                          <% if tc["output"].present? %>
+                            <code class="text-text-faint block break-all mt-1"><%= tc["output"].to_s.truncate(200) %></code>
+                          <% end %>
+                        </div>
+                      <% end %>
+                    </div>
+                  </details>
                 <% end %>
               </div>
             </div>
@@ -117,13 +129,16 @@
 
   <!-- Streaming indicator -->
   <div class="px-4 hidden" data-mobile-chat-target="thinking">
-    <div class="flex items-start gap-2">
+    <div class="flex items-start gap-3">
       <%= agent_avatar(@agent, size: :xs) %>
-      <div class="bg-surface-raised rounded-2xl rounded-bl-md px-3 py-2 text-text-muted">
-        <div class="flex gap-1">
-          <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
-          <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
-          <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+      <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-text-muted">
+        <div class="flex items-center gap-2">
+          <div class="flex gap-1">
+            <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+            <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+            <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+          </div>
+          <span class="thinking-text text-xs text-text-faint truncate max-w-[180px]"></span>
         </div>
       </div>
     </div>
