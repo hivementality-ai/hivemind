@@ -14,6 +14,7 @@ module Skills
     MIN_CONTENT_LENGTH = 200
     MAX_NAME_LENGTH    = 60
     NAME_PATTERN       = /\A[a-z0-9][a-z0-9_\-]*\z/
+    HEADING_PATTERN    = /^##\s+\S+/
 
     # Patterns that signal embedded secrets / sensitive data.
     # These are intentionally simple — the SkillSecurityScanner handles deep analysis.
@@ -79,8 +80,7 @@ module Skills
     def validate_content_structure
       return if @content.blank?
 
-      has_heading = @content.match?(/^#{2}\s+\S+/)
-      @errors << "Content must contain at least one section heading (## Heading)" unless has_heading
+      @errors << "Content must contain at least one section heading (## Heading)" unless @content.match?(HEADING_PATTERN)
     end
 
     def validate_category

@@ -2,11 +2,13 @@
 
 class SkillsController < ApplicationController
   before_action :authenticate_user!
+  before_action :authorize_admin_or_owner!, only: [ :proposals, :approve_proposal, :reject_proposal ]
   before_action :set_skill, only: [ :show, :edit, :update, :destroy, :toggle, :approve_proposal, :reject_proposal ]
 
   def index
     @skills = Skill.includes(:tools, :agents).order(:name)
     @categories = Skill.distinct.pluck(:category).compact.sort
+    @pending_count = Skill.pending_proposals.count
   end
 
   def show; end

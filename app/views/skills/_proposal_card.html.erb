@@ -45,19 +45,21 @@
             approve_proposal_skill_path(skill),
             method: :patch,
             class: "px-3 py-1.5 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-medium" %>
-
-        <%= button_to "Reject",
-            reject_proposal_skill_path(skill),
-            method: :patch,
-            params: { notes: "" },
-            data: {
-              turbo_confirm: "Reject skill '#{skill.name}'? This cannot be undone.",
-              turbo_method: "patch"
-            },
-            class: "px-3 py-1.5 text-sm bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded-lg transition" %>
       <% end %>
     </div>
   </div>
+
+  <% if show_actions && skill.proposal_pending? %>
+    <%# Reject form with notes input %>
+    <%= form_with url: reject_proposal_skill_path(skill), method: :patch, class: "mt-3 flex items-start gap-2" do |f| %>
+      <%= f.text_field :notes,
+          placeholder: "Reason for rejection (optional)",
+          class: "flex-1 text-sm bg-surface-base border border-border-default rounded-lg px-3 py-1.5 text-text-primary placeholder-text-faint focus:outline-none focus:border-amber-500/50" %>
+      <%= f.submit "Reject",
+          class: "px-3 py-1.5 text-sm bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded-lg transition cursor-pointer",
+          data: { turbo_confirm: "Reject skill '#{skill.name}'? This cannot be undone." } %>
+    <% end %>
+  <% end %>
 
   <%# Content preview %>
   <details class="mt-3">

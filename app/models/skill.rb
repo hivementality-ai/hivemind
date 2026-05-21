@@ -3,16 +3,23 @@
 require "digest"
 
 class Skill < ApplicationRecord
+  CATEGORIES = %w[coding productivity automation messaging lifestyle utilities integrations].freeze
+  TIERS = %w[core contextual manual].freeze
+  PROPOSAL_STATUSES = %w[pending approved rejected].freeze
+
   has_many :agent_skills, dependent: :destroy
   has_many :agents, through: :agent_skills
   has_many :skill_tools, dependent: :destroy
   has_many :tools, through: :skill_tools
   has_many :skill_load_events, dependent: :destroy
 
+  belongs_to :proposing_agent, class_name: "Agent", foreign_key: "proposed_by_agent_id", optional: true
+
   validates :name, presence: true, uniqueness: true
   validates :content, presence: true
   validates :summary, presence: true, length: { maximum: 150 }
-  validates :tier, inclusion: { in: %w[core contextual manual] }
+  validates :tier, inclusion: { in: TIERS }
+  validates :proposal_status, inclusion: { in: PROPOSAL_STATUSES }, allow_nil: true
 
   before_save :compute_checksum, if: :content_changed?
 
@@ -23,13 +30,6 @@ class Skill < ApplicationRecord
   scope :contextual_tier, -> { where(tier: "contextual") }
   scope :manual_tier, -> { where(tier: "manual") }
   scope :with_tag, ->(tag) { where("? = ANY(tags)", tag) }
-
-  CATEGORIES = %w[coding productivity automation messaging lifestyle utilities integrations].freeze
-  TIERS = %w[core contextual manual].freeze
-  PROPOSAL_STATUSES = %w[pending approved rejected].freeze
-
-  belongs_to :proposing_agent, class_name: "Agent", foreign_key: "proposed_by_agent_id", optional: true
-
   scope :agent_authored, -> { where(source: "agent") }
   scope :pending_proposals, -> { agent_authored.where(proposal_status: "pending") }
   scope :approved_proposals, -> { agent_authored.where(proposal_status: "approved") }

@@ -131,12 +131,6 @@ class ProvidersController < ApplicationController
     @provider = ProviderConfig.find(params[:id])
   end
 
-  def authorize_admin_or_owner!
-    return if current_user.admin? || current_user.owner?
-
-    redirect_to root_path, alert: "Access denied."
-  end
-
   def provider_params
     permitted = [ :api_key, :default_model, :base_url, :prompt_debug_enabled, :anthropic_use_sdk_proxy, models: [] ]
     permitted.unshift(:adapter_type, :name) if action_name == "create"

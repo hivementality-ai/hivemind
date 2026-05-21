@@ -71,6 +71,7 @@ module Agents
         status: "pending_review"
       })
     rescue StandardError => e
+      Rails.logger.error("[Agents::SkillCreator] Failed to create skill '#{@name}': #{e.full_message}")
       ServiceResponse.failure(error: "Skill creation failed: #{e.message}")
     end
 

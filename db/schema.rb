@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_21_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_21_200002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -606,6 +606,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_21_100000) do
     t.index ["key"], name: "index_settings_on_key", unique: true
   end
 
+
+  create_table "skill_load_events", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.datetime "created_at", null: false
+    t.float "relevance_score"
+    t.bigint "session_id"
+    t.bigint "skill_id", null: false
+    t.string "load_tier", null: false
+    t.string "trigger_context", limit: 500
+    t.boolean "was_helpful"
+    t.index ["agent_id", "skill_id"], name: "index_skill_load_events_on_agent_and_skill"
+    t.index ["agent_id"], name: "index_skill_load_events_on_agent_id"
+    t.index ["created_at"], name: "index_skill_load_events_on_created_at"
+    t.index ["load_tier"], name: "index_skill_load_events_on_load_tier"
+    t.index ["session_id"], name: "index_skill_load_events_on_session_id"
+    t.index ["skill_id"], name: "index_skill_load_events_on_skill_id"
+  end
+
   create_table "skill_tools", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "skill_id", null: false
@@ -629,15 +647,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_21_100000) do
     t.boolean "enabled", default: true, null: false
     t.jsonb "metadata", default: {}, null: false
     t.string "name", null: false
+    t.text "proposal_notes"
+    t.datetime "proposal_rejected_at"
+    t.bigint "proposal_rejected_by"
+    t.string "proposal_status"
+    t.datetime "proposed_at"
+    t.bigint "proposed_by_agent_id"
     t.jsonb "security_scan_result", default: {}, null: false
     t.string "source", default: "manual", null: false
     t.string "source_url"
     t.string "summary"
+    t.text "tags", array: true, default: []
+    t.string "tier", default: "manual", null: false
+    t.text "trigger_patterns", array: true, default: []
     t.datetime "updated_at", null: false
     t.index ["checksum"], name: "index_skills_on_checksum"
     t.index ["enabled"], name: "index_skills_on_enabled"
     t.index ["name"], name: "index_skills_on_name", unique: true
+    t.index ["proposal_status"], name: "index_skills_on_proposal_status"
+    t.index ["proposed_by_agent_id"], name: "index_skills_on_proposed_by_agent_id"
     t.index ["source"], name: "index_skills_on_source"
+    t.index ["tags"], name: "index_skills_on_tags", using: :gin
+    t.index ["tier"], name: "index_skills_on_tier"
   end
 
   create_table "sub_agent_tasks", force: :cascade do |t|
@@ -991,5 +1022,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_21_100000) do
   add_foreign_key "usage_records", "agents"
   add_foreign_key "usage_records", "sessions"
   add_foreign_key "usage_records", "teams"
+  add_foreign_key "skill_load_events", "agents"
+  add_foreign_key "skill_load_events", "sessions"
+  add_foreign_key "skill_load_events", "skills"
+  add_foreign_key "skills", "agents", column: "proposed_by_agent_id", on_delete: :nullify
   add_foreign_key "vault_entries", "agents"
 end
