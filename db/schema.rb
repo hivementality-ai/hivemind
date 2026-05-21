@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_21_200002) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_21_300003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -616,6 +616,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_21_200002) do
     t.string "load_tier", null: false
     t.string "trigger_context", limit: 500
     t.boolean "was_helpful"
+    t.text    "flagged_reason"
+    t.datetime "flagged_at"
     t.index ["agent_id", "skill_id"], name: "index_skill_load_events_on_agent_and_skill"
     t.index ["agent_id"], name: "index_skill_load_events_on_agent_id"
     t.index ["created_at"], name: "index_skill_load_events_on_created_at"
@@ -968,6 +970,44 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_21_200002) do
   add_foreign_key "heartbeat_runs", "agents"
   add_foreign_key "heartbeat_runs", "sessions"
   add_foreign_key "inbound_messages", "channels"
+
+  create_table "skill_update_proposals", force: :cascade do |t|
+    t.bigint   "skill_id", null: false
+    t.bigint   "proposed_by_agent_id", null: false
+    t.text     "proposed_content", null: false
+    t.text     "rationale", null: false
+    t.string   "status", null: false, default: "pending"
+    t.bigint   "reviewed_by_user_id"
+    t.text     "review_notes"
+    t.datetime "reviewed_at"
+    t.text     "original_content", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["skill_id"], name: "index_skill_update_proposals_on_skill_id"
+    t.index ["proposed_by_agent_id"], name: "index_skill_update_proposals_on_proposed_by_agent_id"
+    t.index ["status"], name: "index_skill_update_proposals_on_status"
+    t.index ["skill_id", "status"], name: "index_skill_update_proposals_on_skill_id_and_status"
+  end
+
+  create_table "skill_versions", force: :cascade do |t|
+    t.bigint   "skill_id", null: false
+    t.integer  "version_number", null: false
+    t.text     "content", null: false
+    t.string   "checksum", null: false
+    t.bigint   "changed_by_user_id"
+    t.bigint   "changed_by_agent_id"
+    t.string   "change_source", null: false, default: "manual"
+    t.text     "change_summary"
+    t.bigint   "update_proposal_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["skill_id"], name: "index_skill_versions_on_skill_id"
+    t.index ["skill_id", "version_number"], name: "index_skill_versions_on_skill_id_and_version_number", unique: true
+    t.index ["checksum"], name: "index_skill_versions_on_checksum"
+    t.index ["change_source"], name: "index_skill_versions_on_change_source"
+    t.index ["update_proposal_id"], name: "index_skill_versions_on_update_proposal_id"
+  end
+
   add_foreign_key "memory_entries", "agents"
   add_foreign_key "outbound_messages", "channels"
   add_foreign_key "project_events", "agents"
@@ -1026,5 +1066,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_21_200002) do
   add_foreign_key "skill_load_events", "sessions"
   add_foreign_key "skill_load_events", "skills"
   add_foreign_key "skills", "agents", column: "proposed_by_agent_id", on_delete: :nullify
+  add_foreign_key "skill_update_proposals", "skills"
+  add_foreign_key "skill_update_proposals", "agents", column: "proposed_by_agent_id"
+  add_foreign_key "skill_versions", "skills"
   add_foreign_key "vault_entries", "agents"
 end

@@ -143,12 +143,22 @@ Rails.application.routes.draw do
       get :export
       patch :approve_proposal
       patch :reject_proposal
+      get :history
+      patch :rollback
     end
     collection do
       post :import
       get :review_import
       post :confirm_import
       get :proposals
+      get :update_proposals
+    end
+  end
+
+  resources :skill_update_proposals, only: [] do
+    member do
+      patch :approve_update_proposal, controller: :skills, action: :approve_update_proposal
+      patch :reject_update_proposal, controller: :skills, action: :reject_update_proposal
     end
   end
 
