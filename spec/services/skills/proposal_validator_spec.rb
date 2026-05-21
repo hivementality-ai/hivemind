@@ -117,7 +117,7 @@ RSpec.describe Skills::ProposalValidator, type: :service do
     end
 
     context "category validation" do
-      it "accepts a blank category (defaults to utilities)" do
+      it "accepts a blank category (defaults to utilities in SkillCreator)" do
         expect(call(category: "")).to be_success
       end
 
@@ -127,10 +127,10 @@ RSpec.describe Skills::ProposalValidator, type: :service do
         end
       end
 
-      it "rejects unknown categories" do
-        result = call(category: "nonsense_category")
-        expect(result).not_to be_success
-        expect(result.error).to include("not valid")
+      it "accepts unknown categories (SkillCreator#resolve_category handles defaulting)" do
+        # ProposalValidator does not gatekeep category — unknown values fall
+        # through to SkillCreator#resolve_category which defaults to "utilities".
+        expect(call(category: "nonsense_category")).to be_success
       end
     end
 
@@ -142,7 +142,7 @@ RSpec.describe Skills::ProposalValidator, type: :service do
       end
 
       it "rejects content containing a GitHub PAT" do
-        result = call(content: valid_content + "\nghp_abcdefghijklmnopqrstuvwxyz12345678")
+        result = call(content: valid_content + "\nghp_abcdefghijklmnopqrstuvwxyz1234567890")
         expect(result).not_to be_success
         expect(result.error).to include("sensitive data")
       end

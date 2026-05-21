@@ -9,7 +9,9 @@ module Skills
   #   - No sensitive data patterns (API keys, passwords, secrets)
   #   - Name must be snake_case or hyphen-case, max 60 chars
   #   - Summary must be present and within 150 chars
-  #   - Category must be a known value
+  #
+  # Note: category is intentionally not validated here. Unknown or blank values
+  # are handled by SkillCreator#resolve_category, which defaults to "utilities".
   class ProposalValidator
     MIN_CONTENT_LENGTH = 200
     MAX_NAME_LENGTH    = 60
@@ -44,7 +46,6 @@ module Skills
       validate_summary
       validate_content_length
       validate_content_structure
-      validate_category
       check_sensitive_data
 
       if @errors.empty?
@@ -81,14 +82,6 @@ module Skills
       return if @content.blank?
 
       @errors << "Content must contain at least one section heading (## Heading)" unless @content.match?(HEADING_PATTERN)
-    end
-
-    def validate_category
-      return if @category.blank? # optional field — defaults to utilities
-
-      unless Skill::CATEGORIES.include?(@category)
-        @errors << "Category '#{@category}' is not valid. Must be one of: #{Skill::CATEGORIES.join(', ')}"
-      end
     end
 
     def check_sensitive_data
