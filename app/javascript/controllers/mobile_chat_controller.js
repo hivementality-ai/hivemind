@@ -28,6 +28,7 @@ export default class extends Controller {
     this.currentStreamEl = null
     this.streamedContent = ""
     this.toolCallCount = 0       // counts tool calls fired during current stream
+    this.toolCallData = []       // accumulates { name, id, success, output } per tool call
     this.touchStartX = 0
     this.touchStartY = 0
 
@@ -109,6 +110,7 @@ export default class extends Controller {
       this.currentStreamEl = this.createAssistantBubble()
       this.streamedContent = ""
       this.toolCallCount = 0
+      this.toolCallData = []
       this.hideEmptyState()
     }
     this.streamedContent += token
@@ -128,11 +130,15 @@ export default class extends Controller {
     this.toolCallCount++
 
     if (!this.currentStreamEl) {
-      // Tool firing before any tokens — ensure we have a bubble
+      // Tool firing before any tokens — ensure we have a bubble and fresh state
       this.currentStreamEl = this.createAssistantBubble()
       this.streamedContent = ""
+      this.toolCallData = []
       this.hideEmptyState()
     }
+
+    // Track metadata so finalizeMessage can render the full expandable detail list
+    this.toolCallData.push({ name: name || "tool", id: id, success: null, output: null })
 
     // Update or create the in-bubble tool indicator (never appended to messages list)
     let indicator = this.currentStreamEl.querySelector(".tool-progress-indicator")
@@ -148,8 +154,12 @@ export default class extends Controller {
   }
 
   handleToolResult(id, content) {
-    // No-op during streaming — the indicator updates on tool_start are sufficient.
-    // The final count is shown in finalizeMessage.
+    // Find the matching tool call entry and record its result
+    const entry = this.toolCallData.find(t => t.id === id)
+    if (entry) {
+      entry.success = true
+      entry.output = content ? String(content).substring(0, 200) : null
+    }
   }
 
   finalizeMessage(agentName) {
@@ -169,14 +179,35 @@ export default class extends Controller {
       if (indicator) {
         if (this.toolCallCount > 0) {
           const label = this.toolCallCount === 1 ? "1 tool used" : `${this.toolCallCount} tools used`
+
+          // Build the detail rows — mirrors the ERB template in show.html.erb
+          const detailRows = this.toolCallData.map(tc => {
+            const successIcon = tc.success === false ? "✗" : "✓"
+            const iconClass = tc.success === false ? "text-red-400" : "text-green-400"
+            const outputHtml = tc.output
+              ? `<code class="text-gray-500 block break-all mt-1">${this.escapeHtml(tc.output)}</code>`
+              : ""
+            return `
+              <div class="bg-surface-card border border-border-default rounded-lg px-2.5 py-1.5 text-xs">
+                <div class="flex items-center gap-1.5">
+                  <span class="${iconClass}">${successIcon}</span>
+                  <span class="font-mono text-text-muted">${this.escapeHtml(tc.name)}</span>
+                </div>
+                ${outputHtml}
+              </div>`
+          }).join("")
+
           indicator.outerHTML = `
             <details class="mt-1.5">
-              <summary class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/25 rounded-full text-xs text-amber-400 cursor-pointer select-none list-none">
+              <summary class="tool-call-summary inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/25 rounded-full text-xs text-amber-400 cursor-pointer select-none">
                 <span>⚡</span><span>${label}</span>
                 <svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                 </svg>
               </summary>
+              <div class="mt-1.5 space-y-1">
+                ${detailRows}
+              </div>
             </details>`
         } else {
           indicator.remove()
@@ -186,6 +217,7 @@ export default class extends Controller {
       this.currentStreamEl = null
       this.streamedContent = ""
       this.toolCallCount = 0
+      this.toolCallData = []
     }
     this.hideThinking()
     this.scrollToBottom()
@@ -204,6 +236,7 @@ export default class extends Controller {
       this.currentStreamEl = null
       this.streamedContent = ""
       this.toolCallCount = 0
+      this.toolCallData = []
     }
     this.hideThinking()
   }
