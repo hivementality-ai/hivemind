@@ -141,11 +141,14 @@ Rails.application.routes.draw do
     member do
       patch :toggle
       get :export
+      patch :approve_proposal
+      patch :reject_proposal
     end
     collection do
       post :import
       get :review_import
       post :confirm_import
+      get :proposals
     end
   end
 

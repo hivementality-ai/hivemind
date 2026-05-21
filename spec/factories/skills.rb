@@ -56,6 +56,21 @@ FactoryBot.define do
       end
     end
 
+    trait :agent_proposed do
+      source { "agent" }
+      enabled { false }
+      proposal_status { "pending" }
+      proposed_at { 1.hour.ago }
+      metadata do
+        {
+          "created_by_agent_id" => nil,
+          "created_by_agent_name" => "TestAgent",
+          "share_with_team" => false,
+          "created_at" => Time.current.iso8601
+        }
+      end
+    end
+
     trait :imported do
       source { "import" }
       security_scan_result do

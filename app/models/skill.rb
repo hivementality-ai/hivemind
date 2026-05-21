@@ -26,6 +26,26 @@ class Skill < ApplicationRecord
 
   CATEGORIES = %w[coding productivity automation messaging lifestyle utilities integrations].freeze
   TIERS = %w[core contextual manual].freeze
+  PROPOSAL_STATUSES = %w[pending approved rejected].freeze
+
+  belongs_to :proposing_agent, class_name: "Agent", foreign_key: "proposed_by_agent_id", optional: true
+
+  scope :agent_authored, -> { where(source: "agent") }
+  scope :pending_proposals, -> { agent_authored.where(proposal_status: "pending") }
+  scope :approved_proposals, -> { agent_authored.where(proposal_status: "approved") }
+  scope :rejected_proposals, -> { agent_authored.where(proposal_status: "rejected") }
+
+  def proposal_pending?
+    proposal_status == "pending"
+  end
+
+  def proposal_approved?
+    proposal_status == "approved"
+  end
+
+  def proposal_rejected?
+    proposal_status == "rejected"
+  end
 
   # Parse OpenClaw-compatible SKILL.md content
   def self.from_skill_md(text)

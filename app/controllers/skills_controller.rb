@@ -2,7 +2,7 @@
 
 class SkillsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_skill, only: [ :show, :edit, :update, :destroy, :toggle ]
+  before_action :set_skill, only: [ :show, :edit, :update, :destroy, :toggle, :approve_proposal, :reject_proposal ]
 
   def index
     @skills = Skill.includes(:tools, :agents).order(:name)
@@ -129,6 +129,40 @@ class SkillsController < ApplicationController
     send_data skill.to_skill_md,
               filename: "#{skill.name}.SKILL.md",
               type: "text/markdown"
+  end
+
+  def proposals
+    @pending_skills   = Skill.pending_proposals.includes(:proposing_agent).order(proposed_at: :desc)
+    @approved_skills  = Skill.approved_proposals.includes(:proposing_agent).order(approved_at: :desc).limit(20)
+    @rejected_skills  = Skill.rejected_proposals.includes(:proposing_agent).order(proposal_rejected_at: :desc).limit(20)
+  end
+
+  def approve_proposal
+    result = Skills::ProposalApprover.call(
+      skill: @skill,
+      approved_by: current_user.id,
+      notes: params[:notes]
+    )
+
+    if result.success?
+      redirect_to proposals_skills_path, notice: "\"#{@skill.name}\" approved and activated."
+    else
+      redirect_to proposals_skills_path, alert: result.error
+    end
+  end
+
+  def reject_proposal
+    result = Skills::ProposalRejector.call(
+      skill: @skill,
+      rejected_by: current_user.id,
+      notes: params[:notes]
+    )
+
+    if result.success?
+      redirect_to proposals_skills_path, notice: "\"#{@skill.name}\" rejected."
+    else
+      redirect_to proposals_skills_path, alert: result.error
+    end
   end
 
   private

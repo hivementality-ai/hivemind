@@ -1,0 +1,67 @@
+<%# locals: (skill:, show_actions: false) %>
+<div class="bg-surface-card rounded-xl border <%= skill.proposal_pending? ? 'border-amber-500/40' : 'border-border-default' %> p-5">
+  <div class="flex items-start justify-between gap-4">
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-2 flex-wrap mb-1">
+        <h3 class="text-white font-semibold"><%= skill.name %></h3>
+
+        <%# Proposal status badge %>
+        <% badge = case skill.proposal_status
+           when "pending"  then { label: "pending review", classes: "bg-amber-900/60 text-amber-300" }
+           when "approved" then { label: "approved",       classes: "bg-green-900/60 text-green-300" }
+           when "rejected" then { label: "rejected",       classes: "bg-red-900/60 text-red-400" }
+           else                 { label: skill.proposal_status, classes: "bg-surface-raised text-text-faint" }
+           end %>
+        <span class="px-2 py-0.5 text-xs rounded-full <%= badge[:classes] %>"><%= badge[:label] %></span>
+
+        <% if skill.category.present? %>
+          <span class="px-2 py-0.5 text-xs rounded-full bg-surface-raised text-text-faint uppercase tracking-wide"><%= skill.category %></span>
+        <% end %>
+
+        <%= render "skills/security_badge", skill: skill %>
+      </div>
+
+      <p class="text-text-muted text-sm mb-3 line-clamp-2"><%= skill.summary.presence || skill.description %></p>
+
+      <div class="text-xs text-text-faint space-y-0.5">
+        <% if skill.proposing_agent.present? %>
+          <div>Proposed by <span class="text-text-primary"><%= skill.proposing_agent.name %></span></div>
+        <% end %>
+        <% if skill.proposed_at.present? %>
+          <div>Submitted <%= time_ago_in_words(skill.proposed_at) %> ago</div>
+        <% end %>
+        <% if skill.proposal_rejected? && skill.proposal_notes.present? %>
+          <div class="text-red-400 mt-1">Rejection note: <%= skill.proposal_notes %></div>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 flex-shrink-0">
+      <%= link_to "View", skill_path(skill),
+          class: "px-3 py-1.5 text-sm bg-surface-raised hover:bg-surface-overlay text-text-primary rounded-lg transition" %>
+
+      <% if show_actions && skill.proposal_pending? %>
+        <%= button_to "Approve",
+            approve_proposal_skill_path(skill),
+            method: :patch,
+            class: "px-3 py-1.5 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-medium" %>
+
+        <%= button_to "Reject",
+            reject_proposal_skill_path(skill),
+            method: :patch,
+            params: { notes: "" },
+            data: {
+              turbo_confirm: "Reject skill '#{skill.name}'? This cannot be undone.",
+              turbo_method: "patch"
+            },
+            class: "px-3 py-1.5 text-sm bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded-lg transition" %>
+      <% end %>
+    </div>
+  </div>
+
+  <%# Content preview %>
+  <details class="mt-3">
+    <summary class="text-xs text-text-faint cursor-pointer hover:text-text-muted select-none">Show content preview</summary>
+    <pre class="mt-2 text-xs text-text-primary font-mono bg-surface-base rounded-lg p-3 overflow-x-auto whitespace-pre-wrap max-h-48 overflow-y-auto"><%= skill.content.truncate(800) %></pre>
+  </details>
+</div>
