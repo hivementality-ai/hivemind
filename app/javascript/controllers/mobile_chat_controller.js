@@ -27,13 +27,13 @@ export default class extends Controller {
     this.pendingFiles = []
     this.currentStreamEl = null
     this.streamedContent = ""
+    this.toolCallCount = 0       // counts tool calls fired during current stream
     this.touchStartX = 0
     this.touchStartY = 0
 
     this.subscribeToChannel()
     this.renderExistingMarkdown()
     this.scrollToBottom(true)
-
 
     if (this.processingValue) {
       this.showThinking()
@@ -71,10 +71,10 @@ export default class extends Controller {
         this.showThinkingContent(data.content)
         break
       case "tool_start":
-        this.showToolCall(data.name, data.id)
+        this.handleToolStart(data.name, data.id)
         break
       case "tool_result":
-        this.updateToolResult(data.id, data.content)
+        this.handleToolResult(data.id, data.content)
         break
       case "done":
         this.finalizeMessage()
@@ -108,6 +108,7 @@ export default class extends Controller {
     if (!this.currentStreamEl) {
       this.currentStreamEl = this.createAssistantBubble()
       this.streamedContent = ""
+      this.toolCallCount = 0
       this.hideEmptyState()
     }
     this.streamedContent += token
@@ -121,35 +122,70 @@ export default class extends Controller {
     }
   }
 
-  showToolCall(name, id) {
-    const el = document.createElement("div")
-    el.className = "mx-4 my-1 px-3 py-1.5 bg-surface-card rounded text-xs text-text-muted border border-border-default"
-    el.id = `tool-${id}`
-    el.innerHTML = `<span class="font-mono">${this.escapeHtml(name)}</span> <span class="opacity-50">running...</span>`
-    this.messagesTarget.appendChild(el)
-    this.scrollToBottom()
+  // Tool calls during streaming — update a single fixed-height indicator instead of
+  // injecting new DOM elements, so the message content doesn't shift.
+  handleToolStart(name, id) {
+    this.toolCallCount++
+
+    if (!this.currentStreamEl) {
+      // Tool firing before any tokens — ensure we have a bubble
+      this.currentStreamEl = this.createAssistantBubble()
+      this.streamedContent = ""
+      this.hideEmptyState()
+    }
+
+    // Update or create the in-bubble tool indicator (never appended to messages list)
+    let indicator = this.currentStreamEl.querySelector(".tool-progress-indicator")
+    if (!indicator) {
+      indicator = document.createElement("div")
+      indicator.className = "tool-progress-indicator mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/25 rounded-full text-xs text-amber-400"
+      // Insert inside the bubble wrapper, after the content div
+      const bubble = this.currentStreamEl.querySelector(".assistant-bubble")
+      if (bubble) bubble.appendChild(indicator)
+    }
+
+    indicator.innerHTML = `<span>⚡</span><span class="tool-progress-text">working…</span>`
   }
 
-  updateToolResult(id, content) {
-    const el = document.getElementById(`tool-${id}`)
-    if (el) {
-      const statusSpan = el.querySelector("span:last-child")
-      if (statusSpan) statusSpan.textContent = "done"
-    }
+  handleToolResult(id, content) {
+    // No-op during streaming — the indicator updates on tool_start are sufficient.
+    // The final count is shown in finalizeMessage.
   }
 
   finalizeMessage(agentName) {
     if (this.currentStreamEl) {
       const contentEl = this.currentStreamEl.querySelector(".message-content")
       contentEl.innerHTML = this.renderMarkdown(this.streamedContent)
+
       if (agentName) {
         const badge = document.createElement("span")
         badge.className = "text-xs text-purple-400 font-medium mt-1 block"
         badge.textContent = `- ${agentName}`
         contentEl.appendChild(badge)
       }
+
+      // Replace the live "working…" indicator with a collapsed summary pill
+      const indicator = this.currentStreamEl.querySelector(".tool-progress-indicator")
+      if (indicator) {
+        if (this.toolCallCount > 0) {
+          const label = this.toolCallCount === 1 ? "1 tool used" : `${this.toolCallCount} tools used`
+          indicator.outerHTML = `
+            <details class="mt-1.5">
+              <summary class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/25 rounded-full text-xs text-amber-400 cursor-pointer select-none list-none">
+                <span>⚡</span><span>${label}</span>
+                <svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+            </details>`
+        } else {
+          indicator.remove()
+        }
+      }
+
       this.currentStreamEl = null
       this.streamedContent = ""
+      this.toolCallCount = 0
     }
     this.hideThinking()
     this.scrollToBottom()
@@ -157,12 +193,17 @@ export default class extends Controller {
 
   handleCancelled() {
     if (this.currentStreamEl) {
+      // Remove any in-progress tool indicator
+      const indicator = this.currentStreamEl.querySelector(".tool-progress-indicator")
+      if (indicator) indicator.remove()
+
       const el = document.createElement("span")
       el.className = "text-xs text-amber-400 italic block mt-1"
       el.textContent = "(cancelled)"
       this.currentStreamEl.querySelector(".message-content").appendChild(el)
       this.currentStreamEl = null
       this.streamedContent = ""
+      this.toolCallCount = 0
     }
     this.hideThinking()
   }
@@ -178,9 +219,9 @@ export default class extends Controller {
 
   appendUserBubble(content) {
     const wrapper = document.createElement("div")
-    wrapper.className = "flex justify-end px-4 my-2"
+    wrapper.className = "flex justify-end"
     const bubble = document.createElement("div")
-    bubble.className = "max-w-[80%] px-3 py-2 rounded-2xl rounded-br-sm bg-blue-600 text-white text-sm"
+    bubble.className = "max-w-[85%] px-4 py-3 rounded-2xl rounded-br-md bg-brand text-white text-sm"
     bubble.textContent = content
     wrapper.appendChild(bubble)
     this.messagesTarget.appendChild(wrapper)
@@ -190,13 +231,19 @@ export default class extends Controller {
 
   createAssistantBubble() {
     const wrapper = document.createElement("div")
-    wrapper.className = "flex justify-start px-4 my-2"
+    wrapper.className = "flex justify-start"
+    const inner = document.createElement("div")
+    inner.className = "max-w-[85%]"
+    const row = document.createElement("div")
+    row.className = "flex items-start gap-3"
     const bubble = document.createElement("div")
-    bubble.className = "max-w-[85%] px-3 py-2 rounded-2xl rounded-bl-sm bg-surface-card text-white text-sm border border-border-default"
+    bubble.className = "assistant-bubble bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100"
     const content = document.createElement("div")
     content.className = "message-content chat-content text-sm"
     bubble.appendChild(content)
-    wrapper.appendChild(bubble)
+    row.appendChild(bubble)
+    inner.appendChild(row)
+    wrapper.appendChild(inner)
     this.messagesTarget.appendChild(wrapper)
     return wrapper
   }
