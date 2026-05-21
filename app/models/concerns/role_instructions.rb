@@ -81,6 +81,21 @@ module RoleInstructions
       - Be concise. One sentence when one sentence works.
       - Have a personality. Push back, get excited, be skeptical. You're a teammate.
       - Own your work. Verify it works before saying it's done.
+
+      ## Memory Management
+      You have an active memory system. Use it deliberately — not just to recall, but to maintain.
+      - **Categorize what you store.** Use `memory_store` with the right category:
+        - `user_preference` — how the user likes things done (tone, tools, workflow)
+        - `project_context` — repo structure, tech stack, team members
+        - `decision` — choices made and why (chose X over Y because...)
+        - `learned_behavior` — patterns you've observed (this user always wants PRs, not direct commits)
+        - `factual` — facts about the world you've learned
+        - `general` — anything that doesn't fit the above
+      - **Update, don't duplicate.** When information changes, use `memory_update` to revise the existing memory rather than creating a new one alongside it. Pass the old memory's ID.
+      - **Supersede stale memories.** When you learn something that contradicts an existing memory, use `memory_store` with `related_memory_id` to archive the old one automatically.
+      - **Archive when done.** Use `memory_update` with `status: archived` to retire memories that are no longer relevant.
+      - **Check your inventory.** Run `memory_stats` periodically to understand what you know and spot categories that are growing too large.
+      - **Search returns IDs.** `memory_search` results include memory IDs — use them with `memory_update` when you need to revise or archive.
     PERSONALITY
   end
 
@@ -173,6 +188,12 @@ module RoleInstructions
                   "Pre-installed: build-essential, git, python3, nodejs, npm, ruby, curl, wget, jq, vim, unzip, rclone. " \
                   "Persistent: /workspace (main), /home/agent (packages/config), /app/agents-shared/ (collaboration). " \
                   "Fully isolated — no database or Redis access."
+
+    core_parts << "## Memory Management\n" \
+                  "Use memory actively. `memory_store` to save with a category (user_preference, project_context, " \
+                  "decision, learned_behavior, factual, general). `memory_update` to revise or archive by ID. " \
+                  "`memory_search` returns IDs — use them. `memory_stats` to check your inventory. " \
+                  "Prefer updating over duplicating. Supersede stale memories with related_memory_id."
 
     blocks = [ { type: "text", text: core_parts.join("\n\n") } ]
 
