@@ -89,14 +89,22 @@ class SetupController < ApplicationController
 
       # Persist a custom Ollama base_url for embeddings even when the Ollama
       # chat provider isn't toggled on (e.g. remote-only embedding use-case).
+      # Note: we do NOT set enabled: true here — this record is for URL storage
+      # only and must not appear in ProviderConfig.enabled_providers, which gates
+      # the chat provider setup step and populates the agent model dropdown.
       if embedding_provider == "ollama"
-        ollama_base_url = provider_params.dig(:ollama, :base_url).presence
+        ollama_base_url = params[:ollama_embedding_base_url].presence
         if ollama_base_url
           pc = ProviderConfig.find_or_initialize_by(adapter_type: "ollama")
           pc.name ||= "ollama"
           pc.vault_key ||= "providers/ollama_api_key"
           pc.base_url = ollama_base_url
-          pc.enabled = true
+          # For new records, ProviderConfig#set_defaults would set enabled: true via
+          # after_initialize. Explicitly disable so an embedding-only config doesn't
+          # appear in ProviderConfig.enabled_providers and bypass the chat provider gate.
+          # Existing records that are already enabled (Ollama also used as chat provider)
+          # keep their enabled status unchanged.
+          pc.enabled = false if pc.new_record?
           pc.save
         end
       end

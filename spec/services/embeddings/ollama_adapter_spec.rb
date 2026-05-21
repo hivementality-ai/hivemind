@@ -7,7 +7,9 @@ RSpec.describe Embeddings::OllamaAdapter, type: :service do
   let(:base_url) { "http://localhost:11434" }
 
   before do
-    allow(ProviderConfig).to receive(:find_by).and_return(nil)
+    # OllamaAdapter#base_url queries by adapter_type only (no enabled: true filter)
+    # so it works for both chat-enabled and embedding-only configs.
+    allow(ProviderConfig).to receive(:find_by).with(adapter_type: "ollama").and_return(nil)
   end
 
   describe "#capabilities" do

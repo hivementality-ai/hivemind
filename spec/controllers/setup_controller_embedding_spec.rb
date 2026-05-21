@@ -62,10 +62,7 @@ RSpec.describe SetupController, "embedding provider selection", type: :controlle
       let(:params_with_remote_url) do
         valid_params.merge(
           embedding_provider: "ollama",
-          providers: {
-            anthropic: { api_key: "sk-ant-test", models: [ "claude-sonnet-4-5" ], default_model: "claude-sonnet-4-5" },
-            ollama: { base_url: remote_url }
-          }
+          ollama_embedding_base_url: remote_url
         )
       end
 
@@ -77,21 +74,30 @@ RSpec.describe SetupController, "embedding provider selection", type: :controlle
         expect(pc.base_url).to eq(remote_url)
       end
 
-      it "sets enabled: true on the ProviderConfig so OllamaAdapter can find it" do
+      it "does not set enabled: true — embedding-only config must not leak into chat provider selection" do
         post :save_provider, params: params_with_remote_url
 
         pc = ProviderConfig.find_by(adapter_type: "ollama")
-        expect(pc.enabled).to be(true)
+        # The record stores the URL but is not enabled as a chat provider.
+        # ProviderConfig.enabled_providers.any? must still return false so the
+        # setup wizard enforces adding a real chat provider.
+        expect(pc.enabled).to be(false)
       end
 
-      it "re-enables a previously disabled ProviderConfig and updates base_url" do
+      it "updates base_url on an existing disabled ProviderConfig without enabling it" do
         existing = create(:provider_config, adapter_type: "ollama", name: "ollama",
                           vault_key: "providers/ollama_api_key", enabled: false)
 
         post :save_provider, params: params_with_remote_url
 
-        expect(existing.reload.enabled).to be(true)
+        expect(existing.reload.enabled).to be(false)
         expect(existing.reload.base_url).to eq(remote_url)
+      end
+
+      it "does not let the embedding-only ProviderConfig satisfy the chat provider gate" do
+        post :save_provider, params: params_with_remote_url
+
+        expect(ProviderConfig.enabled_providers.any?).to be(false)
       end
     end
 
