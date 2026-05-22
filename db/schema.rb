@@ -403,8 +403,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_21_200002) do
     t.bigint "source_id"
     t.string "source_type"
     t.datetime "updated_at", null: false
+    t.string "category", default: "general", null: false
+    t.string "status", default: "active", null: false
+    t.bigint "superseded_by_id"
     t.index ["agent_id", "memory_type"], name: "index_memory_entries_on_agent_id_and_memory_type"
     t.index ["agent_id"], name: "index_memory_entries_on_agent_id"
+    t.index ["agent_id", "category", "status"], name: "index_memory_entries_on_agent_id_category_status"
     t.index ["consolidated"], name: "index_memory_entries_on_consolidated"
     t.index ["embedding"], name: "index_memory_entries_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["importance"], name: "index_memory_entries_on_importance"
@@ -778,7 +782,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_21_200002) do
     t.datetime "updated_at", null: false
     t.jsonb "artifacts", default: [], null: false
     t.datetime "archived_at"
+    t.datetime "transition_locked_at"
+    t.bigint "transition_locked_by_agent_id"
     t.index ["archived_at"], name: "index_tasks_on_archived_at"
+    t.index ["transition_locked_at"], name: "index_tasks_on_transition_locked_at"
     t.index ["assigned_to_agent_id", "status"], name: "index_tasks_on_assigned_to_agent_id_and_status"
     t.index ["assigned_to_agent_id"], name: "index_tasks_on_assigned_to_agent_id"
     t.index ["created_at"], name: "index_tasks_on_created_at"
@@ -969,6 +976,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_21_200002) do
   add_foreign_key "heartbeat_runs", "sessions"
   add_foreign_key "inbound_messages", "channels"
   add_foreign_key "memory_entries", "agents"
+  add_foreign_key "memory_entries", "memory_entries", column: "superseded_by_id"
   add_foreign_key "outbound_messages", "channels"
   add_foreign_key "project_events", "agents"
   add_foreign_key "project_events", "project_milestones"
@@ -1005,6 +1013,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_21_200002) do
   add_foreign_key "agents", "agents", column: "reports_to_id", on_delete: :nullify
   add_foreign_key "tasks", "agents", column: "assigned_to_agent_id"
   add_foreign_key "tasks", "agents", column: "created_by_agent_id"
+  add_foreign_key "tasks", "agents", column: "transition_locked_by_agent_id"
   add_foreign_key "tasks", "project_milestones"
   add_foreign_key "tasks", "projects"
   add_foreign_key "tasks", "sessions"
