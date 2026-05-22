@@ -10,8 +10,9 @@ module Reflection
   #   was_hard        → semantic    (facts about obstacles)
   #   novel_solutions → procedural  (reusable techniques)
   #
-  # All memories are tagged with category: "learned_behavior" and
-  # sourced to "post_task_reflection" so they can be filtered later.
+  # All memories are stored with category: "learned_behavior" so they are
+  # queryable via MemoryEntry.by_category("learned_behavior") and are
+  # correctly categorised within the Phase 1 memory system.
   class MemoryPipeline
     SECTION_MAP = {
       "key_insights"    => "procedural",
@@ -65,6 +66,7 @@ module Reflection
         memory_type:  memory_type,
         importance:   IMPORTANCE_MAP.fetch(section, 0.6),
         metadata:     build_metadata(section),
+        category:     "learned_behavior",
         async:        true
       )
       @stored += 1

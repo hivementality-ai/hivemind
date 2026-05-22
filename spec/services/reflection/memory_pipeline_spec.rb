@@ -29,6 +29,14 @@ RSpec.describe Reflection::MemoryPipeline, type: :service do
       expect(Memory::Store).to have_received(:call).exactly(5).times
     end
 
+    it "stores all memories with category: learned_behavior" do
+      described_class.call(agent: agent, task: task, reflection: reflection)
+
+      expect(Memory::Store).to have_received(:call).with(
+        hash_including(category: "learned_behavior")
+      ).exactly(5).times
+    end
+
     it "stores key_insights as procedural memories" do
       described_class.call(agent: agent, task: task, reflection: reflection)
 
@@ -36,7 +44,8 @@ RSpec.describe Reflection::MemoryPipeline, type: :service do
         hash_including(
           agent:       agent,
           memory_type: "procedural",
-          importance:  0.8
+          importance:  0.8,
+          category:    "learned_behavior"
         )
       )
     end
@@ -48,7 +57,8 @@ RSpec.describe Reflection::MemoryPipeline, type: :service do
         hash_including(
           agent:       agent,
           memory_type: "semantic",
-          importance:  0.55
+          importance:  0.55,
+          category:    "learned_behavior"
         )
       )
     end
@@ -60,7 +70,8 @@ RSpec.describe Reflection::MemoryPipeline, type: :service do
         hash_including(
           agent:       agent,
           memory_type: "procedural",
-          importance:  0.85
+          importance:  0.85,
+          category:    "learned_behavior"
         )
       )
     end

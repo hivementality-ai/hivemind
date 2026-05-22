@@ -45,11 +45,11 @@ RSpec.describe Reflection::SkillProposalPipeline, type: :service do
         )
       end
 
-      it "generates a snake_case name from the task title" do
+      it "generates a snake_case name from the task title and task id" do
         described_class.call(agent: agent, task: task, reflection: reflection_with_novel)
 
         expect(Agents::SkillCreator).to have_received(:call).with(
-          hash_including(name: match(/\Abuild_reflective_execution_pipeline/))
+          hash_including(name: match(/\Abuild_reflective_execution_pipeline_#{task.id}_/))
         )
       end
 
@@ -106,7 +106,7 @@ RSpec.describe Reflection::SkillProposalPipeline, type: :service do
     context "when SkillCreator rejects the proposal" do
       before do
         allow(Agents::SkillCreator).to receive(:call).and_return(
-          ServiceResponse.failure(error: "Skill 'build_reflective_execution_pipeline_20260522' already exists")
+          ServiceResponse.failure(error: "Skill already exists")
         )
       end
 

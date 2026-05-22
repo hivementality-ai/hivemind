@@ -12,9 +12,10 @@ module Reflection
   # are combined into a single skill rather than creating N micro-skills.
   # This avoids polluting the proposal queue with fragmented skills.
   #
-  # The skill is named deterministically from the task title + timestamp
-  # so that a re-run of the same reflection does not create duplicates
-  # (SkillCreator rejects existing names).
+  # The skill is named deterministically from the task title + task id +
+  # timestamp so that re-runs of the same reflection do not create duplicates
+  # (SkillCreator rejects existing names) and different tasks with similar
+  # titles do not collide.
   class SkillProposalPipeline
     MIN_NOVEL_SOLUTIONS = 1
     MIN_SOLUTION_LENGTH = 20  # chars — filters out "Used git" type noise
@@ -62,7 +63,9 @@ module Reflection
         .select { |s| s.length >= MIN_SOLUTION_LENGTH }
     end
 
-    # Deterministic name derived from task or timestamp.
+    # Deterministic name derived from task title + task id + timestamp.
+    # Includes task.id to prevent collisions between tasks whose titles
+    # share the same first 5 words on the same day.
     def skill_name
       @skill_name ||= begin
         base = if @task&.title.present?
@@ -76,8 +79,9 @@ module Reflection
         else
           "reflection"
         end
+        task_suffix = @task ? "_#{@task.id}" : "_noid"
         timestamp = Time.current.strftime("%Y%m%d")
-        "#{base}_#{timestamp}"[0, 60]
+        "#{base}#{task_suffix}_#{timestamp}"[0, 60]
       end
     end
 

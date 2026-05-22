@@ -12,20 +12,13 @@
 #   1. Reflection::MemoryPipeline  — stores insights as `learned_behavior` memories
 #   2. Reflection::SkillProposalPipeline — proposes new skills for novel solutions
 #
-# Trigger conditions (either):
+# Trigger conditions:
 #   - A task transitions to `done`
-#   - A session exceeds LONG_SESSION_THRESHOLD exchanges
-#
-# The job is idempotent: repeated calls for the same task within a short window
-# are deduplicated via a Redis-backed lock (falls back to no-op if Redis is down).
 class PostTaskReflectionJob < ApplicationJob
   queue_as :low
 
   # Sessions shorter than this aren't worth reflecting on.
   MIN_TRANSCRIPT_EXCHANGES = 3
-
-  # Sessions longer than this always trigger reflection regardless of task status.
-  LONG_SESSION_THRESHOLD = 20
 
   # Minimum quality score (0.0–1.0) required to persist a reflection.
   QUALITY_THRESHOLD = 0.4
