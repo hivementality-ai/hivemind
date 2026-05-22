@@ -72,13 +72,13 @@ module Reflection
 
     def build_metadata(section)
       meta = {
-        source:              "post_task_reflection",
-        reflection_section:  section,
-        reflection_score:    @score,
-        reflected_at:        Time.current.iso8601
+        "source"             => "post_task_reflection",
+        "reflection_section" => section,
+        "reflection_score"   => @score,
+        "reflected_at"       => Time.current.iso8601
       }
-      meta[:task_id]    = @task.id    if @task
-      meta[:task_title] = @task.title if @task
+      meta["task_id"]    = @task.id    if @task
+      meta["task_title"] = @task.title if @task
       meta
     end
   end
