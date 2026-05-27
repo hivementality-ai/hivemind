@@ -963,7 +963,7 @@ BUILTIN_TOOLS = [
         "attachment_id" => { "type" => "integer", "description" => "ID of the attachment to download (required for download action)" }
       }
     }
-  }
+  },
   # ── Phase 5: Self-Improving Skills ───────────────────────────
   {
     name: "propose_skill_update",
