@@ -919,7 +919,7 @@ BUILTIN_TOOLS = [
         "action" => {
           "type" => "string",
           "description" => "Action to perform",
-          "enum" => %w[create update move assign list my_tasks add_comment close add_dependency remove_dependency update_checklist add_hook remove_hook add_artifact remove_artifact activity]
+          "enum" => %w[create update move assign list my_tasks add_comment close close_all add_dependency remove_dependency update_checklist add_hook remove_hook add_artifact remove_artifact activity]
         },
         "task_id" => { "type" => "integer", "description" => "Task ID (required for most actions except create, list, my_tasks)" },
         "title" => { "type" => "string", "description" => "Task title (required for create)" },
