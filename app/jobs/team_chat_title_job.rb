@@ -84,9 +84,9 @@ class TeamChatTitleJob < ApplicationJob
 
   def cheapest_model(provider)
     case provider
-    when "anthropic" then "claude-haiku-4-5"
-    when "openai"    then "gpt-5.4-nano"
-    else                  "claude-haiku-4-5"
+    when "anthropic" then LlmModelRegistry::Anthropic::DEFAULT_SUMMARIZER
+    when "openai"    then LlmModelRegistry::OpenAI::DEFAULT_SUMMARIZER
+    else                  LlmModelRegistry::Anthropic::DEFAULT_SUMMARIZER
     end
   end
 

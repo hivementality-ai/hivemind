@@ -99,7 +99,7 @@ class Agent < ApplicationRecord
 
         If nothing needs attention, reply with exactly: HEARTBEAT_OK
       PROMPT
-      a.llm_model = "claude-haiku-4-5"
+      a.llm_model = LlmModelRegistry::Anthropic::DEFAULT_CHEAP
     end
   end
 

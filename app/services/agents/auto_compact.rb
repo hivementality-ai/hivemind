@@ -22,7 +22,7 @@ module Agents
     PROMPT
 
     MAX_TRANSCRIPT_CHARS = 80_000
-    SUMMARIZATION_MODEL = "claude-haiku-4-5"
+    SUMMARIZATION_MODEL = LlmModelRegistry::Anthropic::DEFAULT_SUMMARIZER
     SUMMARIZATION_MAX_TOKENS = 2048
 
     # @param messages [Array<Hash>] current conversation messages

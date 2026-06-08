@@ -22,7 +22,7 @@ module Providers
     end
 
     def models
-      model_list = %w[claude-haiku-4-5 claude-sonnet-4-5 claude-opus-4-6]
+      model_list = LlmModelRegistry.supported_for_provider("anthropic").map(&:api_id)
       ServiceResponse.success(data: { models: model_list })
     end
 
@@ -94,7 +94,7 @@ module Providers
       end
 
       params = {
-        model: options[:model] || "claude-sonnet-4-5",
+        model: options[:model] || LlmModelRegistry::Anthropic::DEFAULT_MID,
         messages: formatted_msgs,
         max_tokens: options[:max_tokens] || 8192
       }

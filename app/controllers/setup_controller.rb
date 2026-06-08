@@ -157,7 +157,7 @@ class SetupController < ApplicationController
       role: template.role,
       team: @team,
       system_prompt: template.system_prompt,
-      llm_model: model_config["model"] || "claude-sonnet-4-5",
+      llm_model: model_config["model"] || LlmModelRegistry::Anthropic::DEFAULT_MID,
       model_provider: model_config["provider"] || provider&.adapter_type || "anthropic",
       tools_config: template.tools_config,
       enabled: true,
