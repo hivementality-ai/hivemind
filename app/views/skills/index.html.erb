@@ -17,6 +17,13 @@
           <span class="px-1.5 py-0.5 text-xs rounded-full bg-amber-600 text-white font-semibold"><%= @pending_count %></span>
         <% end %>
       <% end %>
+      <%= link_to update_proposals_skills_path,
+          class: "px-4 py-2 bg-surface-raised hover:bg-surface-overlay text-white text-sm font-medium rounded-lg transition flex items-center gap-2" do %>
+        Update Proposals
+        <% if @pending_update_count > 0 %>
+          <span class="px-1.5 py-0.5 text-xs rounded-full bg-blue-600 text-white font-semibold"><%= @pending_update_count %></span>
+        <% end %>
+      <% end %>
       <%= link_to "New Skill", new_skill_path, class: "px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition" %>
     </div>
   </div>

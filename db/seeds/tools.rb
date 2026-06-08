@@ -963,7 +963,35 @@ BUILTIN_TOOLS = [
         "attachment_id" => { "type" => "integer", "description" => "ID of the attachment to download (required for download action)" }
       }
     }
-  }
+  },
+  # ── Phase 5: Self-Improving Skills ───────────────────────────
+  {
+    name: "propose_skill_update",
+    description: "Propose an improvement to an existing skill's content. Submits a diff-style update for admin review — the skill is not modified until an admin approves. Use this when you discover a better approach, missing edge case, or correction in a skill you've loaded.",
+    executor_type: "propose_skill_update",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "skill_name" => { "type" => "string", "description" => "Exact name of the skill to update (must already exist)" },
+        "proposed_content" => { "type" => "string", "description" => "The full updated skill content (replaces current content on approval)" },
+        "rationale" => { "type" => "string", "description" => "Explain what you improved and why — this is shown to the admin reviewer" }
+      },
+      "required" => %w[skill_name proposed_content rationale]
+    }
+  },
+  {
+    name: "flag_skill_unhelpful",
+    description: "Flag a skill as unhelpful after loading it. Records an improvement signal so admins know the skill needs review. Use this when a skill's instructions were incorrect, incomplete, or didn't solve your problem.",
+    executor_type: "flag_skill_unhelpful",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "skill_name" => { "type" => "string", "description" => "Name of the skill to flag" },
+        "reason" => { "type" => "string", "description" => "Describe what was missing, incorrect, or unhelpful about the skill" }
+      },
+      "required" => %w[skill_name reason]
+    }
+  },
 ].freeze
 
 BUILTIN_TOOLS.each do |tool_attrs|

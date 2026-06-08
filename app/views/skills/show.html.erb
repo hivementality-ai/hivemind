@@ -21,6 +21,8 @@
       <%= button_to @skill.enabled? ? "Disable" : "Enable",
           toggle_skill_path(@skill), method: :patch,
           class: "px-4 py-2 text-sm font-medium rounded-lg transition #{@skill.enabled? ? 'bg-surface-raised hover:bg-surface-overlay text-text-primary' : 'bg-green-600 hover:bg-green-700 text-white'}" %>
+      <%= link_to "History", history_skill_path(@skill),
+          class: "px-4 py-2 bg-surface-raised hover:bg-surface-overlay text-white text-sm font-medium rounded-lg transition" %>
       <%= link_to "Export", export_skill_path(@skill),
           class: "px-4 py-2 bg-surface-raised hover:bg-surface-overlay text-white text-sm font-medium rounded-lg transition" %>
       <%= link_to "Edit", edit_skill_path(@skill),

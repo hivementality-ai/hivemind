@@ -2,13 +2,15 @@
 
 class SkillsController < ApplicationController
   before_action :authenticate_user!
-  before_action :authorize_admin_or_owner!, only: [ :proposals, :approve_proposal, :reject_proposal ]
-  before_action :set_skill, only: [ :show, :edit, :update, :destroy, :toggle, :approve_proposal, :reject_proposal ]
+  before_action :authorize_admin_or_owner!, only: [ :proposals, :approve_proposal, :reject_proposal, :update_proposals, :approve_update_proposal, :reject_update_proposal, :history, :rollback ]
+  before_action :set_skill, only: [ :show, :edit, :update, :destroy, :toggle, :approve_proposal, :reject_proposal, :history, :rollback ]
+  before_action :set_update_proposal, only: [ :approve_update_proposal, :reject_update_proposal ]
 
   def index
     @skills = Skill.includes(:tools, :agents).order(:name)
     @categories = Skill.distinct.pluck(:category).compact.sort
     @pending_count = Skill.pending_proposals.count
+    @pending_update_count = SkillUpdateProposal.pending.count
   end
 
   def show; end
@@ -167,6 +169,64 @@ class SkillsController < ApplicationController
     end
   end
 
+
+  # ── Skill Update Proposals (Phase 5) ──────────────────────────
+
+  def update_proposals
+    @pending_proposals  = SkillUpdateProposal.pending.includes(:skill, :proposed_by_agent).order(created_at: :desc)
+    @approved_proposals = SkillUpdateProposal.approved.includes(:skill, :proposed_by_agent).order(reviewed_at: :desc).limit(20)
+    @rejected_proposals = SkillUpdateProposal.rejected.includes(:skill, :proposed_by_agent).order(reviewed_at: :desc).limit(20)
+  end
+
+  def approve_update_proposal
+    result = Skills::UpdateApprover.call(
+      proposal: @update_proposal,
+      approved_by: current_user.id,
+      notes: params[:notes]
+    )
+
+    if result.success?
+      redirect_to update_proposals_skills_path, notice: "Update to \"#{@update_proposal.skill.name}\" approved and applied."
+    else
+      redirect_to update_proposals_skills_path, alert: result.error
+    end
+  end
+
+  def reject_update_proposal
+    result = Skills::UpdateRejector.call(
+      proposal: @update_proposal,
+      rejected_by: current_user.id,
+      notes: params[:notes]
+    )
+
+    if result.success?
+      redirect_to update_proposals_skills_path, notice: "Update proposal for \"#{@update_proposal.skill.name}\" rejected."
+    else
+      redirect_to update_proposals_skills_path, alert: result.error
+    end
+  end
+
+  # ── Skill Version History & Rollback (Phase 5) ────────────────
+
+  def history
+    @versions = @skill.skill_versions.reverse_chronological.includes(:proposing_agent)
+  end
+
+  def rollback
+    version_number = params[:version_number].to_i
+    result = Skills::Rollback.call(
+      skill: @skill,
+      version_number: version_number,
+      rolled_back_by: current_user.id
+    )
+
+    if result.success?
+      redirect_to history_skill_path(@skill), notice: "Rolled back \"#{@skill.name}\" to version #{version_number}."
+    else
+      redirect_to history_skill_path(@skill), alert: result.error
+    end
+  end
+
   private
 
   def set_skill
@@ -175,6 +235,10 @@ class SkillsController < ApplicationController
 
   def skill_params
     params.require(:skill).permit(:name, :description, :summary, :content, :category, :enabled, tool_ids: [])
+  end
+
+  def set_update_proposal
+    @update_proposal = SkillUpdateProposal.find(params[:id])
   end
 
   def save_imported_skill(skill, scan_data, approved: false)

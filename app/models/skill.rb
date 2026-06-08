@@ -12,6 +12,8 @@ class Skill < ApplicationRecord
   has_many :skill_tools, dependent: :destroy
   has_many :tools, through: :skill_tools
   has_many :skill_load_events, dependent: :destroy
+  has_many :skill_versions, dependent: :destroy
+  has_many :skill_update_proposals, dependent: :destroy
 
   belongs_to :proposing_agent, class_name: "Agent", foreign_key: "proposed_by_agent_id", optional: true
 
@@ -22,6 +24,8 @@ class Skill < ApplicationRecord
   validates :proposal_status, inclusion: { in: PROPOSAL_STATUSES }, allow_nil: true
 
   before_save :compute_checksum, if: :content_changed?
+  after_create :snapshot_initial_version
+  after_update :snapshot_updated_version, if: :saved_change_to_content?
 
   scope :enabled, -> { where(enabled: true) }
   scope :builtin, -> { where(builtin: true) }
@@ -45,6 +49,11 @@ class Skill < ApplicationRecord
 
   def proposal_rejected?
     proposal_status == "rejected"
+  end
+
+  # Returns pending update proposals (distinct from new-skill proposals).
+  def pending_update_proposals
+    skill_update_proposals.pending
   end
 
   # Parse OpenClaw-compatible SKILL.md content
@@ -114,6 +123,39 @@ class Skill < ApplicationRecord
   def compute_checksum
     self.checksum = Digest::SHA256.hexdigest(content)
   end
+
+  def snapshot_initial_version
+    SkillVersion.snapshot!(
+      skill: self,
+      change_source: source == "agent" ? "agent_update" : "manual",
+      changed_by_agent_id: proposed_by_agent_id,
+      change_summary: "Initial version"
+    )
+  rescue StandardError => e
+    Rails.logger.error("[Skill] Failed to snapshot initial version for '#{name}': #{e.message}")
+  end
+
+  def snapshot_updated_version
+    # Skip if this update is being driven by the UpdateApprover — it handles snapshotting itself
+    # to attach the proposal link. We detect this via the @skip_auto_snapshot flag.
+    return if @skip_auto_snapshot
+
+    SkillVersion.snapshot!(
+      skill: self,
+      change_source: "manual",
+      change_summary: "Content updated"
+    )
+  rescue StandardError => e
+    Rails.logger.error("[Skill] Failed to snapshot updated version for '#{name}': #{e.message}")
+  end
+
+  # Called by Skills::UpdateApprover to suppress the auto-snapshot so it can
+  # create a richer version record (with proposal linkage, agent attribution, etc.).
+  def skip_auto_snapshot!
+    @skip_auto_snapshot = true
+  end
+
+  public :skip_auto_snapshot!
 
   private_class_method def self.parse_frontmatter(text)
     if text.strip.start_with?("---")
