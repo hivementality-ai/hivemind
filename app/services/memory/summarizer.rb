@@ -137,14 +137,14 @@ module Memory
       anthropic = ProviderConfig.find_by(adapter_type: "anthropic", enabled: true)
       if anthropic
         resolver = Providers::Resolver.call(provider_name: "anthropic")
-        return [ resolver.data[:adapter], "claude-haiku-4-5" ] if resolver.success?
+        return [ resolver.data[:adapter], LlmModelRegistry::Anthropic::DEFAULT_SUMMARIZER ] if resolver.success?
       end
 
       # Try OpenAI with cheapest model
       openai = ProviderConfig.find_by(adapter_type: "openai", enabled: true)
       if openai
         resolver = Providers::Resolver.call(provider_name: "openai")
-        return [ resolver.data[:adapter], "gpt-5.4-nano" ] if resolver.success?
+        return [ resolver.data[:adapter], LlmModelRegistry::OpenAI::DEFAULT_SUMMARIZER ] if resolver.success?
       end
 
       # Try Ollama
@@ -159,8 +159,8 @@ module Memory
       if resolver.success?
         cheap =
           case @agent.model_provider
-          when "anthropic" then "claude-haiku-4-5"
-          when "openai" then "gpt-5.4-nano"
+          when "anthropic" then LlmModelRegistry::Anthropic::DEFAULT_SUMMARIZER
+          when "openai"    then LlmModelRegistry::OpenAI::DEFAULT_SUMMARIZER
           else @agent.llm_model
           end
         return [ resolver.data[:adapter], cheap ]
