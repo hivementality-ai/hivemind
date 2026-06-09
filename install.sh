@@ -166,6 +166,39 @@ install_docker() {
 }
 
 # ----------------------------------------------------------
+# Ensure the current shell can reach the Docker socket
+#
+# `usermod -aG docker` only takes effect on a NEW login session.
+# On a fresh box where this script just installed Docker, the rest
+# of the run still can't reach /var/run/docker.sock and dies with
+# "permission denied". Re-exec under `sg docker` so the docker group
+# is active in the same session; fall back to sudo if `sg` is missing.
+# ----------------------------------------------------------
+ensure_docker_access() {
+  [ "$OS" = "linux" ] || return 0
+  docker info &>/dev/null 2>&1 && return 0   # socket already reachable
+
+  # Guard against an infinite re-exec loop
+  if [ -n "${HIVEMIND_REEXEC:-}" ]; then
+    warn "Docker socket still unreachable after re-exec — falling back to sudo for docker."
+    docker() { sudo docker "$@"; }
+    export -f docker
+    return 0
+  fi
+
+  if id -nG "$USER" 2>/dev/null | grep -qw docker && command -v sg &>/dev/null; then
+    warn "Docker group not active in this shell yet — re-executing under 'sg docker'..."
+    export HIVEMIND_REEXEC=1
+    exec sg docker -c "$(printf '%q ' bash "$0" "$@")"
+  fi
+
+  warn "Cannot activate docker group in this session — using sudo for docker commands."
+  warn "Log out and back in (or reboot) to use Docker without sudo permanently."
+  docker() { sudo docker "$@"; }
+  export -f docker
+}
+
+# ----------------------------------------------------------
 # Verify Docker Compose
 # ----------------------------------------------------------
 check_compose() {
@@ -625,6 +658,7 @@ main() {
   detect_os
   install_prerequisites
   install_docker
+  ensure_docker_access
   check_compose
   setup_repo
   setup_env
