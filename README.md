@@ -443,6 +443,22 @@ The setup wizard walks you through creating your account, connecting a provider,
 
 > First boot takes 2-3 minutes to build images and run migrations. After that, starts in seconds.
 
+### Install troubleshooting
+
+**`permission denied while trying to connect to the Docker API at unix:///var/run/docker.sock`**
+
+This happens on a fresh machine where the installer just installed Docker. Adding your user to the `docker` group doesn't take effect until you start a new login session, so `docker compose` can't reach the socket yet.
+
+The installer now handles this automatically (it re-execs under the `docker` group). If you're on an older installer or still hit it, either:
+
+```bash
+# Activate the docker group in your current shell, then start Hivemind:
+newgrp docker
+cd ~/hivemind && docker compose up -d
+```
+
+…or simply **log out and back in (or reboot) and re-run the installer** — it will skip Docker and finish cleanly.
+
 ### Shared Agent Workspace
 
 All agents can read and write to a shared directory, enabling agent-to-agent collaboration without API calls.
