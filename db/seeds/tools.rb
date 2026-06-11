@@ -623,17 +623,47 @@ BUILTIN_TOOLS = [
   },
   {
     name: "ask_user",
-    description: "Pause execution and ask the user a clarifying question. The agent waits for the user's response before continuing. Use when you need user input to complete a task properly.",
+    description: "Pause execution and ask the user one or more clarifying questions. Each question renders as an interactive multi-select checkbox UI with a free-text fallback. The agent waits for all responses before continuing.",
     executor_type: "ask_user",
     requires_approval: false,
     parameters_schema: {
       "properties" => {
-        "question" => {
-          "type" => "string",
-          "description" => "The question to ask the user. Be specific and clear about what information you need."
+        "questions" => {
+          "type" => "array",
+          "description" => "One or more questions to ask the user. Each question renders as an interactive checkbox component.",
+          "items" => {
+            "type" => "object",
+            "properties" => {
+              "question" => {
+                "type" => "string",
+                "description" => "The question text to display to the user."
+              },
+              "header" => {
+                "type" => "string",
+                "description" => "Very short label shown as a chip/tag (max 12 chars). E.g. 'Auth method', 'Library'."
+              },
+              "options" => {
+                "type" => "array",
+                "description" => "2-4 selectable options. The UI always appends a free-text 'Other' option automatically.",
+                "items" => {
+                  "type" => "object",
+                  "properties" => {
+                    "label" => { "type" => "string", "description" => "Display text for the option (1-5 words)." },
+                    "description" => { "type" => "string", "description" => "Optional explanation of the option." }
+                  },
+                  "required" => [ "label" ]
+                }
+              },
+              "multiSelect" => {
+                "type" => "boolean",
+                "description" => "When true, user may select multiple checkboxes. Default: false."
+              }
+            },
+            "required" => [ "question", "options" ]
+          }
         }
       },
-      "required" => [ "question" ]
+      "required" => [ "questions" ]
     }
   },
   {
