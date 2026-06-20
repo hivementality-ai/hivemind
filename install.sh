@@ -336,6 +336,13 @@ setup_env() {
 # ============================================================
 # Manage API keys, channels, and integrations in Mission Control → Integrations.
 
+# Multi-instance isolation (defaults match the primary instance).
+# Run a second instance on this machine with: hivemind new <name>
+COMPOSE_PROJECT_NAME=hivemind
+APP_PORT=8080
+CONNECTOR_PORT=3002
+AGENTS_SHARED_DIR=$HOME/hivemind-agents-shared
+
 # Active Record Encryption (required for Vault)
 ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=$ar_primary
 ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY=$ar_deterministic
