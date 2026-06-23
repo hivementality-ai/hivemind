@@ -459,6 +459,33 @@ cd ~/hivemind && docker compose up -d
 
 …or simply **log out and back in (or reboot) and re-run the installer** — it will skip Docker and finish cleanly.
 
+### Running multiple instances
+
+You can run more than one fully isolated Hivemind on the same machine — for example a `staging` instance alongside your main one:
+
+```bash
+hivemind new staging
+```
+
+This clones your install into `~/hivemind-staging` with its **own** database, Redis, volumes, secrets, host ports, and shared agent directory — nothing is shared with the original. The command auto-picks free ports and prints the new Web UI URL when it's up.
+
+Manage a secondary instance by pointing the CLI at its directory:
+
+```bash
+HIVEMIND_DIR=~/hivemind-staging hivemind status
+HIVEMIND_DIR=~/hivemind-staging hivemind logs app
+HIVEMIND_DIR=~/hivemind-staging hivemind stop
+```
+
+Each instance is configured through its own `.env`:
+
+| Variable | Purpose | Default (primary) |
+|----------|---------|-------------------|
+| `COMPOSE_PROJECT_NAME` | Namespaces containers, volumes, networks | `hivemind` |
+| `APP_PORT` | Host port for the Web UI | `8080` |
+| `CONNECTOR_PORT` | Host port for the connector | `3002` |
+| `AGENTS_SHARED_DIR` | Host dir for shared agent files | `~/hivemind-agents-shared` |
+
 ### Shared Agent Workspace
 
 All agents can read and write to a shared directory, enabling agent-to-agent collaboration without API calls.
