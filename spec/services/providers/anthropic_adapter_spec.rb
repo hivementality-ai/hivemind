@@ -15,10 +15,35 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
       )
     end
 
-    context "with OAuth token (default flag off)" do
+    context "with OAuth token (default: auto-routes through SDK proxy)" do
+      let(:adapter) { described_class.new(config: config, api_key: "sk-ant-oat-test-token") }
+      let(:proxy_client) { instance_double(Providers::Anthropic::SdkProxyClient) }
+
+      before do
+        allow(Providers::Anthropic::SdkProxyClient).to receive(:new).and_return(proxy_client)
+        allow(proxy_client).to receive(:chat).and_return(
+          ServiceResponse.success(data: { content: "proxy response", usage: {} })
+        )
+      end
+
+      it "auto-detects the OAuth token and delegates to SdkProxyClient" do
+        result = adapter.chat(messages: [ { role: "user", content: "Hi" } ])
+
+        expect(result).to be_success
+        expect(result.data[:content]).to eq("proxy response")
+        expect(proxy_client).to have_received(:chat)
+      end
+    end
+
+    context "with OAuth token but proxy explicitly disabled" do
       let(:adapter) { described_class.new(config: config, api_key: "sk-ant-oat-test-token") }
 
-      it "delegates to FaradayClient, not SdkProxyClient" do
+      before do
+        allow(Setting).to receive(:get).and_call_original
+        allow(Setting).to receive(:get).with("anthropic_use_sdk_proxy").and_return("false")
+      end
+
+      it "respects the opt-out and delegates to FaradayClient" do
         expect(Providers::Anthropic::SdkProxyClient).not_to receive(:new)
 
         result = adapter.chat(messages: [ { role: "user", content: "Hi" } ])
