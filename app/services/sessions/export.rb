@@ -2,7 +2,7 @@
 
 module Sessions
   class Export
-    MAX_TOOL_OUTPUT_SIZE = 10_240 # 10KB
+    include ToolOutputTruncation
 
     def self.call(session:)
       new(session:).call
@@ -114,13 +114,6 @@ module Sessions
           total_duration_ms: executions.sum { |te| te.duration_ms || 0 }
         }
       end
-    end
-
-    def truncate_output(output)
-      return nil unless output
-      return output if output.bytesize <= MAX_TOOL_OUTPUT_SIZE
-
-      output.byteslice(0, MAX_TOOL_OUTPUT_SIZE) + "\n... [truncated at #{MAX_TOOL_OUTPUT_SIZE} bytes]"
     end
   end
 end
