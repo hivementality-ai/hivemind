@@ -38,6 +38,7 @@ Rails.application.routes.draw do
         post :interrupt
       end
     end
+    resources :tasks, only: [ :index, :show ]            # Read-only task board
     get "agents",       to: "agents#index"               # Read-only agent list + status
     get "agents/:slug", to: "agents#show", as: :agent    # Read-only agent detail
     get "activity",     to: "activity#index"              # Recent activity feed
