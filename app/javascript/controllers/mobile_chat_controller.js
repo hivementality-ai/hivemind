@@ -6,7 +6,7 @@ marked.setOptions({ breaks: true, gfm: true, silent: true })
 
 export default class extends Controller {
   static targets = [
-    "messages", "input", "sendBtn", "stopBtn", "thinking", "working",
+    "messages", "input", "sendBtn", "stopArea", "thinking", "working",
     "imagePreview", "imageThumbs", "attachPreview", "attachList",
     "fileInput", "emptyState"
   ]
@@ -419,14 +419,14 @@ export default class extends Controller {
   showThinking() {
     if (this.hasThinkingTarget) this.thinkingTarget.classList.remove("hidden")
     if (this.hasSendBtnTarget) this.sendBtnTarget.classList.add("hidden")
-    if (this.hasStopBtnTarget) this.stopBtnTarget.classList.remove("hidden")
+    if (this.hasStopAreaTarget) this.stopAreaTarget.classList.remove("hidden")
     this.scrollToBottom()
   }
 
   hideThinking() {
     if (this.hasThinkingTarget) this.thinkingTarget.classList.add("hidden")
     if (this.hasSendBtnTarget) this.sendBtnTarget.classList.remove("hidden")
-    if (this.hasStopBtnTarget) this.stopBtnTarget.classList.add("hidden")
+    if (this.hasStopAreaTarget) this.stopAreaTarget.classList.add("hidden")
   }
 
   hideEmptyState() {
@@ -503,7 +503,7 @@ export default class extends Controller {
     return div.innerHTML
   }
 
-  disconnecting() {
+  disconnect() {
     if (this.subscription) this.subscription.unsubscribe()
     if (this.consumer) this.consumer.disconnect()
   }

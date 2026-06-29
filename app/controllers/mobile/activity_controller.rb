@@ -61,6 +61,22 @@ module Mobile
         end
       end
 
+      # Currently running / queued sub-agent tasks — so you can see what's working now
+      SubAgentTask.active
+                  .order(updated_at: :desc)
+                  .limit(10)
+                  .each do |sat|
+        events << {
+          type: "task",
+          title: sat.status == "running" ? "Task running" : "Task queued",
+          body: sat.task.to_s.truncate(100),
+          timestamp: sat.updated_at,
+          url: sat.parent_session_id ? "/m/sessions/#{sat.parent_session_id}" : "/m/activity",
+          icon: "task",
+          live: true
+        }
+      end
+
       # Sub-agent task completions
       SubAgentTask.where(status: %w[completed failed])
                   .where("updated_at > ?", 24.hours.ago)
