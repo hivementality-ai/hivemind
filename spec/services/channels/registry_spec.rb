@@ -102,8 +102,8 @@ RSpec.describe Channels::Registry do
       types = described_class.supported_types
 
       expect(types).to be_an(Array)
-      expect(types).to include('discord', 'slack', 'telegram', 'whatsapp', 'signal')
-      expect(types.size).to eq(5)
+      expect(types).to include('discord', 'slack', 'telegram', 'whatsapp', 'signal', 'matrix', 'email')
+      expect(types.size).to eq(7)
     end
 
     it 'returns keys from ADAPTERS constant' do
@@ -141,7 +141,9 @@ RSpec.describe Channels::Registry do
         "slack" => "Channels::SlackAdapter",
         "telegram" => "Channels::TelegramAdapter",
         "whatsapp" => "Channels::WhatsappAdapter",
-        "signal" => "Channels::SignalAdapter"
+        "signal" => "Channels::SignalAdapter",
+        "matrix" => "Channels::MatrixAdapter",
+        "email" => "Channels::EmailAdapter"
       }
 
       expect(Channels::Registry::ADAPTERS).to eq(expected_adapters)
