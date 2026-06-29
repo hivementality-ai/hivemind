@@ -10,6 +10,12 @@
             class: "text-sm text-text-muted file:mr-2 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-surface-raised file:text-text-primary hover:file:bg-surface-overlay file:cursor-pointer" %>
         <%= submit_tag "Import SKILL.md", class: "px-4 py-2 bg-surface-raised hover:bg-surface-overlay text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
       <% end %>
+      <%= form_tag import_bundle_skills_path, method: :post, multipart: true, class: "flex items-center gap-2" do %>
+        <%= file_field_tag :file, accept: ".json",
+            class: "text-sm text-text-muted file:mr-2 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-surface-raised file:text-text-primary hover:file:bg-surface-overlay file:cursor-pointer" %>
+        <%= submit_tag "Import bundle", class: "px-4 py-2 bg-surface-raised hover:bg-surface-overlay text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+      <% end %>
+      <%= link_to "Export all", export_bundle_skills_path, class: "px-4 py-2 bg-surface-raised hover:bg-surface-overlay text-white text-sm font-medium rounded-lg transition" %>
       <%= link_to proposals_skills_path,
           class: "px-4 py-2 bg-surface-raised hover:bg-surface-overlay text-white text-sm font-medium rounded-lg transition flex items-center gap-2" do %>
         Skill Proposals

@@ -7,7 +7,9 @@ module Channels
       "slack" => "Channels::SlackAdapter",
       "telegram" => "Channels::TelegramAdapter",
       "whatsapp" => "Channels::WhatsappAdapter",
-      "signal" => "Channels::SignalAdapter"
+      "signal" => "Channels::SignalAdapter",
+      "matrix" => "Channels::MatrixAdapter",
+      "email" => "Channels::EmailAdapter"
     }.freeze
 
     # Backwards compatibility alias
