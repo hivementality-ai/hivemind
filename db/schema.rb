@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_21_300003) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_30_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -1015,6 +1015,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_21_300003) do
     t.index ["update_proposal_id"], name: "index_skill_versions_on_update_proposal_id"
   end
 
+  create_table "webhook_endpoints", force: :cascade do |t|
+    t.string   "url", null: false
+    t.text     "secret"
+    t.jsonb    "event_types", default: [], null: false
+    t.boolean  "enabled", default: true, null: false
+    t.bigint   "agent_id"
+    t.bigint   "team_id"
+    t.datetime "last_delivered_at"
+    t.integer  "last_status"
+    t.integer  "failure_count", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id"], name: "index_webhook_endpoints_on_agent_id"
+    t.index ["enabled"], name: "index_webhook_endpoints_on_enabled"
+    t.index ["event_types"], name: "index_webhook_endpoints_on_event_types", using: :gin
+    t.index ["team_id"], name: "index_webhook_endpoints_on_team_id"
+  end
+
   add_foreign_key "memory_entries", "agents"
   add_foreign_key "memory_entries", "memory_entries", column: "superseded_by_id"
   add_foreign_key "outbound_messages", "channels"
@@ -1079,4 +1097,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_21_300003) do
   add_foreign_key "skill_update_proposals", "agents", column: "proposed_by_agent_id"
   add_foreign_key "skill_versions", "skills"
   add_foreign_key "vault_entries", "agents"
+  add_foreign_key "webhook_endpoints", "agents"
+  add_foreign_key "webhook_endpoints", "teams"
 end
