@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["discord", "slack", "telegram", "whatsapp", "signal", "matrix", "email", "none"]
+  static targets = ["discord", "slack", "telegram", "whatsapp", "signal", "matrix", "email", "msteams", "none"]
   static values = { type: String }
 
   connect() {
@@ -15,7 +15,7 @@ export default class extends Controller {
   }
 
   showFields(type) {
-    const platforms = ["discord", "slack", "telegram", "whatsapp", "signal", "matrix", "email"]
+    const platforms = ["discord", "slack", "telegram", "whatsapp", "signal", "matrix", "email", "msteams"]
 
     // Hide all
     platforms.forEach(p => {
