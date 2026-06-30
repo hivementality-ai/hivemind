@@ -32,7 +32,7 @@ class TeamChatTitleJob < ApplicationJob
     result = adapter.chat(
       messages: [
         { role: "system", content: title_prompt },
-        { role: "user",   content: conversation }
+        { role: "user",   content: TitleSanitizer.request(conversation) }
       ],
       options: { model: title_model, max_tokens: 30 }
     )
@@ -40,7 +40,7 @@ class TeamChatTitleJob < ApplicationJob
     return unless result.success?
 
     generated = result.data[:content].to_s.strip.gsub(/\A["']|["']\z/, "")
-    return if generated.blank?
+    return if generated.blank? || TitleSanitizer.refusal?(generated)
 
     generated = generated[0...MAX_TITLE_CHARS] if generated.length > MAX_TITLE_CHARS
 
