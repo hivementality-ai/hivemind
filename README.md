@@ -660,7 +660,7 @@ Send images to agents via upload, clipboard paste, or drag-and-drop (up to 5 per
 
 Connect Google Drive, Amazon S3, Dropbox, OneDrive, Backblaze B2, or SFTP through the Integrations page. Uses rclone under the hood. OAuth backends (Drive, Dropbox, OneDrive) use a token-paste flow — run `rclone authorize` locally, paste the token in the UI.
 
-### 7 Messaging Channels
+### 8 Messaging Channels
 
 | Channel | Method | Auth |
 |---------|--------|------|
@@ -671,6 +671,7 @@ Connect Google Drive, Amazon S3, Dropbox, OneDrive, Backblaze B2, or SFTP throug
 | **Signal** | signal-cli REST API via connector | Phone number registration |
 | **Matrix** | Application Service (homeserver push + client API) | Access token + hs_token |
 | **Email** | Provider inbound-parse webhook + SMTP | From address (+ optional secret) |
+| **Microsoft Teams** | Bot Framework (Activity webhook + Connector API) | App ID + App Password |
 
 Credentials stored in the encrypted vault. Configure via the Channels page.
 
@@ -712,6 +713,24 @@ Talk to an agent over email. Inbound uses your mail provider's **inbound-parse w
    - **From Address** — the address replies are sent from (e.g. `agent@yourdomain.com`)
    - **Reply Subject** — optional subject for replies
    - **Webhook Secret** — optional; append `?secret=...` to the webhook URL so forged inbound mail is rejected
+
+#### Microsoft Teams
+
+Talk to an agent through a [Microsoft Bot Framework](https://dev.botframework.com/) bot. Inbound activities are POSTed to Hivemind; replies go back through the Bot Connector REST API using the activity's `serviceUrl` and `conversation.id`.
+
+1. In the [Azure portal](https://portal.azure.com/), create an **Azure Bot** resource (or an App Registration with the Bot Framework channel). Note its **Microsoft App ID** and generate a client secret (**App Password**).
+2. Enable the **Microsoft Teams** channel on the bot.
+3. Set the bot's **Messaging endpoint** to:
+   ```
+   https://your-hivemind-host/webhooks/msteams
+   ```
+   Hivemind handles inbound Activities (`type: "message"`); `<at>` mentions are stripped before reaching the agent.
+4. Add the bot to a team or 1:1 chat and send it a message to test the connection.
+5. In Hivemind → **Channels → Add Channel → Microsoft Teams**, set:
+   - **App ID (client_id)** — the Azure Bot's Microsoft App ID, stored in the channel's config
+   - **App Password (client secret)** — the client secret, stored encrypted in the vault under namespace `channel_credentials` / key `msteams_app_password`
+
+Outbound replies authenticate with an AAD client-credentials token (`scope: https://api.botframework.com/.default`) fetched with the App ID + App Password and posted to `{serviceUrl}/v3/conversations/{conversationId}/activities`.
 
 #### Voice notes (automatic transcription)
 
