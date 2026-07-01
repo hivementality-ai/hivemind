@@ -23,7 +23,7 @@ gem "bcrypt", "~> 3.1.22"
 # Background Jobs
 gem "connection_pool", "~> 2.4"
 gem "sidekiq", "~> 8.0"
-gem "sidekiq-cron", "~> 2.0"
+gem "sidekiq-cron", "~> 2.4"
 
 # WebSocket (ActionCable with Redis)
 gem "redis", "~> 5.0"
