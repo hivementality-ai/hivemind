@@ -27,9 +27,54 @@ ok()    { echo -e "${GREEN}✓${NC} $*"; }
 warn()  { echo -e "${YELLOW}⚠${NC} $*"; }
 fail()  { echo -e "${RED}✗${NC} $*"; exit 1; }
 
+# Resolve the agents-shared host directory for this instance from its .env,
+# falling back to the legacy default. Exported so docker compose interpolates
+# it even on installs whose .env predates the AGENTS_SHARED_DIR key.
+resolve_agents_shared_dir() {
+  local v=""
+  v="$(grep -E '^AGENTS_SHARED_DIR=' "$HIVEMIND_DIR/.env" 2>/dev/null | head -1 | cut -d'=' -f2- || true)"
+  [ -n "$v" ] && echo "$v" || echo "$HOME/hivemind-agents-shared"
+}
+
 require_dir() {
   [ -f "$HIVEMIND_DIR/docker-compose.yml" ] || fail "Hivemind not found at $HIVEMIND_DIR. Set HIVEMIND_DIR or run the installer."
   cd "$HIVEMIND_DIR"
+  export AGENTS_SHARED_DIR="$(resolve_agents_shared_dir)"
+}
+
+# Secret generators — mirror install.sh
+generate_secret() {
+  openssl rand -hex 32 2>/dev/null || LC_ALL=C tr -dc 'a-f0-9' < /dev/urandom | head -c 64
+}
+
+generate_short_secret() {
+  openssl rand -hex 16 2>/dev/null || LC_ALL=C tr -dc 'a-f0-9' < /dev/urandom | head -c 32
+}
+
+# Docker socket GID (Linux needs the real GID; macOS uses 0)
+docker_socket_gid() {
+  case "$(uname -s)" in
+    Linux)  stat -c '%g' /var/run/docker.sock 2>/dev/null || echo 0 ;;
+    Darwin) stat -f '%g' /var/run/docker.sock 2>/dev/null || echo 0 ;;
+    *)      echo 0 ;;
+  esac
+}
+
+# True if a TCP port is already bound on localhost
+port_in_use() {
+  local p="$1"
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:"$p" -sTCP:LISTEN >/dev/null 2>&1
+  else
+    (exec 3<>"/dev/tcp/127.0.0.1/$p") >/dev/null 2>&1 && { exec 3>&- 3<&-; return 0; } || return 1
+  fi
+}
+
+# Echo the first free port at or above the given starting port
+find_free_port() {
+  local p="${1:-8081}"
+  while port_in_use "$p"; do p=$((p + 1)); done
+  echo "$p"
 }
 
 # Resolve the current version from git tag (used for HIVEMIND_VERSION)
@@ -55,6 +100,17 @@ migrate_env() {
       echo "INTERNAL_API_SECRET=$secret" >> "$HIVEMIND_DIR/.env"
     fi
     ok "Generated INTERNAL_API_SECRET"
+  fi
+
+  # AGENTS_SHARED_DIR — required by docker-compose.yml since multi-instance support.
+  # Backfill the legacy default so raw `docker compose` calls keep working.
+  if ! grep -q '^AGENTS_SHARED_DIR=' "$HIVEMIND_DIR/.env" 2>/dev/null; then
+    {
+      echo ""
+      echo "# Host directory for shared agent files (per-instance)"
+      echo "AGENTS_SHARED_DIR=$HOME/hivemind-agents-shared"
+    } >> "$HIVEMIND_DIR/.env"
+    ok "Backfilled AGENTS_SHARED_DIR"
   fi
 }
 
@@ -314,6 +370,129 @@ cmd_import() {
   echo -e "  Memory embeddings will generate in the background."
 }
 
+# Create a second, fully isolated Hivemind instance on this machine.
+# Clones the current install into ~/hivemind-<name> with its own .env
+# (fresh secrets, free host ports, dedicated project name + shared dir).
+cmd_new() {
+  require_dir  # validates the source install at HIVEMIND_DIR
+
+  local name="${1:-}"
+  if [ -z "$name" ]; then
+    echo -e "${BOLD}Usage:${NC} hivemind new <name>"
+    echo ""
+    echo "  Creates a second isolated Hivemind instance at ~/hivemind-<name>."
+    echo "  It gets its own database, Redis, volumes, secrets, host ports, and"
+    echo "  shared agent directory — nothing is shared with the original."
+    echo ""
+    echo "  Manage it afterwards by pointing the CLI at its directory:"
+    echo "    HIVEMIND_DIR=~/hivemind-<name> hivemind status"
+    echo "    HIVEMIND_DIR=~/hivemind-<name> hivemind logs app"
+    exit 1
+  fi
+
+  # Validate name: lowercase letters, digits, dashes (must start alphanumeric)
+  if ! [[ "$name" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+    fail "Instance name must be lowercase letters, digits or dashes (e.g. 'staging', 'bee2')."
+  fi
+
+  local src="$HIVEMIND_DIR"
+  local target="$HOME/hivemind-$name"
+  local project="hivemind-$name"
+  local shared_dir="$HOME/hivemind-$name-agents-shared"
+
+  [ -e "$target" ] && fail "$target already exists — pick another name or remove it first."
+
+  echo -e "${BOLD}🐝 Creating Hivemind instance: ${name}${NC}"
+  echo ""
+
+  # Pick free host ports (8080/3002 are the primary's defaults)
+  local app_port connector_port
+  app_port="$(find_free_port 8081)"
+  connector_port="$(find_free_port 3012)"
+  info "Allocated ports — web: $app_port, connector: $connector_port"
+
+  # Clone the source repo (fast local clone), then repoint origin at upstream
+  # so `hivemind update` fetches releases from GitHub rather than the local copy.
+  info "Cloning into $target ..."
+  git clone --quiet "$src" "$target" || fail "git clone failed"
+
+  local origin_url
+  origin_url="$(git -C "$src" remote get-url origin 2>/dev/null || echo 'https://github.com/hivementality-ai/hivemind.git')"
+  git -C "$target" remote set-url origin "$origin_url" 2>/dev/null || true
+
+  # Match the source's checked-out version (tag if on one, else current branch)
+  local src_ref
+  src_ref="$(git -C "$src" describe --tags --exact-match 2>/dev/null || git -C "$src" rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)"
+  git -C "$target" checkout --quiet "$src_ref" 2>/dev/null || true
+
+  # Generate fresh secrets — never reuse the primary's keys
+  info "Generating fresh secrets and .env ..."
+  local ar_primary ar_deterministic ar_salt master_key internal_secret docker_gid
+  ar_primary="$(generate_secret)"
+  ar_deterministic="$(generate_secret)"
+  ar_salt="$(generate_secret)"
+  master_key="$(generate_short_secret)"
+  internal_secret="$(generate_secret)"
+  docker_gid="$(docker_socket_gid)"
+
+  cat > "$target/.env" <<EOF
+# ============================================================
+# Hivemind 🐝 — instance '$name' (created by hivemind new)
+# ============================================================
+# Manage API keys, channels, and integrations in Mission Control → Integrations.
+
+# Multi-instance isolation
+COMPOSE_PROJECT_NAME=$project
+APP_PORT=$app_port
+CONNECTOR_PORT=$connector_port
+AGENTS_SHARED_DIR=$shared_dir
+
+# Active Record Encryption (required for Vault)
+ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=$ar_primary
+ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY=$ar_deterministic
+ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT=$ar_salt
+
+# Rails
+RAILS_MASTER_KEY=$master_key
+SECRET_KEY_BASE=$master_key
+
+# Docker
+DOCKER_GID=$docker_gid
+
+# Internal API (shared secret between Rails and SDK proxy)
+INTERNAL_API_SECRET=$internal_secret
+EOF
+
+  # Rails also reads the master key from config/master.key (gitignored, not cloned)
+  echo -n "$master_key" > "$target/config/master.key"
+  chmod 600 "$target/config/master.key"
+
+  # Dedicated shared agent directory
+  mkdir -p "$shared_dir"
+  ok "Created shared workspace: $shared_dir"
+
+  # Boot the new instance from its own directory
+  info "Starting instance '$name' ..."
+  local version
+  version="$(cd "$target" && current_version)"
+  # Pin AGENTS_SHARED_DIR to this instance's dir — require_dir exported the
+  # source's value, and shell env overrides .env in compose.
+  ( cd "$target" && HIVEMIND_VERSION="$version" AGENTS_SHARED_DIR="$shared_dir" docker compose up -d ) \
+    || fail "docker compose up failed"
+
+  echo ""
+  ok "Instance '$name' is up!"
+  echo ""
+  echo -e "  ${BOLD}Web UI:${NC}    http://localhost:$app_port"
+  echo -e "  ${BOLD}Location:${NC}  $target"
+  echo -e "  ${BOLD}Project:${NC}   $project"
+  echo ""
+  echo -e "  ${BOLD}Manage it with:${NC}"
+  echo -e "    HIVEMIND_DIR=$target hivemind status"
+  echo -e "    HIVEMIND_DIR=$target hivemind logs app"
+  echo -e "    HIVEMIND_DIR=$target hivemind stop"
+}
+
 cmd_version() {
   require_dir
   local version
@@ -340,6 +519,7 @@ ${BOLD}Commands:${NC}
   migrate         Run database migrations
   console         Open Rails console
   import <path>   Import OpenClaw workspace files
+  new <name>      Create a second isolated instance (~/hivemind-<name>)
   version         Show version
 
 ${BOLD}Examples:${NC}
@@ -349,6 +529,8 @@ ${BOLD}Examples:${NC}
   hivemind restart rails sidekiq
   hivemind logs rails
   hivemind import ~/.openclaw/workspace
+  hivemind new staging
+  HIVEMIND_DIR=~/hivemind-staging hivemind status
 
 ${BOLD}Environment:${NC}
   HIVEMIND_DIR    Override install location (default: ~/hivemind)
@@ -369,6 +551,7 @@ case "${1:-}" in
   migrate)  cmd_migrate ;;
   console)  cmd_console ;;
   import)   shift; cmd_import "$@" ;;
+  new)      shift; cmd_new "$@" ;;
   version)  cmd_version ;;
   -h|--help|"") usage ;;
   *)        echo -e "${RED}Unknown command: $1${NC}"; echo ""; usage; exit 1 ;;

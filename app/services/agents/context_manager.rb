@@ -2,35 +2,15 @@
 
 module Agents
   class ContextManager
-    MODEL_LIMITS = {
-      "claude-haiku-4-5" => 200_000,
-      "claude-sonnet-4-5" => 200_000,
-      "claude-sonnet-4-6" => 200_000,
-      "claude-opus-4-6" => 200_000,
-      "gpt-5.4" => 1_050_000,
-      "gpt-5.4-pro" => 1_050_000,
-      "gpt-5.4-mini" => 400_000,
-      "gpt-5.4-nano" => 400_000,
-      "gpt-5.3-codex" => 400_000,
-      "gpt-5.2" => 400_000,
-      "gpt-5.1" => 400_000,
-      "gpt-5" => 400_000,
-      "gpt-5-mini" => 400_000,
-      "gpt-5-nano" => 400_000,
-      "gpt-4.1" => 1_047_576,
-      "gpt-4.1-mini" => 1_047_576,
-      "gpt-4.1-nano" => 1_047_576,
-      "gpt-4o" => 128_000,
-      "gpt-4o-mini" => 128_000,
-      "o3-pro" => 200_000,
-      "o3" => 200_000,
-      "o4-mini" => 200_000,
-      # Ollama / local models (conservative — RAM constrained)
-      "qwen3-coder:30b" => 32_768,
-      "qwen3-coder" => 32_768,
-      "llama3.2" => 8_192,
-      "llama3.1" => 8_192,
-      "codellama" => 16_384,
+    # Ollama models sized conservatively (RAM constrained). These are keyed by
+    # the specific Ollama tag rather than a provider API ID, so they live here
+    # rather than in LlmModelRegistry (which covers cloud-provider IDs only).
+    OLLAMA_MODEL_LIMITS = {
+      "qwen3-coder:30b"  => 32_768,
+      "qwen3-coder"      => 32_768,
+      "llama3.2"         => 8_192,
+      "llama3.1"         => 8_192,
+      "codellama"        => 16_384,
       "deepseek-coder-v2" => 16_384
     }.freeze
 
@@ -42,7 +22,7 @@ module Agents
       @model = llm_model
       @max_output = agent&.max_output_tokens || max_output_tokens
       @provider = provider
-      limit = agent&.context_window || MODEL_LIMITS[@model] || default_limit_for_provider
+      limit = agent&.context_window || context_window_for_model || default_limit_for_provider
       @budget = [ limit - @max_output - RESERVE_TOKENS, limit / 2 ].max
     end
 
@@ -171,11 +151,21 @@ module Agents
     def budget_info
       {
         model: @model,
-        limit: MODEL_LIMITS[@model],
+        limit: context_window_for_model,
         reserved_for_output: @max_output,
         reserved_for_safety: RESERVE_TOKENS,
         available_for_context: @budget
       }
+    end
+
+    private
+
+    # Resolve context window: Ollama-specific table first for local models
+    # identified by tag (e.g. "llama3.2"), then the registry for cloud models.
+    # The registry's generic "ollama" placeholder prefix-matches any local tag,
+    # so it must not shadow the tag-specific limits here.
+    def context_window_for_model
+      OLLAMA_MODEL_LIMITS[@model] || LlmModelRegistry.context_window(@model)
     end
   end
 end

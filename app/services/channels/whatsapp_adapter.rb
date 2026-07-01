@@ -140,21 +140,6 @@ module Channels
       channel.config&.dig("phone_number_id")
     end
 
-    def transcribe_audio(file_path)
-      return nil unless File.exist?(file_path.to_s)
-
-      result = Tools::SttExecutor.new(
-        input: { "file_path" => file_path },
-        config: {},
-        agent: nil
-      ).call
-
-      result.success? ? result.data[:transcription] : nil
-    rescue StandardError => e
-      Rails.logger.warn("WhatsApp voice transcription failed: \#{e.message}")
-      nil
-    end
-
     def post_json(uri, body)
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = uri.scheme == "https"

@@ -2,7 +2,7 @@
 
 module TeamChats
   class Export
-    MAX_TOOL_OUTPUT_SIZE = 10_240 # 10KB
+    include ToolOutputTruncation
 
     def self.call(session:)
       new(session:).call
@@ -161,13 +161,6 @@ module TeamChats
       else
         Agent.find_by(id: msg.sender_id)&.name || "Agent ##{msg.sender_id}"
       end
-    end
-
-    def truncate_output(output)
-      return nil unless output
-      return output if output.bytesize <= MAX_TOOL_OUTPUT_SIZE
-
-      output.byteslice(0, MAX_TOOL_OUTPUT_SIZE) + "\n... [truncated at #{MAX_TOOL_OUTPUT_SIZE} bytes]"
     end
   end
 end

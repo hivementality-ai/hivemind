@@ -123,9 +123,10 @@ class ChatStreamJob < ApplicationJob
         llm_options[:thinking_budget_tokens] = agent.thinking_budget_tokens || 10_000
       end
 
-      # Legacy SDK-proxy path — used when the "anthropic_use_sdk_proxy"
-      # Setting is enabled (or the USE_SDK_PROXY_FALLBACK env fallback).
-      # Default path drives the Ruby-side Agents::ToolLoop for every provider.
+      # SDK-proxy path — default for OAuth (sk-ant-oat) tokens so chats run
+      # through Claude Code and bill against the subscription's included usage.
+      # Can be forced off via the "anthropic_use_sdk_proxy" Setting (or the
+      # USE_SDK_PROXY_FALLBACK env). Non-OAuth keys drive Agents::ToolLoop.
       oauth_mcp = Providers::AnthropicAdapter.sdk_proxy_enabled? &&
                   adapter.is_a?(Providers::AnthropicAdapter) &&
                   adapter.send(:oauth_token?) &&
