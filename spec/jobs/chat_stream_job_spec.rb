@@ -227,4 +227,147 @@ RSpec.describe ChatStreamJob, type: :job do
       end
     end
   end
+
+  # Heartbeat finalization moved here from HeartbeatJob: when an ephemeral
+  # heartbeat session completes, ChatStreamJob's ensure block records the
+  # HeartbeatRun, restores the system assistant's model/provider, overwrites
+  # its single memory, and broadcasts any action taken.
+  describe "#finalize_heartbeat_session" do
+    let(:hb_agent) do
+      create(:agent, name: "System Assistant", llm_model: "claude-3-5-sonnet",
+             model_provider: "anthropic", system_agent: true)
+    end
+    let(:job) { described_class.new }
+
+    def heartbeat_session(meta = {})
+      base = {
+        "type" => "heartbeat",
+        "heartbeat_model" => "claude-3-5-sonnet",
+        "tasks_count" => 0,
+        "started_at" => Time.current.iso8601
+      }
+      create(:session, agent: hb_agent, status: "active",
+             session_key: "heartbeat-#{SecureRandom.hex(4)}",
+             title: "🫀 Heartbeat", metadata: base.merge(meta))
+    end
+
+    def finalize(session, reply, tool_history = [])
+      job.send(:finalize_heartbeat_session, session, reply, tool_history)
+    end
+
+    it "creates a HeartbeatRun record" do
+      session = heartbeat_session
+      expect { finalize(session, "Did some work", [ { tool: "task_manager" } ]) }
+        .to change(HeartbeatRun, :count).by(1)
+    end
+
+    it "marks the session as completed" do
+      session = heartbeat_session
+      finalize(session, "Did some work")
+      expect(session.reload.status).to eq("completed")
+    end
+
+    it "records tasks_count in the run metadata" do
+      session = heartbeat_session("tasks_count" => 3)
+      finalize(session, "Did some work")
+      expect(HeartbeatRun.last.metadata["tasks_count"]).to eq(3)
+    end
+
+    it "records tool_calls_count in the run metadata" do
+      session = heartbeat_session
+      finalize(session, "Checked the board", [ { tool: "task_manager", input: { action: "list" } } ])
+      expect(HeartbeatRun.last.metadata["tool_calls_count"]).to eq(1)
+    end
+
+    it "logs a warning when zero tool calls are made" do
+      session = heartbeat_session
+      expect(Rails.logger).to receive(:warn).with(/ZERO tool calls/)
+      finalize(session, "Everything fine", [])
+    end
+
+    it "stores the previous_summary on the HeartbeatRun for audit trail" do
+      session = heartbeat_session("previous_summary" => "Delegated Task #31 to Mando.")
+      finalize(session, "Did some work")
+      expect(HeartbeatRun.last.previous_summary).to eq("Delegated Task #31 to Mando.")
+    end
+
+    it "records action_taken status for a substantive reply" do
+      session = heartbeat_session
+      finalize(session, "Delegated a task")
+      expect(HeartbeatRun.last.status).to eq("action_taken")
+    end
+
+    it "records ok status for a HEARTBEAT_OK reply" do
+      session = heartbeat_session
+      finalize(session, "HEARTBEAT_OK")
+      expect(HeartbeatRun.last.status).to eq("ok")
+    end
+
+    it "restores the original model and provider after the run" do
+      hb_agent.update_columns(llm_model: "gpt-4", model_provider: "openai")
+      session = heartbeat_session("original_model" => "claude-3-5-sonnet", "original_provider" => "anthropic")
+
+      finalize(session, "Did some work")
+
+      expect(hb_agent.reload.llm_model).to eq("claude-3-5-sonnet")
+      expect(hb_agent.reload.model_provider).to eq("anthropic")
+    end
+
+    it "broadcasts the reply when action was taken" do
+      session = heartbeat_session
+      finalize(session, "Everything looks good")
+      expect(ActionCable.server).to have_received(:broadcast).with(
+        "session_#{session.session_key}",
+        hash_including(type: "heartbeat", content: "Everything looks good")
+      )
+    end
+
+    it "suppresses the broadcast for HEARTBEAT_OK replies" do
+      session = heartbeat_session
+      finalize(session, "HEARTBEAT_OK")
+      expect(ActionCable.server).not_to have_received(:broadcast)
+    end
+
+    it "overwrites the system assistant memory with the latest summary" do
+      create(:memory_entry, agent: hb_agent, content: "old heartbeat memory")
+      session = heartbeat_session
+
+      finalize(session, "Everything looks good")
+
+      memories = hb_agent.memory_entries.reload
+      expect(memories.count).to eq(1)
+      expect(memories.first.content).to eq("Everything looks good")
+      expect(memories.first.memory_type).to eq("semantic")
+      expect(memories.first.importance).to eq(1.0)
+      expect(memories.first.metadata["source"]).to eq("heartbeat")
+    end
+
+    it "replaces multiple old memories with a single new one" do
+      create(:memory_entry, agent: hb_agent, content: "old memory 1")
+      create(:memory_entry, agent: hb_agent, content: "old memory 2")
+      create(:memory_entry, agent: hb_agent, content: "old memory 3")
+      session = heartbeat_session
+
+      finalize(session, "Fresh summary")
+
+      expect(hb_agent.memory_entries.reload.count).to eq(1)
+    end
+
+    it "does not create a memory when the reply is blank" do
+      session = heartbeat_session
+      finalize(session, "")
+      expect(hb_agent.memory_entries.count).to eq(0)
+    end
+
+    it "does not affect other agents' memories" do
+      other_agent = create(:agent, name: "Other")
+      other_memory = create(:memory_entry, agent: other_agent, content: "should survive")
+      session = heartbeat_session
+
+      finalize(session, "Did some work")
+
+      expect(other_agent.memory_entries.reload.count).to eq(1)
+      expect(other_memory.reload.content).to eq("should survive")
+    end
+  end
 end

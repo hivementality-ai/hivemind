@@ -37,40 +37,44 @@ class SetupController < ApplicationController
   def save_provider
     errors = []
 
-    provider_params.each do |provider, config|
-      # Cloud providers (anthropic, openai) require an API key.
-      # Toggle-based providers (ollama, openai_compatible) use the enabled flag;
-      # API key is optional (e.g. local servers don't need one, but Minimax does).
-      toggle_provider = %w[ollama openai_compatible].include?(provider)
-      next if toggle_provider ? config[:enabled].blank? : config[:api_key].blank?
+    # Guard against missing providers key — submitting only an embedding provider
+    # (no chat providers) must not raise ActionController::ParameterMissing.
+    if params[:providers].present?
+      provider_params.each do |provider, config|
+        # Cloud providers (anthropic, openai) require an API key.
+        # Toggle-based providers (ollama, openai_compatible) use the enabled flag;
+        # API key is optional (e.g. local servers don't need one, but Minimax does).
+        toggle_provider = %w[ollama openai_compatible].include?(provider)
+        next if toggle_provider ? config[:enabled].blank? : config[:api_key].blank?
 
-      # Create or update the provider config
-      pc = ProviderConfig.find_or_initialize_by(name: provider)
-      pc.adapter_type = provider
-      pc.enabled = true
-      pc.vault_key = "providers/#{provider}_api_key"
-      pc.base_url = config[:base_url].presence if config.key?(:base_url)
+        # Create or update the provider config
+        pc = ProviderConfig.find_or_initialize_by(name: provider)
+        pc.adapter_type = provider
+        pc.enabled = true
+        pc.vault_key = "providers/#{provider}_api_key"
+        pc.base_url = config[:base_url].presence if config.key?(:base_url)
 
-      # Save selected models and default
-      selected_models = config[:models] || []
-      default_model = config[:default_model]
-      pc.model_definitions = selected_models.map do |model_id|
-        { "id" => model_id, "default" => (model_id == default_model) }
-      end
-
-      if pc.save
-        # Store the key in vault (only if an actual API key was provided)
-        if config[:api_key].present?
-          VaultEntry.find_or_initialize_by(namespace: "providers", key: "#{provider}_api_key").tap do |ve|
-            ve.encrypted_value = config[:api_key]
-            errors << ve.errors.full_messages unless ve.save
-          end
+        # Save selected models and default
+        selected_models = config[:models] || []
+        default_model = config[:default_model]
+        pc.model_definitions = selected_models.map do |model_id|
+          { "id" => model_id, "default" => (model_id == default_model) }
         end
 
-        # Store default model in settings
-        Setting.set("default_model_#{provider}", default_model) if default_model.present?
-      else
-        errors << pc.errors.full_messages
+        if pc.save
+          # Store the key in vault (only if an actual API key was provided)
+          if config[:api_key].present?
+            VaultEntry.find_or_initialize_by(namespace: "providers", key: "#{provider}_api_key").tap do |ve|
+              ve.encrypted_value = config[:api_key]
+              errors << ve.errors.full_messages unless ve.save
+            end
+          end
+
+          # Store default model in settings
+          Setting.set("default_model_#{provider}", default_model) if default_model.present?
+        else
+          errors << pc.errors.full_messages
+        end
       end
     end
 
@@ -84,6 +88,28 @@ class SetupController < ApplicationController
         VaultEntry.find_or_initialize_by(namespace: "embedding", key: "google_ai_api_key").tap do |ve|
           ve.encrypted_value = params[:gemini_embedding_api_key]
           ve.save
+        end
+      end
+
+      # Persist a custom Ollama base_url for embeddings even when the Ollama
+      # chat provider isn't toggled on (e.g. remote-only embedding use-case).
+      # Note: we do NOT set enabled: true here — this record is for URL storage
+      # only and must not appear in ProviderConfig.enabled_providers, which gates
+      # the chat provider setup step and populates the agent model dropdown.
+      if embedding_provider == "ollama"
+        ollama_base_url = params[:ollama_embedding_base_url].presence
+        if ollama_base_url
+          pc = ProviderConfig.find_or_initialize_by(adapter_type: "ollama")
+          pc.name ||= "ollama"
+          pc.vault_key ||= "providers/ollama_api_key"
+          pc.base_url = ollama_base_url
+          # For new records, ProviderConfig#set_defaults would set enabled: true via
+          # after_initialize. Explicitly disable so an embedding-only config doesn't
+          # appear in ProviderConfig.enabled_providers and bypass the chat provider gate.
+          # Existing records that are already enabled (Ollama also used as chat provider)
+          # keep their enabled status unchanged.
+          pc.enabled = false if pc.new_record?
+          pc.save
         end
       end
     end
@@ -131,7 +157,7 @@ class SetupController < ApplicationController
       role: template.role,
       team: @team,
       system_prompt: template.system_prompt,
-      llm_model: model_config["model"] || "claude-sonnet-4-5",
+      llm_model: model_config["model"] || LlmModelRegistry::Anthropic::DEFAULT_MID,
       model_provider: model_config["provider"] || provider&.adapter_type || "anthropic",
       tools_config: template.tools_config,
       enabled: true,

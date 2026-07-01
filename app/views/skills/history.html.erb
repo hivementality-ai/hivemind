@@ -1,0 +1,67 @@
+<div class="max-w-4xl mx-auto px-6 py-8">
+  <div class="flex items-center gap-3 mb-1">
+    <%= link_to "← #{@skill.name}", skill_path(@skill), class: "text-brand-light hover:text-brand-light text-sm" %>
+  </div>
+  <h1 class="text-2xl font-bold text-white mb-1">Version History</h1>
+  <p class="text-text-muted text-sm mb-8">All content snapshots for <span class="text-text-primary font-medium"><%= @skill.name %></span>. Roll back to any prior version.</p>
+
+  <% if @versions.empty? %>
+    <div class="bg-surface-card rounded-xl border border-border-default p-8 text-center">
+      <p class="text-text-muted">No version history recorded yet.</p>
+    </div>
+  <% else %>
+    <div class="space-y-4">
+      <% @versions.each_with_index do |version, idx| %>
+        <div class="bg-surface-card rounded-xl border <%= idx == 0 ? 'border-brand/40' : 'border-border-default' %> p-5">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap mb-1">
+                <span class="text-white font-semibold">v<%= version.version_number %></span>
+
+                <% if idx == 0 %>
+                  <span class="px-2 py-0.5 text-xs rounded-full bg-brand/30 text-brand-light">current</span>
+                <% end %>
+
+                <%# Source badge %>
+                <% source_badge = case version.change_source
+                   when "manual"       then { label: "manual edit",     classes: "bg-surface-raised text-text-faint" }
+                   when "agent_update" then { label: "agent update",    classes: "bg-blue-900/60 text-blue-300" }
+                   when "import"       then { label: "import",          classes: "bg-purple-900/60 text-purple-300" }
+                   when "rollback"     then { label: "rollback",        classes: "bg-orange-900/60 text-orange-300" }
+                   else                     { label: version.change_source, classes: "bg-surface-raised text-text-faint" }
+                   end %>
+                <span class="px-2 py-0.5 text-xs rounded-full <%= source_badge[:classes] %>"><%= source_badge[:label] %></span>
+              </div>
+
+              <div class="text-xs text-text-faint space-y-0.5">
+                <div><%= version.created_at.strftime("%b %-d, %Y at %H:%M UTC") %> (<%= time_ago_in_words(version.created_at) %> ago)</div>
+                <% if version.change_summary.present? %>
+                  <div class="text-text-muted"><%= version.change_summary %></div>
+                <% end %>
+                <% if version.proposing_agent.present? %>
+                  <div>Agent: <span class="text-text-primary"><%= version.proposing_agent.name %></span></div>
+                <% end %>
+              </div>
+            </div>
+
+            <% unless idx == 0 %>
+              <div class="flex-shrink-0">
+                <%= button_to "Roll back to v#{version.version_number}",
+                    rollback_skill_path(@skill, version_number: version.version_number),
+                    method: :patch,
+                    class: "px-3 py-1.5 text-sm bg-orange-600/20 hover:bg-orange-600/40 text-orange-300 rounded-lg transition",
+                    data: { turbo_confirm: "Roll back '#{@skill.name}' to v#{version.version_number}? The current content will be replaced." } %>
+              </div>
+            <% end %>
+          </div>
+
+          <%# Content preview %>
+          <details class="mt-3">
+            <summary class="text-xs text-text-faint cursor-pointer hover:text-text-muted select-none">Show content</summary>
+            <pre class="mt-2 text-xs text-text-primary font-mono bg-surface-base rounded-lg p-3 overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto"><%= version.content %></pre>
+          </details>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</div>

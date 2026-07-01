@@ -564,7 +564,57 @@ app.get("/signal/health", (req, res) => {
   if (!signalBridge) {
     return res.json({ status: "not_configured" });
   }
-  res.json({ status: "connected", ...signalBridge.status });
+  // status already includes connection status, hasQR, registered, etc.
+  res.json({ ...signalBridge.status });
+});
+
+// Return the current Signal device-linking QR as a PNG data URL.
+app.get("/signal/qr", async (req, res) => {
+  if (!signalBridge) {
+    return res.json({ status: "not_configured", qr: null });
+  }
+  if (signalBridge.qr) {
+    return res.json({ status: signalBridge.status.status, qr: signalBridge.qr });
+  }
+  // No QR cached yet — try to generate one if we're not already linked.
+  if (!signalBridge.registered) {
+    try {
+      await signalBridge.fetchLinkQR();
+      signalBridge.watchForLink();
+      return res.json({ status: "qr_ready", qr: signalBridge.qr });
+    } catch (err) {
+      return res.status(503).json({ status: "error", error: err.message });
+    }
+  }
+  res.json({ status: signalBridge.status.status, qr: null });
+});
+
+// Kick off (or refresh) Signal device linking and return a fresh QR.
+app.post("/signal/connect", async (req, res) => {
+  try {
+    if (!signalBridge) {
+      return res.status(400).json({ error: "Signal not configured" });
+    }
+    const result = await signalBridge.relink();
+    res.json({ ...result, ...signalBridge.status });
+  } catch (err) {
+    logger.error({ err }, "Failed to start Signal linking");
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Logout/reconnect — regenerate a linking QR.
+app.post("/signal/logout", async (req, res) => {
+  try {
+    if (!signalBridge) {
+      return res.status(400).json({ error: "Signal not configured" });
+    }
+    await signalBridge.relink();
+    res.json({ status: "logged_out", ...signalBridge.status });
+  } catch (err) {
+    logger.error({ err }, "Failed to relink Signal");
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post("/signal/send", async (req, res) => {
@@ -586,10 +636,7 @@ app.post("/signal/send", async (req, res) => {
 
 app.post("/signal/configure", async (req, res) => {
   try {
-    const { phone_number, api_url, channel_id } = req.body;
-    if (!phone_number) {
-      return res.status(400).json({ error: "phone_number required" });
-    }
+    const { phone_number, api_url, channel_id, device_name } = req.body;
 
     if (signalBridge) {
       await signalBridge.stop();
@@ -601,10 +648,13 @@ app.post("/signal/configure", async (req, res) => {
       apiUrl: api_url,
       hivemindUrl: HIVEMIND_URL,
       channelId: channel_id,
+      deviceName: device_name,
     });
 
+    // start() connects if already linked, otherwise enters linking mode and
+    // generates a QR — it no longer throws when the account isn't registered.
     await signalBridge.start();
-    res.json({ status: "connected", ...signalBridge.status });
+    res.json({ ...signalBridge.status });
   } catch (err) {
     logger.error({ err }, "Failed to configure Signal");
     res.status(500).json({ error: err.message });

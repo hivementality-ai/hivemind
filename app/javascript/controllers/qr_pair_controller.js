@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
   static targets = ["statusBadge", "qrArea", "connectedArea", "userInfo", "instructions", "errorArea"]
-  static values = { healthUrl: String, qrUrl: String, logoutUrl: String }
+  static values = { healthUrl: String, qrUrl: String, logoutUrl: String, platform: String }
 
   connect() {
     this.polling = true
@@ -90,7 +90,8 @@ export default class extends Controller {
     this.connectedAreaTarget.classList.remove("hidden")
     this.errorAreaTarget.classList.add("hidden")
 
-    const user = health.userName || health.user || "WhatsApp"
+    const fallback = this.platformValue || "WhatsApp"
+    const user = health.userName || health.user || health.phoneNumber || fallback
     this.userInfoTarget.textContent = `Linked as ${user}`
     this.updateBadge("connected", "Connected", "green")
   }

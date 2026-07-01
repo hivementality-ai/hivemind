@@ -10,12 +10,14 @@ RSpec.describe Skill, type: :model do
     it { should have_many(:agents).through(:agent_skills) }
     it { should have_many(:skill_tools).dependent(:destroy) }
     it { should have_many(:tools).through(:skill_tools) }
+    it { should have_many(:skill_load_events).dependent(:destroy) }
   end
 
   describe "validations" do
     it { should validate_presence_of(:name) }
     it { should validate_uniqueness_of(:name) }
     it { should validate_presence_of(:content) }
+    it { should validate_inclusion_of(:tier).in_array(%w[core contextual manual]) }
   end
 
   describe "scopes" do
@@ -23,6 +25,9 @@ RSpec.describe Skill, type: :model do
     let!(:disabled) { create(:skill, enabled: false) }
     let!(:builtin) { create(:skill, builtin: true) }
     let!(:custom) { create(:skill, builtin: false) }
+    let!(:core_skill) { create(:skill, tier: "core") }
+    let!(:contextual_skill) { create(:skill, tier: "contextual") }
+    let!(:manual_skill) { create(:skill, tier: "manual") }
 
     it ".enabled returns enabled skills" do
       expect(Skill.enabled).to include(enabled, builtin, custom)
@@ -35,6 +40,74 @@ RSpec.describe Skill, type: :model do
 
     it ".custom returns non-builtin skills" do
       expect(Skill.custom).not_to include(builtin)
+    end
+
+    it ".core_tier returns only core skills" do
+      expect(Skill.core_tier).to include(core_skill)
+      expect(Skill.core_tier).not_to include(contextual_skill, manual_skill)
+    end
+
+    it ".contextual_tier returns only contextual skills" do
+      expect(Skill.contextual_tier).to include(contextual_skill)
+      expect(Skill.contextual_tier).not_to include(core_skill, manual_skill)
+    end
+
+    it ".manual_tier returns only manual skills" do
+      expect(Skill.manual_tier).to include(manual_skill)
+      expect(Skill.manual_tier).not_to include(core_skill, contextual_skill)
+    end
+
+    it ".with_tag filters by tag" do
+      tagged = create(:skill, tags: %w[github git])
+      untagged = create(:skill, tags: [])
+      expect(Skill.with_tag("github")).to include(tagged)
+      expect(Skill.with_tag("github")).not_to include(untagged)
+    end
+  end
+
+  describe "#tags" do
+    it "returns empty array when nil" do
+      skill = build(:skill)
+      skill[:tags] = nil
+      expect(skill.tags).to eq([])
+    end
+
+    it "returns the tags array" do
+      skill = build(:skill, tags: %w[github pr])
+      expect(skill.tags).to eq(%w[github pr])
+    end
+  end
+
+  describe "#trigger_patterns" do
+    it "returns empty array when nil" do
+      skill = build(:skill)
+      skill[:trigger_patterns] = nil
+      expect(skill.trigger_patterns).to eq([])
+    end
+
+    it "returns the patterns array" do
+      skill = build(:skill, trigger_patterns: ["open.*pr"])
+      expect(skill.trigger_patterns).to eq(["open.*pr"])
+    end
+  end
+
+  describe "#relevance_score_for" do
+    it "delegates to Skills::RelevanceScorer" do
+      skill = build(:skill, tags: %w[github], trigger_patterns: [])
+      allow(Skills::RelevanceScorer).to receive(:score).and_return(0.75)
+      score = skill.relevance_score_for("open a pr on github")
+      expect(Skills::RelevanceScorer).to have_received(:score).with(skill: skill, context: "open a pr on github")
+      expect(score).to eq(0.75)
+    end
+
+    it "returns 0.0 for blank context" do
+      skill = build(:skill, tags: %w[github])
+      expect(skill.relevance_score_for("")).to eq(0.0)
+    end
+
+    it "returns 0.0 when no tags or patterns" do
+      skill = build(:skill, tags: [], trigger_patterns: [])
+      expect(skill.relevance_score_for("github pr")).to eq(0.0)
     end
   end
 

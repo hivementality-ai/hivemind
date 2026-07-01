@@ -38,7 +38,10 @@
 
           <div class="flex-1 min-w-0">
             <div class="flex items-center justify-between gap-2">
-              <p class="font-semibold text-sm truncate"><%= event[:title] %></p>
+              <p class="font-semibold text-sm truncate flex items-center gap-1.5">
+                <% if event[:live] %><span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse flex-shrink-0"></span><% end %>
+                <%= event[:title] %>
+              </p>
               <span class="text-xs text-text-muted flex-shrink-0"><%= time_ago_in_words(event[:timestamp]) %> ago</span>
             </div>
             <% if event[:body].present? %>

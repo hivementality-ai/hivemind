@@ -52,28 +52,17 @@ module Api
       end
 
       def fetch_anthropic_models
-        [
-          { id: "auto", name: "Auto (route per task)" },
-          { id: "claude-opus-4-6", name: "Claude Opus 4.6" },
-          { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
-          { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5" },
-          { id: "claude-haiku-4-5", name: "Claude Haiku 4.5" }
-        ]
+        auto_option = [ { id: "auto", name: "Auto (route per task)" } ]
+        auto_option + LlmModelRegistry.supported_for_provider("anthropic").map do |m|
+          { id: m.api_id, name: m.display_name }
+        end
       end
 
       def fetch_openai_models
-        [
-          { id: "auto", name: "Auto (route per task)" },
-          { id: "gpt-5.4", name: "GPT-5.4" },
-          { id: "gpt-5.4-mini", name: "GPT-5.4 Mini" },
-          { id: "gpt-5.4-nano", name: "GPT-5.4 Nano" },
-          { id: "gpt-5.3-codex", name: "GPT-5.3 Codex" },
-          { id: "o3-pro", name: "o3-pro" },
-          { id: "o3", name: "o3" },
-          { id: "o4-mini", name: "o4-mini" },
-          { id: "gpt-5.2", name: "GPT-5.2" },
-          { id: "gpt-4.1", name: "GPT-4.1" }
-        ]
+        auto_option = [ { id: "auto", name: "Auto (route per task)" } ]
+        auto_option + LlmModelRegistry.supported_for_provider("openai").map do |m|
+          { id: m.api_id, name: m.display_name }
+        end
       end
 
       def fetch_openai_compatible_models
