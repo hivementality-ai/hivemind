@@ -23,7 +23,7 @@ gem "bcrypt", "~> 3.1.22"
 # Background Jobs
 gem "connection_pool", "~> 2.4"
 gem "sidekiq", "~> 8.0"
-gem "sidekiq-cron", "~> 2.0"
+gem "sidekiq-cron", "~> 2.4"
 
 # WebSocket (ActionCable with Redis)
 gem "redis", "~> 5.0"
@@ -33,10 +33,10 @@ gem "rack-attack"
 
 # LLM Providers
 gem "ruby-openai", "~> 7.0"
-gem "anthropic", "~> 1.36"
+gem "anthropic", "~> 1.43"
 
 # HTTP Client (for webhooks, web fetch, etc.)
-gem "faraday", "~> 2.0"
+gem "faraday", "~> 2.14"
 gem "faraday-retry"
 
 # JSON
@@ -47,7 +47,7 @@ gem "kamal", require: false
 gem "thruster", require: false
 
 # ActiveRecord Encryption + pgvector for memory search
-gem "neighbor", "~> 1.0"
+gem "neighbor", "~> 1.1"
 
 # Image processing
 gem "image_processing", "~> 2.0"
