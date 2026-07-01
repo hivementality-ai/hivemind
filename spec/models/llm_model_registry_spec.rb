@@ -24,7 +24,9 @@ RSpec.describe LlmModelRegistry do
   # ── Model struct behaviour ───────────────────────────────────────────────
 
   describe described_class::Model do
-    subject(:model) { described_class.find("claude-haiku-4-5") }
+    # NOTE: inside this nested block `described_class` is Model, so resolve the
+    # lookup through the registry module explicitly.
+    subject(:model) { LlmModelRegistry.find("claude-haiku-4-5") }
 
     it "exposes all required attributes" do
       expect(model.api_id).to eq("claude-haiku-4-5")
