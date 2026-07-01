@@ -123,3 +123,9 @@
   border-radius: 0.5rem;
   margin: 0.5rem 0;
 }
+
+/* ─── Mobile Tool Call Summary Pill ───────────────────── */
+/* Suppress Safari's native disclosure triangle on <summary> elements.
+   Tailwind's list-none doesn't affect ::-webkit-details-marker in Safari. */
+summary.tool-call-summary::-webkit-details-marker { display: none; }
+summary.tool-call-summary::marker { display: none; }

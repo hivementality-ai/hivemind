@@ -74,5 +74,25 @@ module Channels
         sent_at: Time.current
       )
     end
+
+    # Transcribe an inbound voice note / audio file to text via the STT tool.
+    # Shared hook so every channel that receives audio gets the same behaviour.
+    # Returns the transcription string, or nil if the file is missing/unsupported
+    # or transcription fails (caller should fall back to any text body).
+    def transcribe_audio(file_path)
+      return nil if file_path.blank?
+      return nil unless File.exist?(file_path.to_s)
+
+      result = Tools::SttExecutor.new(
+        input: { "file_path" => file_path.to_s },
+        config: {},
+        agent: nil
+      ).call
+
+      result.success? ? result.data[:transcription] : nil
+    rescue StandardError => e
+      Rails.logger.warn("[#{channel&.channel_type}] voice transcription failed: #{e.message}")
+      nil
+    end
   end
 end

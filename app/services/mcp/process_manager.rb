@@ -5,7 +5,7 @@ require "shellwords"
 
 module Mcp
   class ProcessManager
-    WORKSPACE_CONTAINER = "hivemind-workspace-1"
+    WORKSPACE_CONTAINER = "#{ENV.fetch('COMPOSE_PROJECT_NAME', 'hivemind')}-workspace-1"
 
     def initialize(server)
       @server = server

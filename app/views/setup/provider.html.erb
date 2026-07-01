@@ -55,21 +55,19 @@
             </div>
           </details>
 
-          <!-- Model selection (shown when key is entered) -->
+          <!-- Model selection (shown when key is entered) — sourced from LlmModelRegistry -->
+          <% anthropic_models = LlmModelRegistry.supported_for_provider("anthropic") %>
+          <% anthropic_defaults = [LlmModelRegistry::Anthropic::DEFAULT_MID, LlmModelRegistry::Anthropic::DEFAULT_CHEAP] %>
           <div class="mt-4 space-y-2 hidden" data-provider-models-target="modelList" data-provider="anthropic">
             <p class="text-text-primary text-sm font-medium mb-2">Select available models:</p>
-            <% [
-              { id: "claude-opus-4-6", name: "Claude Opus 4.6", desc: "Most capable — complex reasoning & code", default: false },
-              { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5", desc: "Best balance of speed & intelligence", default: true },
-              { id: "claude-haiku-4-5", name: "Claude Haiku 4.5", desc: "Fast & affordable for simple tasks", default: true },
-            ].each do |model| %>
+            <% anthropic_models.each do |model| %>
               <label class="flex items-start gap-3 p-3 bg-surface-raised/50 rounded-lg cursor-pointer hover:bg-surface-raised transition group">
-                <input type="checkbox" name="providers[anthropic][models][]" value="<%= model[:id] %>"
-                       <%= "checked" if model[:default] %>
+                <input type="checkbox" name="providers[anthropic][models][]" value="<%= model.api_id %>"
+                       <%= "checked" if anthropic_defaults.include?(model.api_id) %>
                        class="mt-0.5 w-4 h-4 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay">
                 <div class="flex-1">
-                  <span class="text-white text-sm font-medium"><%= model[:name] %></span>
-                  <p class="text-text-muted text-xs"><%= model[:desc] %></p>
+                  <span class="text-white text-sm font-medium"><%= model.display_name %></span>
+                  <p class="text-text-muted text-xs"><%= model.description %></p>
                 </div>
               </label>
             <% end %>
@@ -77,9 +75,9 @@
             <div class="mt-3">
               <label class="text-text-primary text-sm font-medium">Default model:</label>
               <select name="providers[anthropic][default_model]" class="mt-1 w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand">
-                <option value="claude-sonnet-4-5" selected>Claude Sonnet 4.5</option>
-                <option value="claude-opus-4-6">Claude Opus 4.6</option>
-                <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
+                <% anthropic_models.each do |model| %>
+                  <option value="<%= model.api_id %>" <%= "selected" if model.api_id == LlmModelRegistry::Anthropic::DEFAULT_MID %>><%= model.display_name %></option>
+                <% end %>
               </select>
             </div>
           </div>
@@ -104,24 +102,19 @@
             <a href="https://platform.openai.com/" target="_blank" class="text-brand-light hover:underline">platform.openai.com</a>
           </p>
 
-          <!-- Model selection -->
+          <!-- Model selection — sourced from LlmModelRegistry -->
+          <% openai_models = LlmModelRegistry.supported_for_provider("openai") %>
+          <% openai_defaults = [LlmModelRegistry::OpenAI::DEFAULT_TOP, LlmModelRegistry::OpenAI::DEFAULT_MID, LlmModelRegistry::OpenAI::O4_MINI] %>
           <div class="mt-4 space-y-2 hidden" data-provider-models-target="modelList" data-provider="openai">
             <p class="text-text-primary text-sm font-medium mb-2">Select available models:</p>
-            <% [
-              { id: "gpt-5.4", name: "GPT-5.4", desc: "Latest flagship — complex reasoning & coding", default: true },
-              { id: "gpt-5.4-mini", name: "GPT-5.4 Mini", desc: "Fast & strong for high-volume workloads", default: true },
-              { id: "gpt-5.4-nano", name: "GPT-5.4 Nano", desc: "Cheapest — classification, extraction, sub-agents", default: false },
-              { id: "gpt-5.3-codex", name: "GPT-5.3 Codex", desc: "Best agentic coding model", default: false },
-              { id: "o3", name: "o3", desc: "Advanced reasoning — math, science, code", default: false },
-              { id: "o4-mini", name: "o4-mini", desc: "Fast reasoning for complex problems", default: true },
-            ].each do |model| %>
+            <% openai_models.each do |model| %>
               <label class="flex items-start gap-3 p-3 bg-surface-raised/50 rounded-lg cursor-pointer hover:bg-surface-raised transition group">
-                <input type="checkbox" name="providers[openai][models][]" value="<%= model[:id] %>"
-                       <%= "checked" if model[:default] %>
+                <input type="checkbox" name="providers[openai][models][]" value="<%= model.api_id %>"
+                       <%= "checked" if openai_defaults.include?(model.api_id) %>
                        class="mt-0.5 w-4 h-4 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay">
                 <div class="flex-1">
-                  <span class="text-white text-sm font-medium"><%= model[:name] %></span>
-                  <p class="text-text-muted text-xs"><%= model[:desc] %></p>
+                  <span class="text-white text-sm font-medium"><%= model.display_name %></span>
+                  <p class="text-text-muted text-xs"><%= model.description %></p>
                 </div>
               </label>
             <% end %>
@@ -129,12 +122,9 @@
             <div class="mt-3">
               <label class="text-text-primary text-sm font-medium">Default model:</label>
               <select name="providers[openai][default_model]" class="mt-1 w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand">
-                <option value="gpt-5.4" selected>GPT-5.4</option>
-                <option value="gpt-5.4-mini">GPT-5.4 Mini</option>
-                <option value="gpt-5.4-nano">GPT-5.4 Nano</option>
-                <option value="gpt-5.3-codex">GPT-5.3 Codex</option>
-                <option value="o3">o3</option>
-                <option value="o4-mini">o4-mini</option>
+                <% openai_models.each do |model| %>
+                  <option value="<%= model.api_id %>" <%= "selected" if model.api_id == LlmModelRegistry::OpenAI::DEFAULT_TOP %>><%= model.display_name %></option>
+                <% end %>
               </select>
             </div>
           </div>
@@ -491,22 +481,86 @@
           <p class="text-text-muted text-xs mb-4">Embeddings power agent memory search. Choose how memories are indexed.</p>
 
           <div class="space-y-3">
-            <label class="flex items-start gap-3 p-4 bg-surface-raised rounded-lg border border-border-default cursor-pointer hover:border-purple-500/50 transition has-[:checked]:border-purple-500 has-[:checked]:bg-purple-900/10">
-              <input type="radio" name="embedding_provider" value="ollama" checked
-                     class="mt-0.5 w-4 h-4 text-purple-600 focus:ring-purple-500 bg-surface-overlay border-gray-500">
-              <div class="flex-1">
-                <div class="flex items-center gap-2">
-                  <span class="text-white text-sm font-medium">Ollama</span>
-                  <span class="px-1.5 py-0.5 bg-green-900/40 text-green-400 text-xs rounded">Free</span>
-                  <span class="px-1.5 py-0.5 bg-purple-900/40 text-purple-400 text-xs rounded">Local</span>
+            <div class="p-4 bg-surface-raised rounded-lg border border-border-default has-[:checked]:border-purple-500 has-[:checked]:bg-purple-900/10 transition">
+              <label class="flex items-start gap-3 cursor-pointer">
+                <input type="radio" name="embedding_provider" value="ollama" checked
+                       class="mt-0.5 w-4 h-4 text-purple-600 focus:ring-purple-500 bg-surface-overlay border-gray-500"
+                       onchange="toggleOllamaEmbeddingSection(true)">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-white text-sm font-medium">Ollama</span>
+                    <span class="px-1.5 py-0.5 bg-green-900/40 text-green-400 text-xs rounded">Free</span>
+                    <span class="px-1.5 py-0.5 bg-purple-900/40 text-purple-400 text-xs rounded">Local / Remote</span>
+                  </div>
+                  <p class="text-text-muted text-xs mt-1">Text-only embeddings via nomic-embed-text. No API key needed. Works with local or remote Ollama.</p>
                 </div>
-                <p class="text-text-muted text-xs mt-1">Text-only embeddings via nomic-embed-text. Runs locally, no API key needed. Requires Ollama enabled above.</p>
+              </label>
+
+              <!-- Ollama embedding URL — separate from the chat provider toggle/URL above -->
+              <div id="ollama-embedding-section" class="mt-3 space-y-2">
+                <label class="text-text-primary text-xs font-medium block">Ollama URL</label>
+                <div class="flex gap-2">
+                  <input type="text"
+                         id="ollama-embedding-url"
+                         name="ollama_embedding_base_url"
+                         class="flex-1 px-3 py-2 bg-surface-overlay border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-xs"
+                         placeholder="http://host.docker.internal:11434"
+                         value="http://host.docker.internal:11434">
+                  <button type="button"
+                          onclick="detectOllamaEmbeddingConnection()"
+                          class="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded-lg transition cursor-pointer whitespace-nowrap">
+                    Check Connection
+                  </button>
+                </div>
+                <p class="text-text-faint text-xs">
+                  Change this if Ollama is running on another machine (e.g. <code class="text-text-muted">http://192.168.1.100:11434</code>).
+                  Leave as-is for local Ollama.
+                </p>
+                <p id="ollama-embedding-status" class="text-xs hidden"></p>
               </div>
-            </label>
+            </div>
+
+            <script>
+              function detectOllamaEmbeddingConnection() {
+                const urlInput = document.getElementById('ollama-embedding-url');
+                const statusEl = document.getElementById('ollama-embedding-status');
+                const url = (urlInput ? urlInput.value : '').trim() || 'http://host.docker.internal:11434';
+
+                statusEl.textContent = 'Checking…';
+                statusEl.className = 'text-xs text-text-muted';
+                statusEl.classList.remove('hidden');
+
+                fetch(`/setup/ollama_models?url=${encodeURIComponent(url)}`)
+                  .then(r => r.json())
+                  .then(data => {
+                    const hasEmbed = data.models && data.models.some(m => m.id && m.id.includes('nomic-embed-text'));
+                    if (hasEmbed) {
+                      statusEl.textContent = '✓ Connected — nomic-embed-text found';
+                      statusEl.className = 'text-xs text-green-400';
+                    } else if (data.models && data.models.length > 0) {
+                      statusEl.textContent = '⚠ Connected, but nomic-embed-text not found. Run: ollama pull nomic-embed-text';
+                      statusEl.className = 'text-xs text-yellow-400';
+                    } else {
+                      statusEl.textContent = '✗ Could not connect to Ollama at ' + url;
+                      statusEl.className = 'text-xs text-red-400';
+                    }
+                  })
+                  .catch(() => {
+                    statusEl.textContent = '✗ Could not connect to Ollama at ' + url;
+                    statusEl.className = 'text-xs text-red-400';
+                  });
+              }
+
+              function toggleOllamaEmbeddingSection(show) {
+                const section = document.getElementById('ollama-embedding-section');
+                if (section) section.classList.toggle('hidden', !show);
+              }
+            </script>
 
             <label class="flex items-start gap-3 p-4 bg-surface-raised rounded-lg border border-border-default cursor-pointer hover:border-blue-500/50 transition has-[:checked]:border-blue-500 has-[:checked]:bg-blue-900/10">
               <input type="radio" name="embedding_provider" value="gemini"
-                     class="mt-0.5 w-4 h-4 text-blue-600 focus:ring-blue-500 bg-surface-overlay border-gray-500">
+                     class="mt-0.5 w-4 h-4 text-blue-600 focus:ring-blue-500 bg-surface-overlay border-gray-500"
+                     onchange="toggleOllamaEmbeddingSection(false)">
               <div class="flex-1">
                 <div class="flex items-center gap-2">
                   <span class="text-white text-sm font-medium">Gemini</span>
@@ -528,7 +582,8 @@
 
             <label class="flex items-start gap-3 p-4 bg-surface-raised rounded-lg border border-border-default cursor-pointer hover:border-green-500/50 transition has-[:checked]:border-green-500 has-[:checked]:bg-green-900/10">
               <input type="radio" name="embedding_provider" value="openai"
-                     class="mt-0.5 w-4 h-4 text-green-600 focus:ring-green-500 bg-surface-overlay border-gray-500">
+                     class="mt-0.5 w-4 h-4 text-green-600 focus:ring-green-500 bg-surface-overlay border-gray-500"
+                     onchange="toggleOllamaEmbeddingSection(false)">
               <div class="flex-1">
                 <div class="flex items-center gap-2">
                   <span class="text-white text-sm font-medium">OpenAI</span>

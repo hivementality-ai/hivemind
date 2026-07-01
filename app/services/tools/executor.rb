@@ -14,6 +14,12 @@ module Tools
       "web_fetch" => Tools::WebFetchExecutor,
       "browser" => Tools::BrowserExecutor,
       "memory_search" => Tools::MemorySearchExecutor,
+      "memory_store" => Tools::MemoryStoreExecutor,
+      "memory_update" => Tools::MemoryUpdateExecutor,
+      "memory_stats" => Tools::MemoryStatsExecutor,
+      "knowledge_search" => Tools::KnowledgeSearchExecutor,
+      "user_model" => Tools::UserModelExecutor,
+      "user_model_populate" => Tools::UserModelPopulateExecutor,
       "file_edit" => Tools::FileEditExecutor,
       "image" => Tools::ImageExecutor,
       "image_generate" => Tools::ImageGenerateExecutor,
@@ -27,6 +33,7 @@ module Tools
       "sessions_send" => Tools::SessionsSendExecutor,
       "sessions_history" => Tools::SessionsHistoryExecutor,
       "session_status" => Tools::SessionStatusExecutor,
+      "session_search" => Tools::SessionSearchExecutor,
       "agents_list" => Tools::AgentsListExecutor,
       "gateway" => Tools::GatewayExecutor,
       "tts" => Tools::TtsExecutor,
@@ -64,7 +71,9 @@ module Tools
       "chat_attachments" => Tools::ChatAttachmentsExecutor,
       "grep" => Tools::GrepExecutor,
       "mcp" => Tools::McpExecutor,
-      "task_manager" => Tools::TaskManagerExecutor
+      "task_manager" => Tools::TaskManagerExecutor,
+      "propose_skill_update" => Tools::ProposeSkillUpdateExecutor,
+      "flag_skill_unhelpful" => Tools::FlagSkillUnhelpfulExecutor
     }.freeze
 
     # Backwards compatibility alias
