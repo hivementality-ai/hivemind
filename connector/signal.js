@@ -11,51 +11,140 @@ const pino = require("pino");
 const logger = pino({ level: "info" });
 
 class SignalBridge {
-  constructor({ phoneNumber, apiUrl, hivemindUrl, channelId }) {
+  constructor({ phoneNumber, apiUrl, hivemindUrl, channelId, deviceName }) {
     this.phoneNumber = phoneNumber;
     this.apiUrl = apiUrl || "http://signal-cli:8080";
     this.hivemindUrl = hivemindUrl || "http://app:3000";
     this.channelId = channelId;
+    this.deviceName = deviceName || "hivemind";
     this.polling = false;
     this.registered = false;
+    // disconnected | linking | qr_ready | connected
+    this.connectionStatus = "disconnected";
+    this.currentQR = null; // data URL (PNG) of the device-linking QR
+    this.linkWatcher = null;
   }
 
   async start() {
-    try {
-      const ok = await this.checkRegistration();
-      if (!ok) {
-        logger.error("Signal: phone number not registered with signal-cli");
-        throw new Error("Phone number not registered");
-      }
+    const ok = await this.checkRegistration();
+    if (ok) {
       this.registered = true;
+      this.connectionStatus = "connected";
+      this.currentQR = null;
       logger.info(
         { phoneNumber: this.phoneNumber, apiUrl: this.apiUrl },
         "Signal bridge authenticated"
       );
-    } catch (err) {
-      logger.error({ err }, "Failed to connect to Signal CLI");
-      throw err;
+      this.polling = true;
+      this.poll();
+      logger.info("Signal bridge started");
+      return;
     }
 
-    this.polling = true;
-    this.poll();
-    logger.info("Signal bridge started");
+    // Not yet registered/linked — enter linking mode and generate a QR so the
+    // user can link this device from Signal → Settings → Linked Devices.
+    logger.warn(
+      "Signal: account not linked yet — entering device-linking mode"
+    );
+    await this.beginLinking();
   }
 
   async stop() {
     this.polling = false;
+    if (this.linkWatcher) {
+      clearTimeout(this.linkWatcher);
+      this.linkWatcher = null;
+    }
     logger.info("Signal bridge stopped");
   }
 
   async checkRegistration() {
     try {
       const response = await fetch(
-        `${this.apiUrl}/v1/accounts/${encodeURIComponent(this.phoneNumber)}`
+        `${this.apiUrl}/v1/accounts`
       );
-      return response.ok;
+      if (!response.ok) return false;
+      const accounts = await response.json();
+      // /v1/accounts returns an array of registered numbers.
+      if (Array.isArray(accounts)) {
+        if (this.phoneNumber) {
+          return accounts.includes(this.phoneNumber);
+        }
+        // No number configured yet: linked if any account exists.
+        if (accounts.length > 0) {
+          this.phoneNumber = this.phoneNumber || accounts[0];
+          return true;
+        }
+        return false;
+      }
+      return false;
     } catch {
       return false;
     }
+  }
+
+  // Fetch a device-linking QR code from signal-cli and cache it as a data URL.
+  async fetchLinkQR() {
+    const url = `${this.apiUrl}/v1/qrcodelink?device_name=${encodeURIComponent(
+      this.deviceName
+    )}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(`qrcodelink failed: ${response.status} ${body}`);
+    }
+    const contentType = response.headers.get("content-type") || "image/png";
+    const buf = Buffer.from(await response.arrayBuffer());
+    this.currentQR = `data:${contentType};base64,${buf.toString("base64")}`;
+    this.connectionStatus = "qr_ready";
+    logger.info("Signal: device-linking QR ready — scan via UI");
+    return this.currentQR;
+  }
+
+  // Generate a QR and poll until the device finishes linking.
+  async beginLinking() {
+    this.registered = false;
+    this.connectionStatus = "linking";
+    try {
+      await this.fetchLinkQR();
+    } catch (err) {
+      logger.error({ err }, "Signal: failed to generate linking QR");
+      this.connectionStatus = "disconnected";
+      throw err;
+    }
+    this.watchForLink();
+  }
+
+  // Poll registration; once the user scans the QR, signal-cli registers the
+  // account and we transition to connected + start the receive loop.
+  watchForLink() {
+    if (this.linkWatcher) clearTimeout(this.linkWatcher);
+    const tick = async () => {
+      if (this.connectionStatus === "connected" || this.registered) return;
+      const ok = await this.checkRegistration();
+      if (ok) {
+        this.registered = true;
+        this.connectionStatus = "connected";
+        this.currentQR = null;
+        logger.info("Signal: device linked — starting message polling");
+        if (!this.polling) {
+          this.polling = true;
+          this.poll();
+        }
+        return;
+      }
+      this.linkWatcher = setTimeout(tick, 3000);
+    };
+    this.linkWatcher = setTimeout(tick, 3000);
+  }
+
+  // Force a fresh linking QR (used by "reconnect").
+  async relink() {
+    this.polling = false;
+    this.registered = false;
+    this.currentQR = null;
+    await this.beginLinking();
+    return { status: this.connectionStatus };
   }
 
   async poll() {
@@ -151,11 +240,17 @@ class SignalBridge {
 
   get status() {
     return {
+      status: this.connectionStatus,
       polling: this.polling,
       registered: this.registered,
+      hasQR: !!this.currentQR,
       phoneNumber: this.phoneNumber,
       apiUrl: this.apiUrl,
     };
+  }
+
+  get qr() {
+    return this.currentQR;
   }
 }
 

@@ -140,39 +140,28 @@
         <div class="space-y-4">
           <label class="block text-text-primary font-semibold">Select Available Models</label>
 
-          <!-- Static model lists (anthropic/openai) -->
+          <!-- Static model lists (anthropic/openai) — sourced from LlmModelRegistry -->
           <div id="anthropic-models" class="space-y-2 hidden">
-            <% [
-              { id: "claude-opus-4-6", name: "Claude Opus 4.6", desc: "Most capable — complex reasoning & code" },
-              { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5", desc: "Best balance of speed & intelligence" },
-              { id: "claude-haiku-4-5", name: "Claude Haiku 4.5", desc: "Fast & affordable for simple tasks" }
-            ].each do |model| %>
+            <% LlmModelRegistry.supported_for_provider("anthropic").each do |model| %>
               <label class="flex items-start gap-3 p-4 bg-surface-raised rounded-lg cursor-pointer hover:bg-surface-overlay transition group border border-border-default/50">
-                <input type="checkbox" name="provider_config[models][]" value="<%= model[:id] %>"
+                <input type="checkbox" name="provider_config[models][]" value="<%= model.api_id %>"
                        class="mt-1 w-4 h-4 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay flex-shrink-0">
                 <div class="flex-1">
-                  <span class="text-white text-sm font-medium block"><%= model[:name] %></span>
-                  <p class="text-text-muted text-xs"><%= model[:desc] %></p>
+                  <span class="text-white text-sm font-medium block"><%= model.display_name %></span>
+                  <p class="text-text-muted text-xs"><%= model.description %></p>
                 </div>
               </label>
             <% end %>
           </div>
 
           <div id="openai-models" class="space-y-2 hidden">
-            <% [
-              { id: "gpt-5.4", name: "GPT-5.4", desc: "Latest flagship — complex reasoning & coding" },
-              { id: "gpt-5.4-mini", name: "GPT-5.4 Mini", desc: "Fast & strong for high-volume workloads" },
-              { id: "gpt-5.4-nano", name: "GPT-5.4 Nano", desc: "Cheapest — classification, extraction, sub-agents" },
-              { id: "gpt-5.3-codex", name: "GPT-5.3 Codex", desc: "Best agentic coding model" },
-              { id: "o3", name: "o3", desc: "Advanced reasoning — math, science, code" },
-              { id: "o4-mini", name: "o4-mini", desc: "Fast reasoning for complex problems" }
-            ].each do |model| %>
+            <% LlmModelRegistry.supported_for_provider("openai").each do |model| %>
               <label class="flex items-start gap-3 p-4 bg-surface-raised rounded-lg cursor-pointer hover:bg-surface-overlay transition group border border-border-default/50">
-                <input type="checkbox" name="provider_config[models][]" value="<%= model[:id] %>"
+                <input type="checkbox" name="provider_config[models][]" value="<%= model.api_id %>"
                        class="mt-1 w-4 h-4 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay flex-shrink-0">
                 <div class="flex-1">
-                  <span class="text-white text-sm font-medium block"><%= model[:name] %></span>
-                  <p class="text-text-muted text-xs"><%= model[:desc] %></p>
+                  <span class="text-white text-sm font-medium block"><%= model.display_name %></span>
+                  <p class="text-text-muted text-xs"><%= model.description %></p>
                 </div>
               </label>
             <% end %>
@@ -242,20 +231,10 @@
       openai_compatible: document.getElementById('openai-compatible-settings')
     };
 
+    // Model lists sourced from LlmModelRegistry — do not edit here.
     const defaultModels = {
-      anthropic: [
-        { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5' },
-        { id: 'claude-opus-4-6', name: 'Claude Opus 4.6' },
-        { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5' }
-      ],
-      openai: [
-        { id: 'gpt-5.4', name: 'GPT-5.4' },
-        { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini' },
-        { id: 'gpt-5.4-nano', name: 'GPT-5.4 Nano' },
-        { id: 'gpt-5.3-codex', name: 'GPT-5.3 Codex' },
-        { id: 'o3', name: 'o3' },
-        { id: 'o4-mini', name: 'o4-mini' }
-      ]
+      anthropic: <%= LlmModelRegistry.supported_for_provider("anthropic").map { |m| { id: m.api_id, name: m.display_name } }.to_json.html_safe %>,
+      openai:    <%= LlmModelRegistry.supported_for_provider("openai").map { |m| { id: m.api_id, name: m.display_name } }.to_json.html_safe %>
     };
 
     const apiKeyHints = {

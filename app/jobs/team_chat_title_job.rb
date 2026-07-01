@@ -32,7 +32,7 @@ class TeamChatTitleJob < ApplicationJob
     result = adapter.chat(
       messages: [
         { role: "system", content: title_prompt },
-        { role: "user",   content: conversation }
+        { role: "user",   content: TitleSanitizer.request(conversation) }
       ],
       options: { model: title_model, max_tokens: 30 }
     )
@@ -40,7 +40,7 @@ class TeamChatTitleJob < ApplicationJob
     return unless result.success?
 
     generated = result.data[:content].to_s.strip.gsub(/\A["']|["']\z/, "")
-    return if generated.blank?
+    return if generated.blank? || TitleSanitizer.refusal?(generated)
 
     generated = generated[0...MAX_TITLE_CHARS] if generated.length > MAX_TITLE_CHARS
 
@@ -84,9 +84,9 @@ class TeamChatTitleJob < ApplicationJob
 
   def cheapest_model(provider)
     case provider
-    when "anthropic" then "claude-haiku-4-5"
-    when "openai"    then "gpt-5.4-nano"
-    else                  "claude-haiku-4-5"
+    when "anthropic" then LlmModelRegistry::Anthropic::DEFAULT_SUMMARIZER
+    when "openai"    then LlmModelRegistry::OpenAI::DEFAULT_SUMMARIZER
+    else                  LlmModelRegistry::Anthropic::DEFAULT_SUMMARIZER
     end
   end
 

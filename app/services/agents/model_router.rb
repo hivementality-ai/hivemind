@@ -16,20 +16,21 @@ module Agents
     AUTO_SUPPORTED_PROVIDERS = %w[anthropic openai].freeze
 
     # Tiers x providers -> concrete model IDs.
+    # Tier model IDs are sourced from LlmModelRegistry::Anthropic / OpenAI constants.
     DEFAULT_RULES = {
       "anthropic" => {
         "tiers" => {
-          "cheap" => "claude-haiku-4-5",
-          "mid"   => "claude-sonnet-4-6",
-          "top"   => "claude-opus-4-6"
+          "cheap" => LlmModelRegistry::Anthropic::DEFAULT_CHEAP,
+          "mid"   => LlmModelRegistry::Anthropic::DEFAULT_MID,
+          "top"   => LlmModelRegistry::Anthropic::DEFAULT_TOP
         },
         "fallback_tier" => "mid"
       },
       "openai" => {
         "tiers" => {
-          "cheap" => "gpt-5.4-nano",
-          "mid"   => "gpt-5.4-mini",
-          "top"   => "gpt-5.4"
+          "cheap" => LlmModelRegistry::OpenAI::DEFAULT_CHEAP,
+          "mid"   => LlmModelRegistry::OpenAI::DEFAULT_MID,
+          "top"   => LlmModelRegistry::OpenAI::DEFAULT_TOP
         },
         "fallback_tier" => "mid"
       }

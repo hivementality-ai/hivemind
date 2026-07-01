@@ -10,7 +10,7 @@ class ScheduledScriptJob < ApplicationJob
   EXEC_TIMEOUT = 120
   MAX_OUTPUT = 50_000
   EXEC_DIR = "/workspace/.hivemind/exec"
-  WORKSPACE_CONTAINER = "hivemind-workspace-1"
+  WORKSPACE_CONTAINER = "#{ENV.fetch('COMPOSE_PROJECT_NAME', 'hivemind')}-workspace-1"
 
   INTERPRETERS = {
     ".py" => "python3",

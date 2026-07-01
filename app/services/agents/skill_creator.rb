@@ -1,38 +1,59 @@
 # frozen_string_literal: true
 
 module Agents
+  # Creates a new skill proposed by an agent.
+  #
+  # Phase 4 behaviour: all agent-authored skills require explicit admin approval
+  # before activation (proposal_status: "pending"). The admin reviews via the
+  # skill proposals UI and approves or rejects. No skill is auto-activated.
+  #
+  # Pipeline:
+  #   1. Quality guardrails (ProposalValidator) — fast structural checks
+  #   2. Security scan (SkillSecurityScanner) — content analysis
+  #   3. Blocked skills are rejected immediately; all others stored as pending
+  #   4. ApprovalRequest created → admin notified via ActionCable
   class SkillCreator
     def self.call(agent:, name:, summary:, content:, category: nil, share_with_team: false)
       new(agent:, name:, summary:, content:, category:, share_with_team:).call
     end
 
     def initialize(agent:, name:, summary:, content:, category:, share_with_team:)
-      @agent = agent
-      @name = name
-      @summary = summary
-      @content = content
-      @category = category
+      @agent         = agent
+      @name          = name.to_s.strip
+      @summary       = summary.to_s.strip
+      @content       = content.to_s.strip
+      @category      = category
       @share_with_team = share_with_team
     end
 
     def call
-      return ServiceResponse.failure(error: "Name is required") if @name.blank?
-      return ServiceResponse.failure(error: "Content is required") if @content.blank?
-      return ServiceResponse.failure(error: "Summary is required") if @summary.blank?
       return ServiceResponse.failure(error: "Skill '#{@name}' already exists") if Skill.exists?(name: @name)
 
+      quality_result = Skills::ProposalValidator.call(
+        name: @name, summary: @summary, content: @content, category: @category.to_s
+      )
+      return ServiceResponse.failure(error: "Skill proposal rejected: #{quality_result.error}") unless quality_result.success?
+
       scan_result = SkillSecurityScanner.call(content: @content, name: @name, source: "agent")
-      return ServiceResponse.failure(error: "Skill blocked: #{scan_result.data[:blocklist_reasons]}") if scan_result.success? && scan_result.data[:blocked]
+
+      if scan_result.success? && scan_result.data[:blocked]
+        return ServiceResponse.failure(
+          error: "Skill blocked by security scan: #{scan_result.data[:blocklist_reasons]&.join(', ')}"
+        )
+      end
 
       skill = Skill.create!(
         name: @name,
         summary: @summary,
-        description: "Created by agent: #{@agent.name}",
+        description: "Proposed by agent: #{@agent.name}",
         content: @content,
         category: resolve_category,
         builtin: false,
         enabled: false,
         source: "agent",
+        proposal_status: "pending",
+        proposed_by_agent_id: @agent.id,
+        proposed_at: Time.current,
         security_scan_result: scan_result.success? ? scan_result.data : {},
         metadata: {
           created_by_agent_id: @agent.id,
@@ -42,22 +63,15 @@ module Agents
         }
       )
 
-      if scan_result.success? && scan_result.data[:status] == "clean"
-        approve_skill(skill)
-        ServiceResponse.success(data: {
-          output: "Skill '#{@name}' created and auto-approved (security scan clean). It's now active.",
-          skill_id: skill.id,
-          status: "active"
-        })
-      else
-        create_approval_request(skill, scan_result)
-        ServiceResponse.success(data: {
-          output: "Skill '#{@name}' created and queued for review. An admin will review it before activation.",
-          skill_id: skill.id,
-          status: "pending_review"
-        })
-      end
+      create_approval_request(skill, scan_result)
+
+      ServiceResponse.success(data: {
+        output: "Skill '#{@name}' submitted for admin review. It will be available once approved.",
+        skill_id: skill.id,
+        status: "pending_review"
+      })
     rescue StandardError => e
+      Rails.logger.error("[Agents::SkillCreator] Failed to create skill '#{@name}': #{e.full_message}")
       ServiceResponse.failure(error: "Skill creation failed: #{e.message}")
     end
 
@@ -67,19 +81,6 @@ module Agents
       return @category if @category.present? && Skill::CATEGORIES.include?(@category)
 
       "utilities"
-    end
-
-    def approve_skill(skill)
-      skill.update!(enabled: true, approved_at: Time.current)
-      AgentSkill.find_or_create_by!(agent: @agent, skill: skill)
-
-      if @share_with_team && @agent.team
-        @agent.team.agents.where.not(id: @agent.id).find_each do |teammate|
-          AgentSkill.find_or_create_by!(agent: teammate, skill: skill)
-        end
-      end
-
-      Agents::SyncSkillTools.call(agent: @agent)
     end
 
     def create_approval_request(skill, scan_result)

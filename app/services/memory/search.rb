@@ -68,11 +68,12 @@ module Memory
       end
     end
 
-    # ILIKE fallback when embedding generation is unavailable
+    # ILIKE fallback when embedding generation is unavailable.
+    # Filters to active-only to match vector search behaviour.
     def keyword_fallback
       keywords = @query.downcase.split(/\s+/).reject { |w| w.length < 3 }.first(5)
 
-      scope = MemoryEntry.where(agent: @agent)
+      scope = MemoryEntry.where(agent: @agent).active
 
       if keywords.any?
         conditions = keywords.map { "LOWER(content) LIKE ?" }

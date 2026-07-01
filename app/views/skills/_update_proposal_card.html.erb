@@ -1,0 +1,87 @@
+<%# locals: (proposal:, show_actions: false) %>
+<div class="bg-surface-card rounded-xl border <%= proposal.pending? ? 'border-amber-500/40' : 'border-border-default' %> p-5">
+  <div class="flex items-start justify-between gap-4 mb-4">
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-2 flex-wrap mb-1">
+        <h3 class="text-white font-semibold"><%= proposal.skill.name %></h3>
+
+        <%# Status badge %>
+        <% badge = case proposal.status
+           when "pending"  then { label: "pending review", classes: "bg-amber-900/60 text-amber-300" }
+           when "approved" then { label: "approved",       classes: "bg-green-900/60 text-green-300" }
+           when "rejected" then { label: "rejected",       classes: "bg-red-900/60 text-red-400" }
+           else                 { label: proposal.status,  classes: "bg-surface-raised text-text-faint" }
+           end %>
+        <span class="px-2 py-0.5 text-xs rounded-full <%= badge[:classes] %>"><%= badge[:label] %></span>
+
+        <% if proposal.stale? && proposal.pending? %>
+          <span class="px-2 py-0.5 text-xs rounded-full bg-orange-900/60 text-orange-300" title="Skill content changed after this proposal was submitted">stale</span>
+        <% end %>
+      </div>
+
+      <div class="text-xs text-text-faint space-y-0.5">
+        <% if proposal.proposed_by_agent.present? %>
+          <div>Proposed by <span class="text-text-primary"><%= proposal.proposed_by_agent.name %></span></div>
+        <% end %>
+        <div>Submitted <%= time_ago_in_words(proposal.created_at) %> ago</div>
+        <% if proposal.reviewed_at.present? %>
+          <div>Reviewed <%= time_ago_in_words(proposal.reviewed_at) %> ago</div>
+        <% end %>
+        <% if proposal.review_notes.present? %>
+          <div class="<%= proposal.rejected? ? 'text-red-400' : 'text-text-muted' %> mt-1">
+            Note: <%= proposal.review_notes %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 flex-shrink-0">
+      <%= link_to "View Skill", skill_path(proposal.skill),
+          class: "px-3 py-1.5 text-sm bg-surface-raised hover:bg-surface-overlay text-text-primary rounded-lg transition" %>
+      <%= link_to "History", history_skill_path(proposal.skill),
+          class: "px-3 py-1.5 text-sm bg-surface-raised hover:bg-surface-overlay text-text-primary rounded-lg transition" %>
+    </div>
+  </div>
+
+  <%# Rationale %>
+  <div class="mb-4 p-3 bg-surface-base rounded-lg border border-border-default">
+    <p class="text-xs font-medium text-text-faint uppercase tracking-wide mb-1">Agent Rationale</p>
+    <p class="text-sm text-text-primary"><%= proposal.rationale %></p>
+  </div>
+
+  <%# Diff view %>
+  <details class="mb-4" <%= proposal.pending? ? "open" : "" %>>
+    <summary class="text-xs text-text-faint cursor-pointer hover:text-text-muted select-none mb-2">
+      Proposed changes (diff)
+    </summary>
+    <div class="mt-2 grid grid-cols-2 gap-2">
+      <div>
+        <p class="text-xs font-medium text-red-400 mb-1">Current content</p>
+        <pre class="text-xs text-text-primary font-mono bg-surface-base rounded-lg p-3 overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto border border-red-500/20"><%= proposal.original_content %></pre>
+      </div>
+      <div>
+        <p class="text-xs font-medium text-green-400 mb-1">Proposed content</p>
+        <pre class="text-xs text-text-primary font-mono bg-surface-base rounded-lg p-3 overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto border border-green-500/20"><%= proposal.proposed_content %></pre>
+      </div>
+    </div>
+  </details>
+
+  <%# Actions for pending proposals %>
+  <% if show_actions && proposal.pending? %>
+    <div class="flex items-start gap-3 pt-3 border-t border-border-default">
+      <%= button_to "Approve",
+          approve_update_proposal_skill_update_proposal_path(proposal),
+          method: :patch,
+          class: "px-4 py-1.5 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-medium" %>
+
+      <%= form_with url: reject_update_proposal_skill_update_proposal_path(proposal), method: :patch, class: "flex-1 flex items-start gap-2" do |f| %>
+        <%= f.text_field :notes,
+            placeholder: "Reason for rejection (optional)",
+            class: "flex-1 text-sm bg-surface-base border border-border-default rounded-lg px-3 py-1.5 text-text-primary placeholder-text-faint focus:outline-none focus:border-amber-500/50" %>
+        <%= f.submit "Reject",
+            class: "px-3 py-1.5 text-sm bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded-lg transition cursor-pointer",
+            data: { turbo_confirm: "Reject update proposal for '#{proposal.skill.name}'?" } %>
+      <% end %>
+    </div>
+  <% end %>
+</div>
