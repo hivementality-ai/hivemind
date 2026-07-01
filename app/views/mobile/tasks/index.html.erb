@@ -1,0 +1,57 @@
+<% content_for(:title, "Tasks") %>
+<div class="min-h-screen bg-surface-base text-white pb-20">
+  <div class="sticky top-0 z-10 bg-surface-base border-b border-border-default px-4 py-3 flex items-center justify-between">
+    <h1 class="text-xl font-bold">Tasks</h1>
+    <span class="text-xs text-text-muted"><%= @total_open %> open · <%= @total_done %> done</span>
+  </div>
+
+  <% status_labels = { "in_progress" => "In Progress", "review" => "Review", "todo" => "To Do", "backlog" => "Backlog", "done" => "Done" } %>
+
+  <% if @tasks_by_status.values.all?(&:empty?) %>
+    <div class="flex flex-col items-center justify-center px-4 py-20 text-text-muted">
+      <svg class="w-12 h-12 mb-4 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+      </svg>
+      <p class="text-lg font-medium">No tasks yet</p>
+      <p class="text-sm mt-1">Tasks created by agents will appear here.</p>
+    </div>
+  <% else %>
+    <% @tasks_by_status.each do |status, tasks| %>
+      <% next if tasks.empty? %>
+      <div class="px-4 pt-4 pb-1 flex items-center gap-2">
+        <h2 class="text-xs font-semibold uppercase tracking-wide text-text-muted"><%= status_labels[status] %></h2>
+        <span class="text-xs text-text-faint"><%= tasks.size %></span>
+        <% if status == "in_progress" %>
+          <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+        <% end %>
+      </div>
+      <div class="divide-y divide-border-default">
+        <% tasks.each do |task| %>
+          <% priority_badge = case task.priority
+            when "urgent" then "bg-red-900/40 text-red-300"
+            when "high"   then "bg-orange-900/40 text-orange-300"
+            when "medium" then "bg-yellow-900/40 text-yellow-300"
+            else               "bg-slate-700/40 text-slate-400"
+          end %>
+          <%= link_to mobile_task_path(task), class: "flex items-start gap-3 px-4 py-3 bg-surface-card active:bg-surface-base transition-colors", style: "min-height: 56px;" do %>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-white <%= "line-through opacity-60" if task.status == "done" %>"><%= task.title %></p>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded <%= priority_badge %>"><%= task.priority %></span>
+                <% if task.assigned_to_agent %>
+                  <span class="text-xs text-text-faint truncate"><%= task.assigned_to_agent.name %></span>
+                <% end %>
+                <% if task.project %>
+                  <span class="text-xs text-text-faint truncate">· <%= task.project.title %></span>
+                <% end %>
+              </div>
+            </div>
+            <svg class="w-4 h-4 text-text-faint flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          <% end %>
+        <% end %>
+      </div>
+    <% end %>
+  <% end %>
+</div>

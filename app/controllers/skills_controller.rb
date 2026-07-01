@@ -11,6 +11,83 @@ class SkillsController < ApplicationController
     @categories = Skill.distinct.pluck(:category).compact.sort
     @pending_count = Skill.pending_proposals.count
     @pending_update_count = SkillUpdateProposal.pending.count
+
+    respond_to do |format|
+      format.html
+      format.json { render json: skills_index_json(@skills) } # shareable discovery index
+    end
+  end
+
+  # Download a portable bundle of skills (agentskills.io-compatible SKILL.md
+  # each, wrapped in a JSON envelope) for sharing between Hivemind instances.
+  def export_bundle
+    skills = Skill.custom.order(:name)
+    skills = skills.where(id: params[:ids]) if params[:ids].present?
+
+    bundle = {
+      format: "hivemind-skill-bundle",
+      version: "1",
+      exported_at: Time.current.iso8601,
+      skills: skills.map { |s| { name: s.name, skill_md: s.to_skill_md } }
+    }
+
+    send_data JSON.pretty_generate(bundle),
+              filename: "hivemind-skills-#{Date.current.iso8601}.json",
+              type: "application/json"
+  end
+
+  # Ingest a bundle produced by #export_bundle. Every skill is security-scanned;
+  # blocked ones are skipped.
+  def import_bundle
+    file = params[:file]
+    unless file
+      redirect_to skills_path, alert: "No bundle file selected"
+      return
+    end
+
+    bundle = JSON.parse(file.read)
+    entries = bundle["skills"] || []
+    imported = []
+    skipped = []
+
+    entries.each do |entry|
+      md = entry["skill_md"].presence || entry["content"].presence
+      next if md.blank?
+
+      skill = Skill.from_skill_md(md)
+      next if skill.name.blank?
+
+      skill.summary = skill.name if skill.summary.blank?
+      scan = SkillSecurityScanner.call(content: skill.content, name: skill.name, source: "import")
+      status = scan.success? ? scan.data[:status] : "error"
+
+      if status == "blocked"
+        skipped << "#{skill.name} (blocked)"
+        next
+      end
+
+      attrs = {
+        description: skill.description, summary: skill.summary, content: skill.content,
+        category: skill.category, tags: skill.tags, source_url: skill.source_url,
+        metadata: skill.metadata, source: "import",
+        security_scan_result: scan.success? ? scan.data : {}
+      }
+
+      existing = Skill.find_by(name: skill.name)
+      if existing
+        existing.update(attrs)
+        imported << skill.name
+      else
+        skill.assign_attributes(attrs)
+        skill.save ? imported << skill.name : skipped << "#{skill.name} (invalid)"
+      end
+    end
+
+    notice = "Imported #{imported.size} skill(s)."
+    notice += " Skipped: #{skipped.join(', ')}." if skipped.any?
+    redirect_to skills_path, notice: notice
+  rescue JSON::ParserError
+    redirect_to skills_path, alert: "Invalid bundle file (not valid JSON)"
   end
 
   def show; end
@@ -239,6 +316,21 @@ class SkillsController < ApplicationController
 
   def set_update_proposal
     @update_proposal = SkillUpdateProposal.find(params[:id])
+  end
+
+  def skills_index_json(skills)
+    {
+      format: "hivemind-skill-index",
+      version: "1",
+      skills: skills.map do |s|
+        {
+          name: s.name, description: s.description, category: s.category,
+          tier: s.tier, tags: s.tags, source: s.source,
+          security_status: s.security_status, agents_count: s.agents.size,
+          checksum: s.checksum
+        }
+      end
+    }
   end
 
   def save_imported_skill(skill, scan_data, approved: false)
