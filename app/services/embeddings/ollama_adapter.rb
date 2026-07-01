@@ -42,7 +42,10 @@ module Embeddings
     private
 
     def base_url
-      provider_config = ProviderConfig.find_by(adapter_type: "ollama", enabled: true)
+      # Look up by adapter_type only — the ProviderConfig for Ollama may not be
+      # enabled as a chat provider (e.g. remote-only embedding use case where the
+      # user stores a custom base_url without toggling Ollama on for chat).
+      provider_config = ProviderConfig.find_by(adapter_type: "ollama")
       provider_config&.base_url || ENV.fetch("OLLAMA_BASE_URL", "http://localhost:11434")
     end
 

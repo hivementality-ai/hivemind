@@ -38,6 +38,11 @@ module Sessions
 
       dynamic_parts = []
 
+      # Inject contextual skills before memory — they shape how the agent thinks
+      # about the current task, which in turn affects memory retrieval quality.
+      contextual_skills_block = load_contextual_skills
+      dynamic_parts << contextual_skills_block if contextual_skills_block.present?
+
       memory_context = recall_memories
       dynamic_parts << memory_context if memory_context.present?
 
@@ -101,6 +106,41 @@ module Sessions
       content_blocks << { type: "text", text: text } if text.present?
 
       { role: "user", content: content_blocks }
+    end
+
+    # Auto-loads contextual skills relevant to the current user message.
+    # Runs Skills::AutoLoader against the last user message and injects matching
+    # skill content directly into the dynamic prompt block.
+    def load_contextual_skills
+      return nil unless @agent.respond_to?(:skills) && @agent.skills.enabled.contextual_tier.any?
+
+      transcript = @session.transcript || []
+      last_user_msg = transcript.select { |m| m["role"] == "user" }.last
+      return nil unless last_user_msg
+
+      context_text = last_user_msg["content"].to_s
+      return nil if context_text.length < 5
+
+      result = Skills::AutoLoader.call(
+        agent: @agent,
+        session: @session,
+        context: context_text,
+        contextual_only: true
+      )
+
+      return nil if result[:contextual_skills].empty?
+
+      lines = [ "## Contextual Skills (auto-loaded for this task)" ]
+      result[:contextual_skills].each do |skill|
+        lines << "### #{skill.name}"
+        lines << skill.content
+        lines << ""
+      end
+
+      lines.join("\n")
+    rescue StandardError => e
+      Rails.logger.warn("[MessageBuilder] Contextual skill loading failed: #{e.message}")
+      nil
     end
 
     # Injects the agent's open assigned tasks so they're aware of their workload on wake.

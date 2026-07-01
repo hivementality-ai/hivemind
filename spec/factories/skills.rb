@@ -7,6 +7,9 @@ FactoryBot.define do
     summary { "A brief test skill summary" }
     content { "# Test Skill\n\nThis is test skill content." }
     category { "utilities" }
+    tier { "manual" }
+    tags { [] }
+    trigger_patterns { [] }
     enabled { true }
     builtin { false }
     source { "manual" }
@@ -49,6 +52,21 @@ FactoryBot.define do
           "source" => "import",
           "scanned_at" => Time.current.iso8601,
           "patterns_checked" => 8
+        }
+      end
+    end
+
+    trait :agent_proposed do
+      source { "agent" }
+      enabled { false }
+      proposal_status { "pending" }
+      proposed_at { 1.hour.ago }
+      metadata do
+        {
+          "created_by_agent_id" => nil,
+          "created_by_agent_name" => "TestAgent",
+          "share_with_team" => false,
+          "created_at" => Time.current.iso8601
         }
       end
     end

@@ -207,18 +207,19 @@ RSpec.describe CostEstimator do
 
     describe 'rate consistency' do
       it 'maintains consistent rate structure for all models' do
-        CostEstimator::RATES.each do |model, rates|
-          expect(rates).to have_key(:input), "#{model} missing :input"
-          expect(rates).to have_key(:output), "#{model} missing :output"
-          expect(rates[:input]).to be_a(Integer), "#{model} input not Integer"
-          expect(rates[:output]).to be_a(Integer), "#{model} output not Integer"
-          expect(rates[:input]).to be >= 0, "#{model} input negative"
-          expect(rates[:output]).to be >= 0, "#{model} output negative"
+        LlmModelRegistry.all.each do |model|
+          rates = model.cost_rates
+          expect(rates).to have_key(:input), "#{model.api_id} missing :input"
+          expect(rates).to have_key(:output), "#{model.api_id} missing :output"
+          expect(rates[:input]).to be_a(Integer), "#{model.api_id} input not Integer"
+          expect(rates[:output]).to be_a(Integer), "#{model.api_id} output not Integer"
+          expect(rates[:input]).to be >= 0, "#{model.api_id} input negative"
+          expect(rates[:output]).to be >= 0, "#{model.api_id} output negative"
         end
       end
 
       it 'has default rate with correct structure' do
-        default = CostEstimator::DEFAULT_RATE
+        default = described_class.find_rate("__unknown_model__")
         expect(default).to have_key(:input)
         expect(default).to have_key(:output)
         expect(default[:input]).to eq(100)
@@ -278,11 +279,11 @@ RSpec.describe CostEstimator do
     end
 
     it 'returns default for unknown model' do
-      expect(described_class.find_rate("totally-unknown")).to eq(CostEstimator::DEFAULT_RATE)
+      expect(described_class.find_rate("totally-unknown")).to eq({ input: 100, output: 400 })
     end
 
     it 'returns ollama rate for nil' do
-      expect(described_class.find_rate(nil)).to eq(CostEstimator::DEFAULT_RATE)
+      expect(described_class.find_rate(nil)).to eq({ input: 100, output: 400 })
     end
   end
 end

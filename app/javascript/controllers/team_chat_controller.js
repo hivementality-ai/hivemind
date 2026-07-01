@@ -249,6 +249,9 @@ export default class extends Controller {
       case "title_update":
         this.updateTitle(data.title)
         break
+      case "agent_question":
+        this.showAgentQuestion(data.agent_id, data.agent_name, data.questions, data.timestamp)
+        break
       case "error":
         this.activeAgents.delete(data.agent_id)
         if (this.activeAgents.size === 0) this.hideStopBtn()
@@ -1044,6 +1047,178 @@ export default class extends Controller {
   hideSubAgentWorking(taskKey) {
     const el = document.getElementById(`sub-agent-${taskKey}`)
     if (el) el.remove()
+  }
+
+  showAgentQuestion(agentId, agentName, questions, timestamp) {
+    // Stop any thinking indicators for this agent
+    this.hideThinking(agentId)
+
+    // Normalise: accept legacy plain-string or new questions array
+    const questionList = Array.isArray(questions)
+      ? questions
+      : [ { question: String(questions || ""), options: [], multiSelect: false } ]
+
+    const color = this.agentColors[agentId] || "blue"
+    const widgetId = `tc-agent-question-${agentId}-${Date.now()}`
+
+    const questionsHtml = questionList.map((q, qi) => {
+      const hasOptions = Array.isArray(q.options) && q.options.length > 0
+      const multi = q.multiSelect === true
+
+      const optionsHtml = hasOptions ? q.options.map((opt, oi) => {
+        const inputId = `${widgetId}-q${qi}-o${oi}`
+        const descHtml = opt.description
+          ? `<span class="text-blue-300/60 text-xs ml-1">${this.esc(opt.description)}</span>`
+          : ""
+        return `
+          <label for="${inputId}" class="flex items-start gap-2 cursor-pointer hover:bg-blue-800/20 rounded-lg px-2 py-1.5 transition-colors">
+            <input
+              type="checkbox"
+              id="${inputId}"
+              data-widget="${widgetId}"
+              data-qi="${qi}"
+              data-oi="${oi}"
+              class="mt-0.5 accent-blue-400 cursor-pointer flex-shrink-0"
+            />
+            <span class="text-white text-sm leading-snug">
+              ${this.esc(opt.label)}${descHtml}
+            </span>
+          </label>`
+      }).join("") : ""
+
+      const otherId = `${widgetId}-q${qi}-other`
+      const otherCheckId = `${widgetId}-q${qi}-other-check`
+      const otherHtml = `
+        <label for="${otherCheckId}" class="flex items-start gap-2 cursor-pointer hover:bg-blue-800/20 rounded-lg px-2 py-1.5 transition-colors">
+          <input
+            type="checkbox"
+            id="${otherCheckId}"
+            data-widget="${widgetId}"
+            data-qi="${qi}"
+            data-other="true"
+            class="mt-0.5 accent-blue-400 cursor-pointer flex-shrink-0"
+          />
+          <span class="text-blue-300/70 text-sm italic leading-snug">Other / free text</span>
+        </label>
+        <div id="${otherId}-wrap" class="hidden pl-6 pt-1">
+          <input
+            type="text"
+            id="${otherId}"
+            placeholder="Type your answer…"
+            class="w-full bg-blue-950/50 border border-blue-600/40 rounded-lg px-3 py-1.5 text-white text-sm placeholder-blue-400/50 focus:outline-none focus:border-blue-400"
+          />
+        </div>`
+
+      const headerHtml = q.header
+        ? `<span class="inline-block text-xs font-semibold bg-blue-700/40 text-blue-200 rounded px-2 py-0.5 mb-2">${this.esc(q.header)}</span>`
+        : ""
+
+      return `
+        <div class="mb-4 last:mb-0" data-question-block="${qi}">
+          ${headerHtml}
+          <p class="text-white text-sm font-medium mb-2">${this.esc(q.question)}</p>
+          <div class="space-y-0.5">
+            ${optionsHtml}
+            ${otherHtml}
+          </div>
+        </div>`
+    }).join("")
+
+    const nameLabel = agentName ? this.esc(agentName) : "Agent"
+
+    const html = `
+      <div class="flex justify-start mb-4" id="${widgetId}-wrap">
+        <div class="max-w-2xl w-full">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 bg-${color}-600 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-1">
+              ${nameLabel.charAt(0).toUpperCase()}
+            </div>
+            <div class="bg-blue-900/30 border border-blue-600/50 rounded-2xl rounded-bl-md px-4 py-3 w-full">
+              <div class="flex items-center gap-2 text-blue-400 text-sm font-medium mb-3">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                ${nameLabel} is asking:
+              </div>
+              <div id="${widgetId}">
+                ${questionsHtml}
+              </div>
+              <button
+                data-action="click->team-chat#submitAgentQuestion"
+                data-widget-id="${widgetId}"
+                data-question-count="${questionList.length}"
+                class="mt-4 w-full bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-xl px-4 py-2 transition-colors"
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>`
+
+    this.messagesTarget.insertAdjacentHTML("beforeend", html)
+    this.scrollToBottom()
+
+    // Wire "Other" checkbox to show/hide free-text input
+    const wrapEl = document.getElementById(`${widgetId}-wrap`)
+    if (wrapEl) {
+      wrapEl.querySelectorAll(`input[data-other="true"]`).forEach(cb => {
+        cb.addEventListener("change", () => {
+          const qi = cb.dataset.qi
+          const wrap = document.getElementById(`${widgetId}-q${qi}-other-wrap`)
+          if (wrap) wrap.classList.toggle("hidden", !cb.checked)
+        })
+      })
+    }
+  }
+
+  async submitAgentQuestion(event) {
+    const btn = event.currentTarget
+    const widgetId = btn.dataset.widgetId
+    const questionCount = parseInt(btn.dataset.questionCount, 10)
+
+    const answers = []
+    for (let qi = 0; qi < questionCount; qi++) {
+      const parts = []
+
+      const checkedBoxes = document.querySelectorAll(
+        `input[data-widget="${widgetId}"][data-qi="${qi}"]:not([data-other]):checked`
+      )
+      checkedBoxes.forEach(cb => {
+        const label = cb.closest("label")?.querySelector("span")?.textContent?.trim()
+        if (label) parts.push(label)
+      })
+
+      const otherCheck = document.querySelector(
+        `input[data-widget="${widgetId}"][data-qi="${qi}"][data-other="true"]`
+      )
+      if (otherCheck?.checked) {
+        const otherInput = document.getElementById(`${widgetId}-q${qi}-other`)
+        const val = otherInput?.value?.trim()
+        if (val) parts.push(val)
+      }
+
+      answers.push(parts.join(", ") || "(no selection)")
+    }
+
+    const responseText = answers.join(" | ")
+
+    btn.disabled = true
+    btn.textContent = "Sent ✓"
+
+    try {
+      const formData = new FormData()
+      formData.append("message", responseText)
+      await fetch(this.messageUrlValue, {
+        method: "POST",
+        headers: { "X-CSRF-Token": this.csrfValue },
+        body: formData
+      })
+    } catch (e) {
+      this.showError("Failed to submit answer")
+      btn.disabled = false
+      btn.textContent = "Submit"
+    }
   }
 
   esc(text) {

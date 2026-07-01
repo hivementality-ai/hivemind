@@ -27,7 +27,7 @@ class SessionTitleJob < ApplicationJob
     result = adapter.chat(
       messages: [
         { role: "system", content: title_prompt },
-        { role: "user",   content: conversation }
+        { role: "user",   content: TitleSanitizer.request(conversation) }
       ],
       options: { model: title_model, max_tokens: 30 }
     )
@@ -35,7 +35,7 @@ class SessionTitleJob < ApplicationJob
     return unless result.success?
 
     generated = result.data[:content].to_s.strip.gsub(/\A["']|["']\z/, "")
-    return if generated.blank?
+    return if generated.blank? || TitleSanitizer.refusal?(generated)
 
     generated = generated[0...MAX_TITLE_CHARS] if generated.length > MAX_TITLE_CHARS
 
@@ -85,7 +85,7 @@ class SessionTitleJob < ApplicationJob
         # Check it's not an OAuth token (which would go through SDK proxy)
         key = anthropic.api_key
         unless key&.start_with?("sk-ant-oat")
-          return [ resolver.data[:adapter], "claude-haiku-4-5" ]
+          return [ resolver.data[:adapter], LlmModelRegistry::Anthropic::DEFAULT_SUMMARIZER ]
         end
       end
     end
@@ -94,7 +94,7 @@ class SessionTitleJob < ApplicationJob
     openai = ProviderConfig.find_by(adapter_type: "openai", enabled: true)
     if openai
       resolver = Providers::Resolver.call(provider_name: "openai")
-      return [ resolver.data[:adapter], "gpt-5.4-nano" ] if resolver.success?
+      return [ resolver.data[:adapter], LlmModelRegistry::OpenAI::DEFAULT_SUMMARIZER ] if resolver.success?
     end
 
     # Try Ollama
@@ -109,8 +109,8 @@ class SessionTitleJob < ApplicationJob
     if resolver.success?
       cheap =
         case agent.model_provider
-        when "anthropic" then "claude-haiku-4-5"
-        when "openai" then "gpt-5.4-nano"
+        when "anthropic" then LlmModelRegistry::Anthropic::DEFAULT_SUMMARIZER
+        when "openai"    then LlmModelRegistry::OpenAI::DEFAULT_SUMMARIZER
         else agent.llm_model
         end
       return [ resolver.data[:adapter], cheap ]

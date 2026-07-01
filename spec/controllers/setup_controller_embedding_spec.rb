@@ -56,5 +56,63 @@ RSpec.describe SetupController, "embedding provider selection", type: :controlle
 
       expect(Setting.get("memory_embeddings_provider")).to be_nil
     end
+
+    context "when ollama embedding is selected with a custom base_url" do
+      let(:remote_url) { "http://192.168.1.100:11434" }
+      let(:params_with_remote_url) do
+        valid_params.merge(
+          embedding_provider: "ollama",
+          ollama_embedding_base_url: remote_url
+        )
+      end
+
+      it "creates a ProviderConfig for ollama with the custom base_url" do
+        post :save_provider, params: params_with_remote_url
+
+        pc = ProviderConfig.find_by(adapter_type: "ollama")
+        expect(pc).to be_present
+        expect(pc.base_url).to eq(remote_url)
+      end
+
+      it "does not set enabled: true — embedding-only config must not leak into chat provider selection" do
+        post :save_provider, params: params_with_remote_url
+
+        pc = ProviderConfig.find_by(adapter_type: "ollama")
+        # The record stores the URL but is not enabled as a chat provider.
+        # ProviderConfig.enabled_providers.any? must still return false so the
+        # setup wizard enforces adding a real chat provider.
+        expect(pc.enabled).to be(false)
+      end
+
+      it "updates base_url on an existing disabled ProviderConfig without enabling it" do
+        existing = create(:provider_config, adapter_type: "ollama", name: "ollama",
+                          vault_key: "providers/ollama_api_key", enabled: false)
+
+        post :save_provider, params: params_with_remote_url
+
+        expect(existing.reload.enabled).to be(false)
+        expect(existing.reload.base_url).to eq(remote_url)
+      end
+
+      it "does not let the embedding-only ProviderConfig satisfy the chat provider gate" do
+        # Submit without any chat provider params so no Anthropic record is created.
+        # This isolates the assertion to whether the embedding-only Ollama config
+        # leaks into ProviderConfig.enabled_providers.
+        post :save_provider, params: {
+          embedding_provider: "ollama",
+          ollama_embedding_base_url: remote_url
+        }
+
+        expect(ProviderConfig.enabled_providers.where(adapter_type: "ollama").any?).to be(false)
+      end
+    end
+
+    context "when ollama embedding is selected without a custom base_url" do
+      it "does not create a ProviderConfig for ollama" do
+        post :save_provider, params: valid_params
+
+        expect(ProviderConfig.find_by(adapter_type: "ollama")).to be_nil
+      end
+    end
   end
 end

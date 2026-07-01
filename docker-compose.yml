@@ -14,7 +14,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8080:3000"
+      - "${APP_PORT:-8080}:3000"
     depends_on:
       db:
         condition: service_healthy
@@ -24,7 +24,7 @@ services:
       - workspace_data:/workspace
       - active_storage_data:/rails/storage
       - rclone_config:/rails/storage/rclone
-      - ${HOME}/hivemind-agents-shared:/app/agents-shared
+      - ${AGENTS_SHARED_DIR:-/hivemind-agents-shared-unset}:/app/agents-shared
       - ./plugins:/rails/plugins
       - .:/host-hivemind
     env_file: .env
@@ -68,7 +68,7 @@ services:
       - workspace_data:/workspace
       - active_storage_data:/rails/storage
       - rclone_config:/rails/storage/rclone
-      - ${HOME}/hivemind-agents-shared:/app/agents-shared
+      - ${AGENTS_SHARED_DIR:-/hivemind-agents-shared-unset}:/app/agents-shared
       - ./plugins:/rails/plugins
     env_file: .env
     environment:
@@ -108,7 +108,7 @@ services:
       - workspace_data:/workspace
       - active_storage_data:/rails/storage
       - rclone_config:/rails/storage/rclone
-      - ${HOME}/hivemind-agents-shared:/app/agents-shared
+      - ${AGENTS_SHARED_DIR:-/hivemind-agents-shared-unset}:/app/agents-shared
       - ./plugins:/rails/plugins
     env_file: .env
     environment:
@@ -195,7 +195,7 @@ services:
     volumes:
       - workspace_data:/workspace
       - workspace_home:/home/agent
-      - ${HOME}/hivemind-agents-shared:/app/agents-shared
+      - ${AGENTS_SHARED_DIR:-/hivemind-agents-shared-unset}:/app/agents-shared
     tmpfs:
       - /tmp/gws-creds:size=10M,mode=0700
     deploy:
@@ -213,7 +213,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - workspace_data:/workspace
-      - ${HOME}/hivemind-agents-shared:/app/agents-shared
+      - ${AGENTS_SHARED_DIR:-/hivemind-agents-shared-unset}:/app/agents-shared
     environment:
       - PORT=3003
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
@@ -246,7 +246,7 @@ services:
     volumes:
       - connector_auth:/app/auth
     ports:
-      - "3002:3002"
+      - "${CONNECTOR_PORT:-3002}:3002"
     deploy:
       resources:
         limits:
