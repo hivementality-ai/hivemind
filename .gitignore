@@ -61,3 +61,6 @@ spec/examples.txt
 # Plugins (third-party, user-installed)
 /plugins/*
 !/plugins/.gitkeep
+
+# Local AI tooling index (not shared)
+/.rubyn-code/

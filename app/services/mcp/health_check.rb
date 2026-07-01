@@ -6,7 +6,7 @@ require "uri"
 
 module Mcp
   class HealthCheck
-    WORKSPACE_CONTAINER = "hivemind-workspace-1"
+    WORKSPACE_CONTAINER = "#{ENV.fetch('COMPOSE_PROJECT_NAME', 'hivemind')}-workspace-1"
     HTTP_TIMEOUT = 5
 
     def self.call

@@ -29,6 +29,11 @@ module Approvals
 
       broadcast_resolution(approval)
       log_audit(approval)
+      WebhookEmitter.emit(
+        "approval.resolved",
+        { approval_id: approval.id, status: approval.status, action: approval.action, resource: approval.resource },
+        agent: approval.agent, team: approval.agent&.team
+      )
       execute_pending_action(approval) if @decision == "approved"
 
       ServiceResponse.success(data: { approval: })

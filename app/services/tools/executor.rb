@@ -17,6 +17,7 @@ module Tools
       "memory_store" => Tools::MemoryStoreExecutor,
       "memory_update" => Tools::MemoryUpdateExecutor,
       "memory_stats" => Tools::MemoryStatsExecutor,
+      "knowledge_search" => Tools::KnowledgeSearchExecutor,
       "user_model" => Tools::UserModelExecutor,
       "user_model_populate" => Tools::UserModelPopulateExecutor,
       "file_edit" => Tools::FileEditExecutor,
@@ -70,7 +71,9 @@ module Tools
       "chat_attachments" => Tools::ChatAttachmentsExecutor,
       "grep" => Tools::GrepExecutor,
       "mcp" => Tools::McpExecutor,
-      "task_manager" => Tools::TaskManagerExecutor
+      "task_manager" => Tools::TaskManagerExecutor,
+      "propose_skill_update" => Tools::ProposeSkillUpdateExecutor,
+      "flag_skill_unhelpful" => Tools::FlagSkillUnhelpfulExecutor
     }.freeze
 
     # Backwards compatibility alias
