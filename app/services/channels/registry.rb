@@ -12,7 +12,8 @@ module Channels
       "email" => "Channels::EmailAdapter",
       "mattermost" => "Channels::MattermostAdapter",
       "line" => "Channels::LineAdapter",
-      "feishu" => "Channels::FeishuAdapter"
+      "feishu" => "Channels::FeishuAdapter",
+      "google_chat" => "Channels::GoogleChatAdapter"
     }.freeze
 
     # Backwards compatibility alias

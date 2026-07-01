@@ -23,7 +23,7 @@
     <div>
       <%= f.label :channel_type, "Platform", class: "block text-text-primary text-sm font-medium mb-1" %>
       <%= f.select :channel_type,
-          [["Discord", "discord"], ["Slack", "slack"], ["Telegram", "telegram"], ["WhatsApp", "whatsapp"], ["Signal", "signal"], ["Matrix", "matrix"], ["Email", "email"], ["Mattermost", "mattermost"], ["LINE", "line"], ["Feishu / Lark", "feishu"]],
+          [["Discord", "discord"], ["Slack", "slack"], ["Telegram", "telegram"], ["WhatsApp", "whatsapp"], ["Signal", "signal"], ["Matrix", "matrix"], ["Email", "email"], ["Mattermost", "mattermost"], ["LINE", "line"], ["Feishu / Lark", "feishu"], ["Google Chat", "google_chat"]],
           { prompt: "Select platform..." },
           class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand" %>
     </div>
@@ -381,6 +381,32 @@
           <label class="block text-text-muted text-sm mb-1">Webhook Secret <span class="text-text-faint">(optional)</span></label>
           <%= text_field_tag "channel[config][webhook_secret]", channel.config&.dig("webhook_secret"), placeholder: "random-secret-string",
               class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm", autocomplete: "off" %>
+        </div>
+      </div>
+
+      <!-- Google Chat -->
+      <div class="space-y-4" data-channel-fields-target="google_chat" style="display: none;">
+        <div class="bg-surface-base rounded-lg border border-border-default p-5">
+          <h4 class="text-white font-medium mb-3">Google Chat Setup</h4>
+          <p class="text-text-muted text-sm mb-3">Connect a Google Chat app. Google pushes messages to a webhook; replies are sent over the Chat REST API using a service account.</p>
+          <ol class="text-text-muted text-sm space-y-2 list-decimal list-inside">
+            <li>In Google Cloud → enable the <strong class="text-white">Google Chat API</strong>, then open its <strong class="text-white">Configuration</strong> page.</li>
+            <li>Under <strong class="text-white">Connection settings</strong> choose HTTP endpoint and set the URL to <code class="text-amber-300"><%= (request.base_url rescue "https://your-host") %>/webhooks/google_chat</code>.</li>
+            <li>Create a <strong class="text-white">service account</strong> for the app, download its JSON key, and paste it below.</li>
+            <li>Optionally set a <strong class="text-white">Verification Token</strong> and require it on the bearer header to reject forged inbound events.</li>
+          </ol>
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Service Account JSON</label>
+          <%= text_area_tag "credentials[google_chat_sa_json]", creds["google_chat_sa_json"], rows: 8, placeholder: '{ "type": "service_account", "client_email": "...", "private_key": "-----BEGIN PRIVATE KEY-----\n..." }',
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm", autocomplete: "off" %>
+          <p class="text-text-faint text-xs mt-1">Stored encrypted in the vault. The full service-account key JSON; used to mint OAuth tokens for outbound replies.</p>
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Verification Token <span class="text-text-faint">(optional)</span></label>
+          <%= text_field_tag "channel[config][verification_token]", channel.config&.dig("verification_token"), placeholder: "token from the Chat app config",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm", autocomplete: "off" %>
+          <p class="text-text-faint text-xs mt-1">If set, inbound requests must carry it as the bearer token. (Full JWT verification is a follow-up.)</p>
         </div>
       </div>
 

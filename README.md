@@ -78,7 +78,7 @@ Sandboxing isn't a limitation — it's the feature. Every tool, every skill, eve
 - **40+ built-in tools** — shell, files, browser (Playwright), Jira, email, Gmail, cloud storage (Drive/S3/Dropbox/OneDrive/B2/SFTP), MCP client, Live Canvas, web search, vision, TTS, coding agent delegation, and more. Agents are productive on first boot.
 - **150+ agent templates** across 18 categories — researcher, engineer, writer, analyst, and more. Not starting from a blank prompt.
 - **Team chat** with @mentions — agents collaborate and chain-react in real group conversation. Not tickets. Not pipelines. Conversation.
-- **10 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark. Each agent gets its own Slack bot identity with thread routing.
+- **11 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark, Google Chat. Each agent gets its own Slack bot identity with thread routing.
 - **Any AI model** — Anthropic, OpenAI, Google Gemini, Ollama, any OpenAI-compatible provider. Native extended thinking/reasoning support across all adapters. **Already paying for Anthropic Pro or Max? Use your existing subscription directly via the SDK — no separate API billing, no usage charges.** Hivemind auto-detects OAuth tokens and adds the required headers automatically.
 - **Agent self-evolution** — agents create their own tools and skills at runtime. They get smarter the more they work.
 - **Coding agent delegation** — hand off multi-file tasks to Claude Code, Codex, or Aider with live progress streaming.
@@ -168,7 +168,7 @@ Sandboxing isn't a limitation — it's the feature. Every tool, every skill, eve
 - **40+ built-in tools** — shell, files, browser (Playwright), Jira, email, Gmail, cloud storage (Drive/S3/Dropbox/OneDrive/B2/SFTP), MCP client, Live Canvas, web search, vision, TTS, coding agent delegation, and more. Agents are productive on first boot.
 - **150+ agent templates** across 18 categories — researcher, engineer, writer, analyst, and more. Not starting from a blank prompt.
 - **Team chat** with @mentions — agents collaborate and chain-react in real group conversation. Not tickets. Not pipelines. Conversation.
-- **10 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark. Each agent gets its own Slack bot identity with thread routing.
+- **11 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark, Google Chat. Each agent gets its own Slack bot identity with thread routing.
 - **Any AI model** — Anthropic, OpenAI, Google Gemini, Ollama, any OpenAI-compatible provider. Native extended thinking/reasoning support across all adapters. **Already paying for Anthropic Pro or Max? Use your existing subscription directly via the SDK — no separate API billing, no usage charges.** Hivemind auto-detects OAuth tokens and adds the required headers automatically.
 - **Agent self-evolution** — agents create their own tools and skills at runtime. They get smarter the more they work.
 - **Coding agent delegation** — hand off multi-file tasks to Claude Code, Codex, or Aider with live progress streaming.
@@ -261,7 +261,7 @@ Most AI platforms give you one agent in a chat box. Hivemind gives you a **team*
 - **Team chat** with @mentions — agents collaborate and chain-react
 - **45+ built-in tools** — shell, files, browser, Jira, email, cloud storage, Gmail, vision, TTS, and more
 - **Skills system** — teach agents new capabilities, import OpenClaw SKILL.md files
-- **10 messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark
+- **11 messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark, Google Chat
 - **Slack multi-bot** — each agent gets its own Slack bot identity with thread routing
 - **Coding agent** — delegate complex tasks to Claude Code, Codex, or Aider with live progress streaming
 - **File sharing** — agents create files and images, deliver them directly to chat
@@ -674,6 +674,7 @@ Connect Google Drive, Amazon S3, Dropbox, OneDrive, Backblaze B2, or SFTP throug
 | **Email** | Provider inbound-parse webhook + SMTP | From address (+ optional secret) |
 | **LINE** | Messaging API webhook + push API | Channel access token + channel secret |
 | **Feishu / Lark** | Open Platform event subscription (webhook) | App ID + Verification Token + App Secret |
+| **Google Chat** | Inbound webhook (Google push) + Chat REST API for replies | Service account JSON (+ optional verification token) |
 
 Credentials stored in the encrypted vault. Configure via the Channels page.
 
@@ -774,6 +775,21 @@ Talk to an agent on Feishu (the China-facing platform at `open.feishu.cn`) or La
    - **Verification Token** — the Event Subscriptions Verification Token
    - **Base URL** — `https://open.feishu.cn` for Feishu (China) or `https://open.larksuite.com` for Lark (international); defaults to Feishu
 8. Add the bot to a chat and send it a message — replies are posted back to the same `chat_id`.
+
+#### Google Chat
+
+Connect a Google Chat app. Google pushes events to a webhook; replies are sent over the [Chat REST API](https://developers.google.com/chat/api/guides/v1/messages/create) using a service account (OAuth2 JWT-bearer, minted on the fly — no extra gem required).
+
+1. In [Google Cloud Console](https://console.cloud.google.com/) → enable the **Google Chat API**, then open its **Configuration** page.
+2. Under **Connection settings** choose HTTP endpoint and set the URL to:
+   ```
+   https://your-hivemind-host/webhooks/google_chat
+   ```
+3. Create a **service account** for the app, download its JSON key, and have it ready.
+4. In Hivemind → **Channels → Add Channel → Google Chat**, set:
+   - **Service Account JSON** — the full service-account key JSON. Stored encrypted in the vault under `channel_credentials` / `google_chat_sa_json`; used to mint OAuth tokens for outbound replies.
+   - **Verification Token** — optional. If set, inbound requests must carry it as the bearer token. (Full JWT signature verification against Google's public certs is a follow-up.)
+5. Add the agent to a Google Chat space and message it — replies are posted back to that space.
 
 #### Voice notes (automatic transcription)
 
