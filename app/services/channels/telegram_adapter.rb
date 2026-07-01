@@ -27,6 +27,13 @@ module Channels
         metadata[:has_photo] = true
       end
 
+      # Voice notes / audio: download and transcribe so the agent sees text.
+      if content.blank? && (voice = msg[:voice] || msg[:audio])
+        metadata[:voice_file_id] = voice[:file_id]
+        transcript = transcribe_telegram_voice(voice[:file_id])
+        content = transcript if transcript.present?
+      end
+
       inbound = log_inbound_message(
         external_id: msg[:message_id].to_s,
         sender: msg.dig(:from, :id).to_s,
@@ -102,6 +109,31 @@ module Channels
     def bot_token
       entry = VaultEntry.find_by(namespace: "channel_credentials", key: "telegram_bot_token")
       entry&.value
+    end
+
+    # Telegram voice notes are ogg/opus. Resolve the file path via getFile,
+    # download it, and hand it to the shared STT transcriber. Returns text or nil.
+    def transcribe_telegram_voice(file_id)
+      token = bot_token
+      return nil unless token && file_id
+
+      info = JSON.parse(Net::HTTP.get(URI("#{BASE_URL}/bot#{token}/getFile?file_id=#{file_id}")))
+      return nil unless info["ok"]
+
+      remote_path = info.dig("result", "file_path")
+      return nil if remote_path.blank?
+
+      data = Net::HTTP.get(URI("#{BASE_URL}/file/bot#{token}/#{remote_path}"))
+      tmp = Rails.root.join("tmp", "tg_voice_#{file_id}.ogg")
+      File.binwrite(tmp, data)
+      begin
+        transcribe_audio(tmp.to_s)
+      ensure
+        File.delete(tmp) if File.exist?(tmp)
+      end
+    rescue StandardError => e
+      Rails.logger.warn("[telegram] voice download failed: #{e.message}")
+      nil
     end
 
     def send_photo(to:, token:, content:, **options)

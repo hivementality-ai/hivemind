@@ -534,11 +534,34 @@ RSpec.describe Tools::TaskManagerExecutor do
         expect(task.reload.completed_at).to be_present
       end
 
-      it "returns error when task is already done" do
-        task.update!(status: "done")
-        result = subject.call
-        expect(result).not_to be_success
-        expect(result.error).to include("already")
+      context "when task is already in done status" do
+        before { task.update!(status: "done") }
+
+        it "archives the task instead of failing" do
+          result = subject.call
+          expect(result).to be_success
+          expect(task.reload.archived_at).to be_present
+        end
+
+        it "returns an archived confirmation message" do
+          result = subject.call
+          expect(result.data[:output]).to include("Archived task ##{task.id}")
+        end
+
+        it "logs an archived event" do
+          expect { subject.call }.to change(TaskEvent, :count).by(1)
+          expect(TaskEvent.last.event_type).to eq("archived")
+        end
+
+        context "when task is already archived" do
+          before { task.update!(archived_at: Time.current) }
+
+          it "returns failure" do
+            result = subject.call
+            expect(result).not_to be_success
+            expect(result.error).to include("already archived")
+          end
+        end
       end
 
       context "when task_id is missing" do
@@ -558,6 +581,71 @@ RSpec.describe Tools::TaskManagerExecutor do
           result = subject.call
           expect(result).not_to be_success
           expect(result.error).to include("not found")
+        end
+      end
+    end
+
+    # ─── close_all ────────────────────────────────────────────────
+
+    context "action: close_all" do
+      let(:input) { { "action" => "close_all" } }
+
+      context "when there are done tasks" do
+        let!(:done_task_1) { create(:task, status: "done") }
+        let!(:done_task_2) { create(:task, status: "done") }
+        let!(:in_progress_task) { create(:task, status: "in_progress") }
+        let!(:already_archived) { create(:task, status: "done", archived_at: Time.current) }
+
+        it "archives all non-archived done tasks" do
+          subject.call
+          expect(done_task_1.reload.archived_at).to be_present
+          expect(done_task_2.reload.archived_at).to be_present
+        end
+
+        it "does not touch non-done tasks" do
+          subject.call
+          expect(in_progress_task.reload.archived_at).to be_nil
+        end
+
+        it "skips already-archived tasks" do
+          result = subject.call
+          expect(result.data[:output]).not_to include("##{already_archived.id}")
+        end
+
+        it "returns success with count of archived tasks" do
+          result = subject.call
+          expect(result).to be_success
+          expect(result.data[:output]).to include("Archived 2 task(s)")
+        end
+
+        it "logs an archived event for each task" do
+          expect { subject.call }.to change(TaskEvent, :count).by(2)
+          expect(TaskEvent.last(2).map(&:event_type).uniq).to eq(["archived"])
+        end
+      end
+
+      context "when there are no done tasks to archive" do
+        let!(:open_task) { create(:task, status: "in_progress") }
+
+        it "returns success with an informational message" do
+          result = subject.call
+          expect(result).to be_success
+          expect(result.data[:output]).to include("No done tasks")
+        end
+      end
+
+      context "when filtered by assigned_to" do
+        let!(:agent_a) { create(:agent, name: "Grogu") }
+        let!(:agent_b) { create(:agent, name: "Ahsoka") }
+        let!(:task_a) { create(:task, status: "done", assigned_to_agent: agent_a) }
+        let!(:task_b) { create(:task, status: "done", assigned_to_agent: agent_b) }
+
+        before { input["assigned_to"] = "Grogu" }
+
+        it "only archives tasks assigned to the specified agent" do
+          subject.call
+          expect(task_a.reload.archived_at).to be_present
+          expect(task_b.reload.archived_at).to be_nil
         end
       end
     end
