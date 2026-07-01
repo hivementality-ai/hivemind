@@ -225,7 +225,7 @@ Both are open-source multi-agent platforms. Different strengths.
   - [Web Search](#web-search)
   - [Image Support](#image-support)
   - [Cloud Storage](#cloud-storage)
-  - [7 Messaging Channels](#7-messaging-channels)
+  - [8 Messaging Channels](#8-messaging-channels)
   - [Autonomous Heartbeat](#autonomous-heartbeat)
   - [Sub-Agent Orchestration](#sub-agent-orchestration)
   - [Coding Agent](#coding-agent)
@@ -660,7 +660,7 @@ Send images to agents via upload, clipboard paste, or drag-and-drop (up to 5 per
 
 Connect Google Drive, Amazon S3, Dropbox, OneDrive, Backblaze B2, or SFTP through the Integrations page. Uses rclone under the hood. OAuth backends (Drive, Dropbox, OneDrive) use a token-paste flow — run `rclone authorize` locally, paste the token in the UI.
 
-### 7 Messaging Channels
+### 8 Messaging Channels
 
 | Channel | Method | Auth |
 |---------|--------|------|
@@ -671,6 +671,7 @@ Connect Google Drive, Amazon S3, Dropbox, OneDrive, Backblaze B2, or SFTP throug
 | **Signal** | signal-cli REST API via connector | Phone number registration |
 | **Matrix** | Application Service (homeserver push + client API) | Access token + hs_token |
 | **Email** | Provider inbound-parse webhook + SMTP | From address (+ optional secret) |
+| **iMessage** | BlueBubbles REST + webhook | Server password (+ optional webhook secret) |
 
 Credentials stored in the encrypted vault. Configure via the Channels page.
 
@@ -712,6 +713,23 @@ Talk to an agent over email. Inbound uses your mail provider's **inbound-parse w
    - **From Address** — the address replies are sent from (e.g. `agent@yourdomain.com`)
    - **Reply Subject** — optional subject for replies
    - **Webhook Secret** — optional; append `?secret=...` to the webhook URL so forged inbound mail is rejected
+
+#### iMessage (BlueBubbles)
+
+Talk to an agent over iMessage via a self-hosted [BlueBubbles](https://bluebubbles.app) server. Apple has no official iMessage API; BlueBubbles is a macOS app that runs on a Mac signed into iMessage and exposes a REST API plus outgoing webhooks.
+
+1. Install the **BlueBubbles Server** on a Mac signed into iMessage and set a **server password** in its settings.
+2. Expose the BlueBubbles server's URL (LAN, ngrok, or Tailscale — anything Hivemind can reach).
+3. In BlueBubbles, add a webhook pointing at:
+   ```
+   https://your-hivemind-host/webhooks/imessage
+   ```
+   Subscribe it to the `new-message` event. Optionally append `?secret=<your-shared-secret>` to require a shared secret on inbound requests.
+4. In Hivemind → **Channels → Add Channel → iMessage**, set:
+   - **BlueBubbles Server URL** — the exposed server base URL, e.g. `http://localhost:1234`
+   - **Server Password** — the BlueBubbles server password (stored encrypted in the vault)
+   - **Webhook Secret** — the shared secret from step 3 (only if you appended `?secret=...`)
+5. Send a message to the iMessage account BlueBubbles is signed into from another device — replies are posted back to the same chat.
 
 #### Voice notes (automatic transcription)
 
