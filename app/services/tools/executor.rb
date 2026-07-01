@@ -17,6 +17,7 @@ module Tools
       "memory_store" => Tools::MemoryStoreExecutor,
       "memory_update" => Tools::MemoryUpdateExecutor,
       "memory_stats" => Tools::MemoryStatsExecutor,
+      "knowledge_search" => Tools::KnowledgeSearchExecutor,
       "user_model" => Tools::UserModelExecutor,
       "user_model_populate" => Tools::UserModelPopulateExecutor,
       "file_edit" => Tools::FileEditExecutor,
