@@ -17,6 +17,15 @@ module Tasks
       # Enqueued on :low so it never contends with the hook pipeline.
       maybe_trigger_reflection(task, new_status, agent)
 
+      # Emit outbound webhook for task completion.
+      if new_status == "done"
+        WebhookEmitter.emit(
+          "task.completed",
+          { task_id: task.id, title: task.title, status: new_status, agent_id: agent&.id },
+          agent: agent, team: agent&.team
+        )
+      end
+
       # Find post-hooks for the new status
       hooks = task.effective_hooks_for(new_status, "post")
 

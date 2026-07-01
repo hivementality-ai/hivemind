@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_30_000002) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -1016,6 +1016,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000002) do
     t.index ["tool_binding"], name: "index_vault_entries_on_tool_binding"
   end
 
+  create_table "webhook_endpoints", force: :cascade do |t|
+    t.bigint "agent_id"
+    t.datetime "created_at", null: false
+    t.boolean "enabled", default: true, null: false
+    t.jsonb "event_types", default: [], null: false
+    t.integer "failure_count", default: 0, null: false
+    t.datetime "last_delivered_at"
+    t.integer "last_status"
+    t.text "secret"
+    t.bigint "team_id"
+    t.datetime "updated_at", null: false
+    t.string "url", null: false
+    t.index ["agent_id"], name: "index_webhook_endpoints_on_agent_id"
+    t.index ["enabled"], name: "index_webhook_endpoints_on_enabled"
+    t.index ["event_types"], name: "index_webhook_endpoints_on_event_types", using: :gin
+    t.index ["team_id"], name: "index_webhook_endpoints_on_team_id"
+  end
+
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "agent_budgets", "agents"
@@ -1109,4 +1127,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000002) do
   add_foreign_key "usage_records", "sessions"
   add_foreign_key "usage_records", "teams"
   add_foreign_key "vault_entries", "agents"
+  add_foreign_key "webhook_endpoints", "agents"
+  add_foreign_key "webhook_endpoints", "teams"
 end
