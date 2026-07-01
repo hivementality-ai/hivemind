@@ -56,29 +56,47 @@ class Skill < ApplicationRecord
     skill_update_proposals.pending
   end
 
-  # Parse OpenClaw-compatible SKILL.md content
+  # Parse SKILL.md content. Compatible with both OpenClaw and the agentskills.io
+  # open standard (YAML frontmatter: name + description required, plus optional
+  # license, tags, version, source_url, or a nested metadata block).
   def self.from_skill_md(text)
     frontmatter, body = parse_frontmatter(text)
+    meta = frontmatter["metadata"].is_a?(Hash) ? frontmatter["metadata"] : {}
+
+    tags = frontmatter["tags"] || meta["tags"]
+    tags = tags.to_s.split(/[,\s]+/) if tags.is_a?(String)
+
+    extra_metadata = {}
+    %w[license version author].each do |k|
+      v = frontmatter[k] || meta[k]
+      extra_metadata[k] = v if v.present?
+    end
 
     new(
       name: frontmatter["name"],
       description: frontmatter["description"],
       summary: (frontmatter["summary"] || frontmatter["description"].to_s).truncate(150),
       content: body.strip,
-      category: frontmatter.dig("metadata", "openclaw", "category") || frontmatter["category"]
+      category: meta.dig("openclaw", "category") || frontmatter["category"] || meta["category"],
+      tags: Array(tags).map(&:to_s).reject(&:blank?),
+      source_url: frontmatter["source_url"] || meta["source_url"],
+      metadata: extra_metadata
     )
   end
 
-  # Export as OpenClaw-compatible SKILL.md
+  # Export as SKILL.md (agentskills.io / OpenClaw compatible). Built via YAML so
+  # values with colons/special chars are quoted correctly; extra fields are
+  # emitted only when present.
   def to_skill_md
-    lines = [ "---" ]
-    lines << "name: #{name}"
-    lines << "description: #{description}" if description.present?
-    lines << "category: #{category}" if category.present?
-    lines << "---"
-    lines << ""
-    lines << content
-    lines.join("\n")
+    frontmatter = { "name" => name }
+    frontmatter["description"] = description if description.present?
+    frontmatter["category"] = category if category.present?
+    frontmatter["tags"] = tags if tags.any?
+    frontmatter["license"] = metadata["license"] if metadata["license"].present?
+    frontmatter["version"] = metadata["version"] if metadata["version"].present?
+    frontmatter["source_url"] = source_url if source_url.present?
+
+    "#{YAML.dump(frontmatter)}---\n\n#{content}"
   end
 
   def security_status

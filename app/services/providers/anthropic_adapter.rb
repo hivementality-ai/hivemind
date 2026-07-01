@@ -7,7 +7,7 @@ module Providers
     def chat(messages:, tools: [], options: {}, &block)
       params = build_chat_params(messages:, tools:, options:)
 
-      result = if use_sdk_proxy_fallback? && oauth_token?
+      result = if oauth_token? && sdk_proxy_enabled?
         sync_memories_for_oauth(messages, options)
         proxy_client.chat(params:, options:, &block)
       else
@@ -36,19 +36,26 @@ module Providers
       api_key&.start_with?("sk-ant-oat")
     end
 
-    def use_sdk_proxy_fallback?
+    def sdk_proxy_enabled?
       self.class.sdk_proxy_enabled?
     end
 
-    # Setting-first so the flag can be toggled from the provider edit
-    # page without a redeploy; ENV retained as a fallback for bootstrap
-    # scenarios where the DB isn't reachable yet.
+    # OAuth (sk-ant-oat) tokens route through the SDK proxy by DEFAULT so chats
+    # consume the Claude subscription's included usage via Claude Code, rather
+    # than the direct API path which bills against pay-as-you-go "extra usage"
+    # and fails with "You're out of extra usage" once that allowance is spent.
+    #
+    # An explicit Setting (anthropic_use_sdk_proxy, toggleable from the provider
+    # edit page) or ENV (USE_SDK_PROXY_FALLBACK) can force either path — set it
+    # to "false" to opt back into the direct API. Absent both, the proxy is on.
+    # Only consulted for OAuth tokens; API keys always go direct.
     def self.sdk_proxy_enabled?
       val = Setting.get("anthropic_use_sdk_proxy")
       return val == "true" if val.present?
-      ENV["USE_SDK_PROXY_FALLBACK"] == "true"
+      # Default ON; the ENV escape hatch only needs to force it back off.
+      ENV["USE_SDK_PROXY_FALLBACK"] != "false"
     rescue StandardError
-      ENV["USE_SDK_PROXY_FALLBACK"] == "true"
+      true
     end
 
     def sync_memories_for_oauth(messages, options)

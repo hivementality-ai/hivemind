@@ -1,0 +1,72 @@
+<% content_for(:title, @task.title) %>
+<div class="min-h-screen bg-surface-base text-white pb-20">
+  <!-- Header -->
+  <div class="sticky top-0 z-10 bg-surface-card border-b border-border-default px-4 py-3 flex items-center gap-3">
+    <%= link_to mobile_tasks_path, class: "text-text-muted hover:text-white transition p-1" do %>
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+    <% end %>
+    <h1 class="text-base font-semibold text-white truncate flex-1"><%= @task.title %></h1>
+  </div>
+
+  <div class="px-4 py-4 space-y-4">
+    <% status_labels = { "in_progress" => "In Progress", "review" => "Review", "todo" => "To Do", "backlog" => "Backlog", "done" => "Done" } %>
+    <% priority_badge = case @task.priority
+      when "urgent" then "bg-red-900/40 text-red-300"
+      when "high"   then "bg-orange-900/40 text-orange-300"
+      when "medium" then "bg-yellow-900/40 text-yellow-300"
+      else               "bg-slate-700/40 text-slate-400"
+    end %>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="text-xs font-semibold px-2 py-0.5 rounded bg-surface-raised text-text-muted"><%= status_labels[@task.status] || @task.status %></span>
+      <span class="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded <%= priority_badge %>"><%= @task.priority %></span>
+      <% if @task.due_at %>
+        <span class="text-xs text-text-faint">Due <%= @task.due_at.strftime("%b %-d") %></span>
+      <% end %>
+    </div>
+
+    <% if @task.assigned_to_agent || @task.project %>
+      <div class="text-sm text-text-muted space-y-1">
+        <% if @task.assigned_to_agent %><p>Assigned to <span class="text-white"><%= @task.assigned_to_agent.name %></span></p><% end %>
+        <% if @task.project %><p>Project <span class="text-white"><%= @task.project.title %></span></p><% end %>
+      </div>
+    <% end %>
+
+    <% if @task.description.present? %>
+      <div class="bg-surface-card border border-border-default rounded-xl p-4">
+        <p class="text-sm text-gray-200 whitespace-pre-wrap"><%= @task.description %></p>
+      </div>
+    <% end %>
+
+    <% if @task.checklist.any? %>
+      <div class="space-y-2">
+        <h2 class="text-xs font-semibold uppercase tracking-wide text-text-muted">Checklist</h2>
+        <% @task.checklist.each do |item| %>
+          <div class="flex items-center gap-2 text-sm">
+            <span class="<%= item["done"] ? "text-green-400" : "text-text-faint" %>"><%= item["done"] ? "✓" : "○" %></span>
+            <span class="<%= "line-through opacity-60" if item["done"] %>"><%= item["text"] || item["title"] %></span>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+
+    <% if @events.any? %>
+      <div class="space-y-2">
+        <h2 class="text-xs font-semibold uppercase tracking-wide text-text-muted">Activity</h2>
+        <div class="space-y-2">
+          <% @events.each do |event| %>
+            <div class="flex items-start gap-2 text-sm">
+              <span class="w-1.5 h-1.5 rounded-full bg-text-faint flex-shrink-0 mt-1.5"></span>
+              <div class="flex-1 min-w-0">
+                <p class="text-gray-200"><%= event.summary %></p>
+                <p class="text-xs text-text-faint"><%= time_ago_in_words(event.created_at) %> ago</p>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

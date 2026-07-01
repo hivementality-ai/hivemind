@@ -13,7 +13,7 @@ module MobileDetector
   MOBILE_USER_AGENTS = /iPhone|iPod|Android.*Mobile|webOS|BlackBerry|Windows Phone|Opera Mini|IEMobile/i
 
   # Paths that have a mobile equivalent under /m/
-  MOBILE_EQUIVALENT_PATHS = %w[/ /sessions /team_chats /agents /dashboard].freeze
+  MOBILE_EQUIVALENT_PATHS = %w[/ /sessions /team_chats /tasks /agents /dashboard].freeze
 
   # Paths that should never be redirected
   SKIP_REDIRECT_PATHS = %r{\A/(api|cable|webhooks|internal|sidekiq|setup|rails)}
@@ -62,6 +62,10 @@ module MobileDetector
       "/m/team_chats"
     when %r{\A/team_chats/(\d+)\z}
       "/m/team_chats/#{$1}"
+    when "/tasks"
+      "/m/tasks"
+    when %r{\A/tasks/(\d+)\z}
+      "/m/tasks/#{$1}"
     when "/agents"
       "/m/agents"
     when %r{\A/agents/([^/]+)\z}
