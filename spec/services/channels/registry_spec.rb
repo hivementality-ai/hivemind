@@ -102,7 +102,7 @@ RSpec.describe Channels::Registry do
       types = described_class.supported_types
 
       expect(types).to be_an(Array)
-      expect(types).to include('discord', 'slack', 'telegram', 'whatsapp', 'signal', 'matrix', 'email', 'imessage')
+      expect(types).to include('discord', 'slack', 'telegram', 'whatsapp', 'signal', 'matrix', 'email', 'mattermost', 'line', 'feishu', 'google_chat', 'msteams', 'imessage')
       expect(types.size).to eq(Channels::Registry::BUILTIN_ADAPTERS.size)
     end
 
@@ -137,6 +137,7 @@ RSpec.describe Channels::Registry do
 
     it 'has the expected structure' do
       expect(Channels::Registry::ADAPTERS).to eq(Channels::Registry::BUILTIN_ADAPTERS)
+      expect(Channels::Registry::ADAPTERS).to include("feishu" => "Channels::FeishuAdapter")
     end
   end
 

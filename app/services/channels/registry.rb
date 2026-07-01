@@ -10,6 +10,11 @@ module Channels
       "signal" => "Channels::SignalAdapter",
       "matrix" => "Channels::MatrixAdapter",
       "email" => "Channels::EmailAdapter",
+      "mattermost" => "Channels::MattermostAdapter",
+      "line" => "Channels::LineAdapter",
+      "feishu" => "Channels::FeishuAdapter",
+      "google_chat" => "Channels::GoogleChatAdapter",
+      "msteams" => "Channels::MsteamsAdapter",
       "imessage" => "Channels::ImessageAdapter"
     }.freeze
 
