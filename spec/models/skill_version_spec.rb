@@ -6,6 +6,10 @@ RSpec.describe SkillVersion, type: :model do
   let(:skill) { create(:skill, content: "Original content") }
 
   describe "validations" do
+    # The skill factory's after_create snapshots an initial version (v1), so
+    # clear it before exercising version_number uniqueness directly.
+    before { skill.skill_versions.delete_all }
+
     it "is valid with required attributes" do
       version = build(:skill_version, skill: skill, version_number: 1)
       expect(version).to be_valid
@@ -29,6 +33,7 @@ RSpec.describe SkillVersion, type: :model do
 
     it "allows same version_number on different skills" do
       other_skill = create(:skill)
+      other_skill.skill_versions.delete_all
       create(:skill_version, skill: skill, version_number: 1)
       version = build(:skill_version, skill: other_skill, version_number: 1)
       expect(version).to be_valid
