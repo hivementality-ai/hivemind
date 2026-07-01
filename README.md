@@ -660,7 +660,7 @@ Send images to agents via upload, clipboard paste, or drag-and-drop (up to 5 per
 
 Connect Google Drive, Amazon S3, Dropbox, OneDrive, Backblaze B2, or SFTP through the Integrations page. Uses rclone under the hood. OAuth backends (Drive, Dropbox, OneDrive) use a token-paste flow — run `rclone authorize` locally, paste the token in the UI.
 
-### 7 Messaging Channels
+### 8 Messaging Channels
 
 | Channel | Method | Auth |
 |---------|--------|------|
@@ -671,6 +671,7 @@ Connect Google Drive, Amazon S3, Dropbox, OneDrive, Backblaze B2, or SFTP throug
 | **Signal** | signal-cli REST API via connector | Phone number registration |
 | **Matrix** | Application Service (homeserver push + client API) | Access token + hs_token |
 | **Email** | Provider inbound-parse webhook + SMTP | From address (+ optional secret) |
+| **Feishu / Lark** | Open Platform event subscription (webhook) | App ID + Verification Token + App Secret |
 
 Credentials stored in the encrypted vault. Configure via the Channels page.
 
@@ -712,6 +713,29 @@ Talk to an agent over email. Inbound uses your mail provider's **inbound-parse w
    - **From Address** — the address replies are sent from (e.g. `agent@yourdomain.com`)
    - **Reply Subject** — optional subject for replies
    - **Webhook Secret** — optional; append `?secret=...` to the webhook URL so forged inbound mail is rejected
+
+#### Feishu / Lark
+
+Talk to an agent on Feishu (the China-facing platform at `open.feishu.cn`) or Lark (the international platform at `open.larksuite.com`). Inbound uses the [Open Platform event subscription](https://open.feishu.cn/document/server-docs/event-subscription-guide/overview) (v2 webhook); replies are sent over the IM v1 messages API with a `tenant_access_token` minted from the app credentials.
+
+1. In the [Feishu Open Platform](https://open.feishu.cn/app) (or [Lark Open Platform](https://open.larksuite.com/app)), create a custom app and add the **Bot** capability.
+2. Grant the bot the scopes it needs to read and send messages in chats (`im:message`, `im:message:send_as_bot`, and the relevant `im:message.*_msg` read scopes).
+3. Under **Event Subscriptions**, set the request URL to:
+   ```
+   https://your-hivemind-host/webhooks/feishu
+   ```
+   Feishu sends a `url_verification` challenge first — Hivemind echoes the `challenge` back to complete the handshake.
+4. Add the **Receive message v1** event (`im.message.receive_v1`). Only `text` messages are handled; bot-to-bot (`sender_type == "app"`) traffic is skipped.
+5. From the app's **Credentials & Basic Info** page, copy:
+   - **App ID** — public identifier for the app
+   - **App Secret** — used to mint a `tenant_access_token` for outbound sends (stored in the encrypted vault)
+   - **Verification Token** — from the Event Subscriptions page; Hivemind checks `header.token` against this on every inbound event
+6. Store the App Secret in the encrypted vault under namespace `channel_credentials`, key `feishu_app_secret`.
+7. In Hivemind → **Channels → Add Channel → Feishu**, set:
+   - **App ID** — the App ID from step 5
+   - **Verification Token** — the Event Subscriptions Verification Token
+   - **Base URL** — `https://open.feishu.cn` for Feishu (China) or `https://open.larksuite.com` for Lark (international); defaults to Feishu
+8. Add the bot to a chat and send it a message — replies are posted back to the same `chat_id`.
 
 #### Voice notes (automatic transcription)
 
