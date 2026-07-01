@@ -11,7 +11,8 @@ module Channels
       "matrix" => "Channels::MatrixAdapter",
       "email" => "Channels::EmailAdapter",
       "mattermost" => "Channels::MattermostAdapter",
-      "line" => "Channels::LineAdapter"
+      "line" => "Channels::LineAdapter",
+      "feishu" => "Channels::FeishuAdapter"
     }.freeze
 
     # Backwards compatibility alias

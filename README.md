@@ -78,7 +78,7 @@ Sandboxing isn't a limitation — it's the feature. Every tool, every skill, eve
 - **40+ built-in tools** — shell, files, browser (Playwright), Jira, email, Gmail, cloud storage (Drive/S3/Dropbox/OneDrive/B2/SFTP), MCP client, Live Canvas, web search, vision, TTS, coding agent delegation, and more. Agents are productive on first boot.
 - **150+ agent templates** across 18 categories — researcher, engineer, writer, analyst, and more. Not starting from a blank prompt.
 - **Team chat** with @mentions — agents collaborate and chain-react in real group conversation. Not tickets. Not pipelines. Conversation.
-- **9 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE. Each agent gets its own Slack bot identity with thread routing.
+- **10 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark. Each agent gets its own Slack bot identity with thread routing.
 - **Any AI model** — Anthropic, OpenAI, Google Gemini, Ollama, any OpenAI-compatible provider. Native extended thinking/reasoning support across all adapters. **Already paying for Anthropic Pro or Max? Use your existing subscription directly via the SDK — no separate API billing, no usage charges.** Hivemind auto-detects OAuth tokens and adds the required headers automatically.
 - **Agent self-evolution** — agents create their own tools and skills at runtime. They get smarter the more they work.
 - **Coding agent delegation** — hand off multi-file tasks to Claude Code, Codex, or Aider with live progress streaming.
@@ -168,7 +168,7 @@ Sandboxing isn't a limitation — it's the feature. Every tool, every skill, eve
 - **40+ built-in tools** — shell, files, browser (Playwright), Jira, email, Gmail, cloud storage (Drive/S3/Dropbox/OneDrive/B2/SFTP), MCP client, Live Canvas, web search, vision, TTS, coding agent delegation, and more. Agents are productive on first boot.
 - **150+ agent templates** across 18 categories — researcher, engineer, writer, analyst, and more. Not starting from a blank prompt.
 - **Team chat** with @mentions — agents collaborate and chain-react in real group conversation. Not tickets. Not pipelines. Conversation.
-- **9 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE. Each agent gets its own Slack bot identity with thread routing.
+- **10 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark. Each agent gets its own Slack bot identity with thread routing.
 - **Any AI model** — Anthropic, OpenAI, Google Gemini, Ollama, any OpenAI-compatible provider. Native extended thinking/reasoning support across all adapters. **Already paying for Anthropic Pro or Max? Use your existing subscription directly via the SDK — no separate API billing, no usage charges.** Hivemind auto-detects OAuth tokens and adds the required headers automatically.
 - **Agent self-evolution** — agents create their own tools and skills at runtime. They get smarter the more they work.
 - **Coding agent delegation** — hand off multi-file tasks to Claude Code, Codex, or Aider with live progress streaming.
@@ -261,7 +261,7 @@ Most AI platforms give you one agent in a chat box. Hivemind gives you a **team*
 - **Team chat** with @mentions — agents collaborate and chain-react
 - **45+ built-in tools** — shell, files, browser, Jira, email, cloud storage, Gmail, vision, TTS, and more
 - **Skills system** — teach agents new capabilities, import OpenClaw SKILL.md files
-- **9 messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE
+- **10 messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark
 - **Slack multi-bot** — each agent gets its own Slack bot identity with thread routing
 - **Coding agent** — delegate complex tasks to Claude Code, Codex, or Aider with live progress streaming
 - **File sharing** — agents create files and images, deliver them directly to chat
@@ -673,6 +673,7 @@ Connect Google Drive, Amazon S3, Dropbox, OneDrive, Backblaze B2, or SFTP throug
 | **Mattermost** | Outgoing webhook (inbound) + REST API v4 (outbound) | Bot access token + outgoing webhook token |
 | **Email** | Provider inbound-parse webhook + SMTP | From address (+ optional secret) |
 | **LINE** | Messaging API webhook + push API | Channel access token + channel secret |
+| **Feishu / Lark** | Open Platform event subscription (webhook) | App ID + Verification Token + App Secret |
 
 Credentials stored in the encrypted vault. Configure via the Channels page.
 
@@ -750,6 +751,29 @@ Connect a LINE Official Account bot via the [Messaging API](https://developers.l
    - **Channel Access Token** — used to send replies and download inbound audio (vault key `line_channel_access_token`)
    - **Channel Secret** — verifies the `X-Line-Signature` header on inbound webhooks (vault key `line_channel_secret`)
 5. Add your bot as a friend (scan the QR code on the **Messaging API** tab) or share the LINE Official Account ID. Message it — replies are posted back to the same user / group / room.
+
+#### Feishu / Lark
+
+Talk to an agent on Feishu (the China-facing platform at `open.feishu.cn`) or Lark (the international platform at `open.larksuite.com`). Inbound uses the [Open Platform event subscription](https://open.feishu.cn/document/server-docs/event-subscription-guide/overview) (v2 webhook); replies are sent over the IM v1 messages API with a `tenant_access_token` minted from the app credentials.
+
+1. In the [Feishu Open Platform](https://open.feishu.cn/app) (or [Lark Open Platform](https://open.larksuite.com/app)), create a custom app and add the **Bot** capability.
+2. Grant the bot the scopes it needs to read and send messages in chats (`im:message`, `im:message:send_as_bot`, and the relevant `im:message.*_msg` read scopes).
+3. Under **Event Subscriptions**, set the request URL to:
+   ```
+   https://your-hivemind-host/webhooks/feishu
+   ```
+   Feishu sends a `url_verification` challenge first — Hivemind echoes the `challenge` back to complete the handshake.
+4. Add the **Receive message v1** event (`im.message.receive_v1`). Only `text` messages are handled; bot-to-bot (`sender_type == "app"`) traffic is skipped.
+5. From the app's **Credentials & Basic Info** page, copy:
+   - **App ID** — public identifier for the app
+   - **App Secret** — used to mint a `tenant_access_token` for outbound sends (stored in the encrypted vault)
+   - **Verification Token** — from the Event Subscriptions page; Hivemind checks `header.token` against this on every inbound event
+6. Store the App Secret in the encrypted vault under namespace `channel_credentials`, key `feishu_app_secret`.
+7. In Hivemind → **Channels → Add Channel → Feishu**, set:
+   - **App ID** — the App ID from step 5
+   - **Verification Token** — the Event Subscriptions Verification Token
+   - **Base URL** — `https://open.feishu.cn` for Feishu (China) or `https://open.larksuite.com` for Lark (international); defaults to Feishu
+8. Add the bot to a chat and send it a message — replies are posted back to the same `chat_id`.
 
 #### Voice notes (automatic transcription)
 
