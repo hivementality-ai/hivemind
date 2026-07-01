@@ -9,7 +9,13 @@ module Channels
       "whatsapp" => "Channels::WhatsappAdapter",
       "signal" => "Channels::SignalAdapter",
       "matrix" => "Channels::MatrixAdapter",
-      "email" => "Channels::EmailAdapter"
+      "email" => "Channels::EmailAdapter",
+      "mattermost" => "Channels::MattermostAdapter",
+      "line" => "Channels::LineAdapter",
+      "feishu" => "Channels::FeishuAdapter",
+      "google_chat" => "Channels::GoogleChatAdapter",
+      "msteams" => "Channels::MsteamsAdapter",
+      "imessage" => "Channels::ImessageAdapter"
     }.freeze
 
     # Backwards compatibility alias

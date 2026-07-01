@@ -143,10 +143,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
     t.boolean "system_agent", default: false, null: false
     t.text "system_prompt"
     t.bigint "team_id"
-    t.string "title"
     t.integer "thinking_budget_tokens", default: 10000
     t.boolean "thinking_enabled", default: false, null: false
     t.string "thinking_visibility", default: "hidden"
+    t.string "title"
     t.jsonb "tool_loop_config", default: {}, null: false
     t.jsonb "tools_config"
     t.datetime "updated_at", null: false
@@ -337,10 +337,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
     t.jsonb "metadata", default: {}
     t.string "model"
     t.integer "output_tokens", default: 0
+    t.text "previous_summary"
     t.bigint "session_id"
     t.string "status", default: "ok", null: false
     t.text "summary"
-    t.text "previous_summary"
     t.datetime "updated_at", null: false
     t.index ["agent_id"], name: "index_heartbeat_runs_on_agent_id"
     t.index ["created_at"], name: "index_heartbeat_runs_on_created_at"
@@ -360,6 +360,35 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
     t.index ["channel_id", "external_id"], name: "index_inbound_messages_on_channel_id_and_external_id", unique: true
     t.index ["channel_id"], name: "index_inbound_messages_on_channel_id"
     t.index ["received_at"], name: "index_inbound_messages_on_received_at"
+  end
+
+  create_table "knowledge_chunks", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.text "content", null: false
+    t.datetime "created_at", null: false
+    t.vector "embedding", limit: 768
+    t.bigint "knowledge_document_id", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.integer "position", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id", "knowledge_document_id"], name: "index_knowledge_chunks_on_agent_id_and_knowledge_document_id"
+    t.index ["agent_id"], name: "index_knowledge_chunks_on_agent_id"
+    t.index ["embedding"], name: "index_knowledge_chunks_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
+    t.index ["knowledge_document_id"], name: "index_knowledge_chunks_on_knowledge_document_id"
+  end
+
+  create_table "knowledge_documents", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.datetime "created_at", null: false
+    t.text "error"
+    t.jsonb "metadata", default: {}, null: false
+    t.string "source_type", default: "text", null: false
+    t.string "source_url"
+    t.string "status", default: "pending", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id", "status"], name: "index_knowledge_documents_on_agent_id_and_status"
+    t.index ["agent_id"], name: "index_knowledge_documents_on_agent_id"
   end
 
   create_table "mcp_servers", force: :cascade do |t|
@@ -388,6 +417,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
 
   create_table "memory_entries", force: :cascade do |t|
     t.bigint "agent_id", null: false
+    t.string "category", default: "general", null: false
     t.boolean "consolidated", default: false, null: false
     t.text "content", null: false
     t.datetime "created_at", null: false
@@ -402,13 +432,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
     t.vector "shadow_embedding", limit: 768
     t.bigint "source_id"
     t.string "source_type"
-    t.datetime "updated_at", null: false
-    t.string "category", default: "general", null: false
     t.string "status", default: "active", null: false
     t.bigint "superseded_by_id"
+    t.datetime "updated_at", null: false
+    t.index ["agent_id", "category", "status"], name: "index_memory_entries_on_agent_id_category_status"
     t.index ["agent_id", "memory_type"], name: "index_memory_entries_on_agent_id_and_memory_type"
     t.index ["agent_id"], name: "index_memory_entries_on_agent_id"
-    t.index ["agent_id", "category", "status"], name: "index_memory_entries_on_agent_id_category_status"
     t.index ["consolidated"], name: "index_memory_entries_on_consolidated"
     t.index ["embedding"], name: "index_memory_entries_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["importance"], name: "index_memory_entries_on_importance"
@@ -576,6 +605,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
     t.bigint "agent_id", null: false
     t.text "conversation_summary"
     t.datetime "created_at", null: false
+    t.tsvector "fts_vector"
     t.bigint "input_tokens"
     t.datetime "last_activity_at"
     t.jsonb "metadata"
@@ -590,15 +620,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
     t.string "title"
     t.bigint "total_tokens"
     t.jsonb "transcript"
-    t.tsvector "fts_vector"
     t.datetime "updated_at", null: false
     t.index ["agent_id", "status"], name: "index_sessions_on_agent_id_and_status"
     t.index ["agent_id"], name: "index_sessions_on_agent_id"
+    t.index ["fts_vector"], name: "index_sessions_on_fts_vector", using: :gin
     t.index ["last_activity_at"], name: "index_sessions_on_last_activity_at"
     t.index ["origin_channel_type", "origin_sender"], name: "index_sessions_on_origin_channel_type_and_origin_sender"
     t.index ["origin_channel_type"], name: "index_sessions_on_origin_channel_type"
     t.index ["session_key"], name: "index_sessions_on_session_key", unique: true
-    t.index ["fts_vector"], name: "index_sessions_on_fts_vector", using: :gin
     t.index ["team_chat_session_id"], name: "index_sessions_on_team_chat_session_id"
   end
 
@@ -610,18 +639,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
     t.index ["key"], name: "index_settings_on_key", unique: true
   end
 
-
   create_table "skill_load_events", force: :cascade do |t|
     t.bigint "agent_id", null: false
     t.datetime "created_at", null: false
+    t.datetime "flagged_at"
+    t.text "flagged_reason"
+    t.string "load_tier", null: false
     t.float "relevance_score"
     t.bigint "session_id"
     t.bigint "skill_id", null: false
-    t.string "load_tier", null: false
     t.string "trigger_context", limit: 500
     t.boolean "was_helpful"
-    t.text    "flagged_reason"
-    t.datetime "flagged_at"
     t.index ["agent_id", "skill_id"], name: "index_skill_load_events_on_agent_and_skill"
     t.index ["agent_id"], name: "index_skill_load_events_on_agent_id"
     t.index ["created_at"], name: "index_skill_load_events_on_created_at"
@@ -638,6 +666,43 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
     t.index ["skill_id", "tool_id"], name: "index_skill_tools_on_skill_id_and_tool_id", unique: true
     t.index ["skill_id"], name: "index_skill_tools_on_skill_id"
     t.index ["tool_id"], name: "index_skill_tools_on_tool_id"
+  end
+
+  create_table "skill_update_proposals", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "original_content", null: false
+    t.bigint "proposed_by_agent_id", null: false
+    t.text "proposed_content", null: false
+    t.text "rationale", null: false
+    t.text "review_notes"
+    t.datetime "reviewed_at"
+    t.bigint "reviewed_by_user_id"
+    t.bigint "skill_id", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.index ["proposed_by_agent_id"], name: "index_skill_update_proposals_on_proposed_by_agent_id"
+    t.index ["skill_id", "status"], name: "index_skill_update_proposals_on_skill_id_and_status"
+    t.index ["skill_id"], name: "index_skill_update_proposals_on_skill_id"
+    t.index ["status"], name: "index_skill_update_proposals_on_status"
+  end
+
+  create_table "skill_versions", force: :cascade do |t|
+    t.string "change_source", default: "manual", null: false
+    t.text "change_summary"
+    t.bigint "changed_by_agent_id"
+    t.bigint "changed_by_user_id"
+    t.string "checksum", null: false
+    t.text "content", null: false
+    t.datetime "created_at", null: false
+    t.bigint "skill_id", null: false
+    t.bigint "update_proposal_id"
+    t.datetime "updated_at", null: false
+    t.integer "version_number", null: false
+    t.index ["change_source"], name: "index_skill_versions_on_change_source"
+    t.index ["checksum"], name: "index_skill_versions_on_checksum"
+    t.index ["skill_id", "version_number"], name: "index_skill_versions_on_skill_id_and_version_number", unique: true
+    t.index ["skill_id"], name: "index_skill_versions_on_skill_id"
+    t.index ["update_proposal_id"], name: "index_skill_versions_on_update_proposal_id"
   end
 
   create_table "skills", force: :cascade do |t|
@@ -663,9 +728,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
     t.string "source", default: "manual", null: false
     t.string "source_url"
     t.string "summary"
-    t.text "tags", array: true, default: []
+    t.text "tags", default: [], array: true
     t.string "tier", default: "manual", null: false
-    t.text "trigger_patterns", array: true, default: []
+    t.text "trigger_patterns", default: [], array: true
     t.datetime "updated_at", null: false
     t.index ["checksum"], name: "index_skills_on_checksum"
     t.index ["enabled"], name: "index_skills_on_enabled"
@@ -698,6 +763,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
     t.index ["task_key"], name: "index_sub_agent_tasks_on_task_key", unique: true
   end
 
+  create_table "task_attachments", force: :cascade do |t|
+    t.string "content_type"
+    t.datetime "created_at", null: false
+    t.bigint "task_id", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.string "uploaded_by"
+    t.string "url", null: false
+    t.index ["task_id"], name: "index_task_attachments_on_task_id"
+  end
+
   create_table "task_dependencies", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "depends_on_id", null: false
@@ -718,17 +794,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
     t.index ["agent_id"], name: "index_task_events_on_agent_id"
     t.index ["task_id", "created_at"], name: "index_task_events_on_task_id_and_created_at"
     t.index ["task_id"], name: "index_task_events_on_task_id"
-  end
-
-  create_table "task_attachments", force: :cascade do |t|
-    t.bigint "task_id", null: false
-    t.string "title", null: false
-    t.string "url", null: false
-    t.string "content_type"
-    t.string "uploaded_by"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["task_id"], name: "index_task_attachments_on_task_id"
   end
 
   create_table "task_hooks", force: :cascade do |t|
@@ -765,6 +830,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
   end
 
   create_table "tasks", force: :cascade do |t|
+    t.datetime "archived_at"
+    t.jsonb "artifacts", default: [], null: false
     t.bigint "assigned_to_agent_id"
     t.jsonb "checklist", default: [], null: false
     t.jsonb "comments", default: [], null: false
@@ -774,20 +841,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
     t.text "description"
     t.datetime "due_at"
     t.jsonb "metadata", default: {}, null: false
+    t.string "priority", default: "medium", null: false
     t.bigint "project_id"
     t.bigint "project_milestone_id"
-    t.string "priority", default: "medium", null: false
     t.bigint "session_id"
     t.string "status", default: "backlog", null: false
     t.bigint "task_template_id"
     t.string "title", null: false
-    t.datetime "updated_at", null: false
-    t.jsonb "artifacts", default: [], null: false
-    t.datetime "archived_at"
     t.datetime "transition_locked_at"
     t.bigint "transition_locked_by_agent_id"
+    t.datetime "updated_at", null: false
     t.index ["archived_at"], name: "index_tasks_on_archived_at"
-    t.index ["transition_locked_at"], name: "index_tasks_on_transition_locked_at"
     t.index ["assigned_to_agent_id", "status"], name: "index_tasks_on_assigned_to_agent_id_and_status"
     t.index ["assigned_to_agent_id"], name: "index_tasks_on_assigned_to_agent_id"
     t.index ["created_at"], name: "index_tasks_on_created_at"
@@ -798,6 +862,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
     t.index ["session_id"], name: "index_tasks_on_session_id"
     t.index ["status"], name: "index_tasks_on_status"
     t.index ["task_template_id"], name: "index_tasks_on_task_template_id"
+    t.index ["transition_locked_at"], name: "index_tasks_on_transition_locked_at"
   end
 
   create_table "team_chat_messages", force: :cascade do |t|
@@ -951,6 +1016,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
     t.index ["tool_binding"], name: "index_vault_entries_on_tool_binding"
   end
 
+  create_table "webhook_endpoints", force: :cascade do |t|
+    t.bigint "agent_id"
+    t.datetime "created_at", null: false
+    t.boolean "enabled", default: true, null: false
+    t.jsonb "event_types", default: [], null: false
+    t.integer "failure_count", default: 0, null: false
+    t.datetime "last_delivered_at"
+    t.integer "last_status"
+    t.text "secret"
+    t.bigint "team_id"
+    t.datetime "updated_at", null: false
+    t.string "url", null: false
+    t.index ["agent_id"], name: "index_webhook_endpoints_on_agent_id"
+    t.index ["enabled"], name: "index_webhook_endpoints_on_enabled"
+    t.index ["event_types"], name: "index_webhook_endpoints_on_event_types", using: :gin
+    t.index ["team_id"], name: "index_webhook_endpoints_on_team_id"
+  end
+
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "agent_budgets", "agents"
@@ -962,6 +1045,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
   add_foreign_key "agent_skills", "skills"
   add_foreign_key "agent_tools", "agents"
   add_foreign_key "agent_tools", "tools"
+  add_foreign_key "agents", "agents", column: "reports_to_id", on_delete: :nullify
   add_foreign_key "agents", "teams"
   add_foreign_key "api_integrations", "users"
   add_foreign_key "api_tokens", "users"
@@ -977,62 +1061,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
   add_foreign_key "heartbeat_runs", "agents"
   add_foreign_key "heartbeat_runs", "sessions"
   add_foreign_key "inbound_messages", "channels"
-
-  create_table "skill_update_proposals", force: :cascade do |t|
-    t.bigint   "skill_id", null: false
-    t.bigint   "proposed_by_agent_id", null: false
-    t.text     "proposed_content", null: false
-    t.text     "rationale", null: false
-    t.string   "status", null: false, default: "pending"
-    t.bigint   "reviewed_by_user_id"
-    t.text     "review_notes"
-    t.datetime "reviewed_at"
-    t.text     "original_content", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["skill_id"], name: "index_skill_update_proposals_on_skill_id"
-    t.index ["proposed_by_agent_id"], name: "index_skill_update_proposals_on_proposed_by_agent_id"
-    t.index ["status"], name: "index_skill_update_proposals_on_status"
-    t.index ["skill_id", "status"], name: "index_skill_update_proposals_on_skill_id_and_status"
-  end
-
-  create_table "skill_versions", force: :cascade do |t|
-    t.bigint   "skill_id", null: false
-    t.integer  "version_number", null: false
-    t.text     "content", null: false
-    t.string   "checksum", null: false
-    t.bigint   "changed_by_user_id"
-    t.bigint   "changed_by_agent_id"
-    t.string   "change_source", null: false, default: "manual"
-    t.text     "change_summary"
-    t.bigint   "update_proposal_id"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["skill_id"], name: "index_skill_versions_on_skill_id"
-    t.index ["skill_id", "version_number"], name: "index_skill_versions_on_skill_id_and_version_number", unique: true
-    t.index ["checksum"], name: "index_skill_versions_on_checksum"
-    t.index ["change_source"], name: "index_skill_versions_on_change_source"
-    t.index ["update_proposal_id"], name: "index_skill_versions_on_update_proposal_id"
-  end
-
-  create_table "webhook_endpoints", force: :cascade do |t|
-    t.string   "url", null: false
-    t.text     "secret"
-    t.jsonb    "event_types", default: [], null: false
-    t.boolean  "enabled", default: true, null: false
-    t.bigint   "agent_id"
-    t.bigint   "team_id"
-    t.datetime "last_delivered_at"
-    t.integer  "last_status"
-    t.integer  "failure_count", default: 0, null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["agent_id"], name: "index_webhook_endpoints_on_agent_id"
-    t.index ["enabled"], name: "index_webhook_endpoints_on_enabled"
-    t.index ["event_types"], name: "index_webhook_endpoints_on_event_types", using: :gin
-    t.index ["team_id"], name: "index_webhook_endpoints_on_team_id"
-  end
-
+  add_foreign_key "knowledge_chunks", "agents"
+  add_foreign_key "knowledge_chunks", "knowledge_documents"
+  add_foreign_key "knowledge_documents", "agents"
   add_foreign_key "memory_entries", "agents"
   add_foreign_key "memory_entries", "memory_entries", column: "superseded_by_id"
   add_foreign_key "outbound_messages", "channels"
@@ -1052,23 +1083,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
   add_foreign_key "scheduled_tasks", "agents"
   add_foreign_key "sessions", "agents"
   add_foreign_key "sessions", "team_chat_sessions"
+  add_foreign_key "skill_load_events", "agents"
+  add_foreign_key "skill_load_events", "sessions"
+  add_foreign_key "skill_load_events", "skills"
   add_foreign_key "skill_tools", "skills"
   add_foreign_key "skill_tools", "tools"
+  add_foreign_key "skill_update_proposals", "agents", column: "proposed_by_agent_id"
+  add_foreign_key "skill_update_proposals", "skills"
+  add_foreign_key "skill_versions", "skills"
+  add_foreign_key "skills", "agents", column: "proposed_by_agent_id", on_delete: :nullify
   add_foreign_key "sub_agent_tasks", "agents", column: "child_agent_id"
   add_foreign_key "sub_agent_tasks", "agents", column: "parent_agent_id"
   add_foreign_key "sub_agent_tasks", "sessions", column: "child_session_id"
   add_foreign_key "sub_agent_tasks", "sessions", column: "parent_session_id"
+  add_foreign_key "task_attachments", "tasks"
   add_foreign_key "task_dependencies", "tasks"
   add_foreign_key "task_dependencies", "tasks", column: "depends_on_id"
   add_foreign_key "task_events", "agents"
   add_foreign_key "task_events", "tasks"
-  add_foreign_key "task_attachments", "tasks"
   add_foreign_key "task_hooks", "agents"
   add_foreign_key "task_hooks", "skills"
   add_foreign_key "task_hooks", "task_templates"
   add_foreign_key "task_hooks", "tasks"
   add_foreign_key "task_hooks", "teams"
-  add_foreign_key "agents", "agents", column: "reports_to_id", on_delete: :nullify
   add_foreign_key "tasks", "agents", column: "assigned_to_agent_id"
   add_foreign_key "tasks", "agents", column: "created_by_agent_id"
   add_foreign_key "tasks", "agents", column: "transition_locked_by_agent_id"
@@ -1089,13 +1126,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
   add_foreign_key "usage_records", "agents"
   add_foreign_key "usage_records", "sessions"
   add_foreign_key "usage_records", "teams"
-  add_foreign_key "skill_load_events", "agents"
-  add_foreign_key "skill_load_events", "sessions"
-  add_foreign_key "skill_load_events", "skills"
-  add_foreign_key "skills", "agents", column: "proposed_by_agent_id", on_delete: :nullify
-  add_foreign_key "skill_update_proposals", "skills"
-  add_foreign_key "skill_update_proposals", "agents", column: "proposed_by_agent_id"
-  add_foreign_key "skill_versions", "skills"
   add_foreign_key "vault_entries", "agents"
   add_foreign_key "webhook_endpoints", "agents"
   add_foreign_key "webhook_endpoints", "teams"
