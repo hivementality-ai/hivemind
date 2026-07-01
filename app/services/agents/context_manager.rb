@@ -160,10 +160,12 @@ module Agents
 
     private
 
-    # Resolve context window: registry first (cloud models), then Ollama-specific
-    # table for local models identified by tag (e.g. "qwen3-coder:30b").
+    # Resolve context window: Ollama-specific table first for local models
+    # identified by tag (e.g. "llama3.2"), then the registry for cloud models.
+    # The registry's generic "ollama" placeholder prefix-matches any local tag,
+    # so it must not shadow the tag-specific limits here.
     def context_window_for_model
-      LlmModelRegistry.context_window(@model) || OLLAMA_MODEL_LIMITS[@model]
+      OLLAMA_MODEL_LIMITS[@model] || LlmModelRegistry.context_window(@model)
     end
   end
 end
