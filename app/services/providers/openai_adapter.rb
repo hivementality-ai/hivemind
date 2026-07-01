@@ -81,7 +81,7 @@ module Providers
       end
 
       params = {
-        model: options[:model] || "gpt-5.4",
+        model: options[:model] || LlmModelRegistry::OpenAI::DEFAULT_TOP,
         messages: formatted
       }
 

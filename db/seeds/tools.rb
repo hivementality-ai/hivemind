@@ -123,10 +123,96 @@ BUILTIN_TOOLS = [
     requires_approval: false,
     parameters_schema: {
       "properties" => {
-        "query" => { "type" => "string", "description" => "What to search for in your memories" },
-        "limit" => { "type" => "integer", "description" => "Max results to return (1-20, default 10)" }
+        "query"    => { "type" => "string",  "description" => "What to search for in your memories" },
+        "limit"    => { "type" => "integer", "description" => "Max results to return (1-20, default 10)" },
+        "category" => {
+          "type" => "string",
+          "description" => "Filter by category: user_preference, project_context, decision, learned_behavior, factual, general",
+          "enum" => %w[user_preference project_context decision learned_behavior factual general]
+        },
+        "status"   => {
+          "type" => "string",
+          "description" => "Filter by status (default: active)",
+          "enum" => %w[active archived superseded]
+        }
       },
       "required" => [ "query" ]
+    }
+  },
+  {
+    name: "memory_store",
+    description: "Store a new memory with a category tag. Use this to deliberately save information for future recall — user preferences, decisions, project context, or learned behaviors.",
+    executor_type: "memory_store",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "content"           => { "type" => "string",  "description" => "The memory text to store" },
+        "category"          => {
+          "type" => "string",
+          "description" => "Memory category (default: general)",
+          "enum" => %w[user_preference project_context decision learned_behavior factual general]
+        },
+        "related_memory_id" => { "type" => "integer", "description" => "ID of an existing memory this supersedes — the old memory will be archived and linked to this new one" }
+      },
+      "required" => [ "content" ]
+    }
+  },
+  {
+    name: "memory_update",
+    description: "Update an existing memory by ID. Change its content, recategorize it, or change its status (archive, supersede, or reactivate).",
+    executor_type: "memory_update",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "memory_id" => { "type" => "integer", "description" => "ID of the memory to update (shown in memory_search and memory_store results)" },
+        "content"   => { "type" => "string",  "description" => "New content for the memory (re-embeds automatically)" },
+        "category"  => {
+          "type" => "string",
+          "description" => "New category",
+          "enum" => %w[user_preference project_context decision learned_behavior factual general]
+        },
+        "status"    => {
+          "type" => "string",
+          "description" => "New lifecycle status",
+          "enum" => %w[active archived superseded]
+        }
+      },
+      "required" => [ "memory_id" ]
+    }
+  },
+  {
+    name: "memory_stats",
+    description: "Get a count of your memories grouped by category and status. Use this to understand your knowledge inventory and decide what to prune or update.",
+    executor_type: "memory_stats",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {},
+      "required"   => []
+    }
+  },
+  {
+    name: "user_model",
+    description: "Load your structured user model — a canonical view of all recorded user preferences, grouped by section (Communication Style, Workflow Preferences, Domain Expertise, Recurring Patterns). Call this at the start of a session to understand how the user likes to work.",
+    executor_type: "user_model",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {},
+      "required"   => []
+    }
+  },
+  {
+    name: "user_model_populate",
+    description: "Auto-populate the user model by scanning existing memories and reclassifying entries that look like user preferences. Use this once to bootstrap your user model from memories stored before structured categorization existed. Supports dry_run: true to preview changes.",
+    executor_type: "user_model_populate",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "dry_run" => {
+          "type" => "boolean",
+          "description" => "Preview what would be reclassified without making changes (default: false)"
+        }
+      },
+      "required" => []
     }
   },
   {
@@ -309,6 +395,22 @@ BUILTIN_TOOLS = [
         "session_key" => { "type" => "string", "description" => "Session key (optional — defaults to your most recent session)" }
       },
       "required" => []
+    }
+  },
+  {
+    name: "session_search",
+    description: "Search session history using full-text search. Find past conversations by keyword across all sessions you have access to. Supports date range and agent filtering.",
+    executor_type: "session_search",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "query"        => { "type" => "string",  "description" => "Keywords to search for in session history" },
+        "limit"        => { "type" => "integer", "description" => "Max results to return (1-20, default 10)" },
+        "agent_filter" => { "type" => "string",  "description" => "Agent name or slug to restrict results to" },
+        "from"         => { "type" => "string",  "description" => "ISO8601 date — only sessions updated after this date" },
+        "to"           => { "type" => "string",  "description" => "ISO8601 date — only sessions updated before this date" }
+      },
+      "required" => ["query"]
     }
   },
   {
@@ -521,17 +623,47 @@ BUILTIN_TOOLS = [
   },
   {
     name: "ask_user",
-    description: "Pause execution and ask the user a clarifying question. The agent waits for the user's response before continuing. Use when you need user input to complete a task properly.",
+    description: "Pause execution and ask the user one or more clarifying questions. Each question renders as an interactive multi-select checkbox UI with a free-text fallback. The agent waits for all responses before continuing.",
     executor_type: "ask_user",
     requires_approval: false,
     parameters_schema: {
       "properties" => {
-        "question" => {
-          "type" => "string",
-          "description" => "The question to ask the user. Be specific and clear about what information you need."
+        "questions" => {
+          "type" => "array",
+          "description" => "One or more questions to ask the user. Each question renders as an interactive checkbox component.",
+          "items" => {
+            "type" => "object",
+            "properties" => {
+              "question" => {
+                "type" => "string",
+                "description" => "The question text to display to the user."
+              },
+              "header" => {
+                "type" => "string",
+                "description" => "Very short label shown as a chip/tag (max 12 chars). E.g. 'Auth method', 'Library'."
+              },
+              "options" => {
+                "type" => "array",
+                "description" => "2-4 selectable options. The UI always appends a free-text 'Other' option automatically.",
+                "items" => {
+                  "type" => "object",
+                  "properties" => {
+                    "label" => { "type" => "string", "description" => "Display text for the option (1-5 words)." },
+                    "description" => { "type" => "string", "description" => "Optional explanation of the option." }
+                  },
+                  "required" => [ "label" ]
+                }
+              },
+              "multiSelect" => {
+                "type" => "boolean",
+                "description" => "When true, user may select multiple checkboxes. Default: false."
+              }
+            },
+            "required" => [ "question", "options" ]
+          }
         }
       },
-      "required" => [ "question" ]
+      "required" => [ "questions" ]
     }
   },
   {
@@ -817,7 +949,7 @@ BUILTIN_TOOLS = [
         "action" => {
           "type" => "string",
           "description" => "Action to perform",
-          "enum" => %w[create update move assign list my_tasks add_comment close add_dependency remove_dependency update_checklist add_hook remove_hook add_artifact remove_artifact activity]
+          "enum" => %w[create update move assign list my_tasks add_comment close close_all add_dependency remove_dependency update_checklist add_hook remove_hook add_artifact remove_artifact activity]
         },
         "task_id" => { "type" => "integer", "description" => "Task ID (required for most actions except create, list, my_tasks)" },
         "title" => { "type" => "string", "description" => "Task title (required for create)" },
@@ -861,7 +993,35 @@ BUILTIN_TOOLS = [
         "attachment_id" => { "type" => "integer", "description" => "ID of the attachment to download (required for download action)" }
       }
     }
-  }
+  },
+  # ── Phase 5: Self-Improving Skills ───────────────────────────
+  {
+    name: "propose_skill_update",
+    description: "Propose an improvement to an existing skill's content. Submits a diff-style update for admin review — the skill is not modified until an admin approves. Use this when you discover a better approach, missing edge case, or correction in a skill you've loaded.",
+    executor_type: "propose_skill_update",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "skill_name" => { "type" => "string", "description" => "Exact name of the skill to update (must already exist)" },
+        "proposed_content" => { "type" => "string", "description" => "The full updated skill content (replaces current content on approval)" },
+        "rationale" => { "type" => "string", "description" => "Explain what you improved and why — this is shown to the admin reviewer" }
+      },
+      "required" => %w[skill_name proposed_content rationale]
+    }
+  },
+  {
+    name: "flag_skill_unhelpful",
+    description: "Flag a skill as unhelpful after loading it. Records an improvement signal so admins know the skill needs review. Use this when a skill's instructions were incorrect, incomplete, or didn't solve your problem.",
+    executor_type: "flag_skill_unhelpful",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "skill_name" => { "type" => "string", "description" => "Name of the skill to flag" },
+        "reason" => { "type" => "string", "description" => "Describe what was missing, incorrect, or unhelpful about the skill" }
+      },
+      "required" => %w[skill_name reason]
+    }
+  },
 ].freeze
 
 BUILTIN_TOOLS.each do |tool_attrs|

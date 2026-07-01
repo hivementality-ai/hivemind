@@ -2,11 +2,11 @@
 
 module Memory
   class Store
-    def self.call(agent:, content:, source: nil, metadata: {}, memory_type: "episodic", importance: 0.5, async: true)
-      new(agent:, content:, source:, metadata:, memory_type:, importance:, async:).call
+    def self.call(agent:, content:, source: nil, metadata: {}, memory_type: "episodic", importance: 0.5, async: true, category: "general")
+      new(agent:, content:, source:, metadata:, memory_type:, importance:, async:, category:).call
     end
 
-    def initialize(agent:, content:, source: nil, metadata: {}, memory_type: "episodic", importance: 0.5, async: true)
+    def initialize(agent:, content:, source: nil, metadata: {}, memory_type: "episodic", importance: 0.5, async: true, category: "general")
       @agent = agent
       @content = content
       @source = source
@@ -14,6 +14,7 @@ module Memory
       @memory_type = memory_type
       @importance = importance
       @async = async
+      @category = category
     end
 
     def call
@@ -62,7 +63,8 @@ module Memory
         source: @source,
         metadata: @metadata,
         memory_type: @memory_type,
-        importance: @importance
+        importance: @importance,
+        category: @category
       )
     end
   end

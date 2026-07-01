@@ -17,6 +17,7 @@ module Tools
       when "my_tasks"         then my_tasks
       when "add_comment"      then add_comment
       when "close"            then close_task
+      when "close_all"        then close_all_tasks
       when "add_dependency"   then add_dependency
       when "remove_dependency" then remove_dependency
       when "update_checklist" then update_checklist
@@ -27,7 +28,7 @@ module Tools
       when "activity"         then task_activity
       else
         ServiceResponse.failure(
-          error: "Unknown action: #{action}. Supported: create, update, move, assign, list, my_tasks, add_comment, close, add_dependency, remove_dependency, update_checklist, add_hook, remove_hook, add_artifact, remove_artifact, activity"
+          error: "Unknown action: #{action}. Supported: create, update, move, assign, list, my_tasks, add_comment, close, close_all, add_dependency, remove_dependency, update_checklist, add_hook, remove_hook, add_artifact, remove_artifact, activity"
         )
       end
     rescue StandardError => e
@@ -223,10 +224,59 @@ module Tools
     def close_task
       task = find_task!
 
+      if task.status == "done"
+        # Task is already done — archive it directly.
+        if task.archived?
+          return ServiceResponse.failure(error: "Task ##{task.id} is already archived")
+        end
+
+        task.archive!
+
+        Tasks::EventLogger.call(
+          task: task,
+          agent: agent,
+          event_type: "archived",
+          summary: "Task archived"
+        )
+
+        return ServiceResponse.success(data: { output: "Archived task ##{task.id}: #{task.title}" })
+      end
+
       result = Tasks::TransitionService.call(task: task, new_status: "done", agent: agent)
       return ServiceResponse.failure(error: result.error) unless result.success?
 
       ServiceResponse.success(data: { output: "Closed task ##{task.id}: #{task.title}" })
+    end
+
+    def close_all_tasks
+      scope = Task.done.not_archived
+
+      if input["assigned_to"].present?
+        target = find_agent(input["assigned_to"])
+        scope = scope.for_agent(target)
+      end
+
+      tasks = scope.to_a
+
+      if tasks.empty?
+        return ServiceResponse.success(data: { output: "No done tasks to archive." })
+      end
+
+      archived_ids = tasks.filter_map do |task|
+        task.archive!
+        Tasks::EventLogger.call(
+          task: task,
+          agent: agent,
+          event_type: "archived",
+          summary: "Task archived (bulk close_all)"
+        )
+        task.id
+      rescue => e
+        Rails.logger.warn("close_all: failed to archive task ##{task.id}: #{e.message}")
+        nil
+      end
+
+      ServiceResponse.success(data: { output: "Archived #{archived_ids.size} task(s): #{archived_ids.map { |id| "##{id}" }.join(', ')}" })
     end
 
     def add_dependency

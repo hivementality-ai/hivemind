@@ -29,4 +29,5 @@ class ServiceResponse
   def error?
     !success?
   end
+  alias_method :failure?, :error?
 end

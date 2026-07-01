@@ -38,6 +38,7 @@ Rails.application.routes.draw do
         post :interrupt
       end
     end
+    resources :tasks, only: [ :index, :show ]            # Read-only task board
     get "agents",       to: "agents#index"               # Read-only agent list + status
     get "agents/:slug", to: "agents#show", as: :agent    # Read-only agent detail
     get "activity",     to: "activity#index"              # Recent activity feed
@@ -141,11 +142,26 @@ Rails.application.routes.draw do
     member do
       patch :toggle
       get :export
+      patch :approve_proposal
+      patch :reject_proposal
+      get :history
+      patch :rollback
     end
     collection do
       post :import
       get :review_import
       post :confirm_import
+      get :export_bundle
+      post :import_bundle
+      get :proposals
+      get :update_proposals
+    end
+  end
+
+  resources :skill_update_proposals, only: [] do
+    member do
+      patch :approve_update_proposal, controller: :skills, action: :approve_update_proposal
+      patch :reject_update_proposal, controller: :skills, action: :reject_update_proposal
     end
   end
 
@@ -231,6 +247,11 @@ Rails.application.routes.draw do
   # Webhooks
   get "webhooks/:channel_type", to: "webhooks#verify"
   post "webhooks/:channel_type", to: "webhooks#receive"
+
+  # Matrix Application Service: the homeserver PUTs event transactions here.
+  # Point the AS registration `url` at this host; it appends the path below.
+  put "_matrix/app/v1/transactions/:txn_id", to: "webhooks#receive", defaults: { channel_type: "matrix" }
+  put "transactions/:txn_id", to: "webhooks#receive", defaults: { channel_type: "matrix" } # legacy r0 prefix
 
   # Integrations
   get "integrations", to: "integrations#index", as: :integrations

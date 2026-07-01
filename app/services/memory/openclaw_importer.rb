@@ -72,7 +72,7 @@ module Memory
       agent = Agent.create!(
         name: name,
         slug: slug,
-        llm_model: "claude-sonnet-4-5",
+        llm_model: LlmModelRegistry::Anthropic::DEFAULT_MID,
         model_provider: "anthropic",
         enabled: true,
         role: "General Assistant",
