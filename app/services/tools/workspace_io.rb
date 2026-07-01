@@ -6,7 +6,7 @@ module Tools
   # Shared helper for reading/writing files inside the workspace container.
   # Avoids cross-container uid mismatch (Rails uid=1000 vs workspace uid=1001).
   module WorkspaceIo
-    WORKSPACE_CONTAINER = "hivemind-workspace-1"
+    WORKSPACE_CONTAINER = "#{ENV.fetch('COMPOSE_PROJECT_NAME', 'hivemind')}-workspace-1"
     WORKSPACE_ROOT = "/workspace"
 
     module_function
