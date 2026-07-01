@@ -78,7 +78,7 @@ Sandboxing isn't a limitation — it's the feature. Every tool, every skill, eve
 - **40+ built-in tools** — shell, files, browser (Playwright), Jira, email, Gmail, cloud storage (Drive/S3/Dropbox/OneDrive/B2/SFTP), MCP client, Live Canvas, web search, vision, TTS, coding agent delegation, and more. Agents are productive on first boot.
 - **150+ agent templates** across 18 categories — researcher, engineer, writer, analyst, and more. Not starting from a blank prompt.
 - **Team chat** with @mentions — agents collaborate and chain-react in real group conversation. Not tickets. Not pipelines. Conversation.
-- **11 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark, Google Chat. Each agent gets its own Slack bot identity with thread routing.
+- **12 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark, Google Chat, Microsoft Teams. Each agent gets its own Slack bot identity with thread routing.
 - **Any AI model** — Anthropic, OpenAI, Google Gemini, Ollama, any OpenAI-compatible provider. Native extended thinking/reasoning support across all adapters. **Already paying for Anthropic Pro or Max? Use your existing subscription directly via the SDK — no separate API billing, no usage charges.** Hivemind auto-detects OAuth tokens and adds the required headers automatically.
 - **Agent self-evolution** — agents create their own tools and skills at runtime. They get smarter the more they work.
 - **Coding agent delegation** — hand off multi-file tasks to Claude Code, Codex, or Aider with live progress streaming.
@@ -168,7 +168,7 @@ Sandboxing isn't a limitation — it's the feature. Every tool, every skill, eve
 - **40+ built-in tools** — shell, files, browser (Playwright), Jira, email, Gmail, cloud storage (Drive/S3/Dropbox/OneDrive/B2/SFTP), MCP client, Live Canvas, web search, vision, TTS, coding agent delegation, and more. Agents are productive on first boot.
 - **150+ agent templates** across 18 categories — researcher, engineer, writer, analyst, and more. Not starting from a blank prompt.
 - **Team chat** with @mentions — agents collaborate and chain-react in real group conversation. Not tickets. Not pipelines. Conversation.
-- **11 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark, Google Chat. Each agent gets its own Slack bot identity with thread routing.
+- **12 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark, Google Chat, Microsoft Teams. Each agent gets its own Slack bot identity with thread routing.
 - **Any AI model** — Anthropic, OpenAI, Google Gemini, Ollama, any OpenAI-compatible provider. Native extended thinking/reasoning support across all adapters. **Already paying for Anthropic Pro or Max? Use your existing subscription directly via the SDK — no separate API billing, no usage charges.** Hivemind auto-detects OAuth tokens and adds the required headers automatically.
 - **Agent self-evolution** — agents create their own tools and skills at runtime. They get smarter the more they work.
 - **Coding agent delegation** — hand off multi-file tasks to Claude Code, Codex, or Aider with live progress streaming.
@@ -261,7 +261,7 @@ Most AI platforms give you one agent in a chat box. Hivemind gives you a **team*
 - **Team chat** with @mentions — agents collaborate and chain-react
 - **45+ built-in tools** — shell, files, browser, Jira, email, cloud storage, Gmail, vision, TTS, and more
 - **Skills system** — teach agents new capabilities, import OpenClaw SKILL.md files
-- **11 messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark, Google Chat
+- **12 messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark, Google Chat, Microsoft Teams
 - **Slack multi-bot** — each agent gets its own Slack bot identity with thread routing
 - **Coding agent** — delegate complex tasks to Claude Code, Codex, or Aider with live progress streaming
 - **File sharing** — agents create files and images, deliver them directly to chat
@@ -675,6 +675,7 @@ Connect Google Drive, Amazon S3, Dropbox, OneDrive, Backblaze B2, or SFTP throug
 | **LINE** | Messaging API webhook + push API | Channel access token + channel secret |
 | **Feishu / Lark** | Open Platform event subscription (webhook) | App ID + Verification Token + App Secret |
 | **Google Chat** | Inbound webhook (Google push) + Chat REST API for replies | Service account JSON (+ optional verification token) |
+| **Microsoft Teams** | Bot Framework (Activity webhook + Connector API) | App ID + App Password |
 
 Credentials stored in the encrypted vault. Configure via the Channels page.
 
@@ -790,6 +791,24 @@ Connect a Google Chat app. Google pushes events to a webhook; replies are sent o
    - **Service Account JSON** — the full service-account key JSON. Stored encrypted in the vault under `channel_credentials` / `google_chat_sa_json`; used to mint OAuth tokens for outbound replies.
    - **Verification Token** — optional. If set, inbound requests must carry it as the bearer token. (Full JWT signature verification against Google's public certs is a follow-up.)
 5. Add the agent to a Google Chat space and message it — replies are posted back to that space.
+
+#### Microsoft Teams
+
+Talk to an agent through a [Microsoft Bot Framework](https://dev.botframework.com/) bot. Inbound activities are POSTed to Hivemind; replies go back through the Bot Connector REST API using the activity's `serviceUrl` and `conversation.id`.
+
+1. In the [Azure portal](https://portal.azure.com/), create an **Azure Bot** resource (or an App Registration with the Bot Framework channel). Note its **Microsoft App ID** and generate a client secret (**App Password**).
+2. Enable the **Microsoft Teams** channel on the bot.
+3. Set the bot's **Messaging endpoint** to:
+   ```
+   https://your-hivemind-host/webhooks/msteams
+   ```
+   Hivemind handles inbound Activities (`type: "message"`); `<at>` mentions are stripped before reaching the agent.
+4. Add the bot to a team or 1:1 chat and send it a message to test the connection.
+5. In Hivemind → **Channels → Add Channel → Microsoft Teams**, set:
+   - **App ID (client_id)** — the Azure Bot's Microsoft App ID, stored in the channel's config
+   - **App Password (client secret)** — the client secret, stored encrypted in the vault under namespace `channel_credentials` / key `msteams_app_password`
+
+Outbound replies authenticate with an AAD client-credentials token (`scope: https://api.botframework.com/.default`) fetched with the App ID + App Password and posted to `{serviceUrl}/v3/conversations/{conversationId}/activities`.
 
 #### Voice notes (automatic transcription)
 
