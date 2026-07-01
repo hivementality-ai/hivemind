@@ -23,7 +23,7 @@
     <div>
       <%= f.label :channel_type, "Platform", class: "block text-text-primary text-sm font-medium mb-1" %>
       <%= f.select :channel_type,
-          [["Discord", "discord"], ["Slack", "slack"], ["Telegram", "telegram"], ["WhatsApp", "whatsapp"], ["Signal", "signal"], ["Matrix", "matrix"], ["Email", "email"], ["Mattermost", "mattermost"], ["LINE", "line"], ["Feishu / Lark", "feishu"], ["Google Chat", "google_chat"], ["Microsoft Teams", "msteams"]],
+          [["Discord", "discord"], ["Slack", "slack"], ["Telegram", "telegram"], ["WhatsApp", "whatsapp"], ["Signal", "signal"], ["Matrix", "matrix"], ["Email", "email"], ["Mattermost", "mattermost"], ["LINE", "line"], ["Feishu / Lark", "feishu"], ["Google Chat", "google_chat"], ["Microsoft Teams", "msteams"], ["iMessage (BlueBubbles)", "imessage"]],
           { prompt: "Select platform..." },
           class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand" %>
     </div>
@@ -376,6 +376,36 @@
           <label class="block text-text-muted text-sm mb-1">Reply Subject <span class="text-text-faint">(optional)</span></label>
           <%= text_field_tag "channel[config][reply_subject]", channel.config&.dig("reply_subject"), placeholder: "Message from your Hivemind agent",
               class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand text-sm" %>
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Webhook Secret <span class="text-text-faint">(optional)</span></label>
+          <%= text_field_tag "channel[config][webhook_secret]", channel.config&.dig("webhook_secret"), placeholder: "random-secret-string",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm", autocomplete: "off" %>
+        </div>
+      </div>
+
+      <!-- iMessage (BlueBubbles) -->
+      <div class="space-y-4" data-channel-fields-target="imessage" style="display: none;">
+        <div class="bg-surface-base rounded-lg border border-border-default p-5">
+          <h4 class="text-white font-medium mb-3">iMessage Setup (BlueBubbles)</h4>
+          <p class="text-text-muted text-sm mb-3">Talk to an agent over iMessage via a self-hosted <a href="https://bluebubbles.app" class="text-amber-300" target="_blank" rel="noopener">BlueBubbles</a> server. Requires a Mac running the BlueBubbles server.</p>
+          <ol class="text-text-muted text-sm space-y-2 list-decimal list-inside">
+            <li>Install the <strong class="text-white">BlueBubbles Server</strong> on a Mac signed into iMessage and set a <strong class="text-white">server password</strong>.</li>
+            <li>Expose the server's URL (LAN, ngrok, or Tailscale) and enter it as the <strong class="text-white">Server URL</strong> below, plus the <strong class="text-white">Server Password</strong>.</li>
+            <li>In BlueBubbles, add a webhook pointing at <code class="text-amber-300"><%= (request.base_url rescue "https://your-host") %>/webhooks/imessage</code> subscribed to the <code class="text-amber-300">new-message</code> event.</li>
+            <li>Optionally set a <strong class="text-white">Webhook Secret</strong> and append <code class="text-amber-300">?secret=...</code> to the webhook URL to reject forged inbound messages.</li>
+          </ol>
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">BlueBubbles Server URL</label>
+          <%= text_field_tag "channel[config][server_url]", channel.config&.dig("server_url"), placeholder: "http://localhost:1234",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm" %>
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Server Password</label>
+          <%= text_field_tag "credentials[bluebubbles_password]", creds["bluebubbles_password"], placeholder: "BlueBubbles server password",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm", autocomplete: "off" %>
+          <p class="text-text-faint text-xs mt-1">Stored encrypted in the vault. Used to authenticate to your BlueBubbles server.</p>
         </div>
         <div>
           <label class="block text-text-muted text-sm mb-1">Webhook Secret <span class="text-text-faint">(optional)</span></label>

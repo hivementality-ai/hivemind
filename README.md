@@ -78,7 +78,7 @@ Sandboxing isn't a limitation — it's the feature. Every tool, every skill, eve
 - **40+ built-in tools** — shell, files, browser (Playwright), Jira, email, Gmail, cloud storage (Drive/S3/Dropbox/OneDrive/B2/SFTP), MCP client, Live Canvas, web search, vision, TTS, coding agent delegation, and more. Agents are productive on first boot.
 - **150+ agent templates** across 18 categories — researcher, engineer, writer, analyst, and more. Not starting from a blank prompt.
 - **Team chat** with @mentions — agents collaborate and chain-react in real group conversation. Not tickets. Not pipelines. Conversation.
-- **12 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark, Google Chat, Microsoft Teams. Each agent gets its own Slack bot identity with thread routing.
+- **13 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark, Google Chat, Microsoft Teams, iMessage. Each agent gets its own Slack bot identity with thread routing.
 - **Any AI model** — Anthropic, OpenAI, Google Gemini, Ollama, any OpenAI-compatible provider. Native extended thinking/reasoning support across all adapters. **Already paying for Anthropic Pro or Max? Use your existing subscription directly via the SDK — no separate API billing, no usage charges.** Hivemind auto-detects OAuth tokens and adds the required headers automatically.
 - **Agent self-evolution** — agents create their own tools and skills at runtime. They get smarter the more they work.
 - **Coding agent delegation** — hand off multi-file tasks to Claude Code, Codex, or Aider with live progress streaming.
@@ -168,7 +168,7 @@ Sandboxing isn't a limitation — it's the feature. Every tool, every skill, eve
 - **40+ built-in tools** — shell, files, browser (Playwright), Jira, email, Gmail, cloud storage (Drive/S3/Dropbox/OneDrive/B2/SFTP), MCP client, Live Canvas, web search, vision, TTS, coding agent delegation, and more. Agents are productive on first boot.
 - **150+ agent templates** across 18 categories — researcher, engineer, writer, analyst, and more. Not starting from a blank prompt.
 - **Team chat** with @mentions — agents collaborate and chain-react in real group conversation. Not tickets. Not pipelines. Conversation.
-- **12 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark, Google Chat, Microsoft Teams. Each agent gets its own Slack bot identity with thread routing.
+- **13 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark, Google Chat, Microsoft Teams, iMessage. Each agent gets its own Slack bot identity with thread routing.
 - **Any AI model** — Anthropic, OpenAI, Google Gemini, Ollama, any OpenAI-compatible provider. Native extended thinking/reasoning support across all adapters. **Already paying for Anthropic Pro or Max? Use your existing subscription directly via the SDK — no separate API billing, no usage charges.** Hivemind auto-detects OAuth tokens and adds the required headers automatically.
 - **Agent self-evolution** — agents create their own tools and skills at runtime. They get smarter the more they work.
 - **Coding agent delegation** — hand off multi-file tasks to Claude Code, Codex, or Aider with live progress streaming.
@@ -261,7 +261,7 @@ Most AI platforms give you one agent in a chat box. Hivemind gives you a **team*
 - **Team chat** with @mentions — agents collaborate and chain-react
 - **45+ built-in tools** — shell, files, browser, Jira, email, cloud storage, Gmail, vision, TTS, and more
 - **Skills system** — teach agents new capabilities, import OpenClaw SKILL.md files
-- **12 messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark, Google Chat, Microsoft Teams
+- **13 messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark, Google Chat, Microsoft Teams, iMessage
 - **Slack multi-bot** — each agent gets its own Slack bot identity with thread routing
 - **Coding agent** — delegate complex tasks to Claude Code, Codex, or Aider with live progress streaming
 - **File sharing** — agents create files and images, deliver them directly to chat
@@ -676,6 +676,7 @@ Connect Google Drive, Amazon S3, Dropbox, OneDrive, Backblaze B2, or SFTP throug
 | **Feishu / Lark** | Open Platform event subscription (webhook) | App ID + Verification Token + App Secret |
 | **Google Chat** | Inbound webhook (Google push) + Chat REST API for replies | Service account JSON (+ optional verification token) |
 | **Microsoft Teams** | Bot Framework (Activity webhook + Connector API) | App ID + App Password |
+| **iMessage** | BlueBubbles REST + webhook | Server password (+ optional webhook secret) |
 
 Credentials stored in the encrypted vault. Configure via the Channels page.
 
@@ -809,6 +810,23 @@ Talk to an agent through a [Microsoft Bot Framework](https://dev.botframework.co
    - **App Password (client secret)** — the client secret, stored encrypted in the vault under namespace `channel_credentials` / key `msteams_app_password`
 
 Outbound replies authenticate with an AAD client-credentials token (`scope: https://api.botframework.com/.default`) fetched with the App ID + App Password and posted to `{serviceUrl}/v3/conversations/{conversationId}/activities`.
+
+#### iMessage (BlueBubbles)
+
+Talk to an agent over iMessage via a self-hosted [BlueBubbles](https://bluebubbles.app) server. Apple has no official iMessage API; BlueBubbles is a macOS app that runs on a Mac signed into iMessage and exposes a REST API plus outgoing webhooks.
+
+1. Install the **BlueBubbles Server** on a Mac signed into iMessage and set a **server password** in its settings.
+2. Expose the BlueBubbles server's URL (LAN, ngrok, or Tailscale — anything Hivemind can reach).
+3. In BlueBubbles, add a webhook pointing at:
+   ```
+   https://your-hivemind-host/webhooks/imessage
+   ```
+   Subscribe it to the `new-message` event. Optionally append `?secret=<your-shared-secret>` to require a shared secret on inbound requests.
+4. In Hivemind → **Channels → Add Channel → iMessage**, set:
+   - **BlueBubbles Server URL** — the exposed server base URL, e.g. `http://localhost:1234`
+   - **Server Password** — the BlueBubbles server password (stored encrypted in the vault)
+   - **Webhook Secret** — the shared secret from step 3 (only if you appended `?secret=...`)
+5. Send a message to the iMessage account BlueBubbles is signed into from another device — replies are posted back to the same chat.
 
 #### Voice notes (automatic transcription)
 

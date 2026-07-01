@@ -14,7 +14,8 @@ module Channels
       "line" => "Channels::LineAdapter",
       "feishu" => "Channels::FeishuAdapter",
       "google_chat" => "Channels::GoogleChatAdapter",
-      "msteams" => "Channels::MsteamsAdapter"
+      "msteams" => "Channels::MsteamsAdapter",
+      "imessage" => "Channels::ImessageAdapter"
     }.freeze
 
     # Backwards compatibility alias
