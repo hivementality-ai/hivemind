@@ -225,7 +225,7 @@ Both are open-source multi-agent platforms. Different strengths.
   - [Web Search](#web-search)
   - [Image Support](#image-support)
   - [Cloud Storage](#cloud-storage)
-  - [7 Messaging Channels](#7-messaging-channels)
+  - [8 Messaging Channels](#8-messaging-channels)
   - [Autonomous Heartbeat](#autonomous-heartbeat)
   - [Sub-Agent Orchestration](#sub-agent-orchestration)
   - [Coding Agent](#coding-agent)
@@ -660,7 +660,7 @@ Send images to agents via upload, clipboard paste, or drag-and-drop (up to 5 per
 
 Connect Google Drive, Amazon S3, Dropbox, OneDrive, Backblaze B2, or SFTP through the Integrations page. Uses rclone under the hood. OAuth backends (Drive, Dropbox, OneDrive) use a token-paste flow — run `rclone authorize` locally, paste the token in the UI.
 
-### 7 Messaging Channels
+### 8 Messaging Channels
 
 | Channel | Method | Auth |
 |---------|--------|------|
@@ -671,6 +671,7 @@ Connect Google Drive, Amazon S3, Dropbox, OneDrive, Backblaze B2, or SFTP throug
 | **Signal** | signal-cli REST API via connector | Phone number registration |
 | **Matrix** | Application Service (homeserver push + client API) | Access token + hs_token |
 | **Email** | Provider inbound-parse webhook + SMTP | From address (+ optional secret) |
+| **Google Chat** | Inbound webhook (Google push) + Chat REST API for replies | Service account JSON (+ optional verification token) |
 
 Credentials stored in the encrypted vault. Configure via the Channels page.
 
@@ -712,6 +713,21 @@ Talk to an agent over email. Inbound uses your mail provider's **inbound-parse w
    - **From Address** — the address replies are sent from (e.g. `agent@yourdomain.com`)
    - **Reply Subject** — optional subject for replies
    - **Webhook Secret** — optional; append `?secret=...` to the webhook URL so forged inbound mail is rejected
+
+#### Google Chat
+
+Connect a Google Chat app. Google pushes events to a webhook; replies are sent over the [Chat REST API](https://developers.google.com/chat/api/guides/v1/messages/create) using a service account (OAuth2 JWT-bearer, minted on the fly — no extra gem required).
+
+1. In [Google Cloud Console](https://console.cloud.google.com/) → enable the **Google Chat API**, then open its **Configuration** page.
+2. Under **Connection settings** choose HTTP endpoint and set the URL to:
+   ```
+   https://your-hivemind-host/webhooks/google_chat
+   ```
+3. Create a **service account** for the app, download its JSON key, and have it ready.
+4. In Hivemind → **Channels → Add Channel → Google Chat**, set:
+   - **Service Account JSON** — the full service-account key JSON. Stored encrypted in the vault under `channel_credentials` / `google_chat_sa_json`; used to mint OAuth tokens for outbound replies.
+   - **Verification Token** — optional. If set, inbound requests must carry it as the bearer token. (Full JWT signature verification against Google's public certs is a follow-up.)
+5. Add the agent to a Google Chat space and message it — replies are posted back to that space.
 
 #### Voice notes (automatic transcription)
 
