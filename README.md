@@ -78,7 +78,7 @@ Sandboxing isn't a limitation — it's the feature. Every tool, every skill, eve
 - **40+ built-in tools** — shell, files, browser (Playwright), Jira, email, Gmail, cloud storage (Drive/S3/Dropbox/OneDrive/B2/SFTP), MCP client, Live Canvas, web search, vision, TTS, coding agent delegation, and more. Agents are productive on first boot.
 - **150+ agent templates** across 18 categories — researcher, engineer, writer, analyst, and more. Not starting from a blank prompt.
 - **Team chat** with @mentions — agents collaborate and chain-react in real group conversation. Not tickets. Not pipelines. Conversation.
-- **7 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Email. Each agent gets its own Slack bot identity with thread routing.
+- **10 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark. Each agent gets its own Slack bot identity with thread routing.
 - **Any AI model** — Anthropic, OpenAI, Google Gemini, Ollama, any OpenAI-compatible provider. Native extended thinking/reasoning support across all adapters. **Already paying for Anthropic Pro or Max? Use your existing subscription directly via the SDK — no separate API billing, no usage charges.** Hivemind auto-detects OAuth tokens and adds the required headers automatically.
 - **Agent self-evolution** — agents create their own tools and skills at runtime. They get smarter the more they work.
 - **Coding agent delegation** — hand off multi-file tasks to Claude Code, Codex, or Aider with live progress streaming.
@@ -168,7 +168,7 @@ Sandboxing isn't a limitation — it's the feature. Every tool, every skill, eve
 - **40+ built-in tools** — shell, files, browser (Playwright), Jira, email, Gmail, cloud storage (Drive/S3/Dropbox/OneDrive/B2/SFTP), MCP client, Live Canvas, web search, vision, TTS, coding agent delegation, and more. Agents are productive on first boot.
 - **150+ agent templates** across 18 categories — researcher, engineer, writer, analyst, and more. Not starting from a blank prompt.
 - **Team chat** with @mentions — agents collaborate and chain-react in real group conversation. Not tickets. Not pipelines. Conversation.
-- **7 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Email. Each agent gets its own Slack bot identity with thread routing.
+- **10 fully integrated messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark. Each agent gets its own Slack bot identity with thread routing.
 - **Any AI model** — Anthropic, OpenAI, Google Gemini, Ollama, any OpenAI-compatible provider. Native extended thinking/reasoning support across all adapters. **Already paying for Anthropic Pro or Max? Use your existing subscription directly via the SDK — no separate API billing, no usage charges.** Hivemind auto-detects OAuth tokens and adds the required headers automatically.
 - **Agent self-evolution** — agents create their own tools and skills at runtime. They get smarter the more they work.
 - **Coding agent delegation** — hand off multi-file tasks to Claude Code, Codex, or Aider with live progress streaming.
@@ -225,7 +225,7 @@ Both are open-source multi-agent platforms. Different strengths.
   - [Web Search](#web-search)
   - [Image Support](#image-support)
   - [Cloud Storage](#cloud-storage)
-  - [7 Messaging Channels](#7-messaging-channels)
+  - [8 Messaging Channels](#8-messaging-channels)
   - [Autonomous Heartbeat](#autonomous-heartbeat)
   - [Sub-Agent Orchestration](#sub-agent-orchestration)
   - [Coding Agent](#coding-agent)
@@ -261,7 +261,7 @@ Most AI platforms give you one agent in a chat box. Hivemind gives you a **team*
 - **Team chat** with @mentions — agents collaborate and chain-react
 - **45+ built-in tools** — shell, files, browser, Jira, email, cloud storage, Gmail, vision, TTS, and more
 - **Skills system** — teach agents new capabilities, import OpenClaw SKILL.md files
-- **7 messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Email
+- **10 messaging channels** — Discord, Slack, Telegram, WhatsApp, Signal, Matrix, Mattermost, Email, LINE, Feishu / Lark
 - **Slack multi-bot** — each agent gets its own Slack bot identity with thread routing
 - **Coding agent** — delegate complex tasks to Claude Code, Codex, or Aider with live progress streaming
 - **File sharing** — agents create files and images, deliver them directly to chat
@@ -353,7 +353,7 @@ Hivemind is an **agent sandbox** — a platform where AI agents live, work, and 
 | **Integrations** | Credentials and connections to **external services**. Configured via UI, stored encrypted in vault. | Jira (URL + email + token), SMTP (host + port + auth), Cloud Storage (OAuth) |
 | **API Integrations** | Connect to **any API** by importing an OpenAPI/Swagger spec. Agents call endpoints via `http_request`. | Import Stripe's API spec → agent can create charges, list customers |
 | **Custom Tools** | User-created script tools with `{{param}}` templates. No code deploy needed. | A `deploy_staging` tool that runs `kubectl rollout restart deploy/{{service}}` |
-| **Channels** | Messaging surfaces where humans **talk to agents**. Inbound/outbound message routing. | WhatsApp, Discord, Slack, Telegram, Signal, Matrix, Email |
+| **Channels** | Messaging surfaces where humans **talk to agents**. Inbound/outbound message routing. | WhatsApp, Discord, Slack, Telegram, Signal, Matrix, Mattermost, Email, LINE |
 | **Agents** | AI personalities with a role, model, tools, skills, and instructions. The workers. | "Devon" — Software Engineer on Claude Sonnet with GitHub + Docker skills |
 | **Teams** | Groups of agents with shared context. Enables collaboration. | Backend Team: Devon (engineer) + Doc (reviewer) + Liam (tester) |
 
@@ -670,7 +670,9 @@ Connect Google Drive, Amazon S3, Dropbox, OneDrive, Backblaze B2, or SFTP throug
 | **WhatsApp** | Connector sidecar (Baileys) | QR code scan |
 | **Signal** | signal-cli REST API via connector | Phone number registration |
 | **Matrix** | Application Service (homeserver push + client API) | Access token + hs_token |
+| **Mattermost** | Outgoing webhook (inbound) + REST API v4 (outbound) | Bot access token + outgoing webhook token |
 | **Email** | Provider inbound-parse webhook + SMTP | From address (+ optional secret) |
+| **LINE** | Messaging API webhook + push API | Channel access token + channel secret |
 | **Feishu / Lark** | Open Platform event subscription (webhook) | App ID + Verification Token + App Secret |
 
 Credentials stored in the encrypted vault. Configure via the Channels page.
@@ -714,6 +716,42 @@ Talk to an agent over email. Inbound uses your mail provider's **inbound-parse w
    - **Reply Subject** — optional subject for replies
    - **Webhook Secret** — optional; append `?secret=...` to the webhook URL so forged inbound mail is rejected
 
+#### Mattermost
+
+Connect a bot on any Mattermost server (self-hosted, Mattermost Cloud, or Omnibus). Inbound is delivered via an [Outgoing Webhook](https://docs.mattermost.com/developer/webhooks-outgoing.html); replies go back over the [REST API v4](https://api.mattermost.com/).
+
+1. In Mattermost, create a bot account:
+   - **Main Menu → Integrations → Bot Accounts → Add Bot Account**
+   - Pick a username (e.g. `hivemind`) and role, then save — Mattermost shows the **Access Token** once. Copy it.
+2. Create an **Outgoing Webhook** to deliver inbound messages:
+   - **Main Menu → Integrations → Outgoing Webhooks → Add Outgoing Webhook**
+   - **Content Type:** `application/x-www-form-urlencoded`
+   - **Trigger Words:** one or more words (e.g. `hivemind,`) — only messages matching a trigger are forwarded
+   - **Callback URL:** `https://your-hivemind-host/webhooks/mattermost`
+   - Save and copy the **Token** Mattermost shows for the webhook
+3. In Hivemind → **Channels → Add Channel → Mattermost**, set:
+   - **Base URL** — e.g. `https://mattermost.example.com` (no trailing slash)
+   - **Bot Access Token** — the access token from step 1, stored encrypted in the vault under `channel_credentials.mattermost_bot_token`
+   - **Outgoing Webhook Token** — the token from step 2, used to verify inbound payloads. Stored as `channel_credentials.mattermost_outgoing_token` or `channel.config["outgoing_token"]`. Leave blank in development to skip verification.
+   - **Bot User ID** — optional; your bot's Mattermost user id (`channel.config["bot_user_id"]`), so the adapter ignores echoes of the bot's own messages
+4. In any Mattermost channel the bot has joined, messages beginning with a configured trigger word are routed to the agent and the reply is posted back to the same channel via `POST {base_url}/api/v4/posts`.
+
+#### LINE
+
+Connect a LINE Official Account bot via the [Messaging API](https://developers.line.biz/en/services/messaging-api/). Inbound arrives as a webhook POST to Hivemind; replies are sent over the push API. Audio messages are transcribed automatically (see [Voice notes](#voice-notes-automatic-transcription) below).
+
+1. In the [LINE Developers console](https://developers.line.biz/console/), create a provider and a **Messaging API** channel.
+2. Under **Messaging API**, set the **Webhook URL** to:
+   ```
+   https://your-hivemind-host/webhooks/line
+   ```
+   and enable **Use webhook**. Turn off **Auto-reply messages** so the bot doesn't double-respond.
+3. Copy the **Channel access token** (long-lived) and **Channel secret** from the **Messaging API** tab.
+4. In Hivemind → **Channels → Add Channel → LINE**, set:
+   - **Channel Access Token** — used to send replies and download inbound audio (vault key `line_channel_access_token`)
+   - **Channel Secret** — verifies the `X-Line-Signature` header on inbound webhooks (vault key `line_channel_secret`)
+5. Add your bot as a friend (scan the QR code on the **Messaging API** tab) or share the LINE Official Account ID. Message it — replies are posted back to the same user / group / room.
+
 #### Feishu / Lark
 
 Talk to an agent on Feishu (the China-facing platform at `open.feishu.cn`) or Lark (the international platform at `open.larksuite.com`). Inbound uses the [Open Platform event subscription](https://open.feishu.cn/document/server-docs/event-subscription-guide/overview) (v2 webhook); replies are sent over the IM v1 messages API with a `tenant_access_token` minted from the app credentials.
@@ -739,7 +777,7 @@ Talk to an agent on Feishu (the China-facing platform at `open.feishu.cn`) or La
 
 #### Voice notes (automatic transcription)
 
-Inbound voice notes / audio messages are transcribed to text automatically before the agent sees them, on WhatsApp, Telegram, Matrix, and Email (audio attachments). Transcription uses the `stt` tool — OpenAI Whisper if an OpenAI key is configured, otherwise a local `whisper` binary if available. No per-channel setup is required.
+Inbound voice notes / audio messages are transcribed to text automatically before the agent sees them, on WhatsApp, Telegram, Matrix, LINE, and Email (audio attachments). Transcription uses the `stt` tool — OpenAI Whisper if an OpenAI key is configured, otherwise a local `whisper` binary if available. No per-channel setup is required.
 
 ### Google Workspace
 

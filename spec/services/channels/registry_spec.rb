@@ -102,7 +102,7 @@ RSpec.describe Channels::Registry do
       types = described_class.supported_types
 
       expect(types).to be_an(Array)
-      expect(types).to include('discord', 'slack', 'telegram', 'whatsapp', 'signal', 'matrix', 'email', 'feishu')
+      expect(types).to include('discord', 'slack', 'telegram', 'whatsapp', 'signal', 'matrix', 'email', 'mattermost', 'line', 'feishu')
       expect(types.size).to eq(Channels::Registry::BUILTIN_ADAPTERS.size)
     end
 

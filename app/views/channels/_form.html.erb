@@ -23,7 +23,7 @@
     <div>
       <%= f.label :channel_type, "Platform", class: "block text-text-primary text-sm font-medium mb-1" %>
       <%= f.select :channel_type,
-          [["Discord", "discord"], ["Slack", "slack"], ["Telegram", "telegram"], ["WhatsApp", "whatsapp"], ["Signal", "signal"], ["Matrix", "matrix"], ["Email", "email"], ["Feishu / Lark", "feishu"]],
+          [["Discord", "discord"], ["Slack", "slack"], ["Telegram", "telegram"], ["WhatsApp", "whatsapp"], ["Signal", "signal"], ["Matrix", "matrix"], ["Email", "email"], ["Mattermost", "mattermost"], ["LINE", "line"], ["Feishu / Lark", "feishu"]],
           { prompt: "Select platform..." },
           class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand" %>
     </div>
@@ -418,6 +418,67 @@
           <%= text_field_tag "channel[config][base_url]", channel.config&.dig("base_url"), placeholder: "https://open.feishu.cn",
               class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm" %>
           <p class="text-text-faint text-xs mt-1"><code class="text-amber-300">open.feishu.cn</code> for China, <code class="text-amber-300">open.larksuite.com</code> for international.</p>
+        </div>
+      </div>
+
+      <!-- LINE -->
+      <div class="space-y-4" data-channel-fields-target="line" style="display: none;">
+        <div class="bg-surface-base rounded-lg border border-border-default p-5">
+          <h4 class="text-white font-medium mb-3">LINE Setup (Messaging API)</h4>
+          <p class="text-text-muted text-sm mb-3">Connect a LINE Official Account bot via the Messaging API. Inbound uses a webhook; replies use the push API.</p>
+          <ol class="text-text-muted text-sm space-y-2 list-decimal list-inside">
+            <li>In the <a href="https://developers.line.biz/console/" target="_blank" rel="noopener" class="text-brand-light underline">LINE Developers console</a>, create a provider and a <strong class="text-white">Messaging API</strong> channel.</li>
+            <li>Under <strong class="text-white">Messaging API</strong>, set the webhook URL to <code class="text-amber-300"><%= (request.base_url rescue "https://your-host") %>/webhooks/line</code> and enable "Use webhook".</li>
+            <li>Copy the <strong class="text-white">Channel access token</strong> and <strong class="text-white">Channel secret</strong> below. Both are stored encrypted in the vault.</li>
+          </ol>
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Channel Access Token</label>
+          <%= text_field_tag "credentials[line_channel_access_token]", creds["line_channel_access_token"], placeholder: "long-lived token",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm", autocomplete: "off" %>
+          <p class="text-text-faint text-xs mt-1">Used to send replies and download audio messages.</p>
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Channel Secret</label>
+          <%= text_field_tag "credentials[line_channel_secret]", creds["line_channel_secret"], placeholder: "channel secret",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm", autocomplete: "off" %>
+          <p class="text-text-faint text-xs mt-1">Verifies the <code class="text-amber-300">X-Line-Signature</code> header on inbound webhooks.</p>
+        </div>
+      </div>
+
+      <!-- Mattermost -->
+      <div class="space-y-4" data-channel-fields-target="mattermost" style="display: none;">
+        <div class="bg-surface-base rounded-lg border border-border-default p-5">
+          <h4 class="text-white font-medium mb-3">Mattermost Setup</h4>
+          <p class="text-text-muted text-sm mb-3">Inbound via an Outgoing Webhook; replies via the REST API v4 with a bot access token.</p>
+          <ol class="text-text-muted text-sm space-y-2 list-decimal list-inside">
+            <li>In Mattermost, create a <strong class="text-white">Bot Account</strong> (Integrations → Bot Accounts) and copy its access token into <strong class="text-white">Bot Token</strong> below.</li>
+            <li>Create an <strong class="text-white">Outgoing Webhook</strong> (Integrations → Outgoing Webhooks). Set the Callback URL to <code class="text-amber-300"><%= (request.base_url rescue "https://your-host") %>/webhooks/mattermost</code> and add a trigger word. Copy its token into <strong class="text-white">Outgoing Token</strong>.</li>
+            <li>Set <strong class="text-white">Base URL</strong> to your Mattermost server. Optionally set <strong class="text-white">Bot User ID</strong> so the bot ignores its own posts.</li>
+          </ol>
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Base URL</label>
+          <%= text_field_tag "channel[config][base_url]", channel.config&.dig("base_url"), placeholder: "https://mattermost.example.com",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm" %>
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Bot Token</label>
+          <%= text_field_tag "credentials[mattermost_bot_token]", creds["mattermost_bot_token"], placeholder: "bot access token",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm", autocomplete: "off" %>
+          <p class="text-text-faint text-xs mt-1">Stored encrypted in the vault. Used to post replies via the v4 API.</p>
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Outgoing Token</label>
+          <%= text_field_tag "channel[config][outgoing_token]", channel.config&.dig("outgoing_token"), placeholder: "outgoing webhook token",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm", autocomplete: "off" %>
+          <p class="text-text-faint text-xs mt-1">Verifies inbound webhook posts came from your Mattermost server.</p>
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Bot User ID <span class="text-text-faint">(optional)</span></label>
+          <%= text_field_tag "channel[config][bot_user_id]", channel.config&.dig("bot_user_id"), placeholder: "the bot's user id",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm" %>
+          <p class="text-text-faint text-xs mt-1">If set, the bot ignores its own posts to avoid reply loops.</p>
         </div>
       </div>
 
