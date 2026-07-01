@@ -47,7 +47,7 @@ gem "kamal", require: false
 gem "thruster", require: false
 
 # ActiveRecord Encryption + pgvector for memory search
-gem "neighbor", "~> 1.0"
+gem "neighbor", "~> 1.1"
 
 # Image processing
 gem "image_processing", "~> 1.2"
