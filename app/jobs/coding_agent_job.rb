@@ -6,7 +6,7 @@ require "fileutils"
 class CodingAgentJob < ApplicationJob
   queue_as :agents
 
-  WORKSPACE_CONTAINER = "hivemind-workspace-1"
+  WORKSPACE_CONTAINER = "#{ENV.fetch('COMPOSE_PROJECT_NAME', 'hivemind')}-workspace-1"
   EXEC_DIR = "/workspace/.hivemind/exec"
   BROADCAST_INTERVAL = 5 # seconds between progress broadcasts
 

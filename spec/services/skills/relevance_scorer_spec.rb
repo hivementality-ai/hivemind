@@ -57,7 +57,7 @@ RSpec.describe Skills::RelevanceScorer, type: :service do
 
       it "compounds multiple matching patterns" do
         skill = build_skill(trigger_patterns: ["open.*pr", "create.*pull.?request"])
-        score = described_class.score(skill: skill, context: "open a pr by creating a pull request")
+        score = described_class.score(skill: skill, context: "open a pr by create a pull request")
         expect(score).to be_within(0.001).of(1.0)
       end
 

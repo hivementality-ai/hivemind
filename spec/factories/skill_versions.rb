@@ -5,7 +5,7 @@ FactoryBot.define do
     association :skill
     sequence(:version_number) { |n| n }
     content { "# Test Skill\n\nVersion content." }
-    checksum { Digest::SHA256.hexdigest(content) }
+    checksum { Digest::SHA256.hexdigest(content.to_s) }
     change_source { "manual" }
     change_summary { "Test version" }
   end
