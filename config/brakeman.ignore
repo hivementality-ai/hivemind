@@ -25,28 +25,28 @@
       "note": "Net::HTTP to admin-configured API base URL \u2014 not user input"
     },
     {
-      "fingerprint": "153c96f299cf01d99d3f778964747f7caadaf507cd401b275463208e56440d29",
-      "note": "CodingAgentJob: Open3.capture3 with fixed docker command array + script file path we control"
+      "fingerprint": "b93ae9ee4700f171a5446ba998686f8ed4e63d69e29df0da50b8d63ecba18792",
+      "note": "CodingAgentJob: Open3.capture3 with fixed docker command array + script file path we control; container name derives from COMPOSE_PROJECT_NAME (operator .env), passed as an argv element with no shell"
     },
     {
       "fingerprint": "79770329b85047f80227d131cc80d6358fd442a83cc02643a2768a580111efde",
       "note": "Glob executor: pattern is shell_escaped, runs in isolated workspace container"
     },
     {
-      "fingerprint": "42239107414e72caff8d49d8142bce28e4a7849936a5d91693253e9545bc0b99",
-      "note": "Shell executor: paths use SecureRandom.hex, runs in isolated workspace container"
+      "fingerprint": "3764c74ea8c92b09a432253d9c7f39afffcad77d9ed5af73b0b78f35a6c4bd14",
+      "note": "Shell executor: paths use SecureRandom.hex, runs in isolated workspace container; container name from COMPOSE_PROJECT_NAME (operator .env), argv element, no shell"
     },
     {
-      "fingerprint": "b1713fc97bca9481b64984928958829337b9c88e4030bf3a32ccdee6369d2bb7",
-      "note": "Shell executor cleanup: paths use SecureRandom.hex, runs in isolated container"
+      "fingerprint": "8fb2702d96b345bb7677cc3b5a6561b8b7870a593beff6a050e3e4597af2e7cd",
+      "note": "Shell executor cleanup: paths use SecureRandom.hex, runs in isolated container; container name from COMPOSE_PROJECT_NAME (operator .env), argv element, no shell"
     },
     {
-      "fingerprint": "f84e3f1263939fe7ba90c784a0078690db0d8434af90f1be49b0ad469b35cfdc",
-      "note": "WorkspaceIo: path is shell_escaped, runs in isolated workspace container"
+      "fingerprint": "d8f0564e703c14f20ae96fcba06ecf66046ab824039ba6fcdf815a39617a4ea0",
+      "note": "WorkspaceIo: path is shell_escaped, runs in isolated workspace container; container name from COMPOSE_PROJECT_NAME (operator .env), argv element, no shell"
     },
     {
-      "fingerprint": "f2105dd5a551f89e6489f6e2d2e8d30f48ce2d184d340ee01b42ea7272b8c24e",
-      "note": "False positive: server.command is Shellwords.shellsplit into array args, no shell interpretation"
+      "fingerprint": "e806f7f403a69357ce553f9cf222a0375b9afbed2558228e5f31d53e61275d25",
+      "note": "False positive: server.command is Shellwords.shellsplit into array args, no shell interpretation; container name from COMPOSE_PROJECT_NAME (operator .env), argv element"
     },
     {
       "fingerprint": "f0cfac6eb72acdb919a1c91d8966f9f95ccd32aca2c61f99259b3468099c34dc",

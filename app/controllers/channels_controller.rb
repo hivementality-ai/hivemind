@@ -29,22 +29,21 @@ class ChannelsController < ApplicationController
   def edit; end
 
   def connect
-    @connector_url = @channel.config&.dig("connector_url") || "http://connector:3002"
+    @connector_url = connector_url_for(@channel)
 
-    # Trigger WhatsApp connection on the connector (so it starts generating QR)
+    # Trigger connection on the connector so it starts generating a QR.
+    # Signal links a device via signal-cli; WhatsApp pairs via Baileys.
     begin
-      uri = URI("#{@connector_url}/connect")
+      uri = URI("#{@connector_url}#{connector_path(@channel, 'connect')}")
       Net::HTTP.post(uri, "", "Content-Type" => "application/json")
     rescue StandardError => e
-      Rails.logger.warn("[Channels] Failed to trigger WhatsApp connect: #{e.message}")
+      Rails.logger.warn("[Channels] Failed to trigger #{@channel.channel_type} connect: #{e.message}")
     end
   end
 
   # Proxy health check to connector (browser can't reach Docker network)
   def connector_health
-    connector_url = @channel.config&.dig("connector_url") || "http://connector:3002"
-
-    uri = URI("#{connector_url}/health")
+    uri = URI("#{connector_url_for(@channel)}#{connector_path(@channel, 'health')}")
     response = Net::HTTP.get_response(uri)
     render json: response.body, status: response.code.to_i
   rescue StandardError => e
@@ -53,9 +52,7 @@ class ChannelsController < ApplicationController
 
   # Proxy QR code request to connector
   def connector_qr
-    connector_url = @channel.config&.dig("connector_url") || "http://connector:3002"
-
-    uri = URI("#{connector_url}/qr")
+    uri = URI("#{connector_url_for(@channel)}#{connector_path(@channel, 'qr')}")
     response = Net::HTTP.get_response(uri)
     render json: response.body, status: response.code.to_i
   rescue StandardError => e
@@ -64,9 +61,7 @@ class ChannelsController < ApplicationController
 
   # Proxy logout/reconnect request to connector
   def connector_logout
-    connector_url = @channel.config&.dig("connector_url") || "http://connector:3002"
-
-    uri = URI("#{connector_url}/logout")
+    uri = URI("#{connector_url_for(@channel)}#{connector_path(@channel, 'logout')}")
     response = Net::HTTP.post(uri, "", "Content-Type" => "application/json")
     render json: response.body, status: response.code.to_i
   rescue StandardError => e
@@ -95,6 +90,16 @@ class ChannelsController < ApplicationController
 
   def set_channel
     @channel = Channel.find(params[:id])
+  end
+
+  def connector_url_for(channel)
+    channel.config&.dig("connector_url") || "http://connector:3002"
+  end
+
+  # Signal routes its connect/qr/health/logout under the /signal/* namespace
+  # on the connector; WhatsApp uses the bare paths.
+  def connector_path(channel, action)
+    channel.channel_type == "signal" ? "/signal/#{action}" : "/#{action}"
   end
 
   def channel_params
@@ -134,7 +139,8 @@ class ChannelsController < ApplicationController
     when "signal"
       phone = channel.config&.dig("phone_number")
       api_url = channel.config&.dig("signal_api_url") || "http://signal-cli:8080"
-      return unless phone
+      # Note: no phone number is required up front. If the device isn't linked
+      # yet, the connector enters linking mode and serves a QR via /signal/qr.
 
       Net::HTTP.post(
         URI("#{connector_url}/signal/configure"),

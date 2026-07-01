@@ -13,6 +13,19 @@ module Tasks
 
       broadcast_pipeline_status(task, "post_hook", "running")
 
+      # Trigger post-task reflection when a task reaches done.
+      # Enqueued on :low so it never contends with the hook pipeline.
+      maybe_trigger_reflection(task, new_status, agent)
+
+      # Emit outbound webhook for task completion.
+      if new_status == "done"
+        WebhookEmitter.emit(
+          "task.completed",
+          { task_id: task.id, title: task.title, status: new_status, agent_id: agent&.id },
+          agent: agent, team: agent&.team
+        )
+      end
+
       # Find post-hooks for the new status
       hooks = task.effective_hooks_for(new_status, "post")
 
@@ -120,6 +133,20 @@ module Tasks
         broadcast_pipeline_status(task, "post_hook", "completed")
         broadcast_pipeline_status(task, "pipeline", "completed")
       end
+    end
+
+    # Enqueues PostTaskReflectionJob when the task moves to done and an agent is available.
+    # Fires regardless of whether hooks are present so reflection is not skipped
+    # if the task has no configured hooks.
+    def maybe_trigger_reflection(task, new_status, agent)
+      return unless new_status == "done"
+
+      resolved_agent = agent || task.assigned_to_agent || task.created_by_agent
+      return unless resolved_agent
+
+      PostTaskReflectionJob.perform_later(resolved_agent.id, task_id: task.id)
+    rescue StandardError => e
+      Rails.logger.warn("[PostTransitionJob] Failed to enqueue reflection: #{e.message}")
     end
 
     def broadcast_pipeline_status(task, phase, status, error: nil)

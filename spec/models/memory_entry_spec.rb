@@ -6,6 +6,7 @@ RSpec.describe MemoryEntry, type: :model do
   describe "associations" do
     it { should belong_to(:agent) }
     it { should belong_to(:source).optional }
+    it { should belong_to(:superseded_by).optional }
   end
 
   describe "validations" do
@@ -22,14 +23,40 @@ RSpec.describe MemoryEntry, type: :model do
         expect(entry).to be_valid
       end
     end
+
+    it "validates category inclusion" do
+      entry = build(:memory_entry, category: "bogus")
+      expect(entry).not_to be_valid
+      expect(entry.errors[:category]).to be_present
+    end
+
+    it "allows all valid categories" do
+      %w[user_preference project_context decision learned_behavior factual general].each do |cat|
+        entry = build(:memory_entry, category: cat)
+        expect(entry).to be_valid
+      end
+    end
+
+    it "validates status inclusion" do
+      entry = build(:memory_entry, status: "deleted")
+      expect(entry).not_to be_valid
+      expect(entry.errors[:status]).to be_present
+    end
+
+    it "allows all valid statuses" do
+      %w[active archived superseded].each do |st|
+        entry = build(:memory_entry, status: st)
+        expect(entry).to be_valid
+      end
+    end
   end
 
   describe "scopes" do
     let(:agent1) { create(:agent) }
     let(:agent2) { create(:agent) }
-    let!(:entry1) { create(:memory_entry, agent: agent1, source_type: "Session", memory_type: "semantic") }
-    let!(:entry2) { create(:memory_entry, agent: agent2, source_type: "TeamChatMessage", memory_type: "preference") }
-    let!(:entry3) { create(:memory_entry, agent: agent1, memory_type: "episodic", consolidated: true) }
+    let!(:entry1) { create(:memory_entry, agent: agent1, source_type: "Session", memory_type: "semantic", category: "factual", status: "active") }
+    let!(:entry2) { create(:memory_entry, agent: agent2, source_type: "TeamChatMessage", memory_type: "preference", category: "user_preference", status: "archived") }
+    let!(:entry3) { create(:memory_entry, agent: agent1, memory_type: "episodic", consolidated: true, category: "decision", status: "superseded") }
 
     it ".for_agent returns entries for specific agent" do
       expect(MemoryEntry.for_agent(agent1)).to contain_exactly(entry1, entry3)
@@ -58,6 +85,28 @@ RSpec.describe MemoryEntry, type: :model do
     it ".not_consolidated returns non-consolidated entries" do
       expect(MemoryEntry.not_consolidated).to contain_exactly(entry1, entry2)
     end
+
+    it ".active returns only active entries" do
+      expect(MemoryEntry.active).to contain_exactly(entry1)
+    end
+
+    it ".archived returns only archived entries" do
+      expect(MemoryEntry.archived).to contain_exactly(entry2)
+    end
+
+    it ".superseded returns only superseded entries" do
+      expect(MemoryEntry.superseded).to contain_exactly(entry3)
+    end
+
+    it ".by_category filters by category" do
+      expect(MemoryEntry.by_category("factual")).to contain_exactly(entry1)
+      expect(MemoryEntry.by_category("user_preference")).to contain_exactly(entry2)
+    end
+
+    it ".by_status filters by status" do
+      expect(MemoryEntry.by_status("active")).to contain_exactly(entry1)
+      expect(MemoryEntry.by_status("archived")).to contain_exactly(entry2)
+    end
   end
 
   describe ".search_similar" do
@@ -65,9 +114,9 @@ RSpec.describe MemoryEntry, type: :model do
     let(:embedding1) { Array.new(768) { |i| (i % 10) * 0.1 } }
     let(:embedding2) { Array.new(768) { |i| (i % 10) * 0.1 + 0.01 } }
     let(:embedding3) { Array.new(768) { |i| (i % 10) * -0.1 } }
-    let!(:entry1) { create(:memory_entry, agent: agent, embedding: embedding1) }
-    let!(:entry2) { create(:memory_entry, agent: agent, embedding: embedding2) }
-    let!(:entry3) { create(:memory_entry, agent: agent, embedding: embedding3) }
+    let!(:entry1) { create(:memory_entry, agent: agent, embedding: embedding1, status: "active") }
+    let!(:entry2) { create(:memory_entry, agent: agent, embedding: embedding2, status: "active") }
+    let!(:entry3) { create(:memory_entry, agent: agent, embedding: embedding3, status: "active") }
 
     it "returns entries for the agent using vector similarity" do
       results = MemoryEntry.search_similar(embedding: embedding1, agent: agent)
@@ -82,6 +131,24 @@ RSpec.describe MemoryEntry, type: :model do
     it "returns most similar entries first" do
       results = MemoryEntry.search_similar(embedding: embedding1, agent: agent)
       expect(results.first).to eq(entry1)
+    end
+
+    it "filters by category when provided" do
+      create(:memory_entry, agent: agent, embedding: embedding1, category: "decision", status: "active")
+      results = MemoryEntry.search_similar(embedding: embedding1, agent: agent, category: "decision")
+      expect(results.all? { |e| e.category == "decision" }).to be true
+    end
+
+    it "excludes archived entries by default" do
+      archived = create(:memory_entry, agent: agent, embedding: embedding1, status: "archived")
+      results  = MemoryEntry.search_similar(embedding: embedding1, agent: agent)
+      expect(results).not_to include(archived)
+    end
+
+    it "includes all statuses when status: nil" do
+      archived = create(:memory_entry, agent: agent, embedding: embedding1, status: "archived")
+      results  = MemoryEntry.search_similar(embedding: embedding1, agent: agent, status: nil)
+      expect(results).to include(archived)
     end
   end
 
@@ -100,7 +167,6 @@ RSpec.describe MemoryEntry, type: :model do
     end
 
     it "returns nil when no duplicates exist" do
-      # Search with an embedding that's very different from anything stored
       unrelated = Array.new(768) { |i| i.even? ? 1.0 : -1.0 }
       result = MemoryEntry.find_duplicate(embedding: unrelated, agent: agent, threshold: 0.99)
       expect(result).to be_nil
@@ -112,12 +178,54 @@ RSpec.describe MemoryEntry, type: :model do
     let(:embedding) { Array.new(768) { |i| (i % 10) * 0.1 } }
     let(:similar) { Array.new(768) { |i| (i % 10) * 0.1 + 0.01 } }
     let!(:recent_entry) { create(:memory_entry, agent: agent, embedding: similar, created_at: 1.hour.ago) }
-    let!(:old_entry) { create(:memory_entry, agent: agent, embedding: embedding, created_at: 30.days.ago) }
+    let!(:old_entry)    { create(:memory_entry, agent: agent, embedding: embedding, created_at: 30.days.ago) }
 
     it "factors in both similarity and recency" do
       results = MemoryEntry.relevance_search(embedding: embedding, agent: agent, limit: 2)
       expect(results).to include(recent_entry)
       expect(results).to include(old_entry)
+    end
+  end
+
+  describe "lifecycle methods" do
+    let(:agent) { create(:agent) }
+    let(:entry) { create(:memory_entry, agent: agent, status: "active") }
+
+    describe "#supersede_with!" do
+      let(:replacement) { create(:memory_entry, agent: agent, status: "active") }
+
+      it "marks the entry as superseded and links to replacement" do
+        entry.supersede_with!(replacement)
+        entry.reload
+        expect(entry.status).to eq("superseded")
+        expect(entry.superseded_by).to eq(replacement)
+      end
+    end
+
+    describe "#archive!" do
+      it "sets status to archived" do
+        entry.archive!
+        expect(entry.reload.status).to eq("archived")
+      end
+    end
+
+    describe "#reactivate!" do
+      let(:archived) { create(:memory_entry, agent: agent, status: "archived") }
+      let(:superseded) { create(:memory_entry, agent: agent, status: "superseded") }
+
+      it "reactivates an archived memory" do
+        archived.reactivate!
+        expect(archived.reload.status).to eq("active")
+      end
+
+      it "reactivates a superseded memory and clears superseded_by" do
+        replacement = create(:memory_entry, agent: agent)
+        superseded.update!(superseded_by: replacement)
+        superseded.reactivate!
+        superseded.reload
+        expect(superseded.status).to eq("active")
+        expect(superseded.superseded_by).to be_nil
+      end
     end
   end
 
@@ -151,6 +259,16 @@ RSpec.describe MemoryEntry, type: :model do
     it "defaults consolidated to false" do
       entry = create(:memory_entry, agent: agent)
       expect(entry.consolidated).to be false
+    end
+
+    it "defaults category to general" do
+      entry = create(:memory_entry, agent: agent)
+      expect(entry.category).to eq("general")
+    end
+
+    it "defaults status to active" do
+      entry = create(:memory_entry, agent: agent)
+      expect(entry.status).to eq("active")
     end
   end
 end
