@@ -59,7 +59,7 @@ RSpec.describe Agents::ModelRouter do
 
     it "routes security keyword to anthropic opus" do
       expect(described_class.route(provider: "anthropic", message_text: "perform a security audit on the auth flow"))
-        .to eq("claude-opus-4-6")
+        .to eq(LlmModelRegistry::Anthropic::DEFAULT_TOP)
     end
 
     it "routes chitchat to anthropic haiku" do
