@@ -6,7 +6,7 @@ require "shellwords"
 
 module Mcp
   class StdioClient
-    WORKSPACE_CONTAINER = "hivemind-workspace-1"
+    WORKSPACE_CONTAINER = "#{ENV.fetch('COMPOSE_PROJECT_NAME', 'hivemind')}-workspace-1"
 
     def self.discover_tools(server)
       new(server).discover_tools

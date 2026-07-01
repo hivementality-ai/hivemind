@@ -3,8 +3,9 @@
 module Tools
   class LoadSkillExecutor
     def initialize(input:, config:, agent:)
-      @input = input
-      @agent = agent
+      @input  = input
+      @agent  = agent
+      @config = config
     end
 
     def call
@@ -22,6 +23,8 @@ module Tools
         )
       end
 
+      record_manual_load(skill)
+
       ServiceResponse.success(data: { output: skill.content })
     end
 
@@ -29,6 +32,21 @@ module Tools
 
     def available_skill_names
       @agent.skills.enabled.pluck(:name).join(", ")
+    end
+
+    def record_manual_load(skill)
+      session = @config&.dig(:session)
+
+      SkillLoadEvent.create!(
+        skill: skill,
+        agent: @agent,
+        session: session,
+        load_tier: "manual",
+        relevance_score: nil,
+        trigger_context: nil
+      )
+    rescue StandardError => e
+      Rails.logger.warn("[LoadSkillExecutor] Failed to record manual load event for skill #{skill.id}: #{e.message}")
     end
   end
 end

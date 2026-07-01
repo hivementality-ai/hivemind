@@ -10,7 +10,7 @@ module Tools
     MAX_OUTPUT = 50_000
     WORKSPACE_ROOT = "/workspace"
     EXEC_DIR = "/workspace/.hivemind/exec"
-    WORKSPACE_CONTAINER = "hivemind-workspace-1"
+    WORKSPACE_CONTAINER = "#{ENV.fetch('COMPOSE_PROJECT_NAME', 'hivemind')}-workspace-1"
 
     INTERPRETERS = {
       ".py" => "python3",

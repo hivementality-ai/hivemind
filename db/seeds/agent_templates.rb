@@ -20,7 +20,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "file_read", "file_write", "file_edit", "shell", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "file_read", "file_write", "file_edit", "shell", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -184,7 +184,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "file_read", "file_write", "file_edit", "memory_search", "pdf_read" ]
+      enabled: [ "web_search", "web_fetch", "file_read", "file_write", "file_edit", "memory_search", "memory_store", "memory_update", "memory_stats", "pdf_read" ]
     },
     skills_config: {
       enabled: [ "summarize" ]
@@ -462,7 +462,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "file_read", "file_write", "file_edit", "memory_search", "message", "cron", "email" ]
+      enabled: [ "file_read", "file_write", "file_edit", "memory_search", "memory_store", "memory_update", "memory_stats", "message", "cron", "email" ]
     },
     skills_config: {
       enabled: [ "trello", "google-workspace" ]
@@ -518,7 +518,7 @@ templates = [
       temperature: 0.8
     },
     tools_config: {
-      enabled: [ "file_read", "file_write", "file_edit", "file_send", "web_search", "web_fetch", "memory_search", "image_generate" ]
+      enabled: [ "file_read", "file_write", "file_edit", "file_send", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "image_generate" ]
     },
     skills_config: {
       enabled: []
@@ -584,7 +584,7 @@ templates = [
       "web_search", "web_fetch", "browser",
       "gmail", "email", "message",
       "file_read", "file_write", "file_edit", "file_send", "glob", "grep", "pdf_read",
-      "memory_search",
+      "memory_search", "memory_store", "memory_update", "memory_stats",
       "cron", "heartbeat_write",
       "image", "image_generate",
       "shell",
@@ -650,7 +650,7 @@ templates = [
     version: "2.0.0",
     system_prompt: "You are a passionate, knowledgeable sports fan. You know scores, stats, standings, and storylines. Be fun, opinionated, and back it up with facts.",
     model_config: { provider: "anthropic", model: "claude-haiku-4-5", temperature: 0.7 },
-    tools_config: { enabled: [ "web_search", "web_fetch", "memory_search" ] },
+    tools_config: { enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats" ] },
     skills_config: { enabled: [] },
     soul_md: <<~SOUL
       # Who You Are
@@ -689,7 +689,7 @@ templates = [
     version: "2.0.0",
     system_prompt: "You are a skilled home chef. You create recipes, suggest meal plans, offer cooking tips, and help with substitutions. Flavor first, fuss second.",
     model_config: { provider: "anthropic", model: "claude-haiku-4-5", temperature: 0.6 },
-    tools_config: { enabled: [ "web_search", "web_fetch", "memory_search" ] },
+    tools_config: { enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats" ] },
     skills_config: { enabled: [] },
     soul_md: <<~SOUL
       # Who You Are
@@ -728,7 +728,7 @@ templates = [
     version: "2.0.0",
     system_prompt: "You are a knowledgeable fitness coach. You design workouts, explain form, and motivate. Safety first. Tailor to the individual.",
     model_config: { provider: "anthropic", model: "claude-haiku-4-5", temperature: 0.5 },
-    tools_config: { enabled: [ "web_search", "memory_search", "cron" ] },
+    tools_config: { enabled: [ "web_search", "memory_search", "memory_store", "memory_update", "memory_stats", "cron" ] },
     skills_config: { enabled: [] },
     soul_md: <<~SOUL
       # Who You Are
@@ -767,7 +767,7 @@ templates = [
     version: "2.0.0",
     system_prompt: "You are an experienced travel planner. You research destinations, build itineraries, and share practical tips. Balance highlights with hidden gems.",
     model_config: { provider: "anthropic", model: "claude-haiku-4-5", temperature: 0.6 },
-    tools_config: { enabled: [ "web_search", "web_fetch", "memory_search", "file_write" ] },
+    tools_config: { enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write" ] },
     skills_config: { enabled: [ "google-workspace", "weather" ] },
     soul_md: <<~SOUL
       # Who You Are
@@ -806,7 +806,7 @@ templates = [
     version: "2.0.0",
     system_prompt: "You are a passionate music expert. Deep knowledge across genres and eras. Recommend, curate, and connect the dots between artists and movements.",
     model_config: { provider: "anthropic", model: "claude-haiku-4-5", temperature: 0.7 },
-    tools_config: { enabled: [ "web_search", "web_fetch", "memory_search" ] },
+    tools_config: { enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats" ] },
     skills_config: { enabled: [] },
     soul_md: <<~SOUL
       # Who You Are
@@ -855,7 +855,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "image", "image_generate", "file_write" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "image", "image_generate", "file_write" ]
     },
     skills_config: {
       enabled: []
@@ -953,7 +953,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "image", "image_generate", "file_write" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "image", "image_generate", "file_write" ]
     },
     skills_config: {
       enabled: []
@@ -1054,7 +1054,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "image", "image_generate", "file_write" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "image", "image_generate", "file_write" ]
     },
     skills_config: {
       enabled: []
@@ -1118,7 +1118,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "image", "image_generate", "file_write" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "image", "image_generate", "file_write" ]
     },
     skills_config: {
       enabled: []
@@ -1215,7 +1215,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "image", "image_generate", "file_write" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "image", "image_generate", "file_write" ]
     },
     skills_config: {
       enabled: []
@@ -1320,7 +1320,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "image", "image_generate", "file_write" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "image", "image_generate", "file_write" ]
     },
     skills_config: {
       enabled: []
@@ -1422,7 +1422,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "image", "image_generate", "file_write" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "image", "image_generate", "file_write" ]
     },
     skills_config: {
       enabled: []
@@ -1518,7 +1518,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "image", "image_generate", "file_write" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "image", "image_generate", "file_write" ]
     },
     skills_config: {
       enabled: []
@@ -1615,7 +1615,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -1707,7 +1707,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -1803,7 +1803,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -1867,7 +1867,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -1953,7 +1953,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -1995,7 +1995,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -2111,7 +2111,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -2146,7 +2146,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -2245,7 +2245,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -2321,7 +2321,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -2442,7 +2442,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -2553,7 +2553,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -2601,7 +2601,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -2710,7 +2710,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -2809,7 +2809,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -2908,7 +2908,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -3010,7 +3010,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -3100,7 +3100,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -3156,7 +3156,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -3264,7 +3264,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -3306,7 +3306,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -3421,7 +3421,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -3534,7 +3534,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git", "docker" ]
@@ -3643,7 +3643,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -3737,7 +3737,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -3825,7 +3825,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -3929,7 +3929,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -4027,7 +4027,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -4121,7 +4121,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -4217,7 +4217,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -4312,7 +4312,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -4407,7 +4407,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -4501,7 +4501,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -4595,7 +4595,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -4690,7 +4690,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -4793,7 +4793,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -4886,7 +4886,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -4980,7 +4980,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -5074,7 +5074,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -5168,7 +5168,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -5276,7 +5276,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -5370,7 +5370,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent", "coding_agent_status" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent", "coding_agent_status" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -5464,7 +5464,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -5563,7 +5563,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -5673,7 +5673,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -5783,7 +5783,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -5858,7 +5858,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -5955,7 +5955,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -6064,7 +6064,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -6124,7 +6124,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -6237,7 +6237,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -6333,7 +6333,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -6393,7 +6393,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -6483,7 +6483,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -6593,7 +6593,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -6669,7 +6669,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -6763,7 +6763,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -6867,7 +6867,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -6980,7 +6980,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -7078,7 +7078,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -7179,7 +7179,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -7293,7 +7293,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -7367,7 +7367,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -7465,7 +7465,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -7563,7 +7563,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -7658,7 +7658,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -7755,7 +7755,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -7850,7 +7850,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -7949,7 +7949,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "http_request" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "http_request" ]
     },
     skills_config: {
       enabled: []
@@ -8009,7 +8009,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "http_request" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "http_request" ]
     },
     skills_config: {
       enabled: []
@@ -8069,7 +8069,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "http_request" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "http_request" ]
     },
     skills_config: {
       enabled: []
@@ -8129,7 +8129,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "http_request" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "http_request" ]
     },
     skills_config: {
       enabled: []
@@ -8189,7 +8189,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "http_request" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "http_request" ]
     },
     skills_config: {
       enabled: []
@@ -8249,7 +8249,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "http_request" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "http_request" ]
     },
     skills_config: {
       enabled: []
@@ -8309,7 +8309,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "file_write", "http_request" ]
+      enabled: [ "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "http_request" ]
     },
     skills_config: {
       enabled: []
@@ -8369,7 +8369,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write" ]
     },
     skills_config: {
       enabled: []
@@ -8433,7 +8433,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write" ]
     },
     skills_config: {
       enabled: []
@@ -8508,7 +8508,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write" ]
     },
     skills_config: {
       enabled: []
@@ -8597,7 +8597,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write" ]
     },
     skills_config: {
       enabled: []
@@ -8657,7 +8657,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "delegate", "delegation_status" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "delegate", "delegation_status" ]
     },
     skills_config: {
       enabled: [ "github" ]
@@ -8760,7 +8760,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "delegate", "delegation_status" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "delegate", "delegation_status" ]
     },
     skills_config: {
       enabled: [ "github" ]
@@ -8865,7 +8865,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "delegate", "delegation_status" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "delegate", "delegation_status" ]
     },
     skills_config: {
       enabled: [ "github" ]
@@ -8968,7 +8968,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "delegate", "delegation_status" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "delegate", "delegation_status" ]
     },
     skills_config: {
       enabled: [ "github" ]
@@ -9040,7 +9040,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "delegate", "delegation_status" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "delegate", "delegation_status" ]
     },
     skills_config: {
       enabled: [ "github" ]
@@ -9135,7 +9135,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "delegate", "delegation_status" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "delegate", "delegation_status" ]
     },
     skills_config: {
       enabled: [ "github" ]
@@ -9192,7 +9192,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "email", "http_request" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "email", "http_request" ]
     },
     skills_config: {
       enabled: []
@@ -9296,7 +9296,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "email", "http_request" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "email", "http_request" ]
     },
     skills_config: {
       enabled: []
@@ -9394,7 +9394,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "email", "http_request" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "email", "http_request" ]
     },
     skills_config: {
       enabled: []
@@ -9463,7 +9463,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "email", "http_request" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "email", "http_request" ]
     },
     skills_config: {
       enabled: []
@@ -9505,7 +9505,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "email", "http_request" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "email", "http_request" ]
     },
     skills_config: {
       enabled: []
@@ -9570,7 +9570,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "email", "http_request" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "email", "http_request" ]
     },
     skills_config: {
       enabled: []
@@ -9612,7 +9612,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "email", "http_request" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "email", "http_request" ]
     },
     skills_config: {
       enabled: []
@@ -9711,7 +9711,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "email", "http_request" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "email", "http_request" ]
     },
     skills_config: {
       enabled: []
@@ -9813,7 +9813,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -9915,7 +9915,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -9950,7 +9950,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -9985,7 +9985,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -10029,7 +10029,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -10073,7 +10073,7 @@ templates = [
       temperature: 0.3
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "coding_agent" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "coding_agent" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -10117,7 +10117,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -10206,7 +10206,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -10329,7 +10329,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -10416,7 +10416,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -10478,7 +10478,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -10586,7 +10586,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -10676,7 +10676,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -10788,7 +10788,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -10838,7 +10838,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -10944,7 +10944,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -11050,7 +11050,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -11148,7 +11148,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -11250,7 +11250,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -11339,7 +11339,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -11391,7 +11391,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -11444,7 +11444,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -11509,7 +11509,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -11627,7 +11627,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -11687,7 +11687,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -11729,7 +11729,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -11857,7 +11857,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -11962,7 +11962,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "file_write", "file_read" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "file_write", "file_read" ]
     },
     skills_config: {
       enabled: []
@@ -12062,7 +12062,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "email", "file_write" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "email", "file_write" ]
     },
     skills_config: {
       enabled: []
@@ -12159,7 +12159,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "email", "file_write" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "email", "file_write" ]
     },
     skills_config: {
       enabled: []
@@ -12256,7 +12256,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "email", "file_write" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "email", "file_write" ]
     },
     skills_config: {
       enabled: []
@@ -12353,7 +12353,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "email", "file_write" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "email", "file_write" ]
     },
     skills_config: {
       enabled: []
@@ -12450,7 +12450,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "email", "file_write" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "email", "file_write" ]
     },
     skills_config: {
       enabled: []
@@ -12544,7 +12544,7 @@ templates = [
       temperature: 0.5
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "memory_search", "email", "file_write" ]
+      enabled: [ "web_search", "web_fetch", "memory_search", "memory_store", "memory_update", "memory_stats", "email", "file_write" ]
     },
     skills_config: {
       enabled: []
@@ -12638,7 +12638,7 @@ templates = [
       temperature: 0.2
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "browser", "memory_search" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -12749,7 +12749,7 @@ templates = [
       temperature: 0.2
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "browser", "memory_search" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -12852,7 +12852,7 @@ templates = [
       temperature: 0.2
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "browser", "memory_search" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -12917,7 +12917,7 @@ templates = [
       temperature: 0.2
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "browser", "memory_search" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -13020,7 +13020,7 @@ templates = [
       temperature: 0.2
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "browser", "memory_search" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -13096,7 +13096,7 @@ templates = [
       temperature: 0.2
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "browser", "memory_search" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -13191,7 +13191,7 @@ templates = [
       temperature: 0.2
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "browser", "memory_search" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -13294,7 +13294,7 @@ templates = [
       temperature: 0.2
     },
     tools_config: {
-      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "browser", "memory_search" ]
+      enabled: [ "shell", "file_read", "file_write", "file_edit", "web_search", "web_fetch", "browser", "memory_search", "memory_store", "memory_update", "memory_stats" ]
     },
     skills_config: {
       enabled: [ "github", "git" ]
@@ -13397,7 +13397,7 @@ templates = [
       temperature: 0.4
     },
     tools_config: {
-      enabled: [ "web_search", "web_fetch", "file_read", "file_write", "file_edit", "memory_search", "browser" ]
+      enabled: [ "web_search", "web_fetch", "file_read", "file_write", "file_edit", "memory_search", "memory_store", "memory_update", "memory_stats", "browser" ]
     },
     skills_config: {
       enabled: []

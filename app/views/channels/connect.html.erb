@@ -1,9 +1,10 @@
-<div class="max-w-2xl mx-auto px-6 py-8" data-controller="qr-pair" data-qr-pair-url-value="<%= @connector_url %>">
+<% platform_name = @channel.channel_type == "signal" ? "Signal" : "WhatsApp" %>
+<div class="max-w-2xl mx-auto px-6 py-8" data-controller="qr-pair" data-qr-pair-health-url-value="<%= connector_health_channel_path(@channel) %>" data-qr-pair-qr-url-value="<%= connector_qr_channel_path(@channel) %>" data-qr-pair-logout-url-value="<%= connector_logout_channel_path(@channel) %>" data-qr-pair-platform-value="<%= platform_name %>">
   <%= link_to "← Channels", channels_path, class: "text-brand-light hover:text-brand-light text-sm" %>
 
   <div class="mt-6 mb-8 text-center">
     <h1 class="text-2xl font-bold text-white">Connect <%= @channel.name %></h1>
-    <p class="text-text-muted mt-2">Scan the QR code with your phone to link this account</p>
+    <p class="text-text-muted mt-2">Scan the QR code with your phone to link this <%= platform_name %> account</p>
   </div>
 
   <!-- Status -->
@@ -49,9 +50,9 @@
       <div class="text-left max-w-sm mx-auto mt-4 space-y-3">
         <p class="text-text-primary text-sm font-medium">To connect:</p>
         <ol class="text-text-muted text-sm space-y-2 list-decimal list-inside">
-          <li>Open <strong class="text-white">WhatsApp</strong> on your phone</li>
+          <li>Open <strong class="text-white"><%= platform_name %></strong> on your phone</li>
           <li>Go to <strong class="text-white">Settings → Linked Devices</strong></li>
-          <li>Tap <strong class="text-white">Link a Device</strong></li>
+          <li>Tap <strong class="text-white"><%= @channel.channel_type == "signal" ? "Link New Device" : "Link a Device" %></strong></li>
           <li>Point your camera at the QR code above</li>
         </ol>
       </div>

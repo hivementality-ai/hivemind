@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
   static targets = ["statusBadge", "qrArea", "connectedArea", "userInfo", "instructions", "errorArea"]
-  static values = { url: String }
+  static values = { healthUrl: String, qrUrl: String, logoutUrl: String, platform: String }
 
   connect() {
     this.polling = true
@@ -18,7 +18,7 @@ export default class extends Controller {
 
     try {
       // Check connection status
-      const healthRes = await fetch(`${this.urlValue}/health`)
+      const healthRes = await fetch(this.healthUrlValue)
       const health = await healthRes.json()
 
       if (health.status === "connected") {
@@ -43,7 +43,7 @@ export default class extends Controller {
 
   async showQR() {
     try {
-      const qrRes = await fetch(`${this.urlValue}/qr`)
+      const qrRes = await fetch(this.qrUrlValue)
       const data = await qrRes.json()
 
       if (data.qr) {
@@ -61,7 +61,7 @@ export default class extends Controller {
 
   async reconnect() {
     try {
-      const res = await fetch(`${this.urlValue}/logout`, { method: "POST" })
+      const res = await fetch(this.logoutUrlValue, { method: "POST" })
       const data = await res.json()
       if (data.status === "logged_out") {
         // Reset UI and start polling for new QR
@@ -90,7 +90,8 @@ export default class extends Controller {
     this.connectedAreaTarget.classList.remove("hidden")
     this.errorAreaTarget.classList.add("hidden")
 
-    const user = health.userName || health.user || "WhatsApp"
+    const fallback = this.platformValue || "WhatsApp"
+    const user = health.userName || health.user || health.phoneNumber || fallback
     this.userInfoTarget.textContent = `Linked as ${user}`
     this.updateBadge("connected", "Connected", "green")
   }

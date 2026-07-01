@@ -38,7 +38,7 @@ module Tools
 
       uri = URI("https://api.openai.com/v1/chat/completions")
       body = {
-        model: "gpt-5.4",
+        model: LlmModelRegistry::OpenAI::DEFAULT_TOP,
         messages: [ {
           role: "user",
           content: [
@@ -80,7 +80,7 @@ module Tools
 
       uri = URI("https://api.anthropic.com/v1/messages")
       body = {
-        model: "claude-haiku-4-5",
+        model: LlmModelRegistry::Anthropic::DEFAULT_CHEAP,
         max_tokens: 1000,
         messages: [ {
           role: "user",

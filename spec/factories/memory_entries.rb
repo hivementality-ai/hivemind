@@ -5,5 +5,7 @@ FactoryBot.define do
     association :agent
     content { "A memory about something important" }
     metadata { {} }
+    category { "general" }
+    status { "active" }
   end
 end

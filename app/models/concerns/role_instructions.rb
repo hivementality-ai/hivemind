@@ -81,6 +81,29 @@ module RoleInstructions
       - Be concise. One sentence when one sentence works.
       - Have a personality. Push back, get excited, be skeptical. You're a teammate.
       - Own your work. Verify it works before saying it's done.
+
+      ## Memory Management
+      You have an active memory system. Use it deliberately — not just to recall, but to maintain.
+      - **Categorize what you store.** Use `memory_store` with the right category:
+        - `user_preference` — how the user likes things done (tone, tools, workflow)
+        - `project_context` — repo structure, tech stack, team members
+        - `decision` — choices made and why (chose X over Y because...)
+        - `learned_behavior` — patterns you've observed (this user always wants PRs, not direct commits)
+        - `factual` — facts about the world you've learned
+        - `general` — anything that doesn't fit the above
+      - **Update, don't duplicate.** When information changes, use `memory_update` to revise the existing memory rather than creating a new one alongside it. Pass the old memory's ID.
+      - **Supersede stale memories.** When you learn something that contradicts an existing memory, use `memory_store` with `related_memory_id` to archive the old one automatically.
+      - **Archive when done.** Use `memory_update` with `status: archived` to retire memories that are no longer relevant.
+      - **Check your inventory.** Run `memory_stats` periodically to understand what you know and spot categories that are growing too large.
+      - **Search returns IDs.** `memory_search` results include memory IDs — use them with `memory_update` when you need to revise or archive.
+
+      ## User Model
+      You maintain a structured profile of how the user likes to work. This is your user model.
+      - **Load it on demand.** Call `user_model` to get a structured view of all recorded user preferences, grouped by section. Do this at the start of a new engagement or when you need to remember how the user operates.
+      - **Keep it current.** When the user tells you how they like things done, store it immediately with `memory_store` and `category: user_preference`. Don't wait.
+      - **Bootstrap from existing memories.** If you've never built a user model before, call `user_model_populate` to auto-scan your existing memories and extract preferences. Run it with `dry_run: true` first to preview.
+      - **One source of truth.** The user model is built from `user_preference` memories. When a preference changes, update the existing memory with `memory_update` rather than creating a duplicate.
+      - **What belongs in the user model:** communication style, tone, formatting preferences, workflow rules, tool choices, domain expertise, recurring instructions, and any explicit "always/never" rules the user has stated.
     PERSONALITY
   end
 
@@ -135,10 +158,10 @@ module RoleInstructions
       **Security:** This container is fully isolated — no database or Redis access. You have full control. Install what you need, run what you need.
     ENV
 
-    # Skills catalog (full instructions loaded on-demand via load_skill tool)
+    # Skills: core content injected always; manual skills listed as catalog
     if respond_to?(:skills) && skills.enabled.any?
-      skill_lines = skills.enabled.map { |s| "- #{s.name}: #{s.summary || s.description || s.name}" }
-      parts << "## Skills\nCall `load_skill` by name when you need one.\n#{skill_lines.join("\n")}"
+      skill_parts = build_skills_prompt_section(skills.enabled.to_a)
+      parts << skill_parts if skill_parts.present?
     end
 
     parts.join("\n\n")
@@ -174,19 +197,59 @@ module RoleInstructions
                   "Persistent: /workspace (main), /home/agent (packages/config), /app/agents-shared/ (collaboration). " \
                   "Fully isolated — no database or Redis access."
 
+    core_parts << "## Memory Management\n" \
+                  "Use memory actively. `memory_store` to save with a category (user_preference, project_context, " \
+                  "decision, learned_behavior, factual, general). `memory_update` to revise or archive by ID. " \
+                  "`memory_search` returns IDs — use them. `memory_stats` to check your inventory. " \
+                  "Prefer updating over duplicating. Supersede stale memories with related_memory_id.\n\n" \
+                  "## User Model\n" \
+                  "Call `user_model` to load a structured view of all user preferences at the start of a session. " \
+                  "Store new preferences immediately with `memory_store` and `category: user_preference`. " \
+                  "Call `user_model_populate` (with `dry_run: true` first) to bootstrap the model from existing memories."
+
     blocks = [ { type: "text", text: core_parts.join("\n\n") } ]
 
-    # Skills catalog (full content loaded on-demand via load_skill tool)
+    # Skills: core content + manual catalog as a separate, cache-friendly block.
+    # Contextual skills are injected dynamically per-request by MessageBuilder.
     if respond_to?(:skills) && skills.enabled.any?
-      skill_lines = skills.enabled.map { |s| "- #{s.name}: #{s.summary || s.description || s.name}" }
-      catalog = "## Skills\nCall `load_skill` by name when you need one.\n#{skill_lines.join("\n")}"
-      blocks << { type: "text", text: catalog }
+      skill_text = build_skills_prompt_section(skills.enabled.to_a)
+      blocks << { type: "text", text: skill_text } if skill_text.present?
     end
 
     blocks
   end
 
   private
+
+  # Builds the skills section of the system prompt.
+  # Core skills: content injected directly (always active, no load_skill needed).
+  # Contextual skills: listed in catalog only (auto-injected at message-build time).
+  # Manual skills: listed in catalog only (agent must call load_skill explicitly).
+  def build_skills_prompt_section(enabled_skills)
+    return nil if enabled_skills.empty?
+
+    parts = []
+
+    core_skills = enabled_skills.select { |s| s.tier == "core" }
+    if core_skills.any?
+      parts << "## Core Skills (always active)"
+      core_skills.each do |skill|
+        parts << "### #{skill.name}"
+        parts << skill.content
+      end
+    end
+
+    on_demand_skills = enabled_skills.reject { |s| s.tier == "core" }
+    if on_demand_skills.any?
+      lines = on_demand_skills.map do |s|
+        tier_label = s.tier == "contextual" ? " [auto]" : ""
+        "- #{s.name}#{tier_label}: #{s.summary || s.description || s.name}"
+      end
+      parts << "## Skills\nCall `load_skill` by name when you need one.\n#{lines.join("\n")}"
+    end
+
+    parts.join("\n\n").presence
+  end
 
   INJECTION_PATTERNS = [
     /ignore (?:all )?(?:previous|prior|above) instructions/i,

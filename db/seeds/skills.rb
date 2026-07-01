@@ -430,9 +430,23 @@ SKILL_TOOL_MAP = {
   "deep_research" => [ "deep_research", "deep_research_status", "web_search", "web_fetch" ]
 }.freeze
 
+SKILL_TIER_METADATA = {
+  "github"           => { tier: "contextual", tags: %w[github git pr pull-request issue ci deploy release branch commit], trigger_patterns: ["open.*pr", "create.*pull.?request", "merge.*pr", "gh\\s", "github", "pull request", "check.*ci", "push.*branch", "open.*issue"] },
+  "git"              => { tier: "contextual", tags: %w[git commit branch merge rebase checkout stash diff log], trigger_patterns: ["git\\s", "commit", "branch", "merge conflict", "rebase", "stash", "cherry.?pick", "git log", "diff"] },
+  "docker"           => { tier: "contextual", tags: %w[docker container image dockerfile compose build run], trigger_patterns: ["docker", "container", "dockerfile", "docker.?compose", "build.*image", "run.*container"] },
+  "weather"          => { tier: "contextual", tags: %w[weather forecast temperature rain wind humidity], trigger_patterns: ["weather", "forecast", "temperature", "rain.*today", "what.*weather"] },
+  "trello"           => { tier: "contextual", tags: %w[trello board card list task kanban], trigger_patterns: ["trello", "kanban card", "move.*card", "create.*card"] },
+  "notion"           => { tier: "contextual", tags: %w[notion page database block workspace], trigger_patterns: ["notion", "notion.*page", "create.*notion"] },
+  "google-workspace" => { tier: "contextual", tags: %w[google gmail calendar drive docs sheets slides], trigger_patterns: ["gmail", "google.*calendar", "google.*drive", "send.*email", "calendar.*event", "google.*doc"] },
+  "summarize"        => { tier: "contextual", tags: %w[summarize summary pdf document article read extract], trigger_patterns: ["summarize", "summary", "tldr", "read.*pdf", "extract.*from", "recap"] },
+  "ticket-planning"  => { tier: "contextual", tags: %w[ticket task planning breakdown sprint roadmap estimate], trigger_patterns: ["break.*down", "plan.*task", "create.*ticket", "sprint.*planning", "estimate", "user story"] },
+  "deep_research"    => { tier: "contextual", tags: %w[research investigate deep-dive analysis report findings], trigger_patterns: ["research", "investigate", "deep.*dive", "find.*information", "look.*into", "analyze.*topic"] }
+}.freeze
+
 skills.each do |attrs|
   skill = Skill.find_or_initialize_by(name: attrs[:name])
-  skill.assign_attributes(attrs.merge(builtin: true, enabled: true))
+  tier_meta = SKILL_TIER_METADATA[attrs[:name]] || {}
+  skill.assign_attributes(attrs.merge(builtin: true, enabled: true).merge(tier_meta))
   skill.summary = attrs[:description].to_s.truncate(200) if skill.summary.blank?
   skill.save!
 
