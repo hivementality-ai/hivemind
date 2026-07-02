@@ -244,7 +244,10 @@ Rails.application.routes.draw do
   post "platform/restart", to: "platform#restart", as: :platform_restart
   post "platform/clear_cache", to: "platform#clear_cache", as: :platform_clear_cache
 
-  # Webhooks
+  # Outbound webhook endpoint management (path avoids clashing with inbound /webhooks/:channel_type)
+  resources :webhook_endpoints, path: "webhooks_out", only: [ :index, :new, :create, :edit, :update, :destroy ]
+
+  # Inbound webhooks
   get "webhooks/:channel_type", to: "webhooks#verify"
   post "webhooks/:channel_type", to: "webhooks#receive"
 
