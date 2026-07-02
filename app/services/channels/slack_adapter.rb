@@ -85,12 +85,43 @@ module Channels
         outbound = log_outbound_message(
           recipient: to,
           content: content,
+          platform_message_id: response["ts"],
           metadata: { ts: response["ts"], channel: response["channel"], agent_id: agent&.id }
         )
         ServiceResponse.success(data: { outbound_message: outbound, response: response })
       else
         ServiceResponse.failure(error: "Slack API: #{response["error"]}")
       end
+    end
+
+    def edit_message(message_id, content, channel_id:, agent: nil, **options)
+      token = resolve_bot_token(agent)
+      return ServiceResponse.failure(error: "Slack bot token not configured") unless token
+
+      response = slack_post("chat.update", { channel: channel_id, ts: message_id, text: content }, token)
+
+      if response["ok"]
+        ServiceResponse.success(data: { response: response })
+      else
+        ServiceResponse.failure(error: "Slack API: #{response["error"]}")
+      end
+    rescue StandardError => e
+      ServiceResponse.failure(error: "Slack edit failed: #{e.message}")
+    end
+
+    def delete_message(message_id, channel_id:, agent: nil, **options)
+      token = resolve_bot_token(agent)
+      return ServiceResponse.failure(error: "Slack bot token not configured") unless token
+
+      response = slack_post("chat.delete", { channel: channel_id, ts: message_id }, token)
+
+      if response["ok"]
+        ServiceResponse.success
+      else
+        ServiceResponse.failure(error: "Slack API: #{response["error"]}")
+      end
+    rescue StandardError => e
+      ServiceResponse.failure(error: "Slack delete failed: #{e.message}")
     end
 
     def react(message_id:, emoji:, channel_id: nil)

@@ -90,6 +90,7 @@ module Channels
         outbound = log_outbound_message(
           recipient: to,
           content: content,
+          platform_message_id: result["id"],
           metadata: {
             message_id: result["id"],
             channel_id: target_channel,
@@ -212,6 +213,46 @@ module Channels
       embed[:author] = { name: author } if author.present?
 
       embed
+    end
+
+    def edit_message(message_id, content, channel_id:, agent: nil, **options)
+      bot_token = resolve_bot_token(agent)
+      return ServiceResponse.failure(error: "Bot token not configured") unless bot_token
+
+      response = discord_request(
+        :patch,
+        "/channels/#{channel_id}/messages/#{message_id}",
+        { content: content },
+        bot_token
+      )
+
+      if response.success?
+        ServiceResponse.success(data: { response: JSON.parse(response.body) })
+      else
+        ServiceResponse.failure(error: "Discord API error: #{response.status} #{response.body}")
+      end
+    rescue StandardError => e
+      ServiceResponse.failure(error: "Discord edit failed: #{e.message}")
+    end
+
+    def delete_message(message_id, channel_id:, agent: nil, **options)
+      bot_token = resolve_bot_token(agent)
+      return ServiceResponse.failure(error: "Bot token not configured") unless bot_token
+
+      response = discord_request(
+        :delete,
+        "/channels/#{channel_id}/messages/#{message_id}",
+        nil,
+        bot_token
+      )
+
+      if response.status == 204 || response.success?
+        ServiceResponse.success
+      else
+        ServiceResponse.failure(error: "Discord API error: #{response.status} #{response.body}")
+      end
+    rescue StandardError => e
+      ServiceResponse.failure(error: "Discord delete failed: #{e.message}")
     end
 
     def verify_webhook(request)
