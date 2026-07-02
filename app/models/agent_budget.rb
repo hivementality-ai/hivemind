@@ -32,13 +32,15 @@ class AgentBudget < ApplicationRecord
     percentage_used >= 80
   end
 
-  def alert_sent?
-    false # Can be extended with a flag if needed
+  # Returns true if we've already fired an alert at or above +threshold+
+  def alerted_at?(threshold)
+    last_alerted_threshold.to_i >= threshold
   end
 
   def reset!
     update!(
       spent_cents: 0,
+      last_alerted_threshold: nil,
       reset_at: Time.current
     )
   end

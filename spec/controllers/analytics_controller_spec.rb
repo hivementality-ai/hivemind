@@ -17,7 +17,8 @@ RSpec.describe AnalyticsController, type: :controller do
         data: {
           summary: { total_cost: 100.50, total_sessions: 10 },
           per_agent: [ { name: "Agent 1", cost: 50.25 } ],
-          agents: [ agent ]
+          agents: [ agent ],
+          daily_trend: {}
         }
       )
     end
@@ -31,14 +32,24 @@ RSpec.describe AnalyticsController, type: :controller do
       expect(response).to be_successful
     end
 
-    it 'calls Analytics::TeamSummary with default period' do
-      expect(Analytics::TeamSummary).to receive(:call).with(period: "week")
+    it 'defaults to 7-day window' do
+      expect(Analytics::TeamSummary).to receive(:call).with(period: "week", days: 7)
       get :index
     end
 
-    it 'calls Analytics::TeamSummary with specified period' do
-      expect(Analytics::TeamSummary).to receive(:call).with(period: "month")
-      get :index, params: { period: "month" }
+    it 'passes days=30 through to the service' do
+      expect(Analytics::TeamSummary).to receive(:call).with(period: "week", days: 30)
+      get :index, params: { days: "30" }
+    end
+
+    it 'passes days=90 through to the service' do
+      expect(Analytics::TeamSummary).to receive(:call).with(period: "week", days: 90)
+      get :index, params: { days: "90" }
+    end
+
+    it 'rejects unsupported days values and falls back to 7' do
+      expect(Analytics::TeamSummary).to receive(:call).with(period: "week", days: 7)
+      get :index, params: { days: "14" }
     end
 
     it 'assigns analytics data on success' do

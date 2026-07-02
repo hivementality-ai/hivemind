@@ -5,17 +5,19 @@ class AnalyticsController < ApplicationController
   before_action :set_period
 
   def index
-    response = Analytics::TeamSummary.call(period: @period)
+    response = Analytics::TeamSummary.call(period: @period, days: @days)
 
     if response.success?
-      @summary = response.data[:summary]
-      @per_agent = response.data[:per_agent]
-      @agents = response.data[:agents]
+      @summary     = response.data[:summary]
+      @per_agent   = response.data[:per_agent]
+      @agents      = response.data[:agents]
+      @daily_trend = response.data[:daily_trend]
     else
       flash.now[:alert] = response.error
-      @summary = {}
-      @per_agent = []
-      @agents = []
+      @summary     = {}
+      @per_agent   = []
+      @agents      = []
+      @daily_trend = {}
     end
   end
 
@@ -49,5 +51,7 @@ class AnalyticsController < ApplicationController
 
   def set_period
     @period = params[:period] || "week"
+    raw_days = params[:days].to_i
+    @days = [ 7, 30, 90 ].include?(raw_days) ? raw_days : 7
   end
 end

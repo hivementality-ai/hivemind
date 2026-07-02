@@ -9,6 +9,7 @@ RSpec.describe Budgets::RecordSpend do
   before do
     allow(BudgetAlertJob).to receive(:perform_async)
     allow(ActionCable.server).to receive(:broadcast)
+    allow(WebhookEmitter).to receive(:emit)
   end
 
   describe ".call" do
@@ -86,6 +87,91 @@ RSpec.describe Budgets::RecordSpend do
         it "fires a BudgetAlertJob with 'warning'" do
           result  # 7900 + 100 = 8000, which is 80% of 10000 => warning
           expect(BudgetAlertJob).to have_received(:perform_async).with(agent.id, budget.id, "warning")
+        end
+      end
+    end
+
+    context "webhook threshold alerts" do
+      let!(:budget) { create(:agent_budget, agent: agent, limit_cents: 10_000, spent_cents: 0) }
+
+      context "crossing 80% for the first time" do
+        before { budget.update!(spent_cents: 7_900) }
+
+        it "emits budget.threshold webhook at 80" do
+          result  # pushes to 8000 = 80%
+          expect(WebhookEmitter).to have_received(:emit).with(
+            "budget.threshold",
+            hash_including(threshold: 80, agent_id: agent.id),
+            agent: agent
+          )
+        end
+
+        it "stores 80 as last_alerted_threshold" do
+          result
+          expect(budget.reload.last_alerted_threshold).to eq(80)
+        end
+      end
+
+      context "already alerted at 80%, crossing again" do
+        before { budget.update!(spent_cents: 7_900, last_alerted_threshold: 80) }
+
+        it "does not re-emit the 80% webhook" do
+          result
+          expect(WebhookEmitter).not_to have_received(:emit).with(
+            "budget.threshold",
+            hash_including(threshold: 80),
+            anything
+          )
+        end
+      end
+
+      context "crossing 100% for the first time" do
+        before { budget.update!(spent_cents: 9_950) }
+
+        it "emits budget.threshold webhook at 100" do
+          result  # pushes to 10050 >= 10000
+          expect(WebhookEmitter).to have_received(:emit).with(
+            "budget.threshold",
+            hash_including(threshold: 100, agent_id: agent.id),
+            agent: agent
+          )
+        end
+
+        it "stores 100 as last_alerted_threshold" do
+          result
+          expect(budget.reload.last_alerted_threshold).to eq(100)
+        end
+      end
+
+      context "already alerted at 100%" do
+        before { budget.update!(spent_cents: 9_950, last_alerted_threshold: 100) }
+
+        it "does not re-emit the 100% webhook" do
+          result
+          expect(WebhookEmitter).not_to have_received(:emit).with(
+            "budget.threshold",
+            hash_including(threshold: 100),
+            anything
+          )
+        end
+      end
+
+      context "80% then 100% sequence" do
+        it "fires 80 alert then 100 alert exactly once each" do
+          budget.update!(spent_cents: 7_900)
+          described_class.call(agent: agent, cost_cents: 100, provider: "anthropic",
+                               llm_model: "claude-3-5-sonnet")
+          expect(budget.reload.last_alerted_threshold).to eq(80)
+
+          budget.update!(spent_cents: 9_950)
+          described_class.call(agent: agent, cost_cents: 100, provider: "anthropic",
+                               llm_model: "claude-3-5-sonnet")
+          expect(budget.reload.last_alerted_threshold).to eq(100)
+
+          expect(WebhookEmitter).to have_received(:emit).with("budget.threshold",
+            hash_including(threshold: 80), anything).once
+          expect(WebhookEmitter).to have_received(:emit).with("budget.threshold",
+            hash_including(threshold: 100), anything).once
         end
       end
     end
