@@ -1,0 +1,9 @@
+<div class="max-w-xl mx-auto py-8 px-4">
+  <div class="mb-6">
+    <%= link_to webhook_endpoints_path, class: "text-text-faint hover:text-white text-sm" do %>&larr; Back to Webhooks<% end %>
+    <h1 class="text-2xl font-bold text-white mt-2">Edit Webhook Endpoint</h1>
+    <p class="text-text-muted mt-1 font-mono text-xs break-all"><%= @endpoint.url %></p>
+  </div>
+
+  <%= render "form", endpoint: @endpoint %>
+</div>
