@@ -39,6 +39,20 @@ module Agents
       }
     }.freeze
 
+    # Resolve requirements for a tool: DB column wins, constant is fallback for unseeded rows.
+    # ponytail: constant fallback removed once all rows have been seeded (next release)
+    def self.requirements_for(tool_name)
+      tool = Tool.find_by(name: tool_name)
+      return TOOL_REQUIREMENTS[tool_name] if tool.nil?
+
+      req = tool.requirements.presence
+      if req
+        req.transform_keys(&:to_sym)
+      else
+        TOOL_REQUIREMENTS[tool_name]
+      end
+    end
+
     # Check why a tool is unavailable and return a human-readable explanation
     # @param tool_name [String] The tool name the agent tried to use
     # @param agent [Agent] The agent that tried to use it
@@ -87,8 +101,8 @@ module Agents
         end
       end
 
-      # Step 5: Check if required provider/config is missing (legacy check)
-      requirement = TOOL_REQUIREMENTS[@tool_name]
+      # Step 5: Check if required provider/config is missing
+      requirement = self.class.requirements_for(@tool_name)
       if requirement&.dig(:provider)
         provider = ProviderConfig.find_by(adapter_type: requirement[:provider], enabled: true) rescue nil
         unless provider
@@ -110,7 +124,7 @@ module Agents
       return nil if unavailable.empty?
 
       lines = unavailable.map do |tool_name|
-        req = TOOL_REQUIREMENTS[tool_name]
+        req = requirements_for(tool_name)
         desc = req ? req[:description] : tool_name.humanize.downcase
         "- #{desc} (#{tool_name})"
       end
@@ -136,7 +150,7 @@ module Agents
     end
 
     def not_registered_message
-      requirement = TOOL_REQUIREMENTS[@tool_name]
+      requirement = self.class.requirements_for(@tool_name)
       desc = requirement ? requirement[:description] : @tool_name.humanize.downcase
       hint = requirement ? " #{requirement[:config_hint]}." : ""
 
