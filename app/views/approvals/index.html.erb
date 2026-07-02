@@ -1,0 +1,167 @@
+<div class="max-w-5xl mx-auto py-8 px-4">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-white">Approvals</h1>
+      <p class="text-text-muted mt-1">Pending human-in-the-loop decisions across all agents.</p>
+    </div>
+  </div>
+
+  <%# ── Section 1: Approval Requests ─────────────────────────── %>
+  <section class="mb-10">
+    <h2 class="text-lg font-semibold text-white mb-4">
+      Approval Requests
+      <% if @approval_requests.any? %>
+        <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-amber-900/60 text-amber-300"><%= @approval_requests.size %></span>
+      <% end %>
+    </h2>
+
+    <% if @approval_requests.any? %>
+      <div class="bg-surface-card/50 border border-border-default/50 rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="text-text-faint text-xs uppercase border-b border-border-default/50">
+            <tr>
+              <th class="text-left font-medium px-5 py-3">Action</th>
+              <th class="text-left font-medium px-5 py-3">Resource</th>
+              <th class="text-left font-medium px-5 py-3">Agent</th>
+              <th class="text-left font-medium px-5 py-3">Requested</th>
+              <th class="px-5 py-3"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border-default/30">
+            <% @approval_requests.each do |req| %>
+              <tr class="hover:bg-surface-card/60 transition">
+                <td class="px-5 py-3 text-white font-mono text-xs"><%= req.action %></td>
+                <td class="px-5 py-3 text-text-muted font-mono text-xs"><%= req.resource %></td>
+                <td class="px-5 py-3 text-text-muted"><%= req.agent&.name || "—" %></td>
+                <td class="px-5 py-3 text-text-faint text-xs"><%= req.requested_at.strftime("%b %d %H:%M") %></td>
+                <td class="px-5 py-3 text-right flex gap-2 justify-end">
+                  <%= button_to approve_approval_path(req, approval_type: "approval_request"),
+                        method: :post,
+                        class: "px-3 py-1 text-xs font-semibold rounded bg-green-700/80 text-green-100 hover:bg-green-600/80 transition" do %>
+                    Approve
+                  <% end %>
+                  <%= button_to reject_approval_path(req, approval_type: "approval_request"),
+                        method: :post,
+                        form: { data: { turbo_confirm: "Reject this approval request?" } },
+                        class: "px-3 py-1 text-xs font-semibold rounded bg-red-900/60 text-red-300 hover:bg-red-800/60 transition" do %>
+                    Reject
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% else %>
+      <div class="bg-surface-card/30 border border-border-default/50 rounded-xl px-5 py-8 text-center text-text-muted text-sm">
+        No pending approval requests.
+      </div>
+    <% end %>
+  </section>
+
+  <%# ── Section 2: Vault Write Confirmations ──────────────────── %>
+  <section class="mb-10">
+    <h2 class="text-lg font-semibold text-white mb-4">
+      Vault Write Confirmations
+      <% if @vault_confirmations.any? %>
+        <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-amber-900/60 text-amber-300"><%= @vault_confirmations.size %></span>
+      <% end %>
+    </h2>
+
+    <% if @vault_confirmations.any? %>
+      <div class="bg-surface-card/50 border border-border-default/50 rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="text-text-faint text-xs uppercase border-b border-border-default/50">
+            <tr>
+              <th class="text-left font-medium px-5 py-3">Key</th>
+              <th class="text-left font-medium px-5 py-3">Purpose</th>
+              <th class="text-left font-medium px-5 py-3">Requested by</th>
+              <th class="text-left font-medium px-5 py-3">Expires in</th>
+              <th class="px-5 py-3"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border-default/30">
+            <% @vault_confirmations.each do |vc| %>
+              <tr class="hover:bg-surface-card/60 transition">
+                <td class="px-5 py-3 text-white font-mono text-xs"><%= vc["namespace"] %>.<%= vc["key"] %></td>
+                <td class="px-5 py-3 text-text-muted text-xs"><%= vc["purpose"] || "—" %></td>
+                <td class="px-5 py-3 text-text-muted"><%= vc["agent_name"] || "—" %></td>
+                <td class="px-5 py-3 text-text-faint text-xs"><%= (vc["expires_in"].to_i / 60).clamp(0, Float::INFINITY) %> min</td>
+                <td class="px-5 py-3 text-right flex gap-2 justify-end">
+                  <%= button_to approve_approval_path(vc["confirmation_id"], approval_type: "vault_confirmation"),
+                        method: :post,
+                        class: "px-3 py-1 text-xs font-semibold rounded bg-green-700/80 text-green-100 hover:bg-green-600/80 transition" do %>
+                    Approve
+                  <% end %>
+                  <%= button_to reject_approval_path(vc["confirmation_id"], approval_type: "vault_confirmation"),
+                        method: :post,
+                        form: { data: { turbo_confirm: "Reject this vault write?" } },
+                        class: "px-3 py-1 text-xs font-semibold rounded bg-red-900/60 text-red-300 hover:bg-red-800/60 transition" do %>
+                    Reject
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% else %>
+      <div class="bg-surface-card/30 border border-border-default/50 rounded-xl px-5 py-8 text-center text-text-muted text-sm">
+        No pending vault write confirmations.
+      </div>
+    <% end %>
+  </section>
+
+  <%# ── Section 3: Skill Update Proposals ─────────────────────── %>
+  <section>
+    <h2 class="text-lg font-semibold text-white mb-4">
+      Skill Update Proposals
+      <% if @skill_update_proposals.any? %>
+        <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-amber-900/60 text-amber-300"><%= @skill_update_proposals.size %></span>
+      <% end %>
+    </h2>
+
+    <% if @skill_update_proposals.any? %>
+      <div class="bg-surface-card/50 border border-border-default/50 rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="text-text-faint text-xs uppercase border-b border-border-default/50">
+            <tr>
+              <th class="text-left font-medium px-5 py-3">Skill</th>
+              <th class="text-left font-medium px-5 py-3">Rationale</th>
+              <th class="text-left font-medium px-5 py-3">Proposed by</th>
+              <th class="text-left font-medium px-5 py-3">Submitted</th>
+              <th class="px-5 py-3"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border-default/30">
+            <% @skill_update_proposals.each do |proposal| %>
+              <tr class="hover:bg-surface-card/60 transition">
+                <td class="px-5 py-3 text-white"><%= proposal.skill.name %></td>
+                <td class="px-5 py-3 text-text-muted text-xs"><%= truncate(proposal.rationale, length: 80) %></td>
+                <td class="px-5 py-3 text-text-muted"><%= proposal.proposed_by_agent&.name || "—" %></td>
+                <td class="px-5 py-3 text-text-faint text-xs"><%= proposal.created_at.strftime("%b %d %H:%M") %></td>
+                <td class="px-5 py-3 text-right flex gap-2 justify-end">
+                  <%= button_to approve_approval_path(proposal, approval_type: "skill_update_proposal"),
+                        method: :post,
+                        class: "px-3 py-1 text-xs font-semibold rounded bg-green-700/80 text-green-100 hover:bg-green-600/80 transition" do %>
+                    Approve
+                  <% end %>
+                  <%= button_to reject_approval_path(proposal, approval_type: "skill_update_proposal"),
+                        method: :post,
+                        form: { data: { turbo_confirm: "Reject this skill update proposal?" } },
+                        class: "px-3 py-1 text-xs font-semibold rounded bg-red-900/60 text-red-300 hover:bg-red-800/60 transition" do %>
+                    Reject
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% else %>
+      <div class="bg-surface-card/30 border border-border-default/50 rounded-xl px-5 py-8 text-center text-text-muted text-sm">
+        No pending skill update proposals.
+      </div>
+    <% end %>
+  </section>
+</div>
