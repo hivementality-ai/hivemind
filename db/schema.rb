@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_02_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -299,21 +299,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_000003) do
     t.index ["channel_id"], name: "index_delivery_queue_entries_on_channel_id"
     t.index ["session_id"], name: "index_delivery_queue_entries_on_session_id"
     t.index ["status", "next_attempt_at"], name: "index_delivery_queue_entries_on_status_and_next_attempt_at"
-  end
-
-  create_table "device_pairings", force: :cascade do |t|
-    t.datetime "approved_at"
-    t.datetime "created_at", null: false
-    t.string "device_id"
-    t.string "device_name"
-    t.string "device_type"
-    t.jsonb "metadata"
-    t.string "name"
-    t.integer "status"
-    t.string "token_digest"
-    t.datetime "updated_at", null: false
-    t.index ["device_id"], name: "index_device_pairings_on_device_id", unique: true
-    t.index ["status"], name: "index_device_pairings_on_status"
   end
 
   create_table "embedding_migration_statuses", force: :cascade do |t|
