@@ -1,0 +1,84 @@
+<div class="max-w-5xl mx-auto py-8 px-4">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-white">API Tokens</h1>
+      <p class="text-text-muted mt-1">Personal access tokens for the Hivemind API v1. Each token grants full API access as you.</p>
+    </div>
+  </div>
+
+  <%# Show plaintext token exactly once after creation %>
+  <% if flash[:token].present? %>
+    <div class="mb-6 bg-amber-900/30 border border-amber-500/50 rounded-xl p-4">
+      <p class="text-amber-300 text-sm font-semibold mb-2">Copy your new token now — it will not be shown again.</p>
+      <code class="block font-mono text-amber-200 text-sm bg-black/40 rounded-lg px-4 py-3 break-all select-all"><%= flash[:token] %></code>
+    </div>
+  <% end %>
+
+  <%# Inline new-token form %>
+  <div class="mb-8 bg-surface-card/50 border border-border-default/50 rounded-xl p-5">
+    <h2 class="text-white font-semibold mb-3">New Token</h2>
+    <%= form_with model: @new_token, url: api_tokens_path, method: :post, class: "flex gap-3 items-end" do |f| %>
+      <div class="flex-1">
+        <label class="block text-sm font-medium text-text-primary mb-1">Token name</label>
+        <%= f.text_field :name, placeholder: "e.g. CI deploy, local dev", required: true,
+              class: "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white focus:border-amber-500 focus:outline-none" %>
+      </div>
+      <%= f.submit "Generate Token", class: "px-4 py-2 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400 transition cursor-pointer whitespace-nowrap" %>
+    <% end %>
+  </div>
+
+  <% if @tokens.any? %>
+    <div class="bg-surface-card/50 border border-border-default/50 rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="text-text-faint text-xs uppercase border-b border-border-default/50">
+          <tr>
+            <th class="text-left font-medium px-5 py-3">Name</th>
+            <th class="text-left font-medium px-5 py-3">Status</th>
+            <th class="text-left font-medium px-5 py-3">Last Used</th>
+            <th class="text-left font-medium px-5 py-3">Created</th>
+            <th class="px-5 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-border-default/30">
+          <% @tokens.each do |token| %>
+            <tr class="hover:bg-surface-card/60 transition">
+              <td class="px-5 py-3 text-white font-medium"><%= token.name %></td>
+              <td class="px-5 py-3">
+                <% if token.revoked? %>
+                  <span class="px-2 py-0.5 text-xs rounded-full bg-red-500/10 text-red-400">Revoked</span>
+                <% elsif token.expired? %>
+                  <span class="px-2 py-0.5 text-xs rounded-full bg-yellow-500/10 text-yellow-400">Expired</span>
+                <% else %>
+                  <span class="px-2 py-0.5 text-xs rounded-full bg-green-500/10 text-green-400">Active</span>
+                <% end %>
+              </td>
+              <td class="px-5 py-3 text-text-muted">
+                <%= token.last_used_at ? time_ago_in_words(token.last_used_at) + " ago" : "Never" %>
+              </td>
+              <td class="px-5 py-3 text-text-muted"><%= token.created_at.strftime("%b %-d, %Y") %></td>
+              <td class="px-5 py-3 text-right">
+                <% unless token.revoked? %>
+                  <%= button_to api_token_path(token), method: :delete,
+                        form: { data: { turbo_confirm: "Revoke \"#{token.name}\"? Any scripts using it will stop working." } },
+                        class: "text-text-faint hover:text-red-400 transition text-xs" do %>
+                    Revoke
+                  <% end %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <div class="text-center py-16 bg-surface-card/30 rounded-xl border border-border-default/50">
+      <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+        <svg class="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"/>
+        </svg>
+      </div>
+      <h3 class="text-white font-semibold text-lg mb-2">No API tokens yet</h3>
+      <p class="text-text-muted">Generate a token above to authenticate API v1 requests.</p>
+    </div>
+  <% end %>
+</div>
