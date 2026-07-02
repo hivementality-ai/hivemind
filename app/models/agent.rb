@@ -105,6 +105,8 @@ class Agent < ApplicationRecord
 
   after_save :rebuild_team_soul, if: -> { team_id.present? && (saved_change_to_name? || saved_change_to_role? || saved_change_to_system_prompt? || saved_change_to_team_id?) }
   after_destroy :rebuild_team_soul, if: -> { team_id.present? }
+  after_create :emit_created_webhook
+  after_destroy :emit_deleted_webhook
 
   def current_status
     {
@@ -183,6 +185,22 @@ class Agent < ApplicationRecord
 
   def rebuild_team_soul
     Teams::BuildSoul.call(team: team) if team
+  end
+
+  def emit_created_webhook
+    WebhookEmitter.emit(
+      "agent.created",
+      { agent_id: id, name: name, role: role, created_at: created_at.iso8601 },
+      team: team
+    )
+  end
+
+  def emit_deleted_webhook
+    WebhookEmitter.emit(
+      "agent.deleted",
+      { agent_id: id, name: name, role: role },
+      team: team
+    )
   end
 
   def validate_no_self_reporting
