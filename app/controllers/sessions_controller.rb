@@ -3,7 +3,7 @@
 class SessionsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_agent, only: [ :create ]
-  before_action :set_session, only: [ :show, :message, :interrupt, :update, :canvas, :export ]
+  before_action :set_session, only: [ :show, :message, :interrupt, :update, :canvas, :export, :timeline ]
 
   # GET /sessions — list all sessions
   def index
@@ -132,6 +132,33 @@ class SessionsController < ApplicationController
   # GET /sessions/:id/canvas — live canvas view
   def canvas
     @agent = @session.agent
+  end
+
+  # GET /sessions/:id/timeline — interleaved timeline of all session activity
+  def timeline
+    @agent = @session.agent
+
+    messages = (@session.transcript || []).map.with_index do |msg, idx|
+      { kind: :message, ts: Time.parse(msg["timestamp"].to_s), data: msg, idx: idx }
+    rescue ArgumentError
+      { kind: :message, ts: @session.created_at, data: msg, idx: idx }
+    end
+
+    tool_entries = @session.tool_executions.includes(:tool).map do |te|
+      { kind: :tool, ts: te.created_at, data: te }
+    end
+
+    usage_entries = @session.usage_records.map do |ur|
+      { kind: :usage, ts: ur.created_at, data: ur }
+    end
+
+    @entries = (messages + tool_entries + usage_entries).sort_by { |e| e[:ts] }
+
+    totals = @session.usage_records
+    @total_input_tokens  = totals.sum(:input_tokens)
+    @total_output_tokens = totals.sum(:output_tokens)
+    @total_cost_cents    = totals.sum(:cost_cents)
+    @tool_count          = @session.tool_executions.count
   end
 
   # GET /sessions/:id/export — download debug export as JSON

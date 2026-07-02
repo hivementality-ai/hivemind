@@ -60,6 +60,7 @@ Rails.application.routes.draw do
       post :interrupt
       get :canvas
       get :export
+      get :timeline
     end
   end
 
