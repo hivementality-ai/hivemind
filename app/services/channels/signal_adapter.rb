@@ -70,8 +70,16 @@ module Channels
       ServiceResponse.failure(error: "Signal send failed: #{e.message}")
     end
 
-    def verify_webhook(_request)
-      true
+    def verify_webhook(request)
+      secret = channel.config&.dig("webhook_secret")
+      unless secret
+        # ponytail: no secret = warn+allow for backwards compat; enforce by setting webhook_secret on the channel
+        Rails.logger.warn("[signal] webhook_secret not configured — accepting unauthenticated request from #{request.remote_ip}")
+        return true
+      end
+
+      token = request.headers["X-Signal-Webhook-Token"].to_s
+      ActiveSupport::SecurityUtils.secure_compare(token, secret)
     end
 
     private

@@ -31,6 +31,21 @@ module Channels
       raise NotImplementedError, "#{self.class} must implement #verify_webhook"
     end
 
+    # Edit a previously sent message
+    # @param message_id [String] Platform message identifier
+    # @param content [String] New content for the message
+    # @return [ServiceResponse]
+    def edit_message(message_id, content, **options)
+      raise NotImplementedError, "Message editing is not supported on this channel"
+    end
+
+    # Delete a previously sent message
+    # @param message_id [String] Platform message identifier
+    # @return [ServiceResponse]
+    def delete_message(message_id, **options)
+      raise NotImplementedError, "Message deletion is not supported on this channel"
+    end
+
     protected
 
     # Get webhook secret from vault
@@ -65,12 +80,13 @@ module Channels
     end
 
     # Log outbound message
-    def log_outbound_message(recipient:, content:, metadata: {})
+    def log_outbound_message(recipient:, content:, metadata: {}, platform_message_id: nil)
       OutboundMessage.create!(
         channel_id: channel.id,
         recipient: recipient,
         content: content,
         metadata: metadata,
+        platform_message_id: platform_message_id,
         sent_at: Time.current
       )
     end

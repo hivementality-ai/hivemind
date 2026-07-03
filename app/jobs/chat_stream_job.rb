@@ -97,6 +97,14 @@ class ChatStreamJob < ApplicationJob
 
     adapter = resolver.data[:adapter]
 
+    # ── Budget enforcement ───────────────────────────────────────
+    budget_check = Budgets::Check.call(agent: agent)
+    unless budget_check.success?
+      msg = "Agent #{agent.name} has exceeded its budget for this period."
+      ActionCable.server.broadcast(channel, { type: "error", content: msg })
+      return
+    end
+
     # ── Build LLM messages ───────────────────────────────────────
     message_result = Sessions::MessageBuilder.call(session:, agent:, current_images: image_attachments, prompt_addons: hashtag_result.prompt_addons)
     messages = message_result.data[:messages]

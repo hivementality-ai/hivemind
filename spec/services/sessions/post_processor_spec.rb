@@ -159,7 +159,7 @@ RSpec.describe Sessions::PostProcessor do
 
     context "independent failure isolation" do
       it "continues memory extraction when usage tracking fails" do
-        allow(UsageRecord).to receive(:create).and_raise(StandardError, "DB error")
+        allow(Budgets::RecordSpend).to receive(:call).and_raise(StandardError, "DB error")
 
         expect { result }.to have_enqueued_job(MemoryExtractionJob)
       end
@@ -180,7 +180,7 @@ RSpec.describe Sessions::PostProcessor do
       end
 
       it "returns success even when individual steps fail" do
-        allow(UsageRecord).to receive(:create).and_raise(StandardError, "DB error")
+        allow(Budgets::RecordSpend).to receive(:call).and_raise(StandardError, "DB error")
         expect(result.success?).to be true
       end
     end

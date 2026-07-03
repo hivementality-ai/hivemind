@@ -25,7 +25,11 @@ module Sessions
 
       adapter = resolver.data[:adapter]
 
-      # 3. Build messages array (includes memory context, summary, transcript)
+      # 3. Budget enforcement — block over-budget agents before any LLM call
+      budget_check = Budgets::Check.call(agent: agent)
+      return ServiceResponse.failure(error: "Agent #{agent.name} has exceeded its budget for this period.") unless budget_check.success?
+
+      # 4. Build messages array (includes memory context, summary, transcript)
       message_result = Sessions::MessageBuilder.call(session: @session, agent: agent)
       messages = message_result.data[:messages]
 

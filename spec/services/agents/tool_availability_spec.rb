@@ -77,6 +77,45 @@ RSpec.describe Agents::ToolAvailability do
         expect(result).to include("not fully configured")
         expect(result).to include("OpenAI API key")
       end
+
+      it "uses db requirements when present, ignoring constant" do
+        tool = create(:tool,
+          name: "image_generate",
+          executor_type: "image_generate",
+          enabled: true,
+          description: "Image generation",
+          requirements: { "provider" => "custom_provider", "description" => "custom img", "config_hint" => "Custom provider key required" }
+        )
+        create(:agent_tool, agent: agent, tool: tool)
+
+        result = described_class.explain(
+          tool_name: "image_generate",
+          agent: agent,
+          available_tools: []
+        )
+
+        expect(result).to include("Custom provider key required")
+        expect(result).not_to include("OpenAI API key")
+      end
+
+      it "falls back to constant when tool has no db requirements" do
+        tool = create(:tool,
+          name: "image_generate",
+          executor_type: "image_generate",
+          enabled: true,
+          description: "Image generation",
+          requirements: {}
+        )
+        create(:agent_tool, agent: agent, tool: tool)
+
+        result = described_class.explain(
+          tool_name: "image_generate",
+          agent: agent,
+          available_tools: []
+        )
+
+        expect(result).to include("OpenAI API key")
+      end
     end
 
     context "when tool exists, agent has access, and no provider requirement" do
