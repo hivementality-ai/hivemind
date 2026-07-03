@@ -9,6 +9,7 @@ FactoryBot.define do
     enabled { true }
     config { {} }
     required_credentials { [] }
+    requirements { {} }
     parameters_schema do
       {
         properties: {

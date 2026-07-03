@@ -24,6 +24,7 @@ class ToolsController < ApplicationController
   def create
     @tool = Tool.new(tool_params)
     parse_parameters_schema
+    parse_requirements
 
     if @tool.save
       redirect_to tools_path, notice: "Tool created"
@@ -37,6 +38,7 @@ class ToolsController < ApplicationController
   def update
     @tool.assign_attributes(tool_params)
     parse_parameters_schema
+    parse_requirements
 
     if @tool.save
       redirect_to tools_path, notice: "Tool updated"
@@ -68,6 +70,17 @@ class ToolsController < ApplicationController
       @tool.parameters_schema = JSON.parse(json_str)
     rescue JSON::ParserError => e
       @tool.errors.add(:parameters_schema, "is not valid JSON: #{e.message}")
+    end
+  end
+
+  def parse_requirements
+    json_str = params.dig(:tool, :requirements_json).to_s.strip
+    return if json_str.empty?
+
+    begin
+      @tool.requirements = JSON.parse(json_str)
+    rescue JSON::ParserError => e
+      @tool.errors.add(:requirements, "is not valid JSON: #{e.message}")
     end
   end
 end
