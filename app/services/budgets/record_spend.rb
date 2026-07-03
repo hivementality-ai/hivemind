@@ -3,14 +3,22 @@
 module Budgets
   # Record spending after LLM call
   class RecordSpend
-    def self.call(agent:, cost_cents:, usage_metadata: {})
-      new(agent: agent, cost_cents: cost_cents, usage_metadata: usage_metadata).call
+    def self.call(agent:, cost_cents:, session: nil, provider: nil, llm_model: nil,
+                  input_tokens: 0, output_tokens: 0, request_payload: nil)
+      new(agent:, cost_cents:, session:, provider:, llm_model:,
+          input_tokens:, output_tokens:, request_payload:).call
     end
 
-    def initialize(agent:, cost_cents:, usage_metadata: {})
+    def initialize(agent:, cost_cents:, session: nil, provider: nil, llm_model: nil,
+                   input_tokens: 0, output_tokens: 0, request_payload: nil)
       @agent = agent
       @cost_cents = cost_cents
-      @usage_metadata = usage_metadata
+      @session = session
+      @provider = provider || agent.model_provider
+      @llm_model = llm_model || agent.llm_model
+      @input_tokens = input_tokens
+      @output_tokens = output_tokens
+      @request_payload = request_payload
     end
 
     def call
@@ -32,9 +40,13 @@ module Budgets
         # Create usage record
         usage_record = UsageRecord.create!(
           agent: @agent,
+          session: @session,
+          provider: @provider,
+          llm_model: @llm_model,
+          input_tokens: @input_tokens,
+          output_tokens: @output_tokens,
           cost_cents: @cost_cents,
-          metadata: @usage_metadata,
-          recorded_at: Time.current
+          request_payload: @request_payload
         )
 
         # Broadcast budget update via ActionCable

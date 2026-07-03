@@ -115,6 +115,13 @@ class TeamChatJob < ApplicationJob
 
     adapter = resolver.data[:adapter]
 
+    # ── Budget enforcement ───────────────────────────────────────
+    budget_check = Budgets::Check.call(agent: agent)
+    unless budget_check.success?
+      broadcast_error(agent: agent, error: "Agent #{agent.name} has exceeded its budget for this period.")
+      return
+    end
+
     # Save docs to workspace (only once, shared across all agents)
     @saved_doc_paths ||= if @trigger_message_docs.any?
                            Rails.logger.info("[TeamChatJob] Saving #{@trigger_message_docs.size} docs to workspace")
@@ -552,14 +559,14 @@ class TeamChatJob < ApplicationJob
     return if usage.blank?
     input_tokens = usage[:input_tokens] || 0
     output_tokens = usage[:output_tokens] || 0
-    UsageRecord.create(
+    Budgets::RecordSpend.call(
       agent:,
-      session: session,
+      cost_cents: CostEstimator.estimate(model: agent.llm_model, input_tokens:, output_tokens:),
+      session:,
       provider: agent.model_provider,
       llm_model: agent.llm_model,
       input_tokens:,
       output_tokens:,
-      cost_cents: CostEstimator.estimate(model: agent.llm_model, input_tokens:, output_tokens:),
       request_payload: usage[:request_payload]
     )
   rescue StandardError => e
