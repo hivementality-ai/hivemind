@@ -952,6 +952,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
     t.string "name", null: false
     t.jsonb "parameters_schema", default: {}, null: false
     t.jsonb "required_credentials", default: []
+    t.jsonb "requirements", default: {}, null: false
     t.boolean "requires_approval", default: false, null: false
     t.text "script_template"
     t.datetime "updated_at", null: false
