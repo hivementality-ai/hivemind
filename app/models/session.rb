@@ -34,6 +34,7 @@ class Session < ApplicationRecord
 
   before_save :sanitize_transcript_encoding
   after_initialize :set_defaults
+  after_create :emit_started_webhook
 
   def append_transcript(entry)
     self.transcript ||= []
@@ -87,5 +88,13 @@ class Session < ApplicationRecord
     self.input_tokens ||= 0
     self.output_tokens ||= 0
     self.total_tokens ||= 0
+  end
+
+  def emit_started_webhook
+    WebhookEmitter.emit(
+      "session.started",
+      { session_id: id, agent_id: agent_id, title: title, started_at: created_at.iso8601 },
+      agent: agent
+    )
   end
 end

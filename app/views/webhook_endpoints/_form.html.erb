@@ -20,8 +20,13 @@
     <label class="block text-sm font-medium text-text-primary mb-2">Event Types</label>
     <div class="space-y-2">
       <% [
-        ["task.completed",    "Task completed — fires when a task transitions to a terminal state"],
-        ["approval.resolved", "Approval resolved — fires when an agent approval is approved or rejected"]
+        ["task.completed",     "Task completed — fires when a task transitions to a terminal state"],
+        ["approval.resolved",  "Approval resolved — fires when an agent approval is approved or rejected"],
+        ["session.started",    "Session started — fires when a new agent session is created"],
+        ["session.completed",  "Session completed — fires when an automated session finishes"],
+        ["agent.created",      "Agent created — fires when a new agent is added"],
+        ["agent.deleted",      "Agent deleted — fires when an agent is removed"],
+        ["heartbeat.completed","Heartbeat completed — fires after each heartbeat run finishes"]
       ].each do |value, description| %>
         <label class="flex items-start gap-3 cursor-pointer group">
           <%= f.check_box :event_types, { multiple: true, checked: endpoint.event_types.to_a.include?(value),

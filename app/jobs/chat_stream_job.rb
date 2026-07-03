@@ -250,6 +250,11 @@ class ChatStreamJob < ApplicationJob
       # Close hook sessions so they don't accumulate as zombies
       if session.metadata&.dig("type")&.start_with?("task_hook")
         session.update_columns(status: "completed", last_activity_at: Time.current)
+        WebhookEmitter.emit(
+          "session.completed",
+          { session_id: session.id, agent_id: session.agent_id, title: session.title, completed_at: Time.current.iso8601 },
+          agent: agent
+        )
       end
 
       # Finalize heartbeat sessions — create HeartbeatRun record and restore
@@ -313,6 +318,11 @@ class ChatStreamJob < ApplicationJob
     end
 
     session.update_columns(status: "completed", last_activity_at: Time.current)
+    WebhookEmitter.emit(
+      "session.completed",
+      { session_id: session.id, agent_id: session.agent_id, title: session.title, completed_at: Time.current.iso8601 },
+      agent: agent
+    )
 
     HeartbeatRun.create!(
       agent: agent,
