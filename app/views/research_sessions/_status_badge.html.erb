@@ -1,0 +1,13 @@
+<%
+  color = case status
+  when "completed" then "bg-green-500/20 text-green-400"
+  when "running"   then "bg-blue-500/20 text-blue-400"
+  when "queued"    then "bg-yellow-500/20 text-yellow-400"
+  when "failed"    then "bg-red-500/20 text-red-400"
+  when "cancelled" then "bg-surface-raised text-text-muted"
+  else                  "bg-surface-raised text-text-muted"
+  end
+%>
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium <%= color %>">
+  <%= status %>
+</span>

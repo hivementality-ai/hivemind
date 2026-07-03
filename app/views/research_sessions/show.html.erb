@@ -1,0 +1,93 @@
+<div class="max-w-7xl mx-auto px-6 py-8">
+  <%= link_to "← Research Sessions", research_sessions_path, class: "text-brand-light hover:text-brand text-sm" %>
+
+  <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Report -->
+    <div class="lg:col-span-2">
+      <div class="bg-surface-card rounded-xl border border-border-default p-6">
+        <div class="flex items-start justify-between gap-4 mb-4">
+          <h1 class="text-lg font-semibold text-white leading-snug"><%= @research_session.query %></h1>
+          <%= render partial: "research_sessions/status_badge", locals: { status: @research_session.status } %>
+        </div>
+
+        <% if @research_session.completed? && @research_session.report.present? %>
+          <div class="prose prose-invert prose-sm max-w-none"
+               data-controller="markdown"
+               data-markdown-content-value="<%= @research_session.report %>">
+          </div>
+        <% elsif @research_session.failed? %>
+          <div class="rounded-lg bg-red-900/20 border border-red-500/30 p-4">
+            <p class="text-red-400 text-sm font-medium mb-1">Research failed</p>
+            <p class="text-text-muted text-sm"><%= @research_session.error_message.presence || "Unknown error" %></p>
+          </div>
+        <% elsif @research_session.active? %>
+          <div class="rounded-lg bg-blue-900/20 border border-blue-500/30 p-4">
+            <p class="text-blue-400 text-sm font-medium mb-1">Research in progress</p>
+            <p class="text-text-muted text-sm">
+              Phase: <%= @research_session.current_phase.presence || "initializing" %>
+            </p>
+          </div>
+        <% else %>
+          <p class="text-text-muted text-sm">No report available.</p>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Metadata Sidebar -->
+    <div class="space-y-4">
+      <div class="bg-surface-card rounded-xl border border-border-default p-5">
+        <h2 class="text-sm font-semibold text-white mb-3">Details</h2>
+        <dl class="space-y-2 text-sm">
+          <div class="flex justify-between gap-2">
+            <dt class="text-text-muted">Agent</dt>
+            <dd class="text-text-primary font-medium"><%= @research_session.agent.name %></dd>
+          </div>
+          <div class="flex justify-between gap-2">
+            <dt class="text-text-muted">Depth</dt>
+            <dd class="text-text-primary capitalize"><%= @research_session.depth %></dd>
+          </div>
+          <div class="flex justify-between gap-2">
+            <dt class="text-text-muted">Focus</dt>
+            <dd class="text-text-primary capitalize"><%= @research_session.focus %></dd>
+          </div>
+          <div class="flex justify-between gap-2">
+            <dt class="text-text-muted">Format</dt>
+            <dd class="text-text-primary capitalize"><%= @research_session.output_format.humanize %></dd>
+          </div>
+          <div class="flex justify-between gap-2">
+            <dt class="text-text-muted">Sources</dt>
+            <dd class="text-text-primary"><%= @research_session.sources_count %></dd>
+          </div>
+          <% if @research_session.duration_seconds %>
+            <div class="flex justify-between gap-2">
+              <dt class="text-text-muted">Duration</dt>
+              <dd class="text-text-primary"><%= @research_session.duration_seconds %>s</dd>
+            </div>
+          <% end %>
+          <div class="flex justify-between gap-2">
+            <dt class="text-text-muted">Started</dt>
+            <dd class="text-text-primary"><%= @research_session.started_at&.strftime("%b %d %H:%M") || "—" %></dd>
+          </div>
+          <div class="flex justify-between gap-2">
+            <dt class="text-text-muted">Finished</dt>
+            <dd class="text-text-primary"><%= @research_session.completed_at&.strftime("%b %d %H:%M") || "—" %></dd>
+          </div>
+        </dl>
+      </div>
+
+      <% if @research_session.progress_log.present? %>
+        <div class="bg-surface-card rounded-xl border border-border-default p-5">
+          <h2 class="text-sm font-semibold text-white mb-3">Progress Log</h2>
+          <div class="space-y-2 max-h-64 overflow-y-auto">
+            <% @research_session.progress_log.last(20).each do |entry| %>
+              <div class="text-xs text-text-muted">
+                <span class="text-text-faint"><%= Time.parse(entry["timestamp"]).strftime("%H:%M:%S") rescue "—" %></span>
+                <span class="ml-2"><%= entry["message"] %></span>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

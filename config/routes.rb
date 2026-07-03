@@ -60,6 +60,7 @@ Rails.application.routes.draw do
       post :interrupt
       get :canvas
       get :export
+      get :timeline
     end
   end
 
@@ -114,6 +115,7 @@ Rails.application.routes.draw do
 
   # Agents (use slug for routes)
   resources :agents, param: :slug do
+    resources :memory_entries, only: [ :index, :destroy ], path: "memories"
     member do
       get :files
       post :upload_files
@@ -132,6 +134,9 @@ Rails.application.routes.draw do
       get :download
     end
   end
+
+  # Knowledge Base
+  resources :knowledge_documents, path: "knowledge", only: [:index, :show, :new, :create, :destroy]
 
   # Providers (admin interface)
   resources :providers, only: [ :index, :show, :new, :create, :edit, :update ]
@@ -212,8 +217,19 @@ Rails.application.routes.draw do
     end
   end
 
+  # Approval Inbox
+  resources :approvals, only: [:index] do
+    member do
+      post :approve
+      post :reject
+    end
+  end
+
   # Audit Log
   get "audit_logs", to: "audit_logs#index", as: :audit_logs
+
+  # Research Sessions
+  resources :research_sessions, path: "research", only: [ :index, :show ]
 
   # Analytics
   resources :analytics, only: [ :index, :show ] do
@@ -287,6 +303,9 @@ Rails.application.routes.draw do
   post "integrations/mcp_servers/:id/disconnect", to: "integrations#disconnect_mcp_server", as: :disconnect_mcp_server
   get "integrations/mcp_servers/:id/refresh", to: "integrations#refresh_mcp_tools", as: :refresh_mcp_tools
   patch "integrations/mcp_servers/:id/toggle", to: "integrations#toggle_mcp_server", as: :toggle_mcp_server
+
+  # API Token Management
+  resources :api_tokens, only: [ :index, :create, :destroy ]
 
   # API Integrations
   resources :api_integrations do

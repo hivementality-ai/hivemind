@@ -182,7 +182,9 @@
         <!-- Agent Memories -->
         <div class="bg-surface-card rounded-lg border border-border-default">
           <div class="px-6 py-4 border-b border-border-default flex items-center justify-between">
-            <h2 class="text-xl font-semibold">Memories (<%= @memories.size %>)</h2>
+            <h2 class="text-xl font-semibold">Memories (<%= @memory_total %>)</h2>
+            <%= link_to "View all →", agent_memory_entries_path(@agent),
+                  class: "text-sm text-brand hover:text-brand-dark transition" %>
           </div>
           <div class="p-6">
             <% if @memories.any? %>
@@ -199,6 +201,12 @@
                   </div>
                 <% end %>
               </div>
+              <% if @memory_total > 5 %>
+                <div class="mt-4 text-center">
+                  <%= link_to "View all #{@memory_total} memories →", agent_memory_entries_path(@agent),
+                        class: "text-sm text-brand hover:text-brand-dark transition" %>
+                </div>
+              <% end %>
             <% else %>
               <div class="text-text-muted text-center py-8">
                 No memories yet — start chatting to build memory
