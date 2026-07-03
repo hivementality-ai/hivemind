@@ -217,6 +217,14 @@ Rails.application.routes.draw do
     end
   end
 
+  # Approval Inbox
+  resources :approvals, only: [:index] do
+    member do
+      post :approve
+      post :reject
+    end
+  end
+
   # Audit Log
   get "audit_logs", to: "audit_logs#index", as: :audit_logs
 
