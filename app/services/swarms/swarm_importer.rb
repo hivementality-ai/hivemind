@@ -153,10 +153,15 @@ module Swarms
       warnings        = build_conflict_warnings(conflict_report)
 
       # Stage 5: deploy entities in a transaction
-      entity_results = nil
+      entity_results        = nil
+      placeholder_tool_count = 0
 
       ActiveRecord::Base.transaction do
-        entity_results = deploy_all(document)
+        entity_results, placeholder_tool_count = deploy_all(document)
+      end
+
+      if placeholder_tool_count > 0
+        warnings << "#{placeholder_tool_count} #{"tool".pluralize(placeholder_tool_count)} imported without scripts — edit them before use."
       end
 
       # Stage 6: build and return the import report
@@ -229,8 +234,10 @@ module Swarms
       )
       raise deploy_error("tools", tools_result) unless tools_result.success?
 
+      placeholder_tool_count = 0
       tools_result.payload[:tools].each do |dr|
         results << EntityResult.new(entity_type: :tool, name: dr.name, action: dr.action, record: dr.record)
+        placeholder_tool_count += 1 if dr.record&.script_template == "# TODO: implement script"
       end
 
       # Channels — independent of agents; deploy before agents for completeness.
@@ -278,7 +285,7 @@ module Swarms
         results << EntityResult.new(entity_type: :agent, name: dr.name, action: dr.action, record: dr.record)
       end
 
-      results
+      [ results, placeholder_tool_count ]
     end
 
     # -------------------------------------------------------------------------

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>AI Agent Teams That Actually Work Together.</strong><br/>
-  40+ tools. 150+ templates. 5 channels. One command.<br/>
+  40+ tools. 150+ templates. 13 channels. One command.<br/>
   Self-hosted. Open source. Free forever.
 </p>
 
@@ -45,7 +45,7 @@ Open `http://localhost:8080`. Setup wizard walks you through everything. First a
 | :x: You have 20 AI agent tabs open and can't track what any of them are doing. On reboot, everything's gone. | :white_check_mark: Agents live in persistent workspaces with team chat, memory, and state that survives restarts. |
 | :x: Your agents can chat but can't *do* anything — no shell, no browser, no email, no Jira, no file system. | :white_check_mark: 40+ built-in tools from day one. Shell, browser, Jira, email, Gmail, MCP client, Live Canvas, cloud storage, coding agent delegation, and more. |
 | :x: You manually copy context between agents because they can't talk to each other. | :white_check_mark: Team chat with @mentions. Agents collaborate, chain-react, and hand off work naturally. |
-| :x: Your agents live in a dashboard. Your team lives in Slack/Discord/WhatsApp. They never meet. | :white_check_mark: 5 fully integrated messaging channels. Each agent gets its own bot identity. Your AI team works where your human team works. |
+| :x: Your agents live in a dashboard. Your team lives in Slack/Discord/WhatsApp. They never meet. | :white_check_mark: 13 fully integrated messaging channels. Each agent gets its own bot identity. Your AI team works where your human team works. |
 | :x: API keys in .env files, credentials in plaintext, no audit trail, no isolation. | :white_check_mark: Fully sandboxed — zero access to your host machine. Vault-encrypted credentials, workspace isolation, append-only audit log, network egress controls. |
 | :x: Your agents never get better. Same capabilities day one as day 100. | :white_check_mark: Agent self-evolution — agents create their own tools and skills at runtime. They improve the more they work. |
 | :x: You need a coding task done but your agent edits files one line at a time. | :white_check_mark: Delegate to Claude Code, Codex, or Aider. Multi-file tasks with live progress streaming to chat. |
@@ -96,13 +96,13 @@ Both are open-source multi-agent platforms. Different strengths.
 
 **Paperclip** is the org chart — models companies with goal hierarchies, budget governance, and delegation flows.
 
-**Hivemind** is the office — gives agents 40+ real tools, 5 messaging channels, agent self-evolution, and full sandbox security so they can actually do the work.
+**Hivemind** is the office — gives agents 40+ real tools, 13 messaging channels, agent self-evolution, and full sandbox security so they can actually do the work.
 
 | | Hivemind | Paperclip |
 |---|---|---|
 | Built-in tools | 40+ | Bring your own |
 | Agent templates | 150+ across 18 categories | Agent configs with role/goal |
-| Messaging channels | 5 fully integrated (per-agent bot identity) | Dashboard only |
+| Messaging channels | 13 fully integrated (per-agent bot identity) | Dashboard only |
 | Team chat | Full group chat with @mentions | Ticket-based |
 | Model support | Anthropic, OpenAI, Gemini, Ollama, any OpenAI-compatible | Anthropic, OpenAI, Ollama, HTTP |
 | Agent self-evolution | Creates own tools/skills at runtime | Not available |
@@ -135,7 +135,7 @@ Open `http://localhost:8080`. Setup wizard walks you through everything. First a
 | :x: You have 20 AI agent tabs open and can't track what any of them are doing. On reboot, everything's gone. | :white_check_mark: Agents live in persistent workspaces with team chat, memory, and state that survives restarts. |
 | :x: Your agents can chat but can't *do* anything — no shell, no browser, no email, no Jira, no file system. | :white_check_mark: 40+ built-in tools from day one. Shell, browser, Jira, email, Gmail, MCP client, Live Canvas, cloud storage, coding agent delegation, and more. |
 | :x: You manually copy context between agents because they can't talk to each other. | :white_check_mark: Team chat with @mentions. Agents collaborate, chain-react, and hand off work naturally. |
-| :x: Your agents live in a dashboard. Your team lives in Slack/Discord/WhatsApp. They never meet. | :white_check_mark: 5 fully integrated messaging channels. Each agent gets its own bot identity. Your AI team works where your human team works. |
+| :x: Your agents live in a dashboard. Your team lives in Slack/Discord/WhatsApp. They never meet. | :white_check_mark: 13 fully integrated messaging channels. Each agent gets its own bot identity. Your AI team works where your human team works. |
 | :x: API keys in .env files, credentials in plaintext, no audit trail, no isolation. | :white_check_mark: Fully sandboxed — zero access to your host machine. Vault-encrypted credentials, workspace isolation, append-only audit log, network egress controls. |
 | :x: Your agents never get better. Same capabilities day one as day 100. | :white_check_mark: Agent self-evolution — agents create their own tools and skills at runtime. They improve the more they work. |
 | :x: You need a coding task done but your agent edits files one line at a time. | :white_check_mark: Delegate to Claude Code, Codex, or Aider. Multi-file tasks with live progress streaming to chat. |
@@ -186,13 +186,13 @@ Both are open-source multi-agent platforms. Different strengths.
 
 **Paperclip** is the org chart — models companies with goal hierarchies, budget governance, and delegation flows.
 
-**Hivemind** is the office — gives agents 40+ real tools, 5 messaging channels, agent self-evolution, and full sandbox security so they can actually do the work.
+**Hivemind** is the office — gives agents 40+ real tools, 13 messaging channels, agent self-evolution, and full sandbox security so they can actually do the work.
 
 | | Hivemind | Paperclip |
 |---|---|---|
 | Built-in tools | 40+ | Bring your own |
 | Agent templates | 150+ across 18 categories | Agent configs with role/goal |
-| Messaging channels | 5 fully integrated (per-agent bot identity) | Dashboard only |
+| Messaging channels | 13 fully integrated (per-agent bot identity) | Dashboard only |
 | Team chat | Full group chat with @mentions | Ticket-based |
 | Model support | Anthropic, OpenAI, Gemini, Ollama, any OpenAI-compatible | Anthropic, OpenAI, Ollama, HTTP |
 | Agent self-evolution | Creates own tools/skills at runtime | Not available |
@@ -225,7 +225,7 @@ Both are open-source multi-agent platforms. Different strengths.
   - [Web Search](#web-search)
   - [Image Support](#image-support)
   - [Cloud Storage](#cloud-storage)
-  - [8 Messaging Channels](#8-messaging-channels)
+  - [13 Messaging Channels](#13-messaging-channels)
   - [Autonomous Heartbeat](#autonomous-heartbeat)
   - [Sub-Agent Orchestration](#sub-agent-orchestration)
   - [Coding Agent](#coding-agent)
@@ -660,7 +660,7 @@ Send images to agents via upload, clipboard paste, or drag-and-drop (up to 5 per
 
 Connect Google Drive, Amazon S3, Dropbox, OneDrive, Backblaze B2, or SFTP through the Integrations page. Uses rclone under the hood. OAuth backends (Drive, Dropbox, OneDrive) use a token-paste flow — run `rclone authorize` locally, paste the token in the UI.
 
-### 8 Messaging Channels
+### 13 Messaging Channels
 
 | Channel | Method | Auth |
 |---------|--------|------|
