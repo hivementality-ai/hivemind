@@ -2,8 +2,6 @@
 
 require "rails_helper"
 
-# Faraday resolves absolute paths against the host only (not BASE_URL path),
-# so requests go to https://discord.com/channels/... not /api/v10/channels/...
 RSpec.describe Channels::DiscordAdapter do
   let(:channel) { create(:channel, :discord) }
   let(:adapter) { described_class.new(channel) }
@@ -17,7 +15,7 @@ RSpec.describe Channels::DiscordAdapter do
 
   describe "#edit_message" do
     it "sends PATCH to the correct URL with the new content" do
-      stub = stub_request(:patch, "https://discord.com/channels/#{channel_id}/messages/#{message_id}")
+      stub = stub_request(:patch, "https://discord.com/api/v10/channels/#{channel_id}/messages/#{message_id}")
         .with(
           headers: { "Authorization" => "Bot #{bot_token}" },
           body: hash_including("content" => "Updated text")
@@ -34,7 +32,7 @@ RSpec.describe Channels::DiscordAdapter do
     end
 
     it "returns failure when Discord returns an error" do
-      stub_request(:patch, "https://discord.com/channels/#{channel_id}/messages/#{message_id}")
+      stub_request(:patch, "https://discord.com/api/v10/channels/#{channel_id}/messages/#{message_id}")
         .to_return(status: 403, body: { message: "Missing Permissions" }.to_json)
 
       result = adapter.edit_message(message_id, "Updated text", channel_id: channel_id)
@@ -46,7 +44,7 @@ RSpec.describe Channels::DiscordAdapter do
 
   describe "#delete_message" do
     it "sends DELETE to the correct URL" do
-      stub = stub_request(:delete, "https://discord.com/channels/#{channel_id}/messages/#{message_id}")
+      stub = stub_request(:delete, "https://discord.com/api/v10/channels/#{channel_id}/messages/#{message_id}")
         .with(headers: { "Authorization" => "Bot #{bot_token}" })
         .to_return(status: 204, body: "")
 
@@ -57,7 +55,7 @@ RSpec.describe Channels::DiscordAdapter do
     end
 
     it "returns failure when Discord returns an error" do
-      stub_request(:delete, "https://discord.com/channels/#{channel_id}/messages/#{message_id}")
+      stub_request(:delete, "https://discord.com/api/v10/channels/#{channel_id}/messages/#{message_id}")
         .to_return(status: 404, body: { message: "Unknown Message" }.to_json)
 
       result = adapter.delete_message(message_id, channel_id: channel_id)
@@ -69,7 +67,7 @@ RSpec.describe Channels::DiscordAdapter do
 
   describe "#send_message records platform_message_id" do
     it "stores the Discord message id as platform_message_id on the OutboundMessage" do
-      stub_request(:post, "https://discord.com/channels/#{channel_id}/messages")
+      stub_request(:post, "https://discord.com/api/v10/channels/#{channel_id}/messages")
         .to_return(
           status: 200,
           body: { id: "555444333", content: "Hello" }.to_json
