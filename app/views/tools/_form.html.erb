@@ -52,6 +52,19 @@
         class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white font-mono text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500" %>
   </div>
 
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Requirements (JSON)</label>
+    <p class="text-xs text-text-faint mb-2">
+      Optional. Describes provider/credential requirements shown in tool-unavailability messages.
+      Keys: <code class="text-amber-400">provider</code>, <code class="text-amber-400">description</code>, <code class="text-amber-400">config_hint</code>.
+    </p>
+    <%= f.text_area :requirements_json,
+        value: (@tool.requirements.present? ? JSON.pretty_generate(@tool.requirements) : ""),
+        rows: 5,
+        class: "w-full bg-surface-base border border-border-default rounded-lg px-4 py-2 text-white font-mono text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500",
+        placeholder: "{\n  \"provider\": \"openai\",\n  \"description\": \"image generation\",\n  \"config_hint\": \"OpenAI API key required\"\n}" %>
+  </div>
+
   <div class="flex items-center gap-6">
     <label class="flex items-center gap-2">
       <%= f.check_box :enabled, class: "rounded bg-surface-base border-border-default text-amber-500 focus:ring-amber-500" %>

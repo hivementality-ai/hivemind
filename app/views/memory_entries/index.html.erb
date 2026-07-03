@@ -1,0 +1,65 @@
+<div class="min-h-screen bg-surface-base text-white">
+  <div class="bg-surface-card border-b border-border-default px-6 py-4">
+    <div class="flex items-center gap-4">
+      <%= link_to "← Back to Agent", agent_path(@agent), class: "text-text-muted hover:text-white transition" %>
+      <h1 class="text-3xl font-bold">Memories — <%= @agent.name %></h1>
+      <span class="text-text-muted text-sm"><%= @total_count %> total</span>
+    </div>
+  </div>
+
+  <div class="container mx-auto px-6 py-8">
+    <%= form_with url: agent_memory_entries_path(@agent), method: :get, class: "mb-6 flex gap-3" do |f| %>
+      <%= f.text_field :q, value: params[:q], placeholder: "Search memories…",
+            class: "flex-1 bg-surface-card border border-border-default rounded-lg px-4 py-2 text-white placeholder-text-faint focus:outline-none focus:border-brand" %>
+      <%= f.submit "Search", class: "px-4 py-2 bg-brand hover:bg-brand-dark rounded-lg transition cursor-pointer" %>
+      <% if params[:q].present? %>
+        <%= link_to "Clear", agent_memory_entries_path(@agent), class: "px-4 py-2 bg-surface-raised hover:bg-surface-card border border-border-default rounded-lg transition" %>
+      <% end %>
+    <% end %>
+
+    <div class="bg-surface-card rounded-lg border border-border-default">
+      <% if @memories.any? %>
+        <table class="w-full">
+          <thead>
+            <tr class="border-b border-border-default text-left text-sm text-text-muted">
+              <th class="px-6 py-3">Content</th>
+              <th class="px-6 py-3">Type</th>
+              <th class="px-6 py-3">Category</th>
+              <th class="px-6 py-3">Created</th>
+              <th class="px-6 py-3"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border-default">
+            <% @memories.each do |memory| %>
+              <tr class="hover:bg-surface-raised transition">
+                <td class="px-6 py-4 max-w-lg">
+                  <p class="text-sm text-gray-200 whitespace-pre-wrap"><%= memory.content.truncate(200) %></p>
+                  <% if memory.source_type.present? %>
+                    <span class="text-xs text-text-faint mt-1 block">from <%= memory.source_type.demodulize %></span>
+                  <% end %>
+                </td>
+                <td class="px-6 py-4 text-sm text-text-muted"><%= memory.memory_type&.titleize %></td>
+                <td class="px-6 py-4 text-sm text-text-muted"><%= memory.category&.humanize %></td>
+                <td class="px-6 py-4 text-xs text-text-faint whitespace-nowrap">
+                  <%= time_ago_in_words(memory.created_at) %> ago
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <% if current_user.admin? || current_user.owner? %>
+                    <%= link_to "Delete",
+                          agent_memory_entry_path(@agent, memory),
+                          data: { turbo_method: :delete, turbo_confirm: "Delete this memory?" },
+                          class: "text-xs text-red-400 hover:text-red-300 transition" %>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% else %>
+        <div class="text-text-muted text-center py-12">
+          <%= params[:q].present? ? "No memories matched your search." : "No memories yet." %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

@@ -60,6 +60,7 @@ Rails.application.routes.draw do
       post :interrupt
       get :canvas
       get :export
+      get :timeline
     end
   end
 
@@ -114,6 +115,7 @@ Rails.application.routes.draw do
 
   # Agents (use slug for routes)
   resources :agents, param: :slug do
+    resources :memory_entries, only: [ :index, :destroy ], path: "memories"
     member do
       get :files
       post :upload_files

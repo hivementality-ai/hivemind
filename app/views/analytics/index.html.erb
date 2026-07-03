@@ -5,11 +5,11 @@
       <p class="text-text-muted mt-1">Monitor agent performance and usage</p>
     </div>
 
-    <!-- Period Toggle -->
+    <!-- Days Toggle -->
     <div class="flex gap-2">
-      <% %w[day week month].each do |p| %>
-        <%= link_to p.capitalize, analytics_path(period: p),
-            class: "px-4 py-2 rounded-lg text-sm font-medium transition #{@period == p ? 'bg-brand text-white' : 'bg-surface-card text-text-primary hover:bg-surface-raised'}" %>
+      <% [[7, "7d"], [30, "30d"], [90, "90d"]].each do |d, label| %>
+        <%= link_to label, analytics_path(days: d),
+            class: "px-4 py-2 rounded-lg text-sm font-medium transition #{@days == d ? 'bg-brand text-white' : 'bg-surface-card text-text-primary hover:bg-surface-raised'}" %>
       <% end %>
     </div>
   </div>
@@ -44,6 +44,8 @@
     </div>
   </div>
 
+  <%= render "analytics/daily_trend", trend: @daily_trend %>
+
   <!-- Per-Agent Table -->
   <div class="bg-surface-card rounded-xl border border-border-default overflow-hidden">
     <div class="px-6 py-4 border-b border-border-default">
@@ -61,6 +63,7 @@
               <th class="px-6 py-3 text-right">Requests</th>
               <th class="px-6 py-3 text-right">Tokens</th>
               <th class="px-6 py-3 text-right">Cost</th>
+              <th class="px-6 py-3 text-right">Error Rate</th>
               <th class="px-6 py-3 text-right">Models</th>
               <th class="px-6 py-3 text-right"></th>
             </tr>
@@ -86,6 +89,15 @@
                 </td>
                 <td class="px-6 py-4 text-right text-sm">
                   <span class="text-green-400">$<%= sprintf("%.4f", stat[:cost_cents] / 100.0) %></span>
+                </td>
+                <td class="px-6 py-4 text-right text-sm">
+                  <% if stat[:error_rate] %>
+                    <span class="text-<%= stat[:error_rate] > 10 ? 'red' : 'yellow' %>-400">
+                      <%= stat[:error_rate] %>%
+                    </span>
+                  <% else %>
+                    <span class="text-text-faint">—</span>
+                  <% end %>
                 </td>
                 <td class="px-6 py-4 text-right">
                   <% stat[:models_used].each do |model| %>

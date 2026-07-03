@@ -1,0 +1,25 @@
+<%# locals: (trend:) %>
+<% if trend.any? %>
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-8">
+    <h2 class="text-lg font-semibold text-white mb-4">Daily Cost Trend</h2>
+    <div class="space-y-2">
+      <% max_cost = trend.values.map { |d| d[:cost_cents] }.max.to_f.nonzero? || 1.0 %>
+      <% trend.each do |date, data| %>
+        <div class="flex items-center gap-4">
+          <span class="text-text-muted text-xs w-20 flex-shrink-0"><%= date.strftime("%b %d") %></span>
+          <div class="flex-1 bg-surface-raised rounded-full h-4 relative">
+            <div class="bg-brand h-4 rounded-full flex items-center justify-end pr-2"
+                 style="width: <%= [(data[:cost_cents] * 100.0 / max_cost).round, 3].max %>%">
+              <% if data[:cost_cents] > 0 %>
+                <span class="text-white text-xs font-medium">$<%= sprintf("%.3f", data[:cost_cents] / 100.0) %></span>
+              <% end %>
+            </div>
+          </div>
+          <span class="text-text-faint text-xs w-28 text-right flex-shrink-0">
+            <%= number_with_delimiter(data[:total_tokens]) %> tok
+          </span>
+        </div>
+      <% end %>
+    </div>
+  </div>
+<% end %>

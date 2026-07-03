@@ -296,7 +296,14 @@
             <li>That links Hivemind as a secondary device — no manual registration needed</li>
           </ol>
           <p class="text-text-faint text-xs mt-3">Phone number is optional — it's auto-detected after linking. Only set it if you registered a number directly with signal-cli.</p>
-          <div class="mt-4 bg-surface-card rounded-lg px-4 py-3 border border-border-default">
+          <div class="mt-4 bg-amber-900/20 rounded-lg px-4 py-3 border border-amber-700/50">
+            <p class="text-amber-200 text-sm">
+              <strong class="text-white">What this is:</strong>
+              a Signal inbox others can message to reach your agent — not a way to text your agent from your own number.
+              Messages you send from the linked account (including <strong class="text-white">“Note to Self”</strong>) are dropped as loop protection. Test it from a different phone.
+            </p>
+          </div>
+          <div class="mt-3 bg-surface-card rounded-lg px-4 py-3 border border-border-default">
             <p class="text-text-muted text-sm">
               <strong class="text-white">Delivery:</strong>
               The connector polls signal-cli for new messages — no public URL needed.
@@ -317,6 +324,14 @@
               placeholder: "http://signal-cli:8080",
               class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm" %>
           <p class="text-text-faint text-xs mt-1">URL of the signal-cli-rest-api container</p>
+        </div>
+        <div>
+          <label class="block text-text-muted text-sm mb-1">Webhook Secret <span class="text-text-faint">(optional)</span></label>
+          <%= text_field_tag "channel[config][webhook_secret]", channel.config&.dig("webhook_secret"),
+              placeholder: "random-secret-string",
+              class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand font-mono text-sm",
+              autocomplete: "off" %>
+          <p class="text-text-faint text-xs mt-1">If set, inbound webhooks must include <code class="text-amber-300">X-Signal-Webhook-Token: &lt;secret&gt;</code></p>
         </div>
       </div>
 
