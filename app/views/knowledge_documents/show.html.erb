@@ -1,0 +1,66 @@
+<div class="min-h-screen bg-surface-base p-6">
+  <div class="max-w-4xl mx-auto">
+    <div class="flex items-center gap-4 mb-8">
+      <%= link_to knowledge_documents_path, class: "text-text-muted hover:text-white transition" do %>
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      <% end %>
+      <h1 class="text-2xl font-bold text-white"><%= @document.title %></h1>
+    </div>
+
+    <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+      <dl class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div>
+          <dt class="text-xs text-text-faint uppercase tracking-wider mb-1">Agent</dt>
+          <dd class="text-white text-sm"><%= @document.agent.name %></dd>
+        </div>
+        <div>
+          <dt class="text-xs text-text-faint uppercase tracking-wider mb-1">Type</dt>
+          <dd class="text-white text-sm"><%= @document.source_type %></dd>
+        </div>
+        <div>
+          <dt class="text-xs text-text-faint uppercase tracking-wider mb-1">Status</dt>
+          <dd>
+            <% color = { "pending" => "bg-yellow-900/50 text-yellow-300",
+                         "processing" => "bg-blue-900/50 text-blue-300",
+                         "ready" => "bg-green-900/50 text-green-300",
+                         "failed" => "bg-red-900/50 text-red-300" }[@document.status] || "bg-surface-overlay text-text-muted" %>
+            <span class="text-xs px-2 py-0.5 rounded-full <%= color %>"><%= @document.status %></span>
+          </dd>
+        </div>
+        <div>
+          <dt class="text-xs text-text-faint uppercase tracking-wider mb-1">Chunks</dt>
+          <dd class="text-white text-sm"><%= @chunks.size %></dd>
+        </div>
+      </dl>
+
+      <% if @document.error.present? %>
+        <div class="mt-4 bg-red-900/50 border border-red-700 rounded-lg p-3 text-red-300 text-sm">
+          <%= @document.error %>
+        </div>
+      <% end %>
+    </div>
+
+    <% if @chunks.any? %>
+      <div class="bg-surface-card rounded-xl border border-border-default">
+        <div class="px-6 py-4 border-b border-border-default">
+          <h2 class="text-lg font-semibold text-white">Chunks</h2>
+        </div>
+        <div class="divide-y divide-border-default">
+          <% @chunks.each do |chunk| %>
+            <div class="px-6 py-4">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="text-xs text-text-faint">#<%= chunk.position + 1 %></span>
+                <% if chunk.embedded? %>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-green-900/50 text-green-300">embedded</span>
+                <% end %>
+              </div>
+              <p class="text-text-muted text-sm line-clamp-3"><%= chunk.content %></p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

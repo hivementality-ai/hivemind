@@ -133,6 +133,9 @@ Rails.application.routes.draw do
     end
   end
 
+  # Knowledge Base
+  resources :knowledge_documents, path: "knowledge", only: [:index, :show, :new, :create, :destroy]
+
   # Providers (admin interface)
   resources :providers, only: [ :index, :show, :new, :create, :edit, :update ]
 
