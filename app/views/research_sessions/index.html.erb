@@ -1,0 +1,55 @@
+<div class="max-w-7xl mx-auto px-6 py-8">
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-white">Research Sessions</h1>
+    <p class="text-text-muted mt-1">Past and in-progress deep research reports</p>
+  </div>
+
+  <div class="bg-surface-card rounded-xl border border-border-default overflow-hidden">
+    <% if @research_sessions.any? %>
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-surface-base/50 text-text-muted text-xs uppercase tracking-wider">
+            <tr>
+              <th class="px-6 py-3 text-left">Query</th>
+              <th class="px-6 py-3 text-left">Agent</th>
+              <th class="px-6 py-3 text-left">Status</th>
+              <th class="px-6 py-3 text-left">Depth / Focus</th>
+              <th class="px-6 py-3 text-left">Started</th>
+              <th class="px-6 py-3 text-left">Finished</th>
+              <th class="px-6 py-3"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border-default">
+            <% @research_sessions.each do |rs| %>
+              <tr class="hover:bg-surface-raised/50 transition">
+                <td class="px-6 py-4 max-w-xs">
+                  <span class="text-white text-sm font-medium line-clamp-2"><%= rs.query.truncate(80) %></span>
+                </td>
+                <td class="px-6 py-4 text-text-muted text-sm"><%= rs.agent.name %></td>
+                <td class="px-6 py-4">
+                  <%= render partial: "research_sessions/status_badge", locals: { status: rs.status } %>
+                </td>
+                <td class="px-6 py-4 text-text-muted text-sm">
+                  <%= rs.depth %> / <%= rs.focus %>
+                </td>
+                <td class="px-6 py-4 text-text-muted text-sm">
+                  <%= rs.started_at ? rs.started_at.strftime("%b %d %H:%M") : "—" %>
+                </td>
+                <td class="px-6 py-4 text-text-muted text-sm">
+                  <%= rs.completed_at ? rs.completed_at.strftime("%b %d %H:%M") : "—" %>
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <%= link_to "View →", research_session_path(rs), class: "text-brand-light hover:text-brand text-sm" %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% else %>
+      <div class="px-6 py-12 text-center text-text-muted">
+        No research sessions yet. Research runs automatically when an agent uses the deep_research tool.
+      </div>
+    <% end %>
+  </div>
+</div>

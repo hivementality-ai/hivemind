@@ -219,6 +219,9 @@ Rails.application.routes.draw do
   # Audit Log
   get "audit_logs", to: "audit_logs#index", as: :audit_logs
 
+  # Research Sessions
+  resources :research_sessions, path: "research", only: [ :index, :show ]
+
   # Analytics
   resources :analytics, only: [ :index, :show ] do
     member do
