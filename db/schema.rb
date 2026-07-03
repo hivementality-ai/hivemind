@@ -47,6 +47,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
   create_table "agent_budgets", force: :cascade do |t|
     t.bigint "agent_id", null: false
     t.datetime "created_at", null: false
+    t.integer "last_alerted_threshold"
     t.decimal "limit_cents"
     t.string "period"
     t.datetime "reset_at"
