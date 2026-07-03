@@ -7,6 +7,22 @@
     <p class="text-text-muted mt-2">Scan the QR code with your phone to link this <%= platform_name %> account</p>
   </div>
 
+  <% if @channel.channel_type == "signal" %>
+    <!-- How this works (Signal expectation-setting) -->
+    <div class="bg-amber-900/20 border border-amber-700/50 rounded-xl p-5 mb-6">
+      <div class="flex gap-3">
+        <svg class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <div class="text-sm space-y-2">
+          <p class="text-amber-200 font-medium">This makes your agent reachable on Signal — it's not a personal back-channel.</p>
+          <p class="text-text-muted">Linking this number turns it into an inbox that <strong class="text-white">other people</strong> can message to reach your agent. Share the number, and anyone who texts it gets a reply.</p>
+          <p class="text-text-muted"><strong class="text-white">Heads up:</strong> messaging this number from <em>your own</em> Signal account — including <strong class="text-white">“Note to Self”</strong> — won’t reach the agent. Signal drops your own messages as loop protection. To test it, message the number from a different phone or ask a friend to.</p>
+        </div>
+      </div>
+    </div>
+  <% end %>
+
   <!-- Status -->
   <div class="bg-surface-card rounded-xl border border-border-default p-8 text-center mb-6">
     <!-- Connection Status Badge -->
