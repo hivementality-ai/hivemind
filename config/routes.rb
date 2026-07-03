@@ -296,6 +296,9 @@ Rails.application.routes.draw do
   get "integrations/mcp_servers/:id/refresh", to: "integrations#refresh_mcp_tools", as: :refresh_mcp_tools
   patch "integrations/mcp_servers/:id/toggle", to: "integrations#toggle_mcp_server", as: :toggle_mcp_server
 
+  # API Token Management
+  resources :api_tokens, only: [ :index, :create, :destroy ]
+
   # API Integrations
   resources :api_integrations do
     member do
