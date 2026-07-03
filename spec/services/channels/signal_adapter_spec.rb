@@ -180,9 +180,30 @@ RSpec.describe Channels::SignalAdapter do
   end
 
   describe "#verify_webhook" do
-    it "always returns true" do
-      request = double("request")
-      expect(adapter.verify_webhook(request)).to be true
+    let(:request) { instance_double(ActionDispatch::Request, remote_ip: "1.2.3.4") }
+
+    context "when webhook_secret is configured" do
+      before { channel.update(config: channel.config.merge("webhook_secret" => "s3cr3t")) }
+
+      it "returns true when the token matches" do
+        allow(request).to receive(:headers).and_return({ "X-Signal-Webhook-Token" => "s3cr3t" })
+        expect(adapter.verify_webhook(request)).to be true
+      end
+
+      it "returns false when the token is wrong" do
+        allow(request).to receive(:headers).and_return({ "X-Signal-Webhook-Token" => "wrong" })
+        expect(adapter.verify_webhook(request)).to be false
+      end
+    end
+
+    context "when webhook_secret is not configured" do
+      it "logs a warning and returns true" do
+        allow(Rails.logger).to receive(:warn)
+        allow(request).to receive(:headers)
+        result = adapter.verify_webhook(request)
+        expect(result).to be true
+        expect(Rails.logger).to have_received(:warn).with(/webhook_secret not configured/)
+      end
     end
   end
 end
