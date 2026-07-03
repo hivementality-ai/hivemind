@@ -90,6 +90,7 @@ module Channels
         outbound = log_outbound_message(
           recipient: to,
           content: content,
+          platform_message_id: result["id"],
           metadata: {
             message_id: result["id"],
             channel_id: target_channel,
@@ -156,7 +157,7 @@ module Channels
       end
 
       response = conn.post(
-        "/interactions/#{interaction_id}/#{interaction_token}/callback",
+        "interactions/#{interaction_id}/#{interaction_token}/callback",
         payload.to_json,
         { "Content-Type" => "application/json" }
       )
@@ -212,6 +213,46 @@ module Channels
       embed[:author] = { name: author } if author.present?
 
       embed
+    end
+
+    def edit_message(message_id, content, channel_id:, agent: nil, **options)
+      bot_token = resolve_bot_token(agent)
+      return ServiceResponse.failure(error: "Bot token not configured") unless bot_token
+
+      response = discord_request(
+        :patch,
+        "/channels/#{channel_id}/messages/#{message_id}",
+        { content: content },
+        bot_token
+      )
+
+      if response.success?
+        ServiceResponse.success(data: { response: JSON.parse(response.body) })
+      else
+        ServiceResponse.failure(error: "Discord API error: #{response.status} #{response.body}")
+      end
+    rescue StandardError => e
+      ServiceResponse.failure(error: "Discord edit failed: #{e.message}")
+    end
+
+    def delete_message(message_id, channel_id:, agent: nil, **options)
+      bot_token = resolve_bot_token(agent)
+      return ServiceResponse.failure(error: "Bot token not configured") unless bot_token
+
+      response = discord_request(
+        :delete,
+        "/channels/#{channel_id}/messages/#{message_id}",
+        nil,
+        bot_token
+      )
+
+      if response.status == 204 || response.success?
+        ServiceResponse.success
+      else
+        ServiceResponse.failure(error: "Discord API error: #{response.status} #{response.body}")
+      end
+    rescue StandardError => e
+      ServiceResponse.failure(error: "Discord delete failed: #{e.message}")
     end
 
     def verify_webhook(request)
@@ -283,7 +324,8 @@ module Channels
         headers["Authorization"] = "Bot #{token}"
       end
 
-      conn.run_request(method, path, body&.to_json, headers)
+      # Strip leading slash so Faraday appends to BASE_URL path rather than replacing it.
+      conn.run_request(method, path.to_s.delete_prefix("/"), body&.to_json, headers)
     end
 
     def receive_interaction(payload)
@@ -350,7 +392,7 @@ module Channels
         thread_id: options[:thread_id]
       )
 
-      if response.success?
+      if response.is_a?(Net::HTTPSuccess)
         result = JSON.parse(response.body)
         outbound = log_outbound_message(
           recipient: to,
@@ -364,7 +406,7 @@ module Channels
         )
         ServiceResponse.success(data: { outbound_message: outbound, response: result })
       else
-        ServiceResponse.failure(error: "Discord file upload failed: #{response.status} #{response.body}")
+        ServiceResponse.failure(error: "Discord file upload failed: #{response.code} #{response.body}")
       end
     rescue StandardError => e
       ServiceResponse.failure(error: "File upload error: #{e.message}")
