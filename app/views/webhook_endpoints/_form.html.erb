@@ -1,0 +1,52 @@
+<%= form_with model: endpoint, url: (endpoint.new_record? ? webhook_endpoints_path : webhook_endpoint_path(endpoint)), method: (endpoint.new_record? ? :post : :patch), class: "space-y-5" do |f| %>
+  <% if endpoint.errors.any? %>
+    <div class="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
+      <ul class="list-disc list-inside space-y-1">
+        <% endpoint.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Destination URL</label>
+    <%= f.url_field :url, required: true, placeholder: "https://example.com/hooks/hivemind",
+          class: "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white font-mono focus:border-amber-500 focus:outline-none" %>
+    <p class="text-text-faint text-xs mt-1">Must be HTTPS. Hivemind will POST signed JSON here on each matched event.</p>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-2">Event Types</label>
+    <div class="space-y-2">
+      <% [
+        ["task.completed",    "Task completed — fires when a task transitions to a terminal state"],
+        ["approval.resolved", "Approval resolved — fires when an agent approval is approved or rejected"]
+      ].each do |value, description| %>
+        <label class="flex items-start gap-3 cursor-pointer group">
+          <%= f.check_box :event_types, { multiple: true, checked: endpoint.event_types.to_a.include?(value),
+                class: "mt-0.5 rounded border-border-default bg-surface-raised text-amber-500 focus:ring-amber-500" },
+              value, nil %>
+          <span>
+            <span class="text-white font-mono text-sm"><%= value %></span>
+            <span class="block text-text-faint text-xs"><%= description %></span>
+          </span>
+        </label>
+      <% end %>
+    </div>
+  </div>
+
+  <div>
+    <label class="flex items-center gap-3 cursor-pointer">
+      <%= f.check_box :enabled, class: "rounded border-border-default bg-surface-raised text-amber-500 focus:ring-amber-500" %>
+      <span class="text-sm font-medium text-text-primary">Enabled</span>
+    </label>
+    <p class="text-text-faint text-xs mt-1 ml-7">Disabled endpoints receive no deliveries. Endpoints auto-disable after <%= WebhookEndpoint::MAX_FAILURES %> consecutive failures.</p>
+  </div>
+
+  <div class="flex gap-3 pt-2">
+    <%= f.submit (endpoint.new_record? ? "Create Endpoint" : "Save Changes"),
+          class: "px-4 py-2 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400 transition cursor-pointer" %>
+    <%= link_to "Cancel", webhook_endpoints_path, class: "px-4 py-2 text-text-muted hover:text-white transition" %>
+  </div>
+<% end %>
