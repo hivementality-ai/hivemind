@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 import { createConsumer } from "@rails/actioncable"
 import { marked } from "marked"
+import DOMPurify from "dompurify"
 
 export default class extends Controller {
   static targets = ["messages", "input", "sendBtn", "stopBtn", "thinking", "thinkingContent", "tokenCount", "emptyState", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown", "toolCallsToggle", "working", "titleText", "titleInput"]
@@ -1179,12 +1180,7 @@ export default class extends Controller {
   }
 
   renderMarkdown(text) {
-    const raw = marked.parse(text)
-    // Basic XSS sanitization — strip script tags and event handlers
-    return raw
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-      .replace(/\son\w+\s*=/gi, " data-blocked=")
-      .trim()
+    return DOMPurify.sanitize(marked.parse(text)).trim()
   }
 
   handlePlanningMode(isPlanning, message, summary) {

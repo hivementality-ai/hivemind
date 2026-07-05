@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 import { createConsumer } from "@rails/actioncable"
 import { marked } from "marked"
+import DOMPurify from "dompurify"
 
 marked.setOptions({ breaks: true, gfm: true, silent: true })
 
@@ -482,19 +483,10 @@ export default class extends Controller {
   renderMarkdown(text) {
     if (!text) return ""
     try {
-      const html = marked.parse(text)
-      return this.sanitize(html)
+      return DOMPurify.sanitize(marked.parse(text)).trim()
     } catch {
       return this.escapeHtml(text).replace(/\n/g, "<br>")
     }
-  }
-
-  sanitize(html) {
-    return html
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-      .replace(/<(iframe|object|embed|form)\b[^>]*>[\s\S]*?<\/\1>/gi, "")
-      .replace(/\son\w+\s*=/gi, " data-blocked=")
-      .trim()
   }
 
   escapeHtml(text) {
