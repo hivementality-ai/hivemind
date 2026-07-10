@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 import { createConsumer } from "@rails/actioncable"
 import { marked } from "marked"
+import DOMPurify from "dompurify"
 
 export default class extends Controller {
   static targets = ["messages", "input", "sendBtn", "stopBtn", "thinkingArea", "emptyState", "mentionBar", "toolToggle", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown", "titleText", "titleInput"]
@@ -912,11 +913,7 @@ export default class extends Controller {
   }
 
   renderMarkdown(text) {
-    const raw = marked.parse(text)
-    return raw
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-      .replace(/\son\w+\s*=/gi, " data-blocked=")
-      .trim()
+    return DOMPurify.sanitize(marked.parse(text)).trim()
   }
 
   // ─── Inline Title Edit ─────────────────────────────────
