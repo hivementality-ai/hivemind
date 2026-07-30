@@ -173,7 +173,8 @@ class TeamChatJob < ApplicationJob
 
       # Detect OAuth MCP path — when using OAuth tokens, the Agent SDK manages
       # tool execution via MCP callbacks instead of the local ToolLoop
-      oauth_mcp = adapter.is_a?(Providers::AnthropicAdapter) && adapter.send(:oauth_token?) && tools.any?
+      base_adapter = Providers::FailoverAdapter.unwrap(adapter)
+      oauth_mcp = base_adapter.is_a?(Providers::AnthropicAdapter) && base_adapter.send(:oauth_token?) && tools.any?
       if oauth_mcp
         llm_options[:agent_id] = agent.id
         llm_options[:session_id] = @agent_session.id

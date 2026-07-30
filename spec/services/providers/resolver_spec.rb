@@ -95,6 +95,32 @@ RSpec.describe Providers::Resolver do
       end
     end
 
+    context 'with a fallback chain configured on the agent' do
+      let!(:provider_config) { create(:provider_config, :openai, name: provider_name) }
+      let(:agent) { create(:agent, model_provider: "openai", model_config: { "fallback_models" => [ "gpt-4o-mini" ] }) }
+
+      it 'wraps the adapter in a FailoverAdapter' do
+        result = described_class.call(provider_name: provider_name, agent: agent)
+
+        expect(result.success?).to be true
+        expect(result.data[:adapter]).to be_a(Providers::FailoverAdapter)
+        expect(result.data[:adapter].primary).to be_a(Providers::OpenaiAdapter)
+      end
+
+      it 'returns the bare adapter when failover: false' do
+        result = described_class.call(provider_name: provider_name, agent: agent, failover: false)
+
+        expect(result.data[:adapter]).to be_a(Providers::OpenaiAdapter)
+      end
+
+      it 'returns the bare adapter when the agent has no chain' do
+        plain_agent = create(:agent, model_provider: "openai")
+        result = described_class.call(provider_name: provider_name, agent: plain_agent)
+
+        expect(result.data[:adapter]).to be_a(Providers::OpenaiAdapter)
+      end
+    end
+
     context 'when adapter type is unknown' do
       let!(:provider_config) do
         create(:provider_config, name: provider_name, adapter_type: "openai")

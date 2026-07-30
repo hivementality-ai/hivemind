@@ -285,6 +285,22 @@ class Agent < ApplicationRecord
     (model_config || {})["max_output_tokens"]&.to_i
   end
 
+  # Ordered LLM failover chain, configured in model_config["fallback_models"].
+  # Entries are either a bare model id string (same provider) or a hash
+  # {"provider" => "openai", "model" => "gpt-..."}. Providers::Resolver uses
+  # this to wrap the adapter in a FailoverAdapter.
+  def fallback_models
+    Array((model_config || {})["fallback_models"]).filter_map do |entry|
+      case entry
+      when String
+        { provider: model_provider, model: entry } if entry.present?
+      when Hash
+        e = entry.with_indifferent_access
+        { provider: e[:provider].presence || model_provider, model: e[:model] } if e[:model].present?
+      end
+    end
+  end
+
   def inference_options
     mc = model_config || {}
     opts = {}
