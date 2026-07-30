@@ -134,31 +134,43 @@ class SkillsController < ApplicationController
       return
     end
 
-    content = file.read
-    skill = Skill.from_skill_md(content)
+    skill = Skill.from_skill_md(file.read)
 
     if skill.name.blank?
       skill.name = File.basename(file.original_filename, ".*").parameterize
     end
 
-    scan_result = SkillSecurityScanner.call(content: skill.content, name: skill.name, source: "import")
+    scan_and_import(skill)
+  end
 
-    if scan_result.success? && scan_result.data[:status] == "clean"
-      save_imported_skill(skill, scan_result.data)
+  # ── Marketplace (ClawHub) ─────────────────────────────────────
+
+  def marketplace
+    @query = params[:q].to_s.strip
+    result = @query.present? ? Clawhub::Client.search(@query) : Clawhub::Client.popular
+
+    if result.success?
+      @results = result.data
     else
-      # Store in cache instead of session to avoid CookieOverflow on large skills
-      import_key = "skill_import_#{current_user.id}_#{SecureRandom.hex(8)}"
-      Rails.cache.write(import_key, {
-        name: skill.name,
-        description: skill.description,
-        summary: skill.summary,
-        content: skill.content,
-        category: skill.category,
-        scan_result: scan_result.success? ? scan_result.data : { status: "error", error: scan_result.error }
-      }, expires_in: 30.minutes)
-      session[:pending_skill_import_key] = import_key
-      redirect_to review_import_skills_path
+      @results = []
+      flash.now[:alert] = result.error
     end
+  end
+
+  # One-click install: fetch SKILL.md from ClawHub, then run it through the
+  # exact same security-scan + review pipeline as a manual file import.
+  def install_from_marketplace
+    slug = params[:slug].to_s
+    result = Clawhub::Client.fetch_skill_md(slug)
+
+    unless result.success?
+      redirect_to marketplace_skills_path, alert: result.error
+      return
+    end
+
+    skill = Skill.from_skill_md(result.data)
+    skill.name = slug.parameterize if skill.name.blank?
+    scan_and_import(skill)
   end
 
   def review_import
@@ -331,6 +343,31 @@ class SkillsController < ApplicationController
         }
       end
     }
+  end
+
+  # Shared import pipeline: security-scan, then save if clean or park in the
+  # review flow (review_import/confirm_import) otherwise. Used by both file
+  # import and marketplace install.
+  def scan_and_import(skill)
+    skill.summary = skill.name if skill.summary.blank?
+    scan_result = SkillSecurityScanner.call(content: skill.content, name: skill.name, source: "import")
+
+    if scan_result.success? && scan_result.data[:status] == "clean"
+      save_imported_skill(skill, scan_result.data)
+    else
+      # Store in cache instead of session to avoid CookieOverflow on large skills
+      import_key = "skill_import_#{current_user.id}_#{SecureRandom.hex(8)}"
+      Rails.cache.write(import_key, {
+        name: skill.name,
+        description: skill.description,
+        summary: skill.summary,
+        content: skill.content,
+        category: skill.category,
+        scan_result: scan_result.success? ? scan_result.data : { status: "error", error: scan_result.error }
+      }, expires_in: 30.minutes)
+      session[:pending_skill_import_key] = import_key
+      redirect_to review_import_skills_path
+    end
   end
 
   def save_imported_skill(skill, scan_data, approved: false)
