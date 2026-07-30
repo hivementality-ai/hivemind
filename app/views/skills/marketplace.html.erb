@@ -1,0 +1,48 @@
+<div class="max-w-7xl mx-auto px-6 py-8">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-white">Skill Marketplace</h1>
+      <p class="text-text-muted text-sm mt-1">Browse community skills from ClawHub, OpenClaw's public registry. Every install is security-scanned before it's saved.</p>
+    </div>
+    <%= link_to "Back to Skills", skills_path, class: "px-4 py-2 bg-surface-raised hover:bg-surface-overlay text-white text-sm font-medium rounded-lg transition" %>
+  </div>
+
+  <%= form_tag marketplace_skills_path, method: :get, class: "flex gap-2 mb-8" do %>
+    <%= text_field_tag :q, @query, placeholder: "Search skills (e.g. git, postgres, calendar)…",
+        class: "flex-1 px-4 py-2 bg-surface-card border border-border-default rounded-lg text-white text-sm placeholder:text-text-faint focus:outline-none focus:border-amber-500/50" %>
+    <%= submit_tag "Search", class: "px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+  <% end %>
+
+  <% if @results.any? %>
+    <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wide mb-4">
+      <%= @query.present? ? "Results for \"#{@query}\"" : "Most downloaded" %>
+    </h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <% @results.each do |result| %>
+        <div class="bg-surface-card rounded-xl border border-border-default hover:border-amber-500/50 transition p-5 flex flex-col">
+          <div class="flex items-start justify-between mb-2">
+            <div class="flex-1 min-w-0">
+              <h3 class="text-white font-semibold truncate"><%= result[:name] %></h3>
+              <div class="text-xs text-text-faint mt-0.5">
+                <% if result[:author].present? %>by <%= result[:author] %><% end %>
+                <% if result[:version].present? %> · v<%= result[:version] %><% end %>
+              </div>
+            </div>
+            <% if result[:downloads].present? %>
+              <span class="flex-shrink-0 ml-3 px-2 py-0.5 text-xs rounded-full bg-surface-raised text-text-muted"><%= number_to_human(result[:downloads], format: "%n%u", units: { thousand: "k", million: "M" }) %> downloads</span>
+            <% end %>
+          </div>
+          <p class="text-text-muted text-sm line-clamp-3 flex-1"><%= result[:description] %></p>
+          <div class="mt-4">
+            <%= button_to "Install", install_from_marketplace_skills_path(slug: result[:slug]),
+                class: "px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% elsif flash.now[:alert].blank? %>
+    <div class="bg-surface-card rounded-xl border border-border-default p-12 text-center">
+      <p class="text-text-muted">No skills found<%= " for \"#{@query}\"" if @query.present? %>.</p>
+    </div>
+  <% end %>
+</div>

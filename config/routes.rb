@@ -153,6 +153,8 @@ Rails.application.routes.draw do
       patch :rollback
     end
     collection do
+      get :marketplace
+      post :install_from_marketplace
       post :import
       get :review_import
       post :confirm_import
