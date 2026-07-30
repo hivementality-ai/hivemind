@@ -9,13 +9,14 @@ module Providers
       "openai_compatible" => Providers::OpenaiCompatibleAdapter
     }.freeze
 
-    def self.call(provider_name:, agent: nil)
-      new(provider_name:, agent:).call
+    def self.call(provider_name:, agent: nil, failover: true)
+      new(provider_name:, agent:, failover:).call
     end
 
-    def initialize(provider_name:, agent: nil)
+    def initialize(provider_name:, agent: nil, failover: true)
       @provider_name = provider_name
       @agent = agent
+      @failover = failover
     end
 
     def call
@@ -35,7 +36,23 @@ module Providers
       api_key = config.api_key(agent: @agent)
 
       adapter = adapter_class.new(config:, api_key:)
+      adapter = wrap_failover(adapter)
       ServiceResponse.success(data: { adapter: })
+    end
+
+    private
+
+    # Wrap the adapter in the agent's failover chain (if configured) so every
+    # call site — chat jobs, background jobs, ToolLoop — gets failover for
+    # free. FailoverAdapter resolves chain entries with failover: false to
+    # avoid re-wrapping.
+    def wrap_failover(adapter)
+      return adapter unless @failover && @agent.respond_to?(:fallback_models)
+
+      chain = @agent.fallback_models
+      return adapter if chain.blank?
+
+      FailoverAdapter.new(primary: adapter, chain:, agent: @agent)
     end
   end
 end

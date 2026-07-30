@@ -135,9 +135,10 @@ class ChatStreamJob < ApplicationJob
       # through Claude Code and bill against the subscription's included usage.
       # Can be forced off via the "anthropic_use_sdk_proxy" Setting (or the
       # USE_SDK_PROXY_FALLBACK env). Non-OAuth keys drive Agents::ToolLoop.
+      base_adapter = Providers::FailoverAdapter.unwrap(adapter)
       oauth_mcp = Providers::AnthropicAdapter.sdk_proxy_enabled? &&
-                  adapter.is_a?(Providers::AnthropicAdapter) &&
-                  adapter.send(:oauth_token?) &&
+                  base_adapter.is_a?(Providers::AnthropicAdapter) &&
+                  base_adapter.send(:oauth_token?) &&
                   tools.any?
       if oauth_mcp
         llm_options[:agent_id] = agent.id

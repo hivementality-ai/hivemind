@@ -40,8 +40,9 @@ module Sessions
       options = { model: agent.llm_model, agent_id: agent.id, session_id: @session.id }
 
       # Detect OAuth/MCP proxy path (Anthropic OAuth tokens)
-      oauth_mcp = adapter.is_a?(Providers::AnthropicAdapter) &&
-                  (adapter.send(:api_key) rescue nil)&.start_with?("sk-ant-oat") &&
+      base_adapter = Providers::FailoverAdapter.unwrap(adapter)
+      oauth_mcp = base_adapter.is_a?(Providers::AnthropicAdapter) &&
+                  (base_adapter.send(:api_key) rescue nil)&.start_with?("sk-ant-oat") &&
                   tools.any?
 
       if oauth_mcp
