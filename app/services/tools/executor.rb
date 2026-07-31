@@ -44,8 +44,6 @@ module Tools
       "pdf_read" => Tools::PdfReadExecutor,
       "jira" => Tools::JiraExecutor,
       "trello" => Tools::TrelloExecutor,
-      "composio" => Tools::ComposioExecutor,
-      "nango" => Tools::NangoExecutor,
       "email" => Tools::EmailExecutor,
       "custom_script" => Tools::CustomScriptExecutor,
       "coding_agent" => Tools::CodingAgentExecutor,

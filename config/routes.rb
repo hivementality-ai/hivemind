@@ -284,8 +284,6 @@ Rails.application.routes.draw do
   get "integrations/jira/test", to: "integrations#test_jira", as: :test_jira_integrations
   patch "integrations/trello", to: "integrations#update_trello", as: :update_trello_integrations
   get "integrations/trello/test", to: "integrations#test_trello", as: :test_trello_integrations
-  patch "integrations/composio", to: "integrations#update_composio", as: :update_composio_integrations
-  patch "integrations/nango", to: "integrations#update_nango", as: :update_nango_integrations
   post "integrations/cloud_remote", to: "integrations#add_cloud_remote", as: :add_cloud_remote_integrations
   delete "integrations/cloud_remote", to: "integrations#remove_cloud_remote", as: :remove_cloud_remote_integrations
   get "integrations/cloud_remote/test", to: "integrations#test_cloud_remote", as: :test_cloud_remote_integrations
