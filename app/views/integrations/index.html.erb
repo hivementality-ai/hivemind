@@ -424,6 +424,96 @@
     }
   </script>
 
+  <!-- Pipedream -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-green-600/20 rounded-lg flex items-center justify-center">
+          <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <div>
+          <h2 class="text-lg font-semibold text-white">Pipedream</h2>
+          <p class="text-text-faint text-sm">Give agents 2,800+ apps / 10,000+ tools via Pipedream Connect MCP</p>
+        </div>
+      </div>
+      <span class="px-3 py-1 rounded-full text-xs font-medium
+        <%= @pipedream_configured ? 'bg-green-900 text-green-300' : 'bg-surface-raised text-text-muted' %>">
+        <%= @pipedream_configured ? "Connected" : "Not configured" %>
+      </span>
+    </div>
+
+    <%= form_tag update_pipedream_path, method: :patch do %>
+      <div class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-text-muted text-sm mb-1">Client ID</label>
+            <%= text_field_tag :pipedream_client_id, nil, placeholder: "OAuth client ID",
+                class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand", autocomplete: "off" %>
+          </div>
+          <div>
+            <label class="block text-text-muted text-sm mb-1">Client Secret</label>
+            <%= password_field_tag :pipedream_client_secret, nil, placeholder: "OAuth client secret",
+                class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand", autocomplete: "off" %>
+          </div>
+          <div>
+            <label class="block text-text-muted text-sm mb-1">Project ID</label>
+            <%= text_field_tag :pipedream_project_id, @pipedream_project_id, placeholder: "proj_xxxxxxx",
+                class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand", autocomplete: "off" %>
+          </div>
+          <div>
+            <label class="block text-text-muted text-sm mb-1">Environment</label>
+            <%= select_tag :pipedream_environment,
+                options_for_select(%w[development production], @pipedream_environment),
+                class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand" %>
+          </div>
+        </div>
+        <p class="text-gray-600 text-xs">
+          Create a project and OAuth credentials at
+          <a href="https://pipedream.com/connect" target="_blank" class="text-brand-light hover:text-brand-light">pipedream.com/connect</a>
+        </p>
+        <div class="flex items-center justify-end">
+          <%= submit_tag @pipedream_configured ? "Update" : "Connect Pipedream",
+              class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+        </div>
+      </div>
+    <% end %>
+
+    <% if @pipedream_configured %>
+      <div class="mt-4 border-t border-border-default pt-4">
+        <%= form_tag enable_pipedream_app_path, method: :post do %>
+          <label class="block text-text-muted text-sm mb-1">Enable an app</label>
+          <div class="flex gap-2">
+            <%= text_field_tag :app_slug, nil, placeholder: "app slug, e.g. slack, gmail, notion, linear",
+                class: "flex-1 px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand", autocomplete: "off" %>
+            <%= submit_tag "Connect account",
+                class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer whitespace-nowrap" %>
+          </div>
+          <p class="text-gray-600 text-xs mt-1">You'll be sent to Pipedream to authorize the account, then its tools are discovered automatically. Assign the server to agents from the MCP servers list.</p>
+        <% end %>
+
+        <% if @pipedream_servers.any? %>
+          <div class="mt-4 space-y-2">
+            <% @pipedream_servers.each do |server| %>
+              <div class="flex items-center justify-between bg-surface-base/50 rounded-lg px-4 py-2">
+                <div>
+                  <span class="text-white text-sm"><%= server.metadata.to_h["app_slug"] %></span>
+                  <span class="text-text-faint text-xs ml-2"><%= (server.discovered_tools || []).size %> tools · <%= server.status %></span>
+                </div>
+                <div class="flex gap-2">
+                  <%= button_to "Refresh", refresh_mcp_tools_path(server), method: :get,
+                      class: "text-xs text-brand-light hover:text-white" %>
+                  <%= button_to "Remove", destroy_mcp_server_path(server), method: :delete,
+                      class: "text-xs text-red-400 hover:text-red-300",
+                      data: { turbo_confirm: "Remove #{server.name}?" } %>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+
   <!-- Web Search -->
   <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
     <div class="flex items-center justify-between mb-4">

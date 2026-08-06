@@ -315,6 +315,14 @@ Rails.application.routes.draw do
   get "integrations/mcp_servers/:id/refresh", to: "integrations#refresh_mcp_tools", as: :refresh_mcp_tools
   patch "integrations/mcp_servers/:id/toggle", to: "integrations#toggle_mcp_server", as: :toggle_mcp_server
 
+  # Pipedream Connect
+  patch "integrations/pipedream", to: "integrations#update_pipedream", as: :update_pipedream
+  post "integrations/pipedream/apps", to: "integrations#enable_pipedream_app", as: :enable_pipedream_app
+  get "integrations/pipedream/callback", to: "integrations#pipedream_callback", as: :pipedream_callback
+
+  # Vault (shared global secrets, values always redacted in the UI)
+  resources :vault_entries, only: [ :index, :new, :create, :destroy ]
+
   # API Token Management
   resources :api_tokens, only: [ :index, :create, :destroy ]
 

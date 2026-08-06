@@ -30,6 +30,10 @@ class IntegrationsController < ApplicationController
     @mcp_servers = McpServer.order(:name)
     @mcp_presets = @mcp_servers.where(preset: true)
     @mcp_custom = @mcp_servers.where(preset: false)
+    @pipedream_configured = Pipedream::TokenManager.new.configured?
+    @pipedream_environment = Setting.get("pipedream_environment") || "development"
+    @pipedream_project_id = Setting.get("pipedream_project_id")
+    @pipedream_servers = @mcp_servers.select { |s| s.metadata.to_h["provider"] == "pipedream" }
     @agents = Agent.visible.order(:name)
   end
 
@@ -222,7 +226,13 @@ class IntegrationsController < ApplicationController
 
   def connect_mcp_server
     server = McpServer.find(params[:id])
-    result = server.stdio? ? Mcp::ProcessManager.new(server).start : Mcp::SseClient.discover_tools(server)
+    result = if pipedream_server?(server)
+      Mcp::PipedreamClient.discover_tools(server)
+    elsif server.stdio?
+      Mcp::ProcessManager.new(server).start
+    else
+      Mcp::SseClient.discover_tools(server)
+    end
 
     if result.success?
       redirect_to integrations_path, notice: "Connected to '#{server.name}'"
@@ -239,7 +249,13 @@ class IntegrationsController < ApplicationController
 
   def refresh_mcp_tools
     server = McpServer.find(params[:id])
-    result = server.stdio? ? Mcp::StdioClient.discover_tools(server) : Mcp::SseClient.discover_tools(server)
+    result = if pipedream_server?(server)
+      Mcp::PipedreamClient.discover_tools(server)
+    elsif server.stdio?
+      Mcp::StdioClient.discover_tools(server)
+    else
+      Mcp::SseClient.discover_tools(server)
+    end
 
     if result.success?
       tools = result.data.is_a?(Hash) ? (result.data[:tools] || result.data["tools"] || []) : []
@@ -256,7 +272,81 @@ class IntegrationsController < ApplicationController
     redirect_to integrations_path, notice: "MCP server '#{server.name}' #{status}"
   end
 
+  # === Pipedream Connect ===
+
+  def update_pipedream
+    project_id = params[:pipedream_project_id].to_s.strip
+    if project_id.blank? || params[:pipedream_client_id].to_s.strip.blank? || params[:pipedream_client_secret].to_s.strip.blank?
+      return redirect_to integrations_path, alert: "Client ID, Client Secret, and Project ID are all required"
+    end
+
+    store_vault("pipedream", "client_id", params[:pipedream_client_id].to_s.strip)
+    store_vault("pipedream", "client_secret", params[:pipedream_client_secret].to_s.strip)
+    Setting.set("pipedream_project_id", project_id)
+    Setting.set("pipedream_environment", params[:pipedream_environment].to_s.strip.presence || "development")
+    Setting.set("pipedream_external_user_id", pipedream_external_user_id)
+    Pipedream::TokenManager.new.refresh_access_token!
+
+    redirect_to integrations_path, notice: "Pipedream connected. Enable the apps you want your agents to use."
+  end
+
+  # Creates the McpServer row for an app, then sends the admin to Pipedream's hosted Connect Link to
+  # authorize the account. On return, #pipedream_callback discovers the app's tools.
+  def enable_pipedream_app
+    slug = params[:app_slug].to_s.strip.downcase
+    return redirect_to integrations_path, alert: "App slug is required" if slug.blank?
+
+    tokens = Pipedream::TokenManager.new
+    return redirect_to integrations_path, alert: "Configure Pipedream first" unless tokens.configured?
+
+    server = McpServer.find_or_initialize_by(name: "Pipedream: #{slug}")
+    server.update!(
+      transport: "sse",
+      url: Mcp::PipedreamClient::REMOTE_MCP_URL,
+      preset: false,
+      metadata: { "provider" => "pipedream", "app_slug" => slug, "external_user_id" => pipedream_external_user_id }
+    )
+
+    result = tokens.mint_connect_token(
+      external_user_id: pipedream_external_user_id,
+      app_slug: slug,
+      success_redirect_uri: pipedream_callback_url(server_id: server.id),
+      error_redirect_uri: integrations_url
+    )
+
+    if result.success?
+      redirect_to result.data[:connect_url], allow_other_host: true
+    else
+      redirect_to integrations_path, alert: "Could not start Pipedream connection: #{result.error}"
+    end
+  end
+
+  def pipedream_callback
+    server = McpServer.find_by(id: params[:server_id])
+    return redirect_to integrations_path, alert: "Unknown Pipedream app" unless server
+
+    result = Mcp::PipedreamClient.discover_tools(server)
+    if result.success?
+      count = result.data[:tools]&.size || 0
+      redirect_to integrations_path, notice: "Connected #{server.name} — #{count} tools available"
+    else
+      redirect_to integrations_path, alert: "Connected the account, but tool discovery failed: #{result.error}"
+    end
+  end
+
   private
+
+  def pipedream_server?(server)
+    server.metadata.to_h["provider"] == "pipedream"
+  end
+
+  # Stable per-install identifier sent to Pipedream as x-pd-external-user-id.
+  def pipedream_external_user_id
+    @pipedream_external_user_id ||= begin
+      existing = Setting.get("pipedream_external_user_id").presence
+      existing || SecureRandom.uuid.tap { |id| Setting.set("pipedream_external_user_id", id) }
+    end
+  end
 
   def save_credentials(namespace, fields, required:, notice:)
     cleaned = fields.transform_values { |v| v.to_s.strip }
