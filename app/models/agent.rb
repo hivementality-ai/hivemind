@@ -37,8 +37,6 @@ class Agent < ApplicationRecord
   has_many :memory_entries, dependent: :destroy
   has_many :research_sessions, dependent: :destroy
   has_many :delivery_queue_entries, dependent: :destroy
-  has_many :sent_team_messages, class_name: "TeamMessage", foreign_key: :from_agent_id, dependent: :destroy, inverse_of: :from_agent
-  has_many :received_team_messages, class_name: "TeamMessage", foreign_key: :to_agent_id, dependent: :destroy, inverse_of: :to_agent
   has_many :parent_sub_agent_tasks, class_name: "SubAgentTask", foreign_key: :parent_agent_id, dependent: :destroy, inverse_of: :parent_agent
   has_many :child_sub_agent_tasks, class_name: "SubAgentTask", foreign_key: :child_agent_id, dependent: :destroy, inverse_of: :child_agent
   has_many :targeted_team_chat_messages, class_name: "TeamChatMessage", foreign_key: :target_agent_id, dependent: :nullify, inverse_of: :target_agent
