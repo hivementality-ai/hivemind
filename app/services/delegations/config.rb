@@ -11,12 +11,14 @@ module Delegations
     DEFAULTS = {
       "max_depth" => 3,
       "max_concurrent_per_session" => 5,
-      "dedup_pending" => true
+      "dedup_pending" => true,
+      "orchestration_budget_cents" => 500
     }.freeze
 
     CEILINGS = {
       "max_depth" => 5,
-      "max_concurrent_per_session" => 20
+      "max_concurrent_per_session" => 20,
+      "orchestration_budget_cents" => 10_000
     }.freeze
 
     def self.max_depth
@@ -25,6 +27,10 @@ module Delegations
 
     def self.max_concurrent_per_session
       fetch_int("max_concurrent_per_session")
+    end
+
+    def self.orchestration_budget_cents
+      fetch_int("orchestration_budget_cents")
     end
 
     def self.dedup_pending?

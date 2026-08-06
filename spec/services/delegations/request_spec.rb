@@ -114,6 +114,32 @@ RSpec.describe Delegations::Request do
     end
   end
 
+  describe "orchestration id and shared budget" do
+    it "stamps an orchestration_id on the root session at first delegation" do
+      expect(session.metadata&.dig("orchestration_id")).to be_nil
+
+      request
+      expect(session.reload.metadata["orchestration_id"]).to be_present
+    end
+
+    it "reuses the existing orchestration_id on later delegations" do
+      request(task: "first task")
+      first_id = session.reload.metadata["orchestration_id"]
+
+      request(task: "second task")
+      expect(session.reload.metadata["orchestration_id"]).to eq(first_id)
+    end
+
+    it "rejects delegation once the tree's spend crosses the budget" do
+      request(task: "seed the orchestration id")
+      create(:usage_record, session: session.reload, cost_cents: Delegations::Config.orchestration_budget_cents)
+
+      result = request(task: "one delegation too many")
+      expect(result).not_to be_success
+      expect(result.error).to match(/Orchestration budget exhausted/)
+    end
+  end
+
   describe "configuration via Setting" do
     it "honors a lowered max_depth from the delegation setting" do
       Setting.set("delegation", { "max_depth" => 1 }.to_json)

@@ -51,6 +51,13 @@ module Delegations
         )
       end
 
+      orchestration_id = ensure_orchestration_id
+      if OrchestrationBudget.exceeded?(orchestration_id)
+        return ServiceResponse.failure(
+          error: "Orchestration budget exhausted (#{Config.orchestration_budget_cents} cents across this delegation tree). Finish with the results you have instead of delegating further."
+        )
+      end
+
       sat = SubAgentTask.create!(
         parent_agent: @from_agent || target,
         child_agent: target,
@@ -92,6 +99,20 @@ module Delegations
     # by SubAgentJob).
     def current_depth
       @from_session&.metadata&.dig("delegation_depth").to_i
+    end
+
+    # Every delegation tree shares one orchestration_id, stamped on the root
+    # session at its first delegation and propagated to child sessions by
+    # SubAgentJob. It groups the tree's usage records for the shared budget.
+    def ensure_orchestration_id
+      return nil unless @from_session
+
+      existing = @from_session.metadata&.dig("orchestration_id")
+      return existing if existing.present?
+
+      id = SecureRandom.uuid
+      @from_session.update!(metadata: (@from_session.metadata || {}).merge("orchestration_id" => id))
+      id
     end
 
     def active_delegations
