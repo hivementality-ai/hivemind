@@ -309,6 +309,12 @@ Rails.application.routes.draw do
   # API Token Management
   resources :api_tokens, only: [ :index, :create, :destroy ]
 
+  # Desktop Pairing (browser-side leg — Devise session + unauthenticated code exchange)
+  get  "desktop_pairing/authorize", to: "desktop_pairing#new",      as: :new_desktop_pairing
+  post "desktop_pairing/authorize", to: "desktop_pairing#create",   as: :desktop_pairing
+  post "desktop_pairing/deny",      to: "desktop_pairing#deny",     as: :deny_desktop_pairing
+  post "desktop_pairing/exchange",  to: "desktop_pairing#exchange", as: :exchange_desktop_pairing
+
   # API Integrations
   resources :api_integrations do
     member do
@@ -355,6 +361,7 @@ Rails.application.routes.draw do
       get "providers/models", to: "providers#models"
       get "hashtag_actions", to: "hashtag_actions#index"
       get "system/version", to: "system#version"
+      delete "desktop_pairing/token", to: "desktop_pairing#revoke_self", as: :revoke_desktop_pairing_token
       resources :projects, only: [ :index, :show, :create, :update ] do
         resources :milestones, only: [ :index, :show, :update ], controller: "project_milestones" do
           member do

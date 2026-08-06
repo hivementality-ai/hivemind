@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_30_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -300,6 +300,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_30_000001) do
     t.index ["channel_id"], name: "index_delivery_queue_entries_on_channel_id"
     t.index ["session_id"], name: "index_delivery_queue_entries_on_session_id"
     t.index ["status", "next_attempt_at"], name: "index_delivery_queue_entries_on_status_and_next_attempt_at"
+  end
+
+  create_table "desktop_pairing_codes", force: :cascade do |t|
+    t.string "code", null: false
+    t.string "code_challenge", null: false
+    t.datetime "created_at", null: false
+    t.string "device_name", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "used_at"
+    t.bigint "user_id", null: false
+    t.index ["code"], name: "index_desktop_pairing_codes_on_code", unique: true
+    t.index ["user_id"], name: "index_desktop_pairing_codes_on_user_id"
   end
 
   create_table "embedding_migration_statuses", force: :cascade do |t|
@@ -1047,6 +1060,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_30_000001) do
   add_foreign_key "delivery_queue_entries", "agents"
   add_foreign_key "delivery_queue_entries", "channels"
   add_foreign_key "delivery_queue_entries", "sessions"
+  add_foreign_key "desktop_pairing_codes", "users"
   add_foreign_key "heartbeat_runs", "agents"
   add_foreign_key "heartbeat_runs", "sessions"
   add_foreign_key "inbound_messages", "channels"
