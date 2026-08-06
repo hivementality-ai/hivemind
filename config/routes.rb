@@ -141,6 +141,15 @@ Rails.application.routes.draw do
   # Providers (admin interface)
   resources :providers, only: [ :index, :show, :new, :create, :edit, :update ]
 
+  # Remote Access (admin/owner interface) — tunnel wizard + status card
+  get "remote_access", to: "remote_access#index", as: :remote_access
+  post "remote_access/verify_byo", to: "remote_access#verify_byo", as: :verify_byo_remote_access
+  post "remote_access/provision_cloudflare", to: "remote_access#provision_cloudflare", as: :provision_cloudflare_remote_access
+  post "remote_access/re_verify", to: "remote_access#re_verify", as: :re_verify_remote_access
+  post "remote_access/restart_connector", to: "remote_access#restart_connector", as: :restart_connector_remote_access
+  post "remote_access/reconfigure", to: "remote_access#reconfigure", as: :reconfigure_remote_access
+  delete "remote_access", to: "remote_access#disconnect", as: :disconnect_remote_access
+
   # Tools
   resources :tools
   resources :skills do

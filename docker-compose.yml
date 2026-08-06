@@ -256,6 +256,26 @@ services:
       - internal
       - web
 
+  # Managed Cloudflare Tunnel connector. Only started when remote access is
+  # configured via Settings → Remote Access (guided Cloudflare path) — the
+  # wizard starts/stops/restarts this service via `docker compose` over the
+  # docker-proxy sidecar (see RemoteAccess::ConnectorManager). TUNNEL_TOKEN
+  # is written to .env by the wizard once a tunnel is provisioned.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel run
+    env_file: .env
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN:-}
+    depends_on:
+      - app
+    restart: unless-stopped
+    profiles:
+      - tunnel
+    networks:
+      - internal
+      - web
+
   signal-cli:
     image: bbernhard/signal-cli-rest-api:latest
     environment:

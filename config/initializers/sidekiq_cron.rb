@@ -19,6 +19,13 @@ if defined?(Sidekiq::Cron)
         class: "UpdateCheckJob",
         description: "Check GitHub for new Hivemind releases"
       )
+
+      Sidekiq::Cron::Job.create(
+        name: "remote_access_health_check",
+        cron: "*/5 * * * *", # Every 5 minutes — no-op unless remote access is configured
+        class: "RemoteAccessHealthCheckJob",
+        description: "Re-verify the configured public URL + /cable WebSocket handshake"
+      )
     end
   end
 end
