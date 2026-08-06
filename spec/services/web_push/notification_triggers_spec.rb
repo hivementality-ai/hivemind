@@ -23,6 +23,27 @@ RSpec.describe WebPush::NotificationTriggers do
       )
     end
 
+    it 'broadcasts the same notification to the user notification channel stream' do
+      allow(user).to receive(:notification_enabled?).with('agent_responses').and_return(true)
+      allow(User).to receive(:find_by).with(id: user.id).and_return(user)
+      allow(user).to receive(:notify)
+      allow(ActionCable.server).to receive(:broadcast)
+
+      described_class.agent_response(session: session, content: 'Here is your summary')
+
+      expect(ActionCable.server).to have_received(:broadcast).with(
+        "notifications_user_#{user.id}",
+        hash_including(
+          category: 'agent_responses',
+          title: 'Research Bot',
+          body: 'Here is your summary',
+          tag: "agent-response-#{session.id}",
+          session_id: session.id,
+          agent_id: agent.id
+        )
+      )
+    end
+
     it 'skips when user has agent_responses notifications disabled' do
       allow(user).to receive(:notification_enabled?).with('agent_responses').and_return(false)
       allow(User).to receive(:find_by).with(id: user.id).and_return(user)
@@ -203,6 +224,104 @@ RSpec.describe WebPush::NotificationTriggers do
       described_class.heartbeat_finding(finding_summary: 'Something happened')
 
       expect(WebPush::Sender).not_to have_received(:call)
+    end
+  end
+
+  describe '.needs_input' do
+    let(:agent) { create(:agent, name: 'Interviewer') }
+    let(:user) { create(:user) }
+    let(:session) { create(:session, agent: agent, metadata: { 'started_by' => user.id }) }
+    let(:questions) { [ { 'question' => 'Which environment should I deploy to?' } ] }
+
+    before do
+      allow(User).to receive(:find_by).with(id: user.id).and_return(user)
+      allow(user).to receive(:notify)
+      allow(ActionCable.server).to receive(:broadcast)
+    end
+
+    it 'notifies and broadcasts when needs_input is enabled' do
+      allow(user).to receive(:notification_enabled?).with('needs_input').and_return(true)
+
+      described_class.needs_input(session: session, questions: questions)
+
+      expect(user).to have_received(:notify).with(
+        title: 'Interviewer needs your input',
+        body: 'Which environment should I deploy to?',
+        url: "/m/sessions/#{session.id}",
+        tag: "needs-input-#{session.id}"
+      )
+      expect(ActionCable.server).to have_received(:broadcast).with(
+        "notifications_user_#{user.id}",
+        hash_including(
+          category: 'needs_input',
+          title: 'Interviewer needs your input',
+          body: 'Which environment should I deploy to?',
+          tag: "needs-input-#{session.id}",
+          session_id: session.id,
+          agent_id: agent.id
+        )
+      )
+    end
+
+    it 'skips when the user has needs_input notifications disabled' do
+      allow(user).to receive(:notification_enabled?).with('needs_input').and_return(false)
+
+      described_class.needs_input(session: session, questions: questions)
+
+      expect(user).not_to have_received(:notify)
+      expect(ActionCable.server).not_to have_received(:broadcast)
+    end
+
+    it 'skips when no user found for session' do
+      session.update!(metadata: { 'started_by' => -999 })
+      allow(User).to receive(:find_by).with(id: -999).and_return(nil)
+
+      expect { described_class.needs_input(session: session, questions: questions) }.not_to raise_error
+    end
+  end
+
+  describe '.session_error' do
+    let(:agent) { create(:agent, name: 'Fragile Bot') }
+    let(:user) { create(:user) }
+    let(:session) { create(:session, agent: agent, metadata: { 'started_by' => user.id }) }
+
+    before do
+      allow(User).to receive(:find_by).with(id: user.id).and_return(user)
+      allow(user).to receive(:notify)
+      allow(ActionCable.server).to receive(:broadcast)
+    end
+
+    it 'notifies and broadcasts when errors notifications are enabled' do
+      allow(user).to receive(:notification_enabled?).with('errors').and_return(true)
+
+      described_class.session_error(session: session, message: 'Provider timed out')
+
+      expect(user).to have_received(:notify).with(
+        title: 'Fragile Bot hit an error',
+        body: 'Provider timed out',
+        url: "/m/sessions/#{session.id}",
+        tag: "session-error-#{session.id}"
+      )
+      expect(ActionCable.server).to have_received(:broadcast).with(
+        "notifications_user_#{user.id}",
+        hash_including(
+          category: 'errors',
+          title: 'Fragile Bot hit an error',
+          body: 'Provider timed out',
+          tag: "session-error-#{session.id}",
+          session_id: session.id,
+          agent_id: agent.id
+        )
+      )
+    end
+
+    it 'skips when the user has errors notifications disabled' do
+      allow(user).to receive(:notification_enabled?).with('errors').and_return(false)
+
+      described_class.session_error(session: session, message: 'Provider timed out')
+
+      expect(user).not_to have_received(:notify)
+      expect(ActionCable.server).not_to have_received(:broadcast)
     end
   end
 end
