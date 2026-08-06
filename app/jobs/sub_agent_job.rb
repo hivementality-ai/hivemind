@@ -3,8 +3,6 @@
 class SubAgentJob < ApplicationJob
   queue_as :agents
 
-  MAX_CALLBACK_DEPTH = 3
-
   def perform(sub_agent_task_id)
     sat = SubAgentTask.find(sub_agent_task_id)
     sat.update!(status: "running", started_at: Time.current)
@@ -20,7 +18,8 @@ class SubAgentJob < ApplicationJob
       metadata: {
         type: "sub_agent",
         parent_task_id: sat.id,
-        parent_agent: sat.parent_agent.name
+        parent_agent: sat.parent_agent.name,
+        delegation_depth: sat.depth
       }
     )
 
@@ -104,14 +103,8 @@ class SubAgentJob < ApplicationJob
   def callback_to_parent(sat, reply, success:)
     return unless sat&.parent_session
 
-    # Check recursion depth to prevent infinite spawn chains
-    depth = callback_depth(sat)
-    if depth >= MAX_CALLBACK_DEPTH
-      Rails.logger.warn("[SubAgent] Callback depth #{depth} reached max #{MAX_CALLBACK_DEPTH}, skipping callback for task #{sat.task_key}")
-      broadcast_completion_only(sat, reply, success:)
-      return
-    end
-
+    # Runaway chains are prevented at spawn time (Delegations::Request), so
+    # every completed task can safely report back to its parent.
     status_emoji = success ? "✅" : "❌"
     duration = sat.duration_seconds ? " in #{sat.duration_seconds}s" : ""
 
@@ -132,27 +125,6 @@ class SubAgentJob < ApplicationJob
     )
 
     Rails.logger.info("[SubAgent] Callback fired to parent session #{sat.parent_session.id} for task #{sat.task_key}")
-  end
-
-  # Calculate callback depth by walking the parent chain
-  def callback_depth(sat)
-    depth = 0
-    current = sat.parent_session
-
-    while current
-      break unless current.metadata&.dig("type") == "sub_agent"
-
-      parent_task_id = current.metadata&.dig("parent_task_id")
-      break unless parent_task_id
-
-      depth += 1
-      parent_task = SubAgentTask.find_by(id: parent_task_id)
-      break unless parent_task
-
-      current = parent_task.parent_session
-    end
-
-    depth
   end
 
   # Determine if the parent session belongs to a team chat
@@ -186,26 +158,5 @@ class SubAgentJob < ApplicationJob
     )
   rescue StandardError => e
     Rails.logger.warn("[SubAgent] Failed to persist team chat message: #{e.message}")
-  end
-
-  # Fallback: just broadcast to ActionCable (no agent processing)
-  # Used when recursion depth is exceeded
-  def broadcast_completion_only(sat, reply, success:)
-    return unless sat.parent_session
-
-    ActionCable.server.broadcast(
-      "session_#{sat.parent_session.id}",
-      {
-        type: "sub_agent_complete",
-        task_key: sat.task_key,
-        child_agent: sat.child_agent.name,
-        task: sat.task.truncate(100),
-        result: reply.truncate(2000),
-        duration: sat.duration_seconds,
-        success: success,
-        depth_limited: true,
-        timestamp: Time.current.iso8601
-      }
-    )
   end
 end

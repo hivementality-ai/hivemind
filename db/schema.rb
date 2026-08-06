@@ -750,6 +750,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
     t.bigint "child_session_id"
     t.datetime "completed_at"
     t.datetime "created_at", null: false
+    t.integer "depth", default: 1, null: false
     t.bigint "parent_agent_id", null: false
     t.bigint "parent_session_id"
     t.text "result"

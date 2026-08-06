@@ -142,53 +142,38 @@ RSpec.describe SubAgentJob, type: :job do
       end
     end
 
-    context "recursion depth limit" do
-      it "stops callbacks at MAX_CALLBACK_DEPTH" do
+    context "delegation depth" do
+      before do
         allow(Sessions::Chat).to receive(:call).and_return(
           double(success?: true, data: { content: "Done" })
         )
+      end
 
-        # Create a chain of sub-agent sessions to simulate depth
-        grandparent_session = create(:session, agent: parent_agent)
-        grandparent_task = create(:sub_agent_task,
-                                  parent_agent: parent_agent,
-                                  child_agent: parent_agent,
-                                  parent_session: grandparent_session,
-                                  task: "Level 0")
+      it "stamps the task's depth into the child session metadata" do
+        deep_task = create(:sub_agent_task,
+                           parent_agent: parent_agent,
+                           child_agent: child_agent,
+                           parent_session: parent_session,
+                           task: "Deep work",
+                           depth: 2)
 
-        mid_session = create(:session, agent: parent_agent,
-                             metadata: { "type" => "sub_agent", "parent_task_id" => grandparent_task.id })
-        mid_task = create(:sub_agent_task,
-                          parent_agent: parent_agent,
-                          child_agent: parent_agent,
-                          parent_session: mid_session,
-                          task: "Level 1")
+        described_class.perform_now(deep_task.id)
 
-        deep_session = create(:session, agent: parent_agent,
-                              metadata: { "type" => "sub_agent", "parent_task_id" => mid_task.id })
-        deeper_task = create(:sub_agent_task,
-                             parent_agent: parent_agent,
-                             child_agent: parent_agent,
-                             parent_session: deep_session,
-                             task: "Level 2")
+        child_session = Session.find_by(session_key: "sub-#{deep_task.task_key}")
+        expect(child_session.metadata["delegation_depth"]).to eq(2)
+      end
 
-        deepest_session = create(:session, agent: parent_agent,
-                                 metadata: { "type" => "sub_agent", "parent_task_id" => deeper_task.id })
-        deepest_task = create(:sub_agent_task,
-                              parent_agent: parent_agent,
-                              child_agent: child_agent,
-                              parent_session: deepest_session,
-                              task: "Level 3 — should be depth-limited")
+      it "always fires the callback — runaway chains are blocked at spawn time instead" do
+        max_depth_task = create(:sub_agent_task,
+                                parent_agent: parent_agent,
+                                child_agent: child_agent,
+                                parent_session: parent_session,
+                                task: "Deepest work",
+                                depth: Delegations::Config.max_depth)
 
-        described_class.perform_now(deepest_task.id)
+        described_class.perform_now(max_depth_task.id)
 
-        # Should NOT fire ChatStreamJob (depth limited)
-        expect(ChatStreamJob).not_to have_received(:perform_later)
-        # Should still broadcast completion to ActionCable
-        expect(ActionCable.server).to have_received(:broadcast).with(
-          "session_#{deepest_session.id}",
-          hash_including(type: "sub_agent_complete", depth_limited: true)
-        )
+        expect(ChatStreamJob).to have_received(:perform_later)
       end
     end
   end
