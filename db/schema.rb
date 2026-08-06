@@ -443,6 +443,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
     t.index ["memory_type"], name: "index_memory_entries_on_memory_type"
     t.index ["shadow_embedding"], name: "index_memory_entries_on_shadow_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["source_type", "source_id"], name: "index_memory_entries_on_source_type_and_source_id"
+    t.check_constraint "category::text = ANY (ARRAY['user_preference'::character varying, 'project_context'::character varying, 'decision'::character varying, 'learned_behavior'::character varying, 'factual'::character varying, 'general'::character varying]::text[])", name: "memory_entries_category_check"
+    t.check_constraint "status::text = ANY (ARRAY['active'::character varying, 'archived'::character varying, 'superseded'::character varying]::text[])", name: "memory_entries_status_check"
   end
 
   create_table "outbound_messages", force: :cascade do |t|
@@ -894,24 +896,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
     t.index ["user_id"], name: "index_team_chat_sessions_on_user_id"
   end
 
-  create_table "team_messages", force: :cascade do |t|
-    t.datetime "completed_at"
-    t.text "content"
-    t.datetime "created_at", null: false
-    t.bigint "from_agent_id", null: false
-    t.string "message_type"
-    t.jsonb "metadata"
-    t.string "status", default: "pending"
-    t.bigint "team_id", null: false
-    t.bigint "to_agent_id"
-    t.datetime "updated_at", null: false
-    t.index ["from_agent_id"], name: "index_team_messages_on_from_agent_id"
-    t.index ["status"], name: "index_team_messages_on_status"
-    t.index ["team_id", "created_at"], name: "index_team_messages_on_team_id_and_created_at"
-    t.index ["team_id"], name: "index_team_messages_on_team_id"
-    t.index ["to_agent_id"], name: "index_team_messages_on_to_agent_id"
-  end
-
   create_table "teams", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "custom_soul"
@@ -1119,9 +1103,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
   add_foreign_key "team_chat_messages", "team_chat_sessions"
   add_foreign_key "team_chat_sessions", "teams"
   add_foreign_key "team_chat_sessions", "users"
-  add_foreign_key "team_messages", "agents", column: "from_agent_id"
-  add_foreign_key "team_messages", "agents", column: "to_agent_id"
-  add_foreign_key "team_messages", "teams"
   add_foreign_key "tool_executions", "agents"
   add_foreign_key "tool_executions", "sessions"
   add_foreign_key "tool_executions", "tools"

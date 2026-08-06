@@ -3,7 +3,7 @@ FactoryBot.define do
     association :agent
     sequence(:name) { |n| "Task #{n}" }
     schedule { "0 9 * * *" }
-    job_class { "AgentTaskJob" }
+    job_class { "ScheduledAgentJob" }
     job_params { {} }
     confirmation_status { "active" }
     enabled { true }
