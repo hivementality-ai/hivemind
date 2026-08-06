@@ -346,9 +346,11 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       resources :agents, only: [ :index, :show, :create, :update, :destroy ], param: :slug
-      resources :sessions, only: [ :index, :show, :destroy ] do
+      resources :sessions, only: [ :index, :show, :create, :update, :destroy ] do
         member do
           get :export
+          post :messages
+          post :interrupt
         end
       end
       post "plans/save", to: "plans#save", as: :save_plan
