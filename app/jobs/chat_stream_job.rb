@@ -244,6 +244,7 @@ class ChatStreamJob < ApplicationJob
     rescue StandardError => e
       ActionCable.server.broadcast(channel, { type: "error", content: "Error: #{e.message}" })
       Rails.logger.error("ChatStreamJob error: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")
+      WebPush::NotificationTriggers.session_error(session: session, message: e.message)
     ensure
       set_processing(session.id, false)
       ActionCable.server.broadcast(channel, { type: "processing", active: false })

@@ -3,7 +3,6 @@
 module Api
   module V1
     class SystemController < ApiController
-      skip_before_action :authenticate_user!, only: [ :version ]
       skip_before_action :authenticate_api_token, only: [ :version ]
 
       # GET /api/v1/system/version

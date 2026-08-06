@@ -994,7 +994,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
     t.datetime "created_at", null: false
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false
-    t.jsonb "notification_preferences", default: {"budget_alerts" => true, "agent_responses" => true, "task_completions" => true, "heartbeat_findings" => false}, null: false
+    t.jsonb "notification_preferences", default: {"errors" => true, "needs_input" => true, "budget_alerts" => true, "agent_responses" => true, "task_completions" => true, "heartbeat_findings" => false}, null: false
     t.datetime "remember_created_at"
     t.datetime "reset_password_sent_at"
     t.string "reset_password_token"

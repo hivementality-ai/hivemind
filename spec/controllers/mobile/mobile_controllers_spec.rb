@@ -285,6 +285,17 @@ RSpec.describe Mobile::SettingsController, type: :controller do
       user.reload
       expect(user.notification_preferences).not_to have_key("evil_key")
     end
+
+    it "persists the needs_input and errors toggles" do
+      patch :update_preferences, params: {
+        preferences: { "needs_input" => "1", "errors" => "0" }
+      }
+      expect(response).to redirect_to(mobile_settings_path)
+
+      user.reload
+      expect(user.notification_preferences["needs_input"]).to be true
+      expect(user.notification_preferences["errors"]).to be false
+    end
   end
 
   describe "POST #push_subscription" do
