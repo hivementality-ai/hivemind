@@ -29,6 +29,14 @@ module Sessions
       budget_check = Budgets::Check.call(agent: agent)
       return ServiceResponse.failure(error: "Agent #{agent.name} has exceeded its budget for this period.") unless budget_check.success?
 
+      # 3b. Shared orchestration budget — a delegation tree stops everywhere
+      # once its combined spend crosses the ceiling, no matter which agent
+      # or session the next call would come from.
+      orchestration_id = @session.metadata&.dig("orchestration_id")
+      if Delegations::OrchestrationBudget.exceeded?(orchestration_id)
+        return ServiceResponse.failure(error: "Orchestration budget exhausted for this delegation tree.")
+      end
+
       # 4. Build messages array (includes memory context, summary, transcript)
       message_result = Sessions::MessageBuilder.call(session: @session, agent: agent)
       messages = message_result.data[:messages]

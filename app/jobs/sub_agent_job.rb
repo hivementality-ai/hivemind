@@ -19,8 +19,9 @@ class SubAgentJob < ApplicationJob
         type: "sub_agent",
         parent_task_id: sat.id,
         parent_agent: sat.parent_agent.name,
-        delegation_depth: sat.depth
-      }
+        delegation_depth: sat.depth,
+        orchestration_id: sat.parent_session&.metadata&.dig("orchestration_id")
+      }.compact
     )
 
     sat.update!(child_session: session)
