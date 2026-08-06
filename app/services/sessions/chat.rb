@@ -117,6 +117,14 @@ module Sessions
       assigned = agent.agent_tools.includes(:tool).map(&:tool).select(&:enabled?)
       tools = assigned.any? ? assigned : Tool.enabled.builtin.to_a
       tools << SystemTool::LOAD_SKILL if agent.skills.enabled.any?
+
+      # Sessions at the delegation depth limit lose the delegate tool entirely
+      # so the model never sees the option (Delegations::Request would reject
+      # the call anyway — this avoids a wasted attempt).
+      if @session.metadata&.dig("delegation_depth").to_i >= Delegations::Config.max_depth
+        tools = tools.reject { |t| t.name == "delegate" }
+      end
+
       tools
     rescue StandardError => e
       Rails.logger.warn("[Sessions::Chat] Tool resolution failed: #{e.message}")
