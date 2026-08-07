@@ -3,26 +3,33 @@
 class MemoryExtractionJob < ApplicationJob
   queue_as :low
 
-  EXTRACTION_PROMPT = <<~PROMPT.freeze
-    Look at this single conversation exchange. Extract ONLY new, discrete facts worth remembering long-term.
+  # The prompt names the agent explicitly: without that context the extractor
+  # reads "User: hey <agent name>" and stores "the user's name is <agent name>"
+  # as a high-importance fact. Enough of those accumulate that the agent starts
+  # greeting the user by its own name.
+  def self.extraction_prompt(agent_name)
+    <<~PROMPT
+      Look at this single conversation exchange between a human ("User") and an AI agent named #{agent_name} ("Assistant"). Extract ONLY new, discrete facts worth remembering long-term.
 
-    Return a JSON array. Each object has:
-    - "content": A concise standalone statement
-    - "type": "semantic" (fact), "preference" (user like/dislike/style), or "procedural" (how-to/command)
-    - "importance": 0.0 to 1.0
-    - "supersedes": If this corrects/updates old info, describe what it replaces (or null)
+      Return a JSON array. Each object has:
+      - "content": A concise standalone statement
+      - "type": "semantic" (fact), "preference" (user like/dislike/style), or "procedural" (how-to/command)
+      - "importance": 0.0 to 1.0
+      - "supersedes": If this corrects/updates old info, describe what it replaces (or null)
 
-    Rules:
-    - Only extract info worth remembering across sessions
-    - Skip greetings, filler, acknowledgments
-    - Preferences are high importance (0.7+)
-    - Names, roles, locations are high importance (0.8+)
-    - If nothing worth remembering, return []
-    - Do NOT extract episodic summaries — just facts and preferences
+      Rules:
+      - Only extract info worth remembering across sessions
+      - Skip greetings, filler, acknowledgments
+      - Preferences are high importance (0.7+)
+      - Names, roles, locations are high importance (0.8+)
+      - When the user addresses someone by name (e.g. "hey #{agent_name}"), they are addressing the agent — that is #{agent_name}'s name, NOT the user's name. Never infer the user's own name, identity, or nickname from how they address the agent. Only record the user's name if they state it about themselves ("my name is...", "I'm...").
+      - If nothing worth remembering, return []
+      - Do NOT extract episodic summaries — just facts and preferences
 
-    IMPORTANT: Return ONLY a raw JSON array. No explanation, no markdown, no text before or after.
-    If nothing is worth remembering, return exactly: []
-  PROMPT
+      IMPORTANT: Return ONLY a raw JSON array. No explanation, no markdown, no text before or after.
+      If nothing is worth remembering, return exactly: []
+    PROMPT
+  end
 
   def perform(agent_id, user_message, assistant_response)
     agent = Agent.find_by(id: agent_id)
@@ -66,7 +73,7 @@ class MemoryExtractionJob < ApplicationJob
     exchange = "User: #{user_message.truncate(500)}\nAssistant: #{assistant_response.truncate(500)}"
 
     messages = [
-      { role: "system", content: EXTRACTION_PROMPT },
+      { role: "system", content: self.class.extraction_prompt(agent.name) },
       { role: "user", content: exchange }
     ]
 

@@ -3,32 +3,37 @@
 class MemoryConsolidationJob < ApplicationJob
   queue_as :low
 
-  EXTRACTION_PROMPT = <<~PROMPT.freeze
-    Analyze the following conversation and extract important information. Return a JSON array of memory objects.
+  # Names the agent so the extractor doesn't misread "User: hey <agent name>"
+  # as the user's own name — see MemoryExtractionJob.extraction_prompt.
+  def self.extraction_prompt(agent_name)
+    <<~PROMPT
+      Analyze the following conversation between a human ("User") and an AI agent named #{agent_name} ("Assistant") and extract important information. Return a JSON array of memory objects.
 
-    Each memory object should have:
-    - "content": A concise, standalone statement (one fact/preference/lesson per entry)
-    - "type": One of "semantic" (facts/knowledge), "preference" (user likes/dislikes/style), "procedural" (how-to/commands/workflows), or "episodic" (event summary)
-    - "importance": A float from 0.0 to 1.0 (1.0 = critical to remember, 0.5 = nice to know, 0.1 = trivial)
+      Each memory object should have:
+      - "content": A concise, standalone statement (one fact/preference/lesson per entry)
+      - "type": One of "semantic" (facts/knowledge), "preference" (user likes/dislikes/style), "procedural" (how-to/commands/workflows), or "episodic" (event summary)
+      - "importance": A float from 0.0 to 1.0 (1.0 = critical to remember, 0.5 = nice to know, 0.1 = trivial)
 
-    Guidelines:
-    - Extract discrete facts, not vague summaries
-    - Preferences are high importance (0.7-1.0) — they affect every future interaction
-    - Procedural knowledge (commands, deploy steps) is high importance (0.7-0.9)
-    - Casual chitchat or greetings get low importance (0.1-0.3)
-    - If nothing important was discussed, return an empty array []
-    - Write each memory as if explaining to someone with no context
+      Guidelines:
+      - Extract discrete facts, not vague summaries
+      - Preferences are high importance (0.7-1.0) — they affect every future interaction
+      - Procedural knowledge (commands, deploy steps) is high importance (0.7-0.9)
+      - Casual chitchat or greetings get low importance (0.1-0.3)
+      - When the user addresses someone by name (e.g. "hey #{agent_name}"), they are addressing the agent — that is #{agent_name}'s name, NOT the user's name. Never infer the user's own name or nickname from how they address the agent; only record it if the user states it about themselves ("my name is...", "I'm...").
+      - If nothing important was discussed, return an empty array []
+      - Write each memory as if explaining to someone with no context
 
-    Example output:
-    [
-      {"content": "User's name is Alex and they prefer to be called Al", "type": "semantic", "importance": 0.9},
-      {"content": "User prefers dark mode and minimalist UI designs", "type": "preference", "importance": 0.8},
-      {"content": "To deploy: run docker compose up -d then check /health", "type": "procedural", "importance": 0.7},
-      {"content": "Discussed project timeline on Feb 23 — aiming for March launch", "type": "episodic", "importance": 0.5}
-    ]
+      Example output:
+      [
+        {"content": "User introduced themselves as Alex and prefers to be called Al", "type": "semantic", "importance": 0.9},
+        {"content": "User prefers dark mode and minimalist UI designs", "type": "preference", "importance": 0.8},
+        {"content": "To deploy: run docker compose up -d then check /health", "type": "procedural", "importance": 0.7},
+        {"content": "Discussed project timeline on Feb 23 — aiming for March launch", "type": "episodic", "importance": 0.5}
+      ]
 
-    Return ONLY the JSON array, no other text.
-  PROMPT
+      Return ONLY the JSON array, no other text.
+    PROMPT
+  end
 
   # Consolidate a session's conversation into typed memory entries
   def perform(session_id)
@@ -82,7 +87,7 @@ class MemoryConsolidationJob < ApplicationJob
     adapter = resolver.data[:adapter]
 
     messages = [
-      { role: "system", content: EXTRACTION_PROMPT },
+      { role: "system", content: self.class.extraction_prompt(agent.name) },
       { role: "user", content: conversation.truncate(8000) }
     ]
 
