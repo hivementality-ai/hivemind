@@ -7,7 +7,11 @@
     </div>
 
     <div class="bg-surface-card rounded-xl border border-border-default p-8 space-y-5">
-      <%= form_with url: desktop_pairing_path, method: :post, class: "space-y-5" do %>
+      <%# data: { turbo: false } — the response 302s to the app's http://127.0.0.1
+    loopback server. Turbo would follow that redirect with fetch, which the
+    browser blocks cross-origin; a plain form POST makes it a top-level
+    navigation, which is allowed. %>
+      <%= form_with url: desktop_pairing_path, method: :post, class: "space-y-5", data: { turbo: false } do %>
         <%= hidden_field_tag :code_challenge, @code_challenge %>
         <%= hidden_field_tag :state, @state %>
         <%= hidden_field_tag :port, @port %>
@@ -21,7 +25,7 @@
         <%= submit_tag "Approve", class: "w-full py-3 bg-brand hover:bg-brand-dark text-white font-semibold rounded-lg transition cursor-pointer" %>
       <% end %>
 
-      <%= form_with url: deny_desktop_pairing_path, method: :post do %>
+      <%= form_with url: deny_desktop_pairing_path, method: :post, data: { turbo: false } do %>
         <%= hidden_field_tag :state, @state %>
         <%= hidden_field_tag :port, @port %>
         <%= submit_tag "Deny", class: "w-full py-3 bg-surface-raised hover:bg-surface-overlay text-text-primary font-semibold rounded-lg transition cursor-pointer" %>

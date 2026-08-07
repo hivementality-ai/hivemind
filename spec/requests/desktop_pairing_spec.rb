@@ -24,6 +24,16 @@ RSpec.describe "Desktop pairing", type: :request do
       expect(response.body).to include("Desktop: MacBook")
     end
 
+    it "opts both forms out of Turbo so the loopback redirect is a top-level navigation" do
+      sign_in user
+      get new_desktop_pairing_path, params: valid_params
+
+      # Without data-turbo=false, Turbo follows the 302 to http://127.0.0.1
+      # with fetch, which the browser blocks cross-origin — the exchange code
+      # never reaches the desktop app.
+      expect(response.body.scan(/data-turbo="false"/).size).to eq(2)
+    end
+
     it "rejects requests missing required params" do
       sign_in user
       get new_desktop_pairing_path, params: valid_params.except(:code_challenge)
