@@ -3,11 +3,10 @@
 module Api
   module V1
     class DesktopPairingController < ApiController
-      # Called by the desktop app itself (no browser/Devise session — it
-      # only holds the bearer ApiToken), so only Devise's cookie-session
-      # gate is skipped here. ApiController's authenticate_api_token still
-      # runs and is what authorizes this request.
-      skip_before_action :authenticate_user!, only: [ :revoke_self ]
+      # ApiController already skips Devise's :authenticate_user! for the
+      # whole api/v1 namespace, so the callback is no longer in this class's
+      # chain — skipping it again here raises at eager load. Bearer auth via
+      # authenticate_api_token is what authorizes revoke_self.
 
       # DELETE /api/v1/desktop_pairing/token
       #
