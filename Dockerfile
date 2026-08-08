@@ -25,7 +25,10 @@ RUN apt-get update -qq && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Version — set at build time from git tag: docker build --build-arg HIVEMIND_VERSION=$(git describe --tags --abbrev=0)
+# Baked into a file, not just ENV: compose `env_file: .env` overrides same-named
+# container env at runtime, so a stale .env pin would misreport the running version.
 ARG HIVEMIND_VERSION=dev
+RUN echo "${HIVEMIND_VERSION}" > /rails/.hivemind_version
 
 # Set production environment variables and enable jemalloc for reduced memory usage and latency.
 ENV RAILS_ENV="production" \
