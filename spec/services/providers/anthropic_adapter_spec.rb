@@ -95,7 +95,7 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
         result = adapter.chat(messages: [ { role: "user", content: "Hi" } ])
 
         expect(result.data[:usage][:request_payload]).to be_a(Hash)
-        expect(result.data[:usage][:request_payload][:model]).to eq("claude-sonnet-4-5")
+        expect(result.data[:usage][:request_payload][:model]).to eq(LlmModelRegistry::Anthropic::DEFAULT_MID)
       end
     end
 
@@ -185,7 +185,7 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
     it "uses default model and max_tokens" do
       params = adapter.send(:build_chat_params, messages: [ { role: "user", content: "Hi" } ], tools: [], options: {})
 
-      expect(params[:model]).to eq("claude-sonnet-4-5")
+      expect(params[:model]).to eq(LlmModelRegistry::Anthropic::DEFAULT_MID)
       expect(params[:max_tokens]).to eq(8192)
     end
 
@@ -235,11 +235,11 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
   describe "#models" do
     let(:adapter) { described_class.new(config: config, api_key: "sk-ant-api-test") }
 
-    it "returns static model list" do
+    it "returns the registry's supported Anthropic models" do
       result = adapter.models
 
       expect(result).to be_success
-      expect(result.data[:models]).to eq(%w[claude-haiku-4-5 claude-sonnet-4-5 claude-opus-4-6])
+      expect(result.data[:models]).to eq(LlmModelRegistry.supported_for_provider("anthropic").map(&:api_id))
     end
   end
 
