@@ -169,99 +169,179 @@ async function handleOAuth(_req, res, token, params) {
       Connection: "keep-alive",
     });
 
-    const activeTools = new Set();
-    let isThinking = false;
-    // Snapshot listeners before query() so we can clean up after
-    const listenersBefore = process.listeners("exit").length;
-    try {
-      for await (const message of query({ prompt, options })) {
-        console.log(`[query] message type=${message.type}`, JSON.stringify(message).substring(0, 300));
+    // Claude Code surfaces upstream drops as a result with is_error/"API Error:
+    // Connection error." Those are transient, so retry the whole turn — but ONLY
+    // while nothing has been streamed to the client yet. Once any content, tool,
+    // or thinking event has gone out, re-running would duplicate output (and
+    // re-fire side-effecting tools), so we surface the error instead.
+    const MAX_ATTEMPTS = 3;
+    let producedOutput = false;
+    let lastError = null;
 
-        if (message.type === "text") {
-          if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
-          sendSSE(res, "content", { content: message.text });
-        } else if (message.type === "thinking") {
-          if (!isThinking) { sendSSE(res, "thinking_start", {}); isThinking = true; }
-          sendSSE(res, "thinking", { thinking: message.thinking });
-        } else if (message.type === "assistant") {
-          if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
-          for (const block of message.message?.content || []) {
-            if (block.type === "text" && block.text) {
-              // When an assistant message arrives with text, any previously
-              // active tools are done — emit tool_result for them
-              for (const toolName of activeTools) {
-                sendSSE(res, "tool_result", { tool: toolName, output: "", success: true });
-              }
-              activeTools.clear();
-              sendSSE(res, "content", { content: block.text });
-            } else if (block.type === "thinking" && block.thinking) {
-              if (!isThinking) { sendSSE(res, "thinking_start", {}); isThinking = true; }
-              sendSSE(res, "thinking", { thinking: block.thinking });
-            } else if (block.type === "tool_use") {
-              // MCP tools are handled by the bridge callbacks — only emit
-              // tool_start here for Claude Code's own built-in tools
-              if (!mcpToolNames.has(block.name)) {
-                sendSSE(res, "tool_start", { tool: block.name, input: block.input || {} });
-                activeTools.add(block.name);
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const activeTools = new Set();
+      let isThinking = false;
+      let errored = false;
+      // Snapshot listeners before query() so we can clean up after
+      const listenersBefore = process.listeners("exit").length;
+      try {
+        for await (const message of query({ prompt, options })) {
+          console.log(`[query] message type=${message.type}`, JSON.stringify(message).substring(0, 300));
+
+          if (message.type === "text") {
+            if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
+            producedOutput = true;
+            sendSSE(res, "content", { content: message.text });
+          } else if (message.type === "thinking") {
+            if (!isThinking) { sendSSE(res, "thinking_start", {}); isThinking = true; }
+            producedOutput = true;
+            sendSSE(res, "thinking", { thinking: message.thinking });
+          } else if (message.type === "assistant") {
+            if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
+            for (const block of message.message?.content || []) {
+              if (block.type === "text" && block.text) {
+                // When an assistant message arrives with text, any previously
+                // active tools are done — emit tool_result for them
+                for (const toolName of activeTools) {
+                  sendSSE(res, "tool_result", { tool: toolName, output: "", success: true });
+                }
+                activeTools.clear();
+                producedOutput = true;
+                sendSSE(res, "content", { content: block.text });
+              } else if (block.type === "thinking" && block.thinking) {
+                if (!isThinking) { sendSSE(res, "thinking_start", {}); isThinking = true; }
+                producedOutput = true;
+                sendSSE(res, "thinking", { thinking: block.thinking });
+              } else if (block.type === "tool_use") {
+                // MCP tools are handled by the bridge callbacks — only emit
+                // tool_start here for Claude Code's own built-in tools
+                if (!mcpToolNames.has(block.name)) {
+                  producedOutput = true;
+                  sendSSE(res, "tool_start", { tool: block.name, input: block.input || {} });
+                  activeTools.add(block.name);
+                }
               }
             }
+          } else if (message.type === "tool_progress") {
+            if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
+            // Claude Code's own tool is actively running
+            if (!activeTools.has(message.tool_name)) {
+              producedOutput = true;
+              sendSSE(res, "tool_start", { tool: message.tool_name, input: {} });
+              activeTools.add(message.tool_name);
+            }
+          } else if (message.type === "result") {
+            if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
+            const isErr = message.is_error === true ||
+              (typeof message.subtype === "string" && message.subtype.startsWith("error"));
+            if (isErr) {
+              // Don't emit result yet — let the retry logic below decide.
+              errored = true;
+              lastError = message.result || message.subtype || "API Error";
+              break;
+            }
+            // Close any remaining active tools
+            for (const toolName of activeTools) {
+              sendSSE(res, "tool_result", { tool: toolName, output: "", success: true });
+            }
+            activeTools.clear();
+            const usage = message.usage || {};
+            sendSSE(res, "result", { content: message.result, usage });
           }
-        } else if (message.type === "tool_progress") {
-          if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
-          // Claude Code's own tool is actively running
-          if (!activeTools.has(message.tool_name)) {
-            sendSSE(res, "tool_start", { tool: message.tool_name, input: {} });
-            activeTools.add(message.tool_name);
-          }
-        } else if (message.type === "result") {
-          if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
-          // Close any remaining active tools
-          for (const toolName of activeTools) {
-            sendSSE(res, "tool_result", { tool: toolName, output: "", success: true });
-          }
-          activeTools.clear();
-          const usage = message.usage || {};
-          sendSSE(res, "result", { content: message.result, usage });
+        }
+      } catch (err) {
+        errored = true;
+        lastError = err.message;
+      } finally {
+        // Clean up exit listeners added by query() subprocess
+        const listenersAfter = process.listeners("exit");
+        if (listenersAfter.length > listenersBefore) {
+          const toRemove = listenersAfter.slice(listenersBefore);
+          toRemove.forEach(fn => process.removeListener("exit", fn));
         }
       }
-    } finally {
-      sendSSE(res, "done", {});
-      res.end();
-      // Clean up exit listeners added by query() subprocess
-      const listenersAfter = process.listeners("exit");
-      if (listenersAfter.length > listenersBefore) {
-        const toRemove = listenersAfter.slice(listenersBefore);
-        toRemove.forEach(fn => process.removeListener("exit", fn));
+
+      if (!errored) break;
+
+      const canRetry = !producedOutput && attempt < MAX_ATTEMPTS;
+      if (canRetry) {
+        const backoffMs = 1000 * attempt;
+        console.warn(`[oauth] attempt ${attempt}/${MAX_ATTEMPTS} failed before any output (${lastError}); retrying in ${backoffMs}ms`);
+        await new Promise((r) => setTimeout(r, backoffMs));
+        continue;
       }
+
+      // Out of retries, or output already streamed — surface as an error so
+      // Hivemind shows a failure and lets the user retry, rather than silently
+      // persisting "API Error: Connection error." as the assistant's reply.
+      console.error(`[oauth] giving up after attempt ${attempt} (producedOutput=${producedOutput}): ${lastError}`);
+      sendSSE(res, "error", { error: lastError || "API Error" });
+      break;
     }
+
+    sendSSE(res, "done", {});
+    res.end();
   } else {
+    // Non-streaming: nothing is sent until the turn finishes, so we can safely
+    // retry a transient connection error (is_error result) up to MAX_ATTEMPTS.
+    const MAX_ATTEMPTS = 3;
     let fullContent = "";
     let usage = {};
-    const listenersBefore = process.listeners("exit").length;
+    let lastError = null;
 
-    for await (const message of query({ prompt, options })) {
-      if (message.type === "text") {
-        fullContent += message.text || "";
-      } else if (message.type === "assistant") {
-        for (const block of message.message?.content || []) {
-          if (block.type === "text" && block.text) {
-            fullContent += block.text;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      fullContent = "";
+      let errored = false;
+      const listenersBefore = process.listeners("exit").length;
+
+      try {
+        for await (const message of query({ prompt, options })) {
+          if (message.type === "text") {
+            fullContent += message.text || "";
+          } else if (message.type === "assistant") {
+            for (const block of message.message?.content || []) {
+              if (block.type === "text" && block.text) {
+                fullContent += block.text;
+              }
+            }
+          } else if (message.type === "result") {
+            const isErr = message.is_error === true ||
+              (typeof message.subtype === "string" && message.subtype.startsWith("error"));
+            if (isErr) {
+              errored = true;
+              lastError = message.result || message.subtype || "API Error";
+            } else {
+              fullContent = message.result || fullContent;
+            }
+            if (message.usage) usage = message.usage;
           }
         }
-      } else if (message.type === "result") {
-        fullContent = message.result || fullContent;
-        if (message.usage) usage = message.usage;
+      } catch (err) {
+        errored = true;
+        lastError = err.message;
+      } finally {
+        // Clean up exit listeners added by query() subprocess
+        const listenersAfter = process.listeners("exit");
+        if (listenersAfter.length > listenersBefore) {
+          const toRemove = listenersAfter.slice(listenersBefore);
+          toRemove.forEach(fn => process.removeListener("exit", fn));
+        }
       }
-    }
 
-    // Clean up exit listeners added by query() subprocess
-    const listenersAfter = process.listeners("exit");
-    if (listenersAfter.length > listenersBefore) {
-      const toRemove = listenersAfter.slice(listenersBefore);
-      toRemove.forEach(fn => process.removeListener("exit", fn));
-    }
+      if (!errored) {
+        return res.json({ content: fullContent || null, thinking: null, tool_calls: null, usage });
+      }
 
-    res.json({ content: fullContent || null, thinking: null, tool_calls: null, usage });
+      if (attempt < MAX_ATTEMPTS) {
+        const backoffMs = 1000 * attempt;
+        console.warn(`[oauth-sync] attempt ${attempt}/${MAX_ATTEMPTS} failed (${lastError}); retrying in ${backoffMs}ms`);
+        await new Promise((r) => setTimeout(r, backoffMs));
+        continue;
+      }
+
+      console.error(`[oauth-sync] giving up after ${attempt} attempts: ${lastError}`);
+      return res.status(502).json({ error: lastError || "API Error" });
+    }
   }
 }
 

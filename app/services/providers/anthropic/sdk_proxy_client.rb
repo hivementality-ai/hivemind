@@ -85,6 +85,7 @@ module Providers
         full_content = +""
         full_thinking = +""
         usage = {}
+        stream_error = nil
 
         http = Net::HTTP.new(uri.host, uri.port)
         http.read_timeout = 600
@@ -135,12 +136,19 @@ module Providers
                 # Tool use events in streaming — not typical for our flow but handle gracefully
               when "result"
                 usage = event_data["usage"] || {}
+              when "error"
+                # Proxy exhausted its retries (or hit an error after streaming).
+                stream_error = event_data["error"].presence || "SDK proxy stream error"
               when "done"
                 # Stream complete
               end
             end
           end
         end
+
+        # Fail only when the error left us with nothing — if content already
+        # streamed, keep the partial reply rather than discarding it.
+        return ServiceResponse.failure(error: stream_error) if stream_error && full_content.empty?
 
         thinking = full_thinking.present? ? full_thinking : nil
         ServiceResponse.success(data: { content: full_content, thinking:, usage: })
