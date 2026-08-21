@@ -219,6 +219,22 @@
         </div>
       <% end %>
 
+      <!-- Default Reasoning Effort -->
+      <% if %w[anthropic openai].include?(@provider.adapter_type) %>
+        <div class="space-y-2">
+          <label class="block text-text-primary font-semibold text-sm">Default Reasoning Effort</label>
+          <select name="provider_config[effort]"
+                  class="w-full px-4 py-2 bg-surface-raised border border-border-default rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+            <% current_effort = Setting.get("provider_effort_#{@provider.adapter_type}").to_s %>
+            <option value="" <%= "selected" if current_effort.blank? %>>Model default (high)</option>
+            <% Agent::EFFORT_LEVELS.each do |level| %>
+              <option value="<%= level %>" <%= "selected" if current_effort == level %>><%= level %></option>
+            <% end %>
+          </select>
+          <p class="text-text-muted text-xs">Applies to every agent on this provider that doesn't set its own effort. Controls thinking depth &amp; token spend on reasoning models.</p>
+        </div>
+      <% end %>
+
       <% if @provider.adapter_type == "anthropic" %>
         <!-- Anthropic Debug & Routing -->
         <div class="bg-surface-raised rounded-lg border border-border-default p-5 space-y-4">

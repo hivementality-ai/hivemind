@@ -35,6 +35,9 @@ module Providers
         payload[:tools] = params[:tools] if params[:tools].present?
         payload[:temperature] = params[:temperature] if params[:temperature]
         payload[:thinking] = params[:thinking] if params[:thinking]
+        # Reasoning effort — forwarded for the direct Messages API path in the
+        # proxy. The OAuth/Claude-Code path does not consume it yet.
+        payload[:effort] = params.dig(:output_config, :effort) if params.dig(:output_config, :effort)
 
         payload[:agent_id] = options[:agent_id] if options[:agent_id]
         payload[:session_id] = options[:session_id] if options[:session_id]

@@ -214,6 +214,13 @@ class AgentsController < ApplicationController
         mc.delete(field)
       end
     end
+
+    # Effort is a string enum, not a numeric — blank means "inherit provider default".
+    if params[:agent].key?(:effort)
+      eff = params[:agent][:effort].to_s
+      eff.present? ? mc["effort"] = eff : mc.delete("effort")
+    end
+
     agent.model_config = mc
   end
 

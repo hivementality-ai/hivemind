@@ -152,6 +152,17 @@
               class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
           <p class="text-text-faint text-xs mt-1">Penalizes repeated tokens (1.0 = no penalty). Ollama only.</p>
         </div>
+        <div>
+          <%= form.label :effort, "Reasoning Effort", class: "block text-sm font-medium text-text-primary mb-1" %>
+          <%= form.select :effort,
+              options_for_select(
+                [ [ "Provider default", "" ] ] + Agent::EFFORT_LEVELS.map { |l| [ l, l ] },
+                (agent.model_config || {})["effort"].to_s
+              ),
+              {},
+              class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand" %>
+          <p class="text-text-faint text-xs mt-1">Controls thinking depth &amp; token spend on reasoning models (Claude Opus/Sonnet/Fable, OpenAI o-series). Blank inherits the provider default.</p>
+        </div>
       </div>
     </details>
   </div>
