@@ -224,8 +224,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${SDK_PROXY_MEMORY:-2g}
-          cpus: "${SDK_PROXY_CPUS:-0.5}"
+          memory: ${SDK_PROXY_MEMORY:-4g}
+          cpus: "${SDK_PROXY_CPUS:-2}"
 
   connector:
     image: ghcr.io/hivementality-ai/hivemind/connector:${HIVEMIND_VERSION:-latest}
