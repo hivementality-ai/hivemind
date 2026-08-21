@@ -235,7 +235,7 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
   describe "#models" do
     let(:adapter) { described_class.new(config: config, api_key: "sk-ant-api-test") }
 
-    it "returns static model list" do
+    it "returns the registry's supported Anthropic models" do
       result = adapter.models
 
       expect(result).to be_success
