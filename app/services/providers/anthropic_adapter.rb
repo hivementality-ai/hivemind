@@ -126,7 +126,18 @@ module Providers
         params[:max_tokens] = [ params[:max_tokens] || 8192, budget + 4096 ].max
       end
 
+      # Reasoning effort (output_config.effort) — supported on Opus 4.5+, Sonnet
+      # 4.6, Sonnet 5, and Fable 5; errors on Haiku / Sonnet 4.5, so gate by model.
+      if options[:effort].present? && effort_supported?(params[:model])
+        params[:output_config] = (params[:output_config] || {}).merge(effort: options[:effort].to_s)
+      end
+
       params
+    end
+
+    # Whether the given model accepts output_config.effort.
+    def effort_supported?(model)
+      model.to_s.match?(/claude-(?:opus-5|opus-4-[5678]|sonnet-5|sonnet-4-6|fable-5)/)
     end
 
     def build_cached_system(content)

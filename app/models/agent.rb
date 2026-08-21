@@ -63,6 +63,11 @@ class Agent < ApplicationRecord
   validate :validate_egress_policy
   validate :validate_no_self_reporting
   validate :validate_no_reporting_cycle
+  validate :validate_effort
+
+  # Reasoning-effort levels accepted by output_config.effort (Anthropic) /
+  # reasoning_effort (OpenAI). Ordered low → high.
+  EFFORT_LEVELS = %w[low medium high xhigh max].freeze
 
   attr_accessor :egress_policy_mode, :egress_policy_rules, :egress_policy_log_blocked
 
@@ -207,6 +212,13 @@ class Agent < ApplicationRecord
     errors.add(:reports_to_id, "cannot report to self") if reports_to_id == id
   end
 
+  def validate_effort
+    val = (model_config || {})["effort"]
+    return if val.blank? || EFFORT_LEVELS.include?(val.to_s)
+
+    errors.add(:base, "Effort must be one of: #{EFFORT_LEVELS.join(', ')}")
+  end
+
   def validate_no_reporting_cycle
     return unless reports_to_id.present? && id.present?
 
@@ -306,7 +318,19 @@ class Agent < ApplicationRecord
     opts[:top_p] = mc["top_p"].to_f if mc["top_p"].present?
     opts[:top_k] = mc["top_k"].to_i if mc["top_k"].present?
     opts[:repeat_penalty] = mc["repeat_penalty"].to_f if mc["repeat_penalty"].present?
+    opts[:effort] = effective_effort if effective_effort.present?
     opts
+  end
+
+  # This agent's own effort override (nil when it inherits the provider default).
+  def effort
+    (model_config || {})["effort"].presence
+  end
+
+  # Resolved effort: the agent's override, else the provider-level default
+  # Setting, else nil (the API's own default — "high" on current models).
+  def effective_effort
+    effort || Setting.get("provider_effort_#{model_provider}").presence
   end
 
   def effective_egress_policy

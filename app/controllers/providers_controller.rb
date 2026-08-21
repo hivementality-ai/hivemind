@@ -108,6 +108,16 @@ class ProvidersController < ApplicationController
         Setting.set("default_model_#{@provider.adapter_type}", default_model)
       end
 
+      # Provider-level default reasoning effort (blank clears it → model default).
+      if %w[anthropic openai].include?(@provider.adapter_type) && provider_params.key?(:effort)
+        effort = provider_params[:effort].to_s
+        if effort.present? && Agent::EFFORT_LEVELS.include?(effort)
+          Setting.set("provider_effort_#{@provider.adapter_type}", effort)
+        else
+          Setting.set("provider_effort_#{@provider.adapter_type}", "")
+        end
+      end
+
       # Anthropic-only debug toggles (always write both so unchecking
       # actually clears the flag — checkboxes don't post when unchecked,
       # but the hidden twin in the form posts "0" as a floor value).
@@ -132,7 +142,7 @@ class ProvidersController < ApplicationController
   end
 
   def provider_params
-    permitted = [ :api_key, :default_model, :base_url, :prompt_debug_enabled, :anthropic_use_sdk_proxy, models: [] ]
+    permitted = [ :api_key, :default_model, :base_url, :effort, :prompt_debug_enabled, :anthropic_use_sdk_proxy, models: [] ]
     permitted.unshift(:adapter_type, :name) if action_name == "create"
     params.require(:provider_config).permit(*permitted)
   end

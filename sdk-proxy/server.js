@@ -40,6 +40,7 @@ app.post("/v1/chat", async (req, res) => {
     agent_id,
     session_id,
     tool_definitions,
+    effort,
   } = req.body;
 
   const isOAuth = token.startsWith("sk-ant-oat");
@@ -50,7 +51,7 @@ app.post("/v1/chat", async (req, res) => {
       await handleOAuth(req, res, token, { messages, tools, model, max_tokens, temperature, thinking, systemPrompt, stream, agent_id, session_id, tool_definitions });
     } else {
       const client = new Anthropic({ apiKey: token });
-      const params = buildApiParams({ messages, tools, model, max_tokens, temperature, thinking, systemPrompt });
+      const params = buildApiParams({ messages, tools, model, max_tokens, temperature, thinking, systemPrompt, effort });
       if (stream) {
         await handleApiStream(res, client, params);
       } else {
@@ -356,7 +357,7 @@ function extractSystemPrompt(systemPrompt) {
 
 // ─── API key path: direct Anthropic SDK ───
 
-function buildApiParams({ messages, tools, model, max_tokens, temperature, thinking, systemPrompt }) {
+function buildApiParams({ messages, tools, model, max_tokens, temperature, thinking, systemPrompt, effort }) {
   const params = {
     model: model || "claude-sonnet-4-5-20250929",
     messages: messages || [],
@@ -371,6 +372,10 @@ function buildApiParams({ messages, tools, model, max_tokens, temperature, think
     params.thinking = thinking;
     delete params.temperature;
   }
+
+  // Reasoning effort. Hivemind gates this to models that support it, so it's
+  // safe to forward as output_config.effort here.
+  if (effort) params.output_config = { ...(params.output_config || {}), effort };
 
   return params;
 }

@@ -93,12 +93,10 @@ module Providers
       end
       params[:temperature] = options[:temperature] if options[:temperature]
 
-      if options[:thinking_enabled]
-        model = options[:model] || params[:model]
-        if model&.match?(/\b(o[1-9]|o3|o4)/i)
-          params[:reasoning_effort] = "high"
-          params.delete(:temperature) # Not compatible with reasoning
-        end
+      reasoning_model = (options[:model] || params[:model])&.match?(/\b(o[1-9]|o3|o4)/i)
+      if reasoning_model && (options[:thinking_enabled] || options[:effort].present?)
+        params[:reasoning_effort] = openai_effort(options[:effort])
+        params.delete(:temperature) # Not compatible with reasoning
       end
 
       if options[:max_tokens]
@@ -111,6 +109,16 @@ module Providers
         end
       end
       params
+    end
+
+    # OpenAI reasoning_effort accepts low | medium | high. Map the shared effort
+    # scale accordingly (xhigh/max collapse to high); default to high.
+    def openai_effort(level)
+      case level.to_s
+      when "low", "medium", "high" then level.to_s
+      when "xhigh", "max" then "high"
+      else "high"
+      end
     end
 
     def stream_chat(client:, params:, &block)
