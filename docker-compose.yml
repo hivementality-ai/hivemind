@@ -52,6 +52,7 @@ services:
     networks:
       - internal
       - web
+    restart: unless-stopped
 
   # System worker — handles heartbeats, task pipeline transitions, notifications,
   # delivery queues, and lightweight housekeeping jobs. This process must NEVER
@@ -92,6 +93,7 @@ services:
           cpus: "${SIDEKIQ_SYSTEM_CPUS:-0.5}"
     networks:
       - internal
+    restart: unless-stopped
 
   # Agent worker — handles ChatStreamJob, InboundMessageJob, SubAgentJob,
   # and other long-running LLM sessions. Isolated from system jobs so agent
@@ -132,6 +134,7 @@ services:
           cpus: "${SIDEKIQ_AGENT_CPUS:-1.0}"
     networks:
       - internal
+    restart: unless-stopped
 
   db:
     image: pgvector/pgvector:pg17
@@ -153,6 +156,7 @@ services:
           cpus: "${DB_CPUS:-1.0}"
     networks:
       - internal
+    restart: unless-stopped
 
   cache:
     image: redis:7-alpine
@@ -166,6 +170,7 @@ services:
       retries: 5
     networks:
       - internal
+    restart: unless-stopped
 
   browser-sidecar:
     image: ghcr.io/hivementality-ai/hivemind/browser-sidecar:${HIVEMIND_VERSION:-latest}
@@ -205,6 +210,7 @@ services:
           cpus: "${WORKSPACE_CPUS:-2.0}"
     networks:
       - web
+    restart: unless-stopped
 
   sdk-proxy:
     image: ghcr.io/hivementality-ai/hivemind/sdk-proxy:${HIVEMIND_VERSION:-latest}
@@ -255,6 +261,7 @@ services:
     networks:
       - internal
       - web
+    restart: unless-stopped
 
   # Managed Cloudflare Tunnel connector. Only started when remote access is
   # configured via Settings → Remote Access (guided Cloudflare path) — the
