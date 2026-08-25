@@ -2,7 +2,7 @@
 
 class ProvidersController < ApplicationController
   before_action :authorize_admin_or_owner!
-  before_action :load_provider, only: [ :show, :edit, :update ]
+  before_action :load_provider, only: [ :show, :edit, :update, :reset_circuit ]
 
   # GET /providers
   # Admin interface to manage all provider credentials
@@ -126,6 +126,10 @@ class ProvidersController < ApplicationController
         Setting.set("anthropic_use_sdk_proxy", bool_param(provider_params[:anthropic_use_sdk_proxy]).to_s)
       end
 
+      # A human just touched this credential, so stop waiting out the circuit
+      # breaker's cooldown — the next call should try again immediately.
+      Providers::CircuitBreaker.reset_provider!(@provider.adapter_type)
+
       redirect_to provider_path(@provider), notice: "Provider updated successfully."
     else
       @available_models = available_models_for(@provider.adapter_type)
@@ -133,6 +137,15 @@ class ProvidersController < ApplicationController
       @api_key = @provider.api_key
       render :edit_form, status: :unprocessable_entity
     end
+  end
+
+  # POST /providers/:id/reset_circuit
+  # Clear the provider-unavailable circuit by hand (topped the account up,
+  # rotated the token) without editing the credential.
+  def reset_circuit
+    Providers::CircuitBreaker.reset_provider!(@provider.adapter_type)
+    redirect_back fallback_location: provider_path(@provider),
+                  notice: "Cleared the provider circuit for #{@provider.name}. Calls will resume on the next request."
   end
 
   private

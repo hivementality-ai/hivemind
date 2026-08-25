@@ -27,6 +27,23 @@ module Providers
       invalid[\s_-]?(?:api[\s_-]?)?key
     /xi
 
+    # Reasons worth trying the next provider for. A credential-scoped failure
+    # (out of credit, revoked token, circuit already open) is permanent for
+    # *this* credential but the next entry in the chain has its own, so
+    # failing over is both correct and bounded by the chain length.
+    #
+    # Excluded on purpose: invalid_request and request_too_large are the
+    # caller's bug and would fail identically on every provider — retrying
+    # them across the chain is pure connection churn.
+    FAILOVER_REASONS = %w[
+      rate_limited server_error network_error timeout conflict
+      quota_exhausted auth_invalid forbidden model_not_found
+    ].freeze
+
+    # Never fail over on these: the host itself is out of ephemeral ports, so
+    # every additional attempt makes the outage worse.
+    NEVER_FAILOVER_REASONS = %w[local_port_exhaustion invalid_request request_too_large unknown].freeze
+
     attr_reader :primary
 
     # Call sites that type-check the adapter (OAuth/MCP detection) unwrap
@@ -66,7 +83,12 @@ module Providers
         return result unless retryable_failure?(result)
       end
 
-      ServiceResponse.failure(error: "#{original_error} (#{@chain.size} fallback model(s) also unavailable)")
+      # Carry the last verdict through so callers still know whether anything
+      # about this failure is worth retrying.
+      ServiceResponse.failure(
+        error: "#{original_error} (#{@chain.size} fallback model(s) also unavailable)",
+        payload: result.respond_to?(:payload) && result.payload.is_a?(Hash) ? result.payload : nil
+      )
     end
 
     def models = @primary.models
@@ -76,7 +98,15 @@ module Providers
     private
 
     def retryable_failure?(result)
-      !result.nil? && !result.success? && result.error.to_s.match?(RETRYABLE_ERROR)
+      return false if result.nil? || result.success?
+
+      # Prefer the typed verdict the adapter attached; fall back to the string
+      # regex only for adapters that have not been through the classifier.
+      reason = result.payload.is_a?(Hash) ? result.payload.dig(:provider_error, :reason) : nil
+      return false if reason.present? && NEVER_FAILOVER_REASONS.include?(reason)
+      return FAILOVER_REASONS.include?(reason) if reason.present?
+
+      result.error.to_s.match?(RETRYABLE_ERROR)
     end
 
     def resolve_adapter(entry)

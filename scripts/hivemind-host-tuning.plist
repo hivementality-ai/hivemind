@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Persistent ephemeral-port tuning for a macOS host running multiple
+  Hivemind stacks.
+
+  macOS ships with a 16,384-port ephemeral range and a 30-second TIME_WAIT.
+  Docker Desktop routes container egress through the host's own sockets, so
+  every stack on the box draws from that one pool. Widening the range and
+  shortening TIME_WAIT raises the ceiling from ~16k to ~49k concurrent
+  outbound sockets and frees each one ~15x faster.
+
+  This is headroom, NOT the fix. The fix is the per-stack concurrency
+  ceiling and the provider circuit breaker (see MULTI-STACK.md). Without
+  those, a runaway stack exhausts 49k ports too; it just takes longer.
+
+  Install:
+    sudo cp scripts/hivemind-host-tuning.plist /Library/LaunchDaemons/com.hivemind.host-tuning.plist
+    sudo chown root:wheel /Library/LaunchDaemons/com.hivemind.host-tuning.plist
+    sudo chmod 644 /Library/LaunchDaemons/com.hivemind.host-tuning.plist
+    sudo launchctl load -w /Library/LaunchDaemons/com.hivemind.host-tuning.plist
+
+  Verify:
+    sysctl net.inet.ip.portrange.first net.inet.tcp.msl
+
+  Uninstall:
+    sudo launchctl unload -w /Library/LaunchDaemons/com.hivemind.host-tuning.plist
+    sudo rm /Library/LaunchDaemons/com.hivemind.host-tuning.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.hivemind.host-tuning</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/sbin/sysctl</string>
+    <string>-w</string>
+    <!-- 49152..65535 (16k ports) -> 16384..65535 (~49k ports) -->
+    <string>net.inet.ip.portrange.first=16384</string>
+    <string>net.inet.ip.portrange.hifirst=16384</string>
+    <!-- TIME_WAIT = 2 * MSL. 15000ms -> 1000ms drops it from 30s to 2s. -->
+    <string>net.inet.tcp.msl=1000</string>
+  </array>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/var/log/hivemind-host-tuning.log</string>
+  <key>StandardErrorPath</key>
+  <string>/var/log/hivemind-host-tuning.log</string>
+</dict>
+</plist>

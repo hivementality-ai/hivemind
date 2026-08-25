@@ -1,0 +1,45 @@
+<%# Loud, local degradation. The 2026-08-24 outage ran for 40 hours with
+    restarts=0 and nothing on screen; this is the thing that makes the next
+    one impossible to miss. Cached briefly so the banner costs one Redis
+    read per 15s rather than one per page render. %>
+<% circuits = Rails.cache.fetch("provider_circuits:open", expires_in: 15.seconds) { Providers::CircuitBreaker.open_circuits } %>
+<% if circuits.present? %>
+  <% circuits.each do |circuit| %>
+    <div class="mx-4 mt-4 px-4 py-3 rounded-lg border flex items-start justify-between gap-4 bg-red-900/30 border-red-600/50 text-red-200"
+         role="alert">
+      <div class="flex items-start gap-3">
+        <span class="text-red-400 text-lg leading-none mt-0.5">⛔</span>
+        <div>
+          <div class="font-semibold">
+            <%= circuit.provider.titleize %> calls are stopped
+            <span class="ml-2 text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-600/30 text-red-300 border border-red-600/40">
+              <%= circuit.reason.to_s.tr("_", " ").presence || "unavailable" %>
+            </span>
+          </div>
+          <p class="text-sm opacity-90 mt-1">
+            <%= provider_circuit_explanation(circuit) %>
+          </p>
+          <% if circuit.message.present? %>
+            <p class="text-xs opacity-60 mt-1 font-mono break-all"><%= circuit.message.truncate(200) %></p>
+          <% end %>
+          <p class="text-xs opacity-60 mt-1">
+            Opened <%= time_ago_in_words(circuit.opened_at) %> ago after
+            <%= pluralize(circuit.failures, "consecutive failure") %>.
+            No further calls are being made on this credential, so nothing is
+            being retried in the background.
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 shrink-0">
+        <% provider_config = ProviderConfig.find_by(adapter_type: circuit.provider) %>
+        <% if provider_config %>
+          <%= link_to "Fix credential", edit_provider_path(provider_config),
+                      class: "text-sm font-medium underline underline-offset-2 hover:text-white transition-colors" %>
+          <%= button_to "Retry now", reset_circuit_provider_path(provider_config),
+                        method: :post,
+                        class: "px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-600 text-white hover:bg-red-500 transition-colors" %>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+<% end %>
