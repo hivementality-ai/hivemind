@@ -8,15 +8,17 @@ module Providers
     TOKENS_PER_CHAR = 0.25
     CONTEXT_HEADROOM = 1.25 # 25% buffer
     def chat(messages:, tools: [], options: {}, &block)
-      params = build_chat_params(messages:, tools:, options:)
+      with_circuit_breaker do
+        params = build_chat_params(messages:, tools:, options:)
 
-      if block_given?
-        stream_chat(params:, &block)
-      else
-        sync_chat(params:)
+        if block_given?
+          stream_chat(params:, &block)
+        else
+          sync_chat(params:)
+        end
+      rescue Faraday::Error => e
+        ServiceResponse.failure(error: "Ollama error: #{e.message}")
       end
-    rescue Faraday::Error => e
-      ServiceResponse.failure(error: "Ollama error: #{e.message}")
     end
 
     def models

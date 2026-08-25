@@ -56,6 +56,11 @@ services:
           cpus: "0.5"
 
   sdk-proxy:
+    environment:
+      # Smaller box, smaller share of the host's ephemeral port pool.
+      # See MULTI-STACK.md.
+      - SDK_PROXY_MAX_CONCURRENCY=${SDK_PROXY_MAX_CONCURRENCY:-2}
+      - SDK_PROXY_MAX_QUEUE=${SDK_PROXY_MAX_QUEUE:-8}
     deploy:
       resources:
         limits:

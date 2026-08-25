@@ -5,15 +5,17 @@ require "securerandom"
 module Providers
   class OpenaiCompatibleAdapter < Base
     def chat(messages:, tools: [], options: {}, &block)
-      params = build_chat_params(messages:, tools:, options:)
+      with_circuit_breaker do
+        params = build_chat_params(messages:, tools:, options:)
 
-      if block_given?
-        stream_chat(params:, &block)
-      else
-        sync_chat(params:)
+        if block_given?
+          stream_chat(params:, &block)
+        else
+          sync_chat(params:)
+        end
+      rescue Faraday::Error => e
+        ServiceResponse.failure(error: "OpenAI-compatible API error: #{e.message}")
       end
-    rescue Faraday::Error => e
-      ServiceResponse.failure(error: "OpenAI-compatible API error: #{e.message}")
     end
 
     def models

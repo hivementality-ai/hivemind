@@ -3,19 +3,60 @@ import Anthropic from "@anthropic-ai/sdk";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { buildMcpServer } from "./mcp-tool-bridge.js";
 import { existsSync, mkdirSync } from "fs";
+import { classifyError, toErrorBody } from "./error-classifier.js";
+import { credentialKey } from "./circuit-breaker.js";
+import { createGuard } from "./guard.js";
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 
 const PORT = process.env.PORT || 3003;
 
-// Prevent MaxListenersExceededWarning from concurrent query() calls
-// Each query() spawns a subprocess that adds exit listeners
-process.setMaxListeners(30);
+const intEnv = (name, fallback) => {
+  const parsed = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+};
 
-// Health check
+// ─── Resource discipline ──────────────────────────────────────────────
+// Every in-flight OAuth request spawns a Claude Code subprocess that opens
+// its own TCP connections. On macOS, container egress consumes the *host's*
+// ~16k ephemeral port pool, shared by every stack on the box. These ceilings
+// are this stack's declared share of that pool — see MULTI-STACK.md.
+const MAX_CONCURRENCY = Math.max(1, intEnv("SDK_PROXY_MAX_CONCURRENCY", 4));
+const MAX_QUEUE = intEnv("SDK_PROXY_MAX_QUEUE", 16);
+const CIRCUIT_FAILURE_THRESHOLD = Math.max(1, intEnv("SDK_PROXY_CIRCUIT_THRESHOLD", 3));
+const CIRCUIT_OPEN_MS = Math.max(1000, intEnv("SDK_PROXY_CIRCUIT_OPEN_MS", 15 * 60 * 1000));
+const STDERR_CAPTURE_BYTES = 16 * 1024;
+
+const guard = createGuard({
+  maxConcurrent: MAX_CONCURRENCY,
+  maxQueue: MAX_QUEUE,
+  failureThreshold: CIRCUIT_FAILURE_THRESHOLD,
+  openMs: CIRCUIT_OPEN_MS,
+});
+
+// query() adds an exit listener per subprocess; the semaphore is the real
+// bound, this just keeps the ceiling above it so no spurious warning fires.
+process.setMaxListeners(MAX_CONCURRENCY + 20);
+
+// Health check. Reports liveness (200 whenever the HTTP server answers) plus
+// the two things that were invisible during the 40-hour silent outage: the
+// per-credential circuit state and how much outbound work is in flight.
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok", service: "sdk-proxy" });
+  res.json(guard.health());
+});
+
+// Clear a credential's circuit — called by Rails when a human updates the
+// token or tops the account up, so recovery does not wait out the cooldown.
+app.post("/admin/circuit/reset", (req, res) => {
+  const secret = process.env.INTERNAL_API_SECRET;
+  if (secret && req.headers["x-internal-secret"] !== secret) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const token = req.body?.token;
+  guard.breaker.reset(token ? credentialKey(token) : null);
+  console.log(`[circuit] reset ${token ? credentialKey(token) : "ALL"}`);
+  res.json({ ok: true, circuits: guard.breaker.snapshot() });
 });
 
 // Chat endpoint — proxies requests to Anthropic API
@@ -44,31 +85,67 @@ app.post("/v1/chat", async (req, res) => {
   } = req.body;
 
   const isOAuth = token.startsWith("sk-ant-oat");
-  console.log(`[chat] token=${token.slice(0, 15)}... isOAuth=${isOAuth} stream=${stream} tools=${tool_definitions?.length || 0} agent=${agent_id} session=${session_id}`);
+  const credential = credentialKey(token);
+  console.log(`[chat] cred=${credential} isOAuth=${isOAuth} stream=${stream} tools=${tool_definitions?.length || 0} agent=${agent_id} session=${session_id}`);
 
   try {
-    if (isOAuth) {
-      await handleOAuth(req, res, token, { messages, tools, model, max_tokens, temperature, thinking, systemPrompt, stream, agent_id, session_id, tool_definitions });
-    } else {
-      const client = new Anthropic({ apiKey: token });
-      const params = buildApiParams({ messages, tools, model, max_tokens, temperature, thinking, systemPrompt, effort });
-      if (stream) {
-        await handleApiStream(res, client, params);
-      } else {
-        await handleApiSync(res, client, params);
-      }
-    }
+    await guard.run({
+      credential,
+      invoke: async () => {
+        if (isOAuth) {
+          return handleOAuth(req, res, token, { messages, tools, model, max_tokens, temperature, thinking, systemPrompt, stream, agent_id, session_id, tool_definitions });
+        }
+        const client = new Anthropic({ apiKey: token });
+        const params = buildApiParams({ messages, tools, model, max_tokens, temperature, thinking, systemPrompt, effort });
+        return stream ? handleApiStream(res, client, params) : handleApiSync(res, client, params);
+      },
+    });
   } catch (err) {
-    console.error("SDK proxy error:", err.message);
-    if (!res.headersSent) {
-      res.status(err.status || 500).json({ error: err.message });
-    }
+    respondWithError(res, err, credential);
   }
 });
 
+// ─── Error handling ───
+
+// guard.run has already classified and recorded the failure; this only turns
+// the verdict into a response the Rails side can act on without string-matching.
+function respondWithError(res, err, credential) {
+  const info = err.classification || classifyError(err, { stderr: err.subprocessStderr });
+  console.error(
+    `[error] cred=${credential} reason=${info.reason} ` +
+    `retryable=${info.retryable} status=${info.status}: ${info.message}`,
+  );
+
+  if (res.headersSent) {
+    // Stream already open — the SSE error frame carried the verdict.
+    if (!res.writableEnded) res.end();
+    return;
+  }
+
+  if (info.retryAfterMs != null) res.set("Retry-After", String(Math.ceil(info.retryAfterMs / 1000)));
+  res.status(info.status).json(toErrorBody(info));
+}
+
 // ─── OAuth path: Claude Code via Agent SDK ───
 
+// The Agent SDK surfaces every failure as `Claude Code process exited with
+// code 1`, which erases the underlying HTTP status — a quota 400 and a
+// transient socket error look identical. The subprocess does print the real
+// cause on stderr, so capture it and attach it to the thrown error before it
+// reaches the classifier.
 async function handleOAuth(_req, res, token, params) {
+  const stderrCapture = { text: "" };
+  try {
+    return await runOAuth(res, token, params, stderrCapture);
+  } catch (err) {
+    if (stderrCapture.text && !err.subprocessStderr) {
+      err.subprocessStderr = stderrCapture.text;
+    }
+    throw err;
+  }
+}
+
+async function runOAuth(res, token, params, stderrCapture) {
   const { messages, systemPrompt, model, stream, agent_id, session_id, tool_definitions } = params;
 
   // Extract system prompt text for structured passing
@@ -107,7 +184,14 @@ async function handleOAuth(_req, res, token, params) {
   if (systemText) options.systemPrompt = systemText;
   if (model) options.model = model;
   options.env = { CLAUDE_CODE_OAUTH_TOKEN: token };
-  options.stderr = (data) => console.error(`[claude-code stderr] ${data}`);
+  options.stderr = (data) => {
+    const text = String(data);
+    console.error(`[claude-code stderr] ${text}`);
+    // Ring-capped so a chatty subprocess cannot grow this without bound.
+    if (stderrCapture.text.length < STDERR_CAPTURE_BYTES) {
+      stderrCapture.text = (stderrCapture.text + text).slice(-STDERR_CAPTURE_BYTES);
+    }
+  };
 
   // Log what's being sent to the SDK for debugging
   const systemLines = (systemText || "").split("\n").length;
@@ -178,6 +262,7 @@ async function handleOAuth(_req, res, token, params) {
     const MAX_ATTEMPTS = 3;
     let producedOutput = false;
     let lastError = null;
+    let classification = null;
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       const activeTools = new Set();
@@ -264,7 +349,16 @@ async function handleOAuth(_req, res, token, params) {
 
       if (!errored) break;
 
-      const canRetry = !producedOutput && attempt < MAX_ATTEMPTS;
+      // Classify BEFORE deciding to retry. Retrying a permanent failure is
+      // exactly what consumed the host's port pool: a quota 400 will fail
+      // identically on every attempt, and retrying local port exhaustion
+      // makes the exhaustion worse.
+      classification = classifyError(
+        lastError instanceof Error ? lastError : new Error(String(lastError || "API Error")),
+        { stderr: stderrCapture.text },
+      );
+
+      const canRetry = classification.retryable && !producedOutput && attempt < MAX_ATTEMPTS;
       if (canRetry) {
         const backoffMs = 1000 * attempt;
         console.warn(`[oauth] attempt ${attempt}/${MAX_ATTEMPTS} failed before any output (${lastError}); retrying in ${backoffMs}ms`);
@@ -272,16 +366,24 @@ async function handleOAuth(_req, res, token, params) {
         continue;
       }
 
-      // Out of retries, or output already streamed — surface as an error so
-      // Hivemind shows a failure and lets the user retry, rather than silently
-      // persisting "API Error: Connection error." as the assistant's reply.
-      console.error(`[oauth] giving up after attempt ${attempt} (producedOutput=${producedOutput}): ${lastError}`);
-      sendSSE(res, "error", { error: lastError || "API Error" });
+      // Permanent, out of retries, or output already streamed — surface as an
+      // error so Hivemind shows a failure and lets the user retry, rather than
+      // silently persisting "API Error: Connection error." as the reply.
+      console.error(`[oauth] giving up after attempt ${attempt} (producedOutput=${producedOutput}, retryable=${classification.retryable}): ${lastError}`);
+      // Headers are already flushed, so the verdict has to travel as an SSE
+      // frame rather than an HTTP status.
+      sendSSE(res, "error", toErrorBody(classification));
       break;
     }
 
     sendSSE(res, "done", {});
     res.end();
+
+    // Rethrow after closing the stream cleanly, so the credential's circuit
+    // still records the failure. respondWithError sees headersSent and stops.
+    if (classification && !classification.retryable) {
+      throw errorFromClassification(classification);
+    }
   } else {
     // Non-streaming: nothing is sent until the turn finishes, so we can safely
     // retry a transient connection error (is_error result) up to MAX_ATTEMPTS.
@@ -333,17 +435,35 @@ async function handleOAuth(_req, res, token, params) {
         return res.json({ content: fullContent || null, thinking: null, tool_calls: null, usage });
       }
 
-      if (attempt < MAX_ATTEMPTS) {
+      const classification = classifyError(
+        lastError instanceof Error ? lastError : new Error(String(lastError || "API Error")),
+        { stderr: stderrCapture.text },
+      );
+
+      if (classification.retryable && attempt < MAX_ATTEMPTS) {
         const backoffMs = 1000 * attempt;
         console.warn(`[oauth-sync] attempt ${attempt}/${MAX_ATTEMPTS} failed (${lastError}); retrying in ${backoffMs}ms`);
         await new Promise((r) => setTimeout(r, backoffMs));
         continue;
       }
 
-      console.error(`[oauth-sync] giving up after ${attempt} attempts: ${lastError}`);
-      return res.status(502).json({ error: lastError || "API Error" });
+      console.error(`[oauth-sync] giving up after ${attempt} attempts (retryable=${classification.retryable}): ${lastError}`);
+      // Thrown, not returned: guard.run must see the failure to record it
+      // against this credential's circuit. respondWithError renders it.
+      throw errorFromClassification(classification);
     }
   }
+}
+
+// Rebuild an Error carrying an already-settled verdict, so the classifier
+// honours it verbatim instead of re-deriving one from the message text.
+function errorFromClassification(classification) {
+  const err = new Error(classification.message);
+  err.status = classification.status;
+  err.reason = classification.reason;
+  err.retryable = classification.retryable;
+  err.classification = classification;
+  return err;
 }
 
 function extractSystemPrompt(systemPrompt) {

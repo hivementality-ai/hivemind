@@ -64,7 +64,7 @@ module Providers
         response = http.request(request)
 
         unless response.is_a?(Net::HTTPSuccess)
-          return ServiceResponse.failure(error: "SDK proxy error (#{response.code}): #{response.body}")
+          return proxy_failure(status: response.code, body: response.body)
         end
 
         data = JSON.parse(response.body, symbolize_names: true)
@@ -100,10 +100,11 @@ module Providers
         })
         request.body = payload.to_json
 
+        stream_error = nil
+
         http.request(request) do |response|
           unless response.is_a?(Net::HTTPSuccess)
-            body = response.read_body
-            return ServiceResponse.failure(error: "SDK proxy error (#{response.code}): #{body}")
+            return proxy_failure(status: response.code, body: response.read_body)
           end
 
           buffer = +""
@@ -140,8 +141,13 @@ module Providers
               when "result"
                 usage = event_data["usage"] || {}
               when "error"
-                # Proxy exhausted its retries (or hit an error after streaming).
-                stream_error = event_data["error"].presence || "SDK proxy stream error"
+                # The proxy classified the failure and sent its verdict as an
+                # SSE frame (headers were already flushed, so it could not use
+                # an HTTP status). Keep the whole frame, not just the message:
+                # the classifier reads `retryable` and `reason` off it, so the
+                # caller never has to string-match to decide whether retrying
+                # could possibly help.
+                stream_error = event_data
               when "done"
                 # Stream complete
               end
@@ -150,11 +156,47 @@ module Providers
         end
 
         # Fail only when the error left us with nothing — if content already
-        # streamed, keep the partial reply rather than discarding it.
-        return ServiceResponse.failure(error: stream_error) if stream_error && full_content.empty?
+        # streamed, keep the partial reply rather than discarding it. When we
+        # do fail, carry the proxy's verdict so the circuit breaker and the
+        # job retry policy can act on it.
+        if stream_error && full_content.empty?
+          return proxy_failure(status: nil, body: stream_error, partial_content: nil)
+        end
 
         thinking = full_thinking.present? ? full_thinking : nil
         ServiceResponse.success(data: { content: full_content, thinking:, usage: })
+      end
+
+      # Turn a proxy failure into a ServiceResponse that carries the machine-
+      # readable verdict, so callers never have to string-match to decide
+      # whether retrying could possibly help.
+      def proxy_failure(status:, body:, partial_content: nil)
+        error = Providers::ErrorClassifier.call(
+          message: proxy_message(status, body),
+          status: status&.to_i,
+          body: body,
+          provider: "anthropic"
+        )
+        ServiceResponse.failure(
+          error: error.message,
+          payload: { provider_error: error.to_h, partial_content: partial_content.presence }.compact
+        )
+      end
+
+      def proxy_message(status, body)
+        detail = extract_message(body)
+        prefix = status ? "SDK proxy error (#{status})" : "SDK proxy error"
+        detail.present? ? "#{prefix}: #{detail}" : prefix
+      end
+
+      def extract_message(body)
+        parsed = body.is_a?(String) ? (JSON.parse(body) rescue nil) : body
+        return body.to_s.truncate(500) unless parsed.is_a?(Hash)
+
+        parsed = parsed.stringify_keys
+        nested = parsed["error"]
+        nested = nested.stringify_keys["message"] if nested.is_a?(Hash)
+        (nested || parsed["message"] || body.to_s).to_s.truncate(500)
       end
 
       def parse_sse_frame(frame)

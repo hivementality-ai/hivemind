@@ -3,16 +3,18 @@
 module Providers
   class OpenaiAdapter < Base
     def chat(messages:, tools: [], options: {}, &block)
-      client = build_client
-      params = build_chat_params(messages:, tools:, options:)
+      with_circuit_breaker do
+        client = build_client
+        params = build_chat_params(messages:, tools:, options:)
 
-      if block_given?
-        stream_chat(client:, params:, &block)
-      else
-        sync_chat(client:, params:)
+        if block_given?
+          stream_chat(client:, params:, &block)
+        else
+          sync_chat(client:, params:)
+        end
+      rescue Faraday::Error => e
+        ServiceResponse.failure(error: "OpenAI API error: #{e.message}")
       end
-    rescue Faraday::Error => e
-      ServiceResponse.failure(error: "OpenAI API error: #{e.message}")
     end
 
     def models

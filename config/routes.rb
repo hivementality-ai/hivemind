@@ -136,10 +136,15 @@ Rails.application.routes.draw do
   end
 
   # Knowledge Base
-  resources :knowledge_documents, path: "knowledge", only: [:index, :show, :new, :create, :destroy]
+  resources :knowledge_documents, path: "knowledge", only: [ :index, :show, :new, :create, :destroy ]
 
   # Providers (admin interface)
-  resources :providers, only: [ :index, :show, :new, :create, :edit, :update ]
+  resources :providers, only: [ :index, :show, :new, :create, :edit, :update ] do
+    member do
+      # Clear a provider-unavailable circuit after a human fixes the account.
+      post :reset_circuit
+    end
+  end
 
   # Remote Access (admin/owner interface) — tunnel wizard + status card
   get "remote_access", to: "remote_access#index", as: :remote_access
@@ -229,7 +234,7 @@ Rails.application.routes.draw do
   end
 
   # Approval Inbox
-  resources :approvals, only: [:index] do
+  resources :approvals, only: [ :index ] do
     member do
       post :approve
       post :reject
@@ -372,6 +377,8 @@ Rails.application.routes.draw do
       get "providers/models", to: "providers#models"
       get "hashtag_actions", to: "hashtag_actions#index"
       get "system/version", to: "system#version"
+      # Provider reachability: circuit state + sdk-proxy ceilings. 503 when degraded.
+      get "system/provider_health", to: "system#provider_health"
       delete "desktop_pairing/token", to: "desktop_pairing#revoke_self", as: :revoke_desktop_pairing_token
       resources :projects, only: [ :index, :show, :create, :update ] do
         resources :milestones, only: [ :index, :show, :update ], controller: "project_milestones" do

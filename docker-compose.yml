@@ -224,6 +224,19 @@ services:
       - PORT=3003
       - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
       - RAILS_INTERNAL_URL=http://app:3000
+      # ── Outbound resource budget ─────────────────────────────────────
+      # This stack's declared share of the HOST's ephemeral port pool.
+      # Every in-flight OAuth request spawns a Claude Code subprocess with
+      # its own TCP connections, and on macOS container egress consumes the
+      # host's ~16k-port pool shared by every stack on the box. Keep
+      # sum(SDK_PROXY_MAX_CONCURRENCY across all stacks) under host
+      # capacity — see MULTI-STACK.md for the arithmetic.
+      - SDK_PROXY_MAX_CONCURRENCY=${SDK_PROXY_MAX_CONCURRENCY:-4}
+      - SDK_PROXY_MAX_QUEUE=${SDK_PROXY_MAX_QUEUE:-16}
+      # Consecutive permanent failures (out of credit, bad token) before this
+      # credential stops being dialled at all.
+      - SDK_PROXY_CIRCUIT_THRESHOLD=${SDK_PROXY_CIRCUIT_THRESHOLD:-3}
+      - SDK_PROXY_CIRCUIT_OPEN_MS=${SDK_PROXY_CIRCUIT_OPEN_MS:-900000}
     networks:
       - internal
     restart: unless-stopped

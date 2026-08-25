@@ -7,18 +7,27 @@ module Providers
     def chat(messages:, tools: [], options: {}, &block)
       params = build_chat_params(messages:, tools:, options:)
 
-      result = if oauth_token? && sdk_proxy_enabled?
-        sync_memories_for_oauth(messages, options)
-        proxy_client.chat(params:, options:, &block)
-      else
-        faraday_client.chat(params:, options:, &block)
-      end
+      # The circuit gate goes outside everything, including the memory-sync
+      # enqueue: when it is open nothing at all happens on this credential.
+      with_circuit_breaker do
+        begin
+          result = if oauth_token? && sdk_proxy_enabled?
+            sync_memories_for_oauth(messages, options)
+            proxy_client.chat(params:, options:, &block)
+          else
+            faraday_client.chat(params:, options:, &block)
+          end
 
-      inject_request_payload(result, params)
-    rescue AgentInterrupted, AgentRedirected, PromptTooLongError
-      raise
-    rescue StandardError => e
-      ServiceResponse.failure(error: "Anthropic API error: #{e.message}")
+          inject_request_payload(result, params)
+        rescue AgentInterrupted, AgentRedirected, PromptTooLongError
+          raise
+        rescue ProviderError => e
+          # Already classified downstream — keep the verdict intact.
+          with_provider_error(ServiceResponse.failure(error: "Anthropic API error: #{e.message}"), e)
+        rescue StandardError => e
+          ServiceResponse.failure(error: "Anthropic API error: #{e.message}")
+        end
+      end
     end
 
     def models

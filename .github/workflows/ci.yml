@@ -23,6 +23,24 @@ jobs:
       - name: Brakeman security scan
         run: bundle exec brakeman --no-pager -i config/brakeman.ignore -q
 
+  sdk-proxy-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Pure-unit tests for the outbound resource-discipline pipeline
+      # (error classification, circuit breaker, concurrency ceiling).
+      # No dependencies needed — they stub the provider entirely.
+      - name: Run sdk-proxy tests
+        working-directory: ./sdk-proxy
+        run: npm test
+
   test:
     runs-on: ubuntu-latest
 
