@@ -11,7 +11,9 @@ module Tools
       return ServiceResponse.failure(error: "MCP server not found") unless server
       return ServiceResponse.failure(error: "MCP server is not connected") unless server.connected?
       arguments = input.except("server_id", "tool_name", "_mcp")
-      if server.stdio?
+      if server.metadata.to_h["provider"] == "pipedream"
+        Mcp::PipedreamClient.call_tool(server, tool_name: tool_name, arguments: arguments)
+      elsif server.stdio?
         Mcp::StdioClient.call_tool(server, tool_name: tool_name, arguments: arguments)
       else
         Mcp::SseClient.call_tool(server, tool_name: tool_name, arguments: arguments)
