@@ -119,10 +119,15 @@ test("an open circuit does not consume a concurrency slot", async () => {
   await guard.run({ credential: "healthy", invoke: async () => "served" });
 });
 
-test("transient failures keep flowing and never wedge the circuit", async () => {
+// Superseded 2026-09-08: this asserted all 100 transient failures reach the
+// network. An unbroken run of them is an outage, and letting it dial 100 times
+// is how the host's ephemeral port pool disappears. Transient failures still
+// flow freely below the backstop; the run is what is now bounded.
+test("transient failures keep flowing until the backstop stops the run", async () => {
   let attempts = 0;
   const guard = createGuard({
-    maxConcurrent: 4, maxQueue: 64, failureThreshold: 3, openMs: 60_000, logger: silent,
+    maxConcurrent: 4, maxQueue: 64, failureThreshold: 3, anyFailureThreshold: 25,
+    openMs: 60_000, logger: silent,
   });
 
   for (let i = 0; i < 100; i++) {
@@ -132,8 +137,53 @@ test("transient failures keep flowing and never wedge the circuit", async () => 
     }));
   }
 
-  assert.equal(attempts, 100, "transient errors are the caller's business, not the circuit's");
+  assert.equal(attempts, 25, "the run is bounded: 75 of the 100 opened no socket at all");
+  assert.equal(guard.breaker.state("cred"), "open");
+});
+
+test("a transient blip broken by a success never trips the backstop", async () => {
+  const guard = createGuard({
+    maxConcurrent: 4, maxQueue: 64, failureThreshold: 3, anyFailureThreshold: 5,
+    openMs: 60_000, logger: silent,
+  });
+
+  for (let round = 0; round < 10; round += 1) {
+    for (let i = 0; i < 4; i += 1) {
+      await assert.rejects(() => guard.run({
+        credential: "cred",
+        invoke: async () => { throw Object.assign(new Error("overloaded"), { status: 529 }); },
+      }));
+    }
+    await guard.run({ credential: "cred", invoke: async () => "served" });
+  }
+
   assert.equal(guard.breaker.state("cred"), "closed");
+});
+
+// The failure that actually hit 192.168.1.5 on 2026-09-08: the Claude Code
+// subprocess reports port exhaustion as a plain connection error, and nothing
+// upstream can tell it apart from a blip.
+test("an endless run of `Connection error` stops dialling and alarms", async () => {
+  const lines = [];
+  let attempts = 0;
+  const guard = createGuard({
+    maxConcurrent: 4, maxQueue: 64, failureThreshold: 3, anyFailureThreshold: 10,
+    openMs: 60_000, logger: { error: (l) => lines.push(l) },
+  });
+
+  for (let i = 0; i < 200; i++) {
+    await assert.rejects(() => guard.run({
+      credential: "cred",
+      invoke: async () => {
+        attempts += 1;
+        throw new Error("API Error: Connection error. (Claude Code process exited with code 1)");
+      },
+    }));
+  }
+
+  assert.equal(attempts, 10, "190 of 200 calls opened no socket");
+  assert.equal(guard.breaker.state("cred"), "open");
+  assert.equal(lines.filter((l) => l.includes("[ALARM]")).length, 1, "exactly one alarm, on the transition");
 });
 
 test("recovers after a human tops the account up", async () => {

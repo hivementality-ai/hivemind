@@ -236,6 +236,11 @@ services:
       # Consecutive permanent failures (out of credit, bad token) before this
       # credential stops being dialled at all.
       - SDK_PROXY_CIRCUIT_THRESHOLD=${SDK_PROXY_CIRCUIT_THRESHOLD:-3}
+      # Backstop: consecutive failures of ANY class before this credential
+      # stops being dialled. Port exhaustion arrives as an ordinary connection
+      # error, which never classifies as permanent — without this ceiling an
+      # unbroken run of them dials forever. See MULTI-STACK.md §3.
+      - SDK_PROXY_CIRCUIT_ANY_THRESHOLD=${SDK_PROXY_CIRCUIT_ANY_THRESHOLD:-10}
       - SDK_PROXY_CIRCUIT_OPEN_MS=${SDK_PROXY_CIRCUIT_OPEN_MS:-900000}
     networks:
       - internal

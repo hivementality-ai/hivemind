@@ -27,6 +27,7 @@ RSpec.describe "provider resource discipline", type: :service do
   before do
     Providers::CircuitBreaker.reset_all!
     allow(Providers::CircuitBreaker).to receive(:threshold).and_return(3)
+    allow(Providers::CircuitBreaker).to receive(:any_threshold).and_return(10)
     allow(Providers::CircuitBreaker).to receive(:reset_sdk_proxy!)
     allow(Providers::Anthropic::SdkProxyClient).to receive(:new).and_return(proxy_client)
     allow(proxy_client).to receive(:chat).and_return(quota_failure)
@@ -76,7 +77,12 @@ RSpec.describe "provider resource discipline", type: :service do
     expect(healthy.chat(messages: [ { role: "user", content: "hi" } ])).to be_success
   end
 
-  it "keeps retrying transient failures — the circuit is only for permanent ones" do
+  # Superseded 2026-09-08. This asserted all 50 transient failures reach the
+  # network. On 2026-09-08 the same Mac mini wedged again with 66,099 sockets in
+  # TIME_WAIT against a 49,152-port pool, and the failures were all transient- or
+  # unknown-shaped, so nothing counted them and nothing ever stopped the dialling.
+  # Transient failures still flow freely; the unbroken run is what is bounded.
+  it "lets transient failures through, then stops an unbroken run of them" do
     allow(proxy_client).to receive(:chat).and_return(
       ServiceResponse.failure(
         error: "SDK proxy error (529): overloaded",
@@ -87,7 +93,22 @@ RSpec.describe "provider resource discipline", type: :service do
 
     50.times { adapter.chat(messages: [ { role: "user", content: "hi" } ]) }
 
-    expect(proxy_client).to have_received(:chat).exactly(50).times
+    expect(proxy_client).to have_received(:chat).exactly(10).times
+    expect(Providers::CircuitBreaker.new(provider: "anthropic", credential: api_key).state).to be_open
+  end
+
+  it "a transient run broken by successes never trips the backstop" do
+    transient = ServiceResponse.failure(
+      error: "SDK proxy error (529): overloaded",
+      payload: { provider_error: { message: "overloaded", status: 529,
+                                   reason: "server_error", provider: "anthropic", retryable: true } }
+    )
+    ok = ServiceResponse.success(data: { content: "hi", usage: {} })
+    allow(proxy_client).to receive(:chat).and_return(transient, transient, transient, ok)
+
+    12.times { adapter.chat(messages: [ { role: "user", content: "hi" } ]) }
+
+    expect(Providers::CircuitBreaker.new(provider: "anthropic", credential: api_key).state).to be_closed
   end
 
   it "recovers on the next call after a human tops the account up" do

@@ -25,6 +25,9 @@ const intEnv = (name, fallback) => {
 const MAX_CONCURRENCY = Math.max(1, intEnv("SDK_PROXY_MAX_CONCURRENCY", 4));
 const MAX_QUEUE = intEnv("SDK_PROXY_MAX_QUEUE", 16);
 const CIRCUIT_FAILURE_THRESHOLD = Math.max(1, intEnv("SDK_PROXY_CIRCUIT_THRESHOLD", 3));
+// Backstop for failures that never classify as permanent. A credential
+// failing every call with a transient-looking error still has to stop dialling.
+const CIRCUIT_ANY_FAILURE_THRESHOLD = Math.max(1, intEnv("SDK_PROXY_CIRCUIT_ANY_THRESHOLD", 10));
 const CIRCUIT_OPEN_MS = Math.max(1000, intEnv("SDK_PROXY_CIRCUIT_OPEN_MS", 15 * 60 * 1000));
 const STDERR_CAPTURE_BYTES = 16 * 1024;
 
@@ -32,6 +35,7 @@ const guard = createGuard({
   maxConcurrent: MAX_CONCURRENCY,
   maxQueue: MAX_QUEUE,
   failureThreshold: CIRCUIT_FAILURE_THRESHOLD,
+  anyFailureThreshold: CIRCUIT_ANY_FAILURE_THRESHOLD,
   openMs: CIRCUIT_OPEN_MS,
 });
 
@@ -337,7 +341,12 @@ async function runOAuth(res, token, params, stderrCapture) {
         }
       } catch (err) {
         errored = true;
-        lastError = err.message;
+        // The SDK wrapper throws `Claude Code process exited with code 1`, which
+        // erases the provider message the result stream already gave us
+        // ("API Error: Connection error."). Overwriting it left the classifier
+        // nothing to match and every such failure landed as `unknown`. Keep the
+        // specific message and append the wrapper's, so both are classifiable.
+        lastError = lastError ? `${lastError} (${err.message})` : err.message;
       } finally {
         // Clean up exit listeners added by query() subprocess
         const listenersAfter = process.listeners("exit");
@@ -421,7 +430,12 @@ async function runOAuth(res, token, params, stderrCapture) {
         }
       } catch (err) {
         errored = true;
-        lastError = err.message;
+        // The SDK wrapper throws `Claude Code process exited with code 1`, which
+        // erases the provider message the result stream already gave us
+        // ("API Error: Connection error."). Overwriting it left the classifier
+        // nothing to match and every such failure landed as `unknown`. Keep the
+        // specific message and append the wrapper's, so both are classifiable.
+        lastError = lastError ? `${lastError} (${err.message})` : err.message;
       } finally {
         // Clean up exit listeners added by query() subprocess
         const listenersAfter = process.listeners("exit");

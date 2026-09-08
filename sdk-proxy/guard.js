@@ -11,7 +11,7 @@
 // Kept out of server.js so the whole pipeline can be driven under fault
 // injection in tests without an HTTP server or a real subprocess.
 
-import { classifyError, opensCircuit } from "./error-classifier.js";
+import { classifyError } from "./error-classifier.js";
 import { Semaphore } from "./concurrency.js";
 import { CircuitBreaker } from "./circuit-breaker.js";
 
@@ -19,12 +19,13 @@ export function createGuard({
   maxConcurrent,
   maxQueue,
   failureThreshold,
+  anyFailureThreshold,
   openMs,
   now,
   logger = console,
 } = {}) {
   const semaphore = new Semaphore({ maxConcurrent, maxQueue });
-  const breaker = new CircuitBreaker({ failureThreshold, openMs, now });
+  const breaker = new CircuitBreaker({ failureThreshold, anyFailureThreshold, openMs, now });
 
   /**
    * @param {object} opts
@@ -52,19 +53,17 @@ export function createGuard({
 
   function record(credential, err, stderrText) {
     const classification = classifyError(err, { stderr: stderrText });
+    const wasOpen = breaker.state(credential) === "open";
 
-    if (classification.retryable) {
-      breaker.recordTransientFailure(credential);
-      return classification;
-    }
+    const state = classification.retryable
+      ? breaker.recordTransientFailure(credential, classification.reason, classification.message)
+      : breaker.recordPermanentFailure(credential, classification.reason, classification.message);
 
-    const state = breaker.recordPermanentFailure(
-      credential,
-      classification.reason,
-      classification.message,
-    );
-
-    if (opensCircuit(classification) && state === "open") {
+    // Alarm on the transition, not on the reason. Keying this off
+    // opensCircuit() meant a circuit opened by an unclassifiable failure —
+    // `unknown`, the shape port exhaustion actually arrives in — opened in
+    // total silence, which is the very thing the alarm exists to prevent.
+    if (state === "open" && !wasOpen) {
       // The single log line that would have caught the 40-hour outage on day one.
       logger.error(
         `[ALARM] provider circuit OPEN cred=${credential} reason=${classification.reason} ` +
