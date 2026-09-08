@@ -60,11 +60,17 @@ Widening the range and shortening TIME_WAIT raises the ceiling from ~16k to
 ≈ 24,500 connections per second, host-wide
 ```
 
-**`scripts/upgrade.sh` does this for you.** It calls `scripts/host-tuning.sh`
-before it checks the version, so a host that rebooted and lost its sysctls is
-repaired by running the upgrade even when there is no new release to install.
-The step is silent when the host is already correct, prompts once for `sudo`
-when it is not, and never fails the upgrade.
+**Both update paths do this for you.** `hivemind update` (the CLI the
+installer symlinks into `/usr/local/bin`) and `scripts/upgrade.sh` each call
+`scripts/host-tuning.sh`, so a host that rebooted and lost its sysctls is
+repaired by updating even when there is no new release to install. The step is
+silent when the host is already correct, prompts once for `sudo` when it is
+not, and never fails the update.
+
+One caveat on the first update after 2026.09.01-rc: the update runs the CLI
+that was already on disk, and that older copy has no tuning step. Run
+`./scripts/host-tuning.sh` once by hand, or simply update a second time.
+Every update after that is self-healing.
 
 To run it on its own, or to check without changing anything:
 
