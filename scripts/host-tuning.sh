@@ -89,10 +89,19 @@ if [ "$daemon_missing" = false ] && ! cmp -s "$PLIST_SRC" "$PLIST_DST"; then
   daemon_stale=true
 fi
 
-pool_now=$(( $(sysctl -n net.inet.ip.portrange.last 2>/dev/null || echo 65535) \
-            - $(sysctl -n net.inet.ip.portrange.first 2>/dev/null || echo 49152) + 1 ))
+# Always report the range, never the size alone. A tuned host has a pool of
+# 49,152 ports and an untuned one starts at port 49152, so that single number
+# reads as success and as failure depending on which field you think it is.
+# The endpoints are unambiguous.
+describe_pool() {
+  local first last
+  first="$(sysctl -n net.inet.ip.portrange.first 2>/dev/null || echo 49152)"
+  last="$(sysctl -n net.inet.ip.portrange.last 2>/dev/null || echo 65535)"
+  echo "ports ${first}-${last} ($(( last - first + 1 )) available)"
+}
+
 timewait_now=$(( $(sysctl -n net.inet.tcp.msl 2>/dev/null || echo 15000) * 2 / 1000 ))
-info "Ephemeral pool: ${pool_now} ports, TIME_WAIT ${timewait_now}s"
+info "Ephemeral pool: $(describe_pool), TIME_WAIT ${timewait_now}s"
 
 if [ "$sysctl_drift" = false ] && [ "$daemon_missing" = false ] && [ "$daemon_stale" = false ]; then
   ok "Host tuning is installed and live."
@@ -167,5 +176,4 @@ if [ "$verify_failed" = true ]; then
   exit 1
 fi
 
-pool_now=$(( $(sysctl -n net.inet.ip.portrange.last) - $(sysctl -n net.inet.ip.portrange.first) + 1 ))
-ok "Host tuning installed and live: ${pool_now} ports, TIME_WAIT 2s, survives reboot."
+ok "Host tuning installed and live: $(describe_pool), TIME_WAIT 2s, survives reboot."
