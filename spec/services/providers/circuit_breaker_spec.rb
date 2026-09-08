@@ -17,6 +17,7 @@ RSpec.describe Providers::CircuitBreaker, type: :service do
   before do
     described_class.reset_all!
     allow(described_class).to receive(:threshold).and_return(3)
+    allow(described_class).to receive(:any_threshold).and_return(10)
     allow(described_class).to receive(:open_seconds).and_return(900)
     # The sdk-proxy is not running under test.
     allow(described_class).to receive(:reset_sdk_proxy!)
@@ -46,11 +47,45 @@ RSpec.describe Providers::CircuitBreaker, type: :service do
   end
 
   describe "#record_failure" do
-    it "never opens on transient failures" do
-      50.times { breaker.record_failure(transient_error) }
+    # Superseded 2026-09-08: this asserted 50 consecutive transient failures leave
+    # the circuit closed. That is how a credential failing every call kept dialling
+    # until the host's ephemeral port pool was gone. Transient failures still never
+    # open the circuit on their own — the unbroken run is what is now bounded.
+    it "does not open on transient failures below the backstop" do
+      9.times { breaker.record_failure(transient_error) }
 
       expect(breaker.state).to be_closed
       expect { breaker.check! }.not_to raise_error
+    end
+
+    it "opens once an unbroken run of transient failures reaches the backstop" do
+      10.times { breaker.record_failure(transient_error) }
+
+      expect(breaker.state).to be_open
+      expect { breaker.check! }.to raise_error(ProviderCircuitOpenError)
+    end
+
+    it "does not accumulate across a success, so real blips never trip it" do
+      3.times do
+        9.times { breaker.record_failure(transient_error) }
+        breaker.record_success
+      end
+
+      expect(breaker.state).to be_closed
+    end
+
+    # The exact shape that hit the Mac mini: port exhaustion surfaces from the
+    # Claude Code subprocess as a plain connection error, indistinguishable from
+    # a blip, and previously was not even counted.
+    it "stops dialling on an endless run of connection errors" do
+      connection_error = Providers::ErrorClassifier.call(
+        message: "API Error: Connection error. (Claude Code process exited with code 1)", status: nil
+      )
+      expect(connection_error.reason).to eq("network_error")
+
+      10.times { breaker.record_failure(connection_error) }
+
+      expect(breaker.state).to be_open
     end
 
     it "does not open on a caller-side bug that would fail on any credential" do

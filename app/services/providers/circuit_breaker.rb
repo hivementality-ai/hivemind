@@ -18,9 +18,13 @@ module Providers
     NAMESPACE = "provider_circuit"
 
     DEFAULT_THRESHOLD = 3
+    # Backstop for failures that never classify as circuit-worthy. A credential
+    # failing every single call still has to stop dialling, whatever the failures
+    # are called — see #record_failure.
+    DEFAULT_ANY_THRESHOLD = 10
     DEFAULT_OPEN_SECONDS = 15 * 60
 
-    State = Struct.new(:state, :reason, :failures, :opened_at, :message, :credential, :provider, keyword_init: true) do
+    State = Struct.new(:state, :reason, :failures, :any_failures, :opened_at, :message, :credential, :provider, keyword_init: true) do
       def open? = state == "open"
       def closed? = state == "closed"
       def half_open? = state == "half_open"
@@ -41,6 +45,14 @@ module Providers
 
       def threshold
         positive_setting("provider_circuit_threshold", ENV["PROVIDER_CIRCUIT_THRESHOLD"]) || DEFAULT_THRESHOLD
+      end
+
+      def any_threshold
+        configured = positive_setting("provider_circuit_any_threshold", ENV["PROVIDER_CIRCUIT_ANY_THRESHOLD"]) ||
+                     DEFAULT_ANY_THRESHOLD
+        # Never below the permanent threshold, or transient failures would trip
+        # sooner than quota ones and invert the whole point of the distinction.
+        [ configured, threshold ].max
       end
 
       def open_seconds
@@ -145,6 +157,7 @@ module Providers
 
       State.new(
         state: state, reason: raw["reason"].presence, failures: raw["failures"].to_i,
+        any_failures: raw["any_failures"].to_i,
         opened_at: opened_at, message: raw["message"].presence,
         credential: @credential_key, provider: @provider
       )
@@ -170,16 +183,24 @@ module Providers
       # the cooldown just expired and the provider is still not serving.
       return reopen! if current.half_open?
 
-      # Transient failures are the caller's business, not the circuit's.
-      return current.state unless ErrorClassifier.opens_circuit?(error)
-
-      failures = redis.hincrby(key, "failures", 1)
+      # Every failure counts toward the backstop, whatever its class. A single
+      # transient failure must not open the circuit — that is what "transient"
+      # means — but an unbounded run of them is indistinguishable from an outage
+      # and costs one fresh TCP connection per attempt. Port exhaustion reaches
+      # us as `API Error: Connection error.`, which classifies as network_error
+      # and previously returned here without so much as a counter increment.
+      any_failures = redis.hincrby(key, "any_failures", 1)
       redis.hset(key, "reason", error.reason.to_s, "message", error.message.to_s.truncate(500), "provider", @provider)
       redis.expire(key, self.class.open_seconds * 4)
 
-      return "closed" if failures < self.class.threshold
+      if ErrorClassifier.opens_circuit?(error)
+        failures = redis.hincrby(key, "failures", 1)
+        return open!(error.reason, error.message) if failures >= self.class.threshold
+      end
 
-      open!(error.reason, error.message)
+      return open!(error.reason, error.message) if any_failures >= self.class.any_threshold
+
+      "closed"
     end
 
     def reset!
@@ -229,7 +250,7 @@ module Providers
     end
 
     def closed_state
-      State.new(state: "closed", failures: 0, credential: @credential_key, provider: @provider)
+      State.new(state: "closed", failures: 0, any_failures: 0, credential: @credential_key, provider: @provider)
     end
 
     def human_reason(reason)

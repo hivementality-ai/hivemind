@@ -31,24 +31,46 @@ export class CircuitBreaker {
   /**
    * @param {object} opts
    * @param {number} opts.failureThreshold consecutive permanent failures before opening
+   * @param {number} opts.anyFailureThreshold consecutive failures of ANY class before
+   *                 opening. The backstop for a credential that fails every call with
+   *                 a transient-looking error — see recordTransientFailure.
    * @param {number} opts.openMs           how long to stay open before probing
    * @param {() => number} [opts.now]      injectable clock for tests
    */
-  constructor({ failureThreshold = 3, openMs = 15 * 60 * 1000, now = Date.now } = {}) {
+  constructor({
+    failureThreshold = 3,
+    anyFailureThreshold = 10,
+    openMs = 15 * 60 * 1000,
+    now = Date.now,
+  } = {}) {
     this.failureThreshold = failureThreshold;
+    // Never let the backstop sit below the permanent threshold; a misconfigured
+    // pair would otherwise make transient failures trip sooner than quota ones.
+    this.anyFailureThreshold = Math.max(anyFailureThreshold, failureThreshold);
     this.openMs = openMs;
     this.now = now;
-    /** @type {Map<string, {failures: number, state: string, reason: string|null, openedAt: number|null, lastMessage: string|null}>} */
+    /** @type {Map<string, {failures: number, anyFailures: number, state: string, reason: string|null, openedAt: number|null, lastMessage: string|null}>} */
     this.circuits = new Map();
   }
 
   #entry(key) {
     let entry = this.circuits.get(key);
     if (!entry) {
-      entry = { failures: 0, state: "closed", reason: null, openedAt: null, lastMessage: null };
+      entry = {
+        failures: 0, anyFailures: 0, state: "closed",
+        reason: null, openedAt: null, lastMessage: null,
+      };
       this.circuits.set(key, entry);
     }
     return entry;
+  }
+
+  #open(entry, reason, message) {
+    entry.state = "open";
+    entry.openedAt = this.now();
+    if (reason) entry.reason = reason;
+    if (message) entry.lastMessage = message;
+    return "open";
   }
 
   /**
@@ -79,6 +101,7 @@ export class CircuitBreaker {
   recordSuccess(key) {
     const entry = this.#entry(key);
     entry.failures = 0;
+    entry.anyFailures = 0;
     entry.state = "closed";
     entry.reason = null;
     entry.openedAt = null;
@@ -92,23 +115,42 @@ export class CircuitBreaker {
   recordPermanentFailure(key, reason, message = null) {
     const entry = this.#entry(key);
     entry.failures += 1;
+    entry.anyFailures += 1;
     entry.reason = reason;
     entry.lastMessage = message;
 
     if (entry.state === "half_open" || entry.failures >= this.failureThreshold) {
-      entry.state = "open";
-      entry.openedAt = this.now();
+      return this.#open(entry, reason, message);
     }
     return entry.state;
   }
 
-  /** Transient failures never open the circuit, but do clear a half-open probe. */
-  recordTransientFailure(key) {
+  /**
+   * Count one transient failure.
+   *
+   * A single transient failure must not open the circuit — that is the whole
+   * point of calling it transient. But "transient" forever is not transient,
+   * and an unbounded run of them is indistinguishable from an outage while
+   * costing one fresh TCP connection per attempt. Port exhaustion in
+   * particular surfaces as `API Error: Connection error.` from the Claude Code
+   * subprocess, which reads as a network blip and would otherwise loop until
+   * the host's ephemeral pool is gone — the 2026-08-24 failure mode, arriving
+   * through the one door the permanent-only breaker did not watch.
+   *
+   * So: no reaction for the first anyFailureThreshold-1, then stop dialling.
+   */
+  recordTransientFailure(key, reason = null, message = null) {
     const entry = this.#entry(key);
-    if (entry.state === "half_open") {
-      entry.state = "open";
-      entry.openedAt = this.now();
+    entry.anyFailures += 1;
+    if (reason) entry.reason = reason;
+    if (message) entry.lastMessage = message;
+
+    // A failed half-open probe re-opens immediately, whatever its class: the
+    // cooldown just elapsed and the provider is still not serving.
+    if (entry.state === "half_open" || entry.anyFailures >= this.anyFailureThreshold) {
+      return this.#open(entry, reason, message);
     }
+    return entry.state;
   }
 
   /** Human updated the credential — resume immediately. */
@@ -131,6 +173,7 @@ export class CircuitBreaker {
       state: this.state(key),
       reason: entry.reason,
       consecutive_failures: entry.failures,
+      consecutive_failures_any_class: entry.anyFailures,
       opened_at: entry.openedAt ? new Date(entry.openedAt).toISOString() : null,
       last_message: entry.lastMessage,
     }));

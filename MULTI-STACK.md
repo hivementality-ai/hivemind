@@ -89,10 +89,30 @@ Each stack declares its share in its `.env`. Defaults live in
 | ----------------------------- | -------- | ----------------------------------------------------------- |
 | `SDK_PROXY_MAX_CONCURRENCY`   | `4`      | Provider calls in flight at once. Each spawns one Claude Code subprocess. |
 | `SDK_PROXY_MAX_QUEUE`         | `16`     | Callers allowed to wait for a slot. Beyond this, requests are shed with `429`. |
-| `SDK_PROXY_CIRCUIT_THRESHOLD` | `3`      | Consecutive permanent failures before the credential stops being dialled. |
+| `SDK_PROXY_CIRCUIT_THRESHOLD` | `3`      | Consecutive **permanent** failures before the credential stops being dialled. |
+| `SDK_PROXY_CIRCUIT_ANY_THRESHOLD` | `10` | Consecutive failures of **any** class before it stops. The backstop — see below. |
 | `SDK_PROXY_CIRCUIT_OPEN_MS`   | `900000` | How long the circuit stays open (15 min) before one probe. |
 | `PROVIDER_CIRCUIT_THRESHOLD`  | `3`      | Same, on the Rails side (shared across workers via Redis).  |
+| `PROVIDER_CIRCUIT_ANY_THRESHOLD` | `10`  | Rails-side backstop.                                        |
 | `PROVIDER_CIRCUIT_OPEN_SECONDS` | `900`  | Rails-side cooldown.                                        |
+
+### Why there are two thresholds
+
+The permanent threshold catches the 2026-08-24 failure: a quota 400 that can
+never succeed. It is deliberately tight (3) because retrying is pointless.
+
+The backstop catches the 2026-09-08 recurrence on the same host, which the
+permanent threshold could not see. Port exhaustion does not announce itself —
+the Claude Code subprocess reports it as `API Error: Connection error.`, which
+is indistinguishable from a real network blip and classifies as *transient*.
+Transient failures were exempt from the circuit by design, so an unbroken run
+of them dialled forever, one fresh TCP connection per attempt, and the host
+wedged with 66,099 sockets in `TIME_WAIT` against a 49,152-port pool.
+
+A single transient failure still must not open the circuit; that is what
+"transient" means. But a credential that has failed 10 times in a row without
+one success is not experiencing a blip, whatever the errors are called. Any
+success resets the run, so genuine flakiness never accumulates.
 
 ### Budget arithmetic
 
