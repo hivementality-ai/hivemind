@@ -14,13 +14,15 @@
   ceiling and the provider circuit breaker (see MULTI-STACK.md). Without
   those, a runaway stack exhausts 49k ports too; it just takes longer.
 
-  Install:
-    sudo cp scripts/hivemind-host-tuning.plist /Library/LaunchDaemons/com.hivemind.host-tuning.plist
-    sudo chown root:wheel /Library/LaunchDaemons/com.hivemind.host-tuning.plist
-    sudo chmod 644 /Library/LaunchDaemons/com.hivemind.host-tuning.plist
-    sudo launchctl load -w /Library/LaunchDaemons/com.hivemind.host-tuning.plist
+  Do not install this by hand. scripts/upgrade.sh installs and repairs it
+  via scripts/host-tuning.sh, which is idempotent and also notices when a
+  copy already in /Library/LaunchDaemons has drifted from this file.
+
+  Install / repair:
+    ./scripts/host-tuning.sh
 
   Verify:
+    ./scripts/host-tuning.sh --check
     sysctl net.inet.ip.portrange.first net.inet.tcp.msl
 
   Uninstall:
