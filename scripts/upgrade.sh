@@ -68,6 +68,38 @@ preflight() {
 }
 
 # ----------------------------------------------------------
+# Host ephemeral-port tuning
+#
+# Runs before check_version deliberately: a host that rebooted and lost
+# its sysctls is still "on the latest version", and check_version exits
+# early. Tuning drift has to be repairable by running upgrade.sh even
+# when there is no new release to install.
+#
+# Never fatal. An untuned host runs Hivemind fine; it just has less
+# headroom before a runaway stack exhausts the pool.
+# ----------------------------------------------------------
+tune_host() {
+  local script="$HIVEMIND_DIR/scripts/host-tuning.sh"
+  [ -f "$script" ] || return 0
+
+  if bash "$script" --check --quiet >/dev/null 2>&1; then
+    return 0  # already correct — say nothing
+  fi
+
+  echo ""
+  warn "Host port tuning has drifted (see MULTI-STACK.md §2)."
+  info "Untuned, this host has a 16,384-port pool and a 30s TIME_WAIT:"
+  info "a third the capacity, recycling 15x slower."
+
+  if bash "$script"; then
+    ok "Host tuning applied."
+  else
+    warn "Could not apply host tuning — continuing with the upgrade."
+    warn "Fix it later with: ./scripts/host-tuning.sh"
+  fi
+}
+
+# ----------------------------------------------------------
 # Fetch latest version info
 # ----------------------------------------------------------
 fetch_latest() {
@@ -288,6 +320,7 @@ print_success() {
 main() {
   header
   preflight
+  tune_host
   fetch_latest
   check_version
   check_breaking

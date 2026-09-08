@@ -50,7 +50,7 @@ Full write-up: `HANDOFF-PORT-EXHAUSTION.md`.
 
 ---
 
-## 2. Host tuning (do this once, per host)
+## 2. Host tuning (carried by the release process)
 
 Widening the range and shortening TIME_WAIT raises the ceiling from ~16k to
 ~49k concurrent outbound sockets and frees each one 15× faster:
@@ -60,23 +60,40 @@ Widening the range and shortening TIME_WAIT raises the ceiling from ~16k to
 ≈ 24,500 connections per second, host-wide
 ```
 
-Install the LaunchDaemon so it survives reboot:
+**`scripts/upgrade.sh` does this for you.** It calls `scripts/host-tuning.sh`
+before it checks the version, so a host that rebooted and lost its sysctls is
+repaired by running the upgrade even when there is no new release to install.
+The step is silent when the host is already correct, prompts once for `sudo`
+when it is not, and never fails the upgrade.
+
+To run it on its own, or to check without changing anything:
 
 ```bash
-sudo cp scripts/hivemind-host-tuning.plist \
-        /Library/LaunchDaemons/com.hivemind.host-tuning.plist
-sudo chown root:wheel /Library/LaunchDaemons/com.hivemind.host-tuning.plist
-sudo chmod 644        /Library/LaunchDaemons/com.hivemind.host-tuning.plist
-sudo launchctl load -w /Library/LaunchDaemons/com.hivemind.host-tuning.plist
-
-# verify
-sysctl net.inet.ip.portrange.first net.inet.tcp.msl
-# expect: 16384 and 1000
+./scripts/host-tuning.sh           # install or repair
+./scripts/host-tuning.sh --check   # report only; exit 1 if drifted
 ```
+
+It is idempotent, and it treats an installed-but-stale LaunchDaemon as drift —
+that state is worse than a missing one, because it looks handled and then
+reverts to the wrong values at the next boot.
+
+### Why this cannot ship inside a container
+
+On macOS, Docker Desktop runs the containers in a Linux VM but routes their
+egress through the **host's** socket pool via `com.docker.backend`. The pool is
+Darwin kernel state (`net.inet.*`), which no Linux namespace can reach and no
+container can widen — privileged or not. A script the operator runs on the host
+is the only vehicle, which is why this hangs off the upgrade path rather than
+`docker-compose.yml`. On Linux hosts the script is a deliberate no-op: container
+networks there have their own port space and do not draw on the host's range.
 
 > **This is headroom, not a fix.** A stack retrying without bound will exhaust
 > 49k ports too; it just takes longer. The tuning buys time for the per-stack
 > ceilings below to do the actual work.
+>
+> The 2026-09-08 recurrence is the proof: the tuning was applied by hand on
+> 2026-08-24, was never made persistent, and vanished on the first reboot 70
+> days later. Tuning that depends on someone remembering is not tuning.
 
 ---
 
@@ -306,7 +323,7 @@ Checklist before adding a stack to a host:
 - [ ] Distinct published host port for `app`
 - [ ] Distinct `AGENTS_SHARED_DIR`
 - [ ] `SDK_PROXY_MAX_CONCURRENCY` set so the host-wide sum still satisfies §3
-- [ ] Host tuning LaunchDaemon installed (§2)
+- [ ] Host tuning applied: `./scripts/host-tuning.sh --check` exits 0 (§2)
 - [ ] Canary running in cron (§5)
 
 ---
