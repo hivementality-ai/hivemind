@@ -6,6 +6,7 @@ import { existsSync, mkdirSync } from "fs";
 import { classifyError, toErrorBody } from "./error-classifier.js";
 import { credentialKey } from "./circuit-breaker.js";
 import { createGuard } from "./guard.js";
+import { createPartialStreamTracker } from "./partial-stream.js";
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
@@ -272,10 +273,24 @@ async function runOAuth(res, token, params, stderrCapture) {
       const activeTools = new Set();
       let isThinking = false;
       let errored = false;
+      const partials = createPartialStreamTracker();
       // Snapshot listeners before query() so we can clean up after
       const listenersBefore = process.listeners("exit").length;
       try {
-        for await (const message of query({ prompt, options })) {
+        for await (const message of query({ prompt, options: { ...options, includePartialMessages: true } })) {
+          if (message.type === "stream_event") {
+            const delta = partials.textDelta(message);
+            if (delta) {
+              if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
+              for (const toolName of activeTools) {
+                sendSSE(res, "tool_result", { tool: toolName, output: "", success: true });
+              }
+              activeTools.clear();
+              producedOutput = true;
+              sendSSE(res, "content", { content: delta });
+            }
+            continue;
+          }
           console.log(`[query] message type=${message.type}`, JSON.stringify(message).substring(0, 300));
 
           if (message.type === "text") {
@@ -296,8 +311,11 @@ async function runOAuth(res, token, params, stderrCapture) {
                   sendSSE(res, "tool_result", { tool: toolName, output: "", success: true });
                 }
                 activeTools.clear();
-                producedOutput = true;
-                sendSSE(res, "content", { content: block.text });
+                const unsent = partials.remainder(block.text);
+                if (unsent) {
+                  producedOutput = true;
+                  sendSSE(res, "content", { content: unsent });
+                }
               } else if (block.type === "thinking" && block.thinking) {
                 if (!isThinking) { sendSSE(res, "thinking_start", {}); isThinking = true; }
                 producedOutput = true;
