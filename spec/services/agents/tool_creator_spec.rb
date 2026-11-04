@@ -90,6 +90,52 @@ RSpec.describe Agents::ToolCreator, type: :service do
       expect(result.error).to include("too long")
     end
 
+    describe "vault secrets" do
+      let(:secret_params) do
+        valid_params.merge(
+          name: "stripe_balance",
+          script_template: "#!/bin/bash\ncurl -s -H \"Authorization: Bearer $STRIPE_API_KEY\" https://api.stripe.com/v1/balance",
+          secrets: { "STRIPE_API_KEY" => "vault:stripe/api_key" }
+        )
+      end
+
+      before { create(:vault_entry, namespace: "stripe", key: "api_key") }
+
+      it "allows a script to use a declared secret by vault reference" do
+        result = described_class.call(**secret_params)
+
+        expect(result).to be_success
+        expect(Tool.find_by(name: "stripe_balance").config["secret_refs"]).to eq("STRIPE_API_KEY" => "vault:stripe/api_key")
+      end
+
+      it "still blocks secret-like words that were not declared" do
+        result = described_class.call(**secret_params.merge(script_template: "echo $OTHER_TOKEN"))
+
+        expect(result.error).to include("blocked")
+      end
+
+      it "rejects a raw secret passed instead of a reference" do
+        result = described_class.call(**secret_params.merge(secrets: { "STRIPE_API_KEY" => "sk-live-abcdef123456" }))
+
+        expect(result).not_to be_success
+        expect(result.error).to include("vault reference")
+        expect(result.error).not_to include("sk-live-abcdef123456")
+        expect(Tool.find_by(name: "stripe_balance")).to be_nil
+      end
+
+      it "rejects a reference to an entry that does not exist" do
+        result = described_class.call(**secret_params.merge(secrets: { "STRIPE_API_KEY" => "vault:stripe/missing" }))
+
+        expect(result.error).to include("does not exist")
+      end
+
+      it "rejects secret names that are not environment variables" do
+        result = described_class.call(**secret_params.merge(secrets: { "bad name" => "vault:stripe/api_key" }))
+
+        expect(result.error).to include("UPPER_SNAKE_CASE")
+      end
+    end
+
     it "adds warnings for scripts referencing paths outside workspace" do
       described_class.call(**valid_params.merge(
         script_template: "#!/bin/bash\nls /home/user/data"

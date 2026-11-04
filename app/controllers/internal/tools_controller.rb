@@ -17,6 +17,9 @@ module Internal
       # MCP tools are per-agent and not persisted as Tool records
       tool ||= Mcp::ToolResolver.proxies(agent).find { |t| t.name == params[:tool_name] } if agent
 
+      # Connector operations are likewise generated per call
+      tool ||= Connectors::ToolResolver.proxies(agent).find { |t| t.name == params[:tool_name] } if agent
+
       unless tool
         return render json: { success: false, error: "Unknown tool: #{params[:tool_name]}" }, status: :unprocessable_entity
       end

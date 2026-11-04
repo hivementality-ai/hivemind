@@ -71,6 +71,7 @@ module Tools
       "chat_attachments" => Tools::ChatAttachmentsExecutor,
       "grep" => Tools::GrepExecutor,
       "mcp" => Tools::McpExecutor,
+      "connector" => Tools::ConnectorExecutor,
       "task_manager" => Tools::TaskManagerExecutor,
       "propose_skill_update" => Tools::ProposeSkillUpdateExecutor,
       "flag_skill_unhelpful" => Tools::FlagSkillUnhelpfulExecutor
