@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
   static targets = ["provider", "model"]
-  static values = { url: String, current: String }
+  static values = { url: String, current: String, adapters: Object }
 
   connect() {
     // Load models for current provider on page load
@@ -45,7 +45,9 @@ export default class extends Controller {
     if (models.length === 0) {
       const opt = document.createElement("option")
       opt.value = ""
-      opt.textContent = "No models available"
+      opt.textContent = this.adaptersValue[provider] === "ollama"
+        ? "No models found. Is Ollama running?"
+        : "No models available"
       select.appendChild(opt)
       return
     }
