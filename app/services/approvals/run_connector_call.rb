@@ -60,12 +60,9 @@ module Approvals
     end
 
     def notify_session(outcome)
-      session = Session.find_by(id: params["session_id"])
-      return unless session
+      return if params["session_id"].blank?
 
-      message = "Approval result: #{outcome}"
-      session.append_transcript({ "role" => "assistant", "content" => message })
-      ActionCable.server.broadcast("session_#{session.id}", { type: "notice", content: message })
+      ApprovalSessionNoteJob.perform_later(params["session_id"], "Approval result: #{outcome}")
     rescue StandardError => e
       Rails.logger.warn("[Approvals::RunConnectorCall] could not note result in session: #{e.message}")
     end

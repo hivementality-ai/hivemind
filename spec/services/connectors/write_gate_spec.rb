@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe Connectors::WriteGate do
+  include ActiveJob::TestHelper
+
   let(:agent) { create(:agent) }
   let(:session) { create(:session, agent: agent, session_key: "wg-#{SecureRandom.hex(4)}") }
   let!(:connector) { create(:connector, :bearer) }
@@ -125,18 +127,12 @@ RSpec.describe Connectors::WriteGate do
       expect(response.data[:outcome_ok]).to be(false)
     end
 
-    it "adds the outcome to the originating chat session and broadcasts it" do
+    it "queues the outcome note for the originating chat session" do
       write_stub.to_return(status: 500, body: "boom")
-      allow(ActionCable.server).to receive(:broadcast)
 
-      Approvals::Resolve.call(approval_id: approval.id, decision: "approved", resolved_by: 1)
-
-      note = session.reload.transcript.last
-      expect(note["role"]).to eq("assistant")
-      expect(note["content"]).to include("Approval result: Ran POST /widgets on #{connector.name}: failed: HTTP 500: boom")
-      expect(note["content"]).not_to include("Sprocket")
-      expect(ActionCable.server).to have_received(:broadcast)
-        .with("session_#{session.id}", hash_including(type: "notice"))
+      expect { Approvals::Resolve.call(approval_id: approval.id, decision: "approved", resolved_by: 1) }
+        .to have_enqueued_job(ApprovalSessionNoteJob)
+        .with(session.id, "Approval result: Ran POST /widgets on #{connector.name}: failed: HTTP 500: boom")
     end
 
     it "stores the originating session id on the approval" do
