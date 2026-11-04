@@ -5,7 +5,48 @@ class ChatStreamJob < ApplicationJob
 
   queue_as :agents
 
+  PROCESSING_KEY_PREFIX = "session_processing:"
+  LOCK_KEY_PREFIX = "session_turn_lock:"
+  # The lock is short-lived and renewed by a heartbeat while a turn runs, so a
+  # dead worker's lock disappears within LOCK_TTL.
+  LOCK_TTL = 90
+  HEARTBEAT_INTERVAL = 30
+  # Backstop only; the flag is cleared at turn end or by StuckTurnSweepJob.
+  PROCESSING_TTL = 1.hour.to_i
+  LOCK_RETRY_DELAY = 5.seconds
+
+  RELEASE_LOCK_SCRIPT = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) end return 0"
+  RENEW_LOCK_SCRIPT = <<~LUA.squish
+    if redis.call('get', KEYS[1]) == ARGV[1] then
+      redis.call('expire', KEYS[2], ARGV[3])
+      return redis.call('expire', KEYS[1], ARGV[2])
+    end
+    return 0
+  LUA
+
+  # Runs one turn at a time per session. A turn that arrives while another is
+  # running is requeued behind it, on the same queue, rather than dropped.
   def perform(session_id, user_message, attachment_ids = [])
+    token = SecureRandom.hex(8)
+    lock_key = "#{LOCK_KEY_PREFIX}#{session_id}"
+    unless Redis.current.set(lock_key, token, nx: true, ex: LOCK_TTL)
+      self.class.set(queue: queue_name, wait: LOCK_RETRY_DELAY).perform_later(session_id, user_message, attachment_ids)
+      return
+    end
+
+    stop = Thread::Queue.new
+    heartbeat = start_heartbeat(lock_key, "#{PROCESSING_KEY_PREFIX}#{session_id}", token, stop)
+    begin
+      run_turn(session_id, user_message, attachment_ids)
+    ensure
+      stop << true
+      heartbeat.join
+      set_processing(session_id, false)
+      Redis.current.eval(RELEASE_LOCK_SCRIPT, keys: [ lock_key ], argv: [ token ])
+    end
+  end
+
+  def run_turn(session_id, user_message, attachment_ids)
     session = Session.find(session_id)
     agent = session.agent
     channel = "session_#{session.id}"
@@ -240,7 +281,7 @@ class ChatStreamJob < ApplicationJob
       end
       ActionCable.server.broadcast(channel, { type: "redirected", content: e.redirect_message })
       Rails.logger.info("ChatStreamJob: redirected for session #{session.id}")
-      ChatStreamJob.perform_later(session.id, e.redirect_message, [])
+      ChatStreamJob.set(queue: :interactive).perform_later(session.id, e.redirect_message, [])
 
     rescue StandardError => e
       ActionCable.server.broadcast(channel, { type: "error", content: "Error: #{e.message}" })
@@ -273,6 +314,24 @@ class ChatStreamJob < ApplicationJob
 
   private
 
+  private :run_turn
+
+  # Renews the turn lock (and the processing flag) while the turn runs; stops
+  # once the lock is no longer ours.
+  # Renews the lock every HEARTBEAT_INTERVAL until +stop+ receives a value.
+  # Stopping through the queue, not Thread#kill, never interrupts a Redis call.
+  def start_heartbeat(lock_key, flag_key, token, stop)
+    Thread.new do
+      loop do
+        break if stop.pop(timeout: HEARTBEAT_INTERVAL)
+        renewed = Redis.current.eval(RENEW_LOCK_SCRIPT, keys: [ lock_key, flag_key ], argv: [ token, LOCK_TTL, PROCESSING_TTL ])
+        break if renewed.to_i.zero?
+      end
+    rescue StandardError => e
+      Rails.logger.warn("[ChatStreamJob] Lock heartbeat stopped: #{e.message}")
+    end
+  end
+
   def check_stream_signal!(session)
     signal = SessionSignal.check(session.id)
     return unless signal
@@ -286,9 +345,9 @@ class ChatStreamJob < ApplicationJob
   end
 
   def set_processing(session_id, active)
-    key = "session_processing:#{session_id}"
+    key = "#{PROCESSING_KEY_PREFIX}#{session_id}"
     if active
-      Redis.current.setex(key, 600, "1")
+      Redis.current.setex(key, PROCESSING_TTL, "1")
     else
       Redis.current.del(key)
     end
@@ -378,6 +437,7 @@ class ChatStreamJob < ApplicationJob
     tools = assigned.any? ? assigned : Tool.enabled.builtin.to_a
 
     tools << SystemTool::LOAD_SKILL if agent.skills.enabled.any?
+    tools.concat(Mcp::ToolResolver.proxies(agent))
 
     tools
   end

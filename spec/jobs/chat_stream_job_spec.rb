@@ -30,6 +30,101 @@ RSpec.describe ChatStreamJob, type: :job do
     allow(Channels::OriginDelivery).to receive(:call)
   end
 
+  describe "per-session turn lock" do
+    let(:lock_key) { "#{described_class::LOCK_KEY_PREFIX}#{session.id}" }
+
+    before { Redis.current.del(lock_key) }
+
+    after { Redis.current.del(lock_key) }
+
+    it "does not run a second turn while one holds the lock, and requeues it" do
+      runs = []
+      allow_any_instance_of(described_class).to receive(:run_turn) do |_job, *args|
+        runs << args
+        described_class.new.perform(session.id, "second")
+      end
+
+      expect { described_class.new.perform(session.id, "first") }
+        .to have_enqueued_job(described_class).with(session.id, "second", [])
+
+      expect(runs.map(&:second)).to eq([ "first" ])
+    end
+
+    it "requeues a busy turn on the queue the job ran on" do
+      Redis.current.set(lock_key, "other", ex: 60)
+      job = described_class.new
+      job.queue_name = "interactive"
+
+      expect { job.perform(session.id, "second") }
+        .to have_enqueued_job(described_class).on_queue("interactive")
+    end
+
+    context "with the heartbeat" do
+      let(:flag_key) { "#{described_class::PROCESSING_KEY_PREFIX}#{session.id}" }
+
+      before do
+        stub_const("ChatStreamJob::HEARTBEAT_INTERVAL", 0.05)
+        Redis.current.del(flag_key)
+      end
+
+      after { Redis.current.del(flag_key) }
+
+      it "renews the lock and processing flag while a slow turn runs" do
+        ttls = []
+        allow_any_instance_of(described_class).to receive(:run_turn) do
+          Redis.current.setex(flag_key, 30, "1")
+          Redis.current.expire(lock_key, 1)
+          sleep 0.3
+          ttls << Redis.current.ttl(lock_key) << Redis.current.ttl(flag_key)
+        end
+
+        described_class.new.perform(session.id, "slow")
+
+        expect(ttls.first).to be > 1
+        expect(ttls.last).to be > 30
+      end
+
+      it "stops the heartbeat as soon as the turn ends instead of waiting out the interval" do
+        stub_const("ChatStreamJob::HEARTBEAT_INTERVAL", 5)
+        allow_any_instance_of(described_class).to receive(:run_turn)
+
+        started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        described_class.new.perform(session.id, "quick")
+
+        expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 1
+      end
+
+      it "stops renewing once the lock holds a different token" do
+        ttl = nil
+        allow_any_instance_of(described_class).to receive(:run_turn) do
+          Redis.current.set(lock_key, "someone-else", ex: 1)
+          sleep 0.3
+          ttl = Redis.current.ttl(lock_key)
+        end
+
+        described_class.new.perform(session.id, "slow")
+
+        expect(ttl).to be <= 1
+      end
+    end
+
+    it "releases the lock after a turn so the next one runs" do
+      allow_any_instance_of(described_class).to receive(:run_turn)
+
+      described_class.new.perform(session.id, "first")
+
+      expect(Redis.current.get(lock_key)).to be_nil
+    end
+
+    it "does not release a lock held by another turn" do
+      allow_any_instance_of(described_class).to receive(:run_turn) { Redis.current.set(lock_key, "someone-else") }
+
+      described_class.new.perform(session.id, "first")
+
+      expect(Redis.current.get(lock_key)).to eq("someone-else")
+    end
+  end
+
   describe "#perform" do
     context "hashtag bypass" do
       let(:hashtag_bypass) do
@@ -104,6 +199,15 @@ RSpec.describe ChatStreamJob, type: :job do
           .with(hash_including(provider_name: "openai", provider_config: override_config))
         expect(adapter).to have_received(:chat)
           .with(hash_including(options: hash_including(model: "gpt-session")))
+      end
+    end
+
+    context "when the user redirects a running turn" do
+      it "re-enqueues the redirect message on the interactive queue" do
+        allow(adapter).to receive(:chat).and_raise(AgentRedirected.new("do this instead"))
+
+        expect { described_class.perform_now(session.id, "Hello") }
+          .to have_enqueued_job(described_class).with(session.id, "do this instead", []).on_queue("interactive")
       end
     end
 
