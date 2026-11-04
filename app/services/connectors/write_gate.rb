@@ -16,15 +16,17 @@ module Connectors
     # @param tool [Connectors::ToolProxy]
     # @param input [Hash] arguments the model passed
     # @param agent [Agent]
+    # @param session [Session, nil] chat session to report the outcome to
     # @return [ServiceResponse] success telling the model the call is waiting, or failure
-    def self.call(tool:, input:, agent:)
-      new(tool:, input:, agent:).call
+    def self.call(tool:, input:, agent:, session: nil)
+      new(tool:, input:, agent:, session:).call
     end
 
-    def initialize(tool:, input:, agent:)
+    def initialize(tool:, input:, agent:, session: nil)
       @tool = tool
       @input = input
       @agent = agent
+      @session = session
     end
 
     def call
@@ -49,6 +51,7 @@ module Connectors
         operation: @tool.operation_name,
         method: @tool.http_method,
         path: @tool.path,
+        session_id: @session&.id,
         arguments: @input.is_a?(Hash) ? @input : {}
       }
     end

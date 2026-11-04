@@ -114,6 +114,35 @@ RSpec.describe Connectors::WriteGate do
       expect(AuditLog.where(action: "connector_call_executed")).to be_empty
     end
 
+    it "does not run the call when the connector has been turned off" do
+      connector.update!(enabled: false)
+      write_stub
+
+      response = Approvals::Resolve.call(approval_id: approval.id, decision: "approved", resolved_by: 1)
+
+      expect(a_request(:any, /api\.widgets\.test/)).not_to have_been_made
+      expect(response.data[:outcome]).to include("Did not run", "disabled")
+      expect(response.data[:outcome_ok]).to be(false)
+    end
+
+    it "adds the outcome to the originating chat session and broadcasts it" do
+      write_stub.to_return(status: 500, body: "boom")
+      allow(ActionCable.server).to receive(:broadcast)
+
+      Approvals::Resolve.call(approval_id: approval.id, decision: "approved", resolved_by: 1)
+
+      note = session.reload.transcript.last
+      expect(note["role"]).to eq("assistant")
+      expect(note["content"]).to include("Approval result: Ran POST /widgets on #{connector.name}: failed: HTTP 500: boom")
+      expect(note["content"]).not_to include("Sprocket")
+      expect(ActionCable.server).to have_received(:broadcast)
+        .with("session_#{session.id}", hash_including(type: "notice"))
+    end
+
+    it "stores the originating session id on the approval" do
+      expect(approval.params["session_id"]).to eq(session.id)
+    end
+
     it "keeps secret values out of the stored request" do
       expect(approval.params.to_json).not_to include("sk-super-secret-value")
     end

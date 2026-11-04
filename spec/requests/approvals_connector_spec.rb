@@ -69,4 +69,49 @@ RSpec.describe "Approvals page for connectors", type: :request do
     expect(response.body).to include("Widget Shop", "create_widget", "POST /widgets", "Sprocket", "vault:widgets/token")
     expect(response.body).not_to include("sk-super-secret-value")
   end
+
+  describe "approving a held write" do
+    let!(:connector) { create(:connector, name: "Widget Shop") }
+    let(:approval) do
+      create(:approval_request, :pending, agent: agent, action: "connector_call", resource: "Connector##{connector.id}/create_widget",
+                                           params: { "connector_id" => connector.id, "connector_name" => "Widget Shop",
+                                                     "operation" => "create_widget", "method" => "POST", "path" => "/widgets",
+                                                     "arguments" => { "title" => "Sprocket" } })
+    end
+
+    before { allow(Connectors::AddressGuard).to receive(:lookup).and_return([ "93.184.216.34" ]) }
+
+    it "tells the approver the call succeeded" do
+      stub_request(:post, "https://api.widgets.test/v1/widgets").to_return(status: 201, body: '{"id":"9"}')
+
+      post approve_approval_path(approval, approval_type: "approval_request")
+
+      expect(flash[:notice]).to include("Ran POST /widgets on Widget Shop: succeeded")
+    end
+
+    it "tells the approver the call failed and why" do
+      stub_request(:post, "https://api.widgets.test/v1/widgets").to_return(status: 422, body: "title is taken")
+
+      post approve_approval_path(approval, approval_type: "approval_request")
+
+      expect(flash[:alert]).to include("Ran POST /widgets on Widget Shop: failed: HTTP 422: title is taken")
+    end
+
+    it "truncates long output" do
+      stub_request(:post, "https://api.widgets.test/v1/widgets").to_return(status: 200, body: "x" * 1000)
+
+      post approve_approval_path(approval, approval_type: "approval_request")
+
+      expect(flash[:notice].length).to be < 450
+    end
+
+    it "refuses and says so when the connector was turned off" do
+      connector.update!(enabled: false)
+
+      post approve_approval_path(approval, approval_type: "approval_request")
+
+      expect(flash[:alert]).to include("Did not run POST /widgets on Widget Shop", "disabled")
+      expect(a_request(:any, /api\.widgets\.test/)).not_to have_been_made
+    end
+  end
 end

@@ -34,9 +34,10 @@ module Approvals
         { approval_id: approval.id, status: approval.status, action: approval.action, resource: approval.resource },
         agent: approval.agent, team: approval.agent&.team
       )
+      ran = run_connector_call(approval) if @decision == "approved" && approval.action == "connector_call"
       execute_pending_action(approval) if @decision == "approved"
 
-      ServiceResponse.success(data: { approval: })
+      ServiceResponse.success(data: { approval:, outcome: ran&.dig(:outcome), outcome_ok: ran&.dig(:succeeded) })
     rescue StandardError => e
       ServiceResponse.failure(error: "Resolution failed: #{e.message}")
     end
@@ -86,9 +87,11 @@ module Approvals
         activate_connector(approval)
       when "update_connector"
         apply_connector_fix(approval)
-      when "connector_call"
-        Approvals::RunConnectorCall.call(approval: approval)
       end
+    end
+
+    def run_connector_call(approval)
+      Approvals::RunConnectorCall.call(approval: approval).data
     end
 
     def apply_connector_fix(approval)

@@ -315,6 +315,9 @@ export default class extends Controller {
           this.streaming = false
         }
         break
+      case "notice":
+        this.appendSystemNotice(data.content)
+        break
       case "title_update":
         this.updateTitle(data.title)
         break
