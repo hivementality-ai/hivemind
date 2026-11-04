@@ -47,6 +47,7 @@ module Connectors
     rescue Connectors::AddressGuard::Blocked, ArgumentError => e
       ServiceResponse.failure(error: e.message)
     rescue Timeout::Error, SystemCallError, SocketError, OpenSSL::SSL::SSLError, IOError => e
+      Connectors::Health.record_failure(@connector, @operation_name, :transient)
       ServiceResponse.failure(error: "Request failed: #{e.class.name.demodulize}")
     end
 
@@ -151,9 +152,20 @@ module Connectors
     end
 
     def respond(status, text, truncated)
-      return ServiceResponse.success(data: { output: text, status:, truncated: }) if status.between?(200, 299)
+      if status.between?(200, 299)
+        Connectors::Health.record_success(@connector, @operation_name)
+        return ServiceResponse.success(data: { output: text, status:, truncated: })
+      end
 
-      ServiceResponse.failure(error: "HTTP #{status}: #{text.truncate(500)}")
+      ServiceResponse.failure(error: "HTTP #{status}: #{text.truncate(500)}#{repair_hint(status, text)}")
+    end
+
+    def repair_hint(status, text)
+      kind = Connectors::Health.classify(status, text)
+      count = Connectors::Health.record_failure(@connector, @operation_name, kind, status:)
+      return "" unless kind == :definition && Connectors::Health.repair_suggested?(count)
+
+      "\n#{Connectors::Health::HINT}"
     end
 
     def scrub(text)

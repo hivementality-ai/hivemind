@@ -1,0 +1,40 @@
+<%# Readable summary of a connector approval's stored params. ERB escapes every value. %>
+<% params_hash = req.params || {} %>
+<% if req.action == "update_connector" %>
+  <div class="space-y-2" data-connector-fix>
+    <% Array(params_hash["changes"]).each do |change| %>
+      <% before = change["before"] %>
+      <% after = change["after"] %>
+      <div class="text-xs">
+        <span class="font-mono text-white"><%= change["name"] %></span>
+        <span class="text-text-faint">(<%= change["change"] %>)</span>
+        <% if change["name"] == "base_url" %>
+          <div class="text-red-300 font-mono">- <%= before %></div>
+          <div class="text-green-300 font-mono">+ <%= after %></div>
+        <% else %>
+          <% [["-", before, "text-red-300"], ["+", after, "text-green-300"]].each do |sign, op, color| %>
+            <% next unless op.is_a?(Hash) %>
+            <div class="<%= color %> font-mono">
+              <%= sign %> <%= op["method"] %> <%= op["path"] %>
+              params: <%= (op.dig("params", "properties") || {}).keys.join(", ").presence || "none" %>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+<% elsif req.action == "create_connector" %>
+  <dl class="text-xs grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1" data-connector-create>
+    <dt class="text-text-faint">Name</dt><dd class="text-white"><%= params_hash["name"] %></dd>
+    <dt class="text-text-faint">Base URL</dt><dd class="text-white font-mono"><%= params_hash["base_url"] %></dd>
+    <dt class="text-text-faint">Auth</dt><dd class="text-white"><%= params_hash["auth_scheme"] %></dd>
+    <dt class="text-text-faint">Secret refs</dt>
+    <dd class="text-white font-mono"><%= Array(params_hash["secret_refs"]).join(", ").presence || "none" %></dd>
+    <dt class="text-text-faint">Operations</dt>
+    <dd class="text-white font-mono">
+      <% Array(params_hash["operations"]).each do |op| %>
+        <div><%= op["name"] %>: <%= op["method"] %> <%= op["path"] %><%= op["read_only"] ? "" : " (writes)" %></div>
+      <% end %>
+    </dd>
+  </dl>
+<% end %>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_04_150000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_04_160000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -292,6 +292,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_04_150000) do
     t.string "created_by_type"
     t.text "description"
     t.boolean "enabled", default: true, null: false
+    t.jsonb "health", default: {}, null: false
     t.string "name", null: false
     t.jsonb "operations", default: [], null: false
     t.boolean "pending_approval", default: false, null: false

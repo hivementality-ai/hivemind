@@ -60,6 +60,7 @@ module Tools
       "create_skill" => Tools::CreateSkillExecutor,
       "create_tool" => Tools::CreateToolExecutor,
       "create_connector" => Tools::CreateConnectorExecutor,
+      "propose_connector_fix" => Tools::ProposeConnectorFixExecutor,
       "google_drive" => Tools::GoogleDriveExecutor,
       "google_calendar" => Tools::GoogleCalendarExecutor,
       "google_gmail" => Tools::GoogleGmailExecutor,
