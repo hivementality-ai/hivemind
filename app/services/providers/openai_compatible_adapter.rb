@@ -310,7 +310,7 @@ module Providers
               end
             end
           end
-          end
+        end
       end
 
       # Flush any remaining buffered content
