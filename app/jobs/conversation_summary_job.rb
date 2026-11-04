@@ -32,8 +32,7 @@ class ConversationSummaryJob < ApplicationJob
 
     adapter = resolver.data[:adapter]
 
-    # Use the cheapest available model for summarization
-    summary_model = cheapest_model(agent.model_provider)
+    summary_model = BackgroundModel.for(agent)
 
     result = adapter.chat(
       messages: [
@@ -108,11 +107,4 @@ class ConversationSummaryJob < ApplicationJob
     parts.join("\n")
   end
 
-  def cheapest_model(provider)
-    case provider
-    when "anthropic" then LlmModelRegistry::Anthropic::DEFAULT_SUMMARIZER
-    when "openai"    then LlmModelRegistry::OpenAI::DEFAULT_SUMMARIZER
-    else                  LlmModelRegistry::Anthropic::DEFAULT_SUMMARIZER
-    end
-  end
 end
