@@ -37,6 +37,28 @@ RSpec.describe "Agents API", type: :request do
     end
   end
 
+  describe "budget bar on the agent page" do
+    before { agent.update!(model_provider: "anthropic", llm_model: "claude-sonnet-4-5") }
+
+    it "shows spend against the daily AgentBudget" do
+      create(:agent_budget, agent: agent, period: "daily", limit_cents: 500)
+      UsageRecord.create!(agent: agent, llm_model: "claude-sonnet-4-5", provider: "anthropic", input_tokens: 1, output_tokens: 1, cost_cents: 125)
+
+      get "/agents/#{agent.slug}"
+
+      expect(response.body).to include("agent-budget-bar", "25.0% of $5.00 limit")
+    end
+
+    it "hides the bar when there is no daily budget" do
+      agent.update!(daily_budget_limit: 10)
+
+      get "/agents/#{agent.slug}"
+
+      expect(response.body).not_to include("agent-budget-bar")
+      expect(response.body).not_to include("limit</div>")
+    end
+  end
+
   describe "PATCH /agents/:slug" do
     it "updates agent by slug" do
       patch "/agents/#{agent.slug}", params: { agent: { role: "Updated Role" } }
