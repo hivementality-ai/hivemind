@@ -263,6 +263,120 @@ RSpec.describe Providers::OpenaiCompatibleAdapter, type: :service do
     end
   end
 
+  describe "transient fault handling" do
+    let(:url) { "http://localhost:8080/v1/chat/completions" }
+    let(:ok_body) { { choices: [ { message: { content: "recovered" } } ], usage: {} }.to_json }
+
+    before { allow(adapter).to receive(:pause) }
+
+    it "retries once after a connect timeout and succeeds" do
+      stub_request(:post, url)
+        .to_raise(Faraday::ConnectionFailed.new("Failed to open TCP connection (execution expired)")).then
+        .to_return(status: 200, body: ok_body)
+
+      result = adapter.chat(messages: messages)
+
+      expect(result).to be_success
+      expect(result.data[:content]).to eq("recovered")
+      expect(adapter).to have_received(:pause).once
+    end
+
+    it "classifies two consecutive timeouts as a transient failure" do
+      stub_request(:post, url)
+        .to_raise(Faraday::ConnectionFailed.new("Failed to open TCP connection (execution expired)"))
+
+      result = adapter.chat(messages: messages)
+
+      expect(result).to be_failure
+      expect(result.payload[:provider_error]).to include(retryable: true, reason: "network_error")
+      expect(WebMock).to have_requested(:post, url).twice
+    end
+
+    it "retries a 503 and honours a short Retry-After" do
+      stub_request(:post, url)
+        .to_return(status: 503, headers: { "Retry-After" => "2" }).then
+        .to_return(status: 200, body: ok_body)
+
+      expect(adapter.chat(messages: messages)).to be_success
+      expect(adapter).to have_received(:pause).with(2.0)
+    end
+
+    it "does not retry when Retry-After exceeds the cap" do
+      stub_request(:post, url).to_return(status: 429, headers: { "Retry-After" => "120" })
+
+      result = adapter.chat(messages: messages)
+
+      expect(result.payload[:provider_error]).to include(retryable: true, reason: "rate_limited")
+      expect(WebMock).to have_requested(:post, url).once
+    end
+
+    it "does not retry a 400 and classifies it permanent" do
+      stub_request(:post, url).to_return(status: 400, body: { error: "bad" }.to_json)
+
+      result = adapter.chat(messages: messages)
+
+      expect(result).to be_failure
+      expect(result.payload[:provider_error]).to include(retryable: false, reason: "invalid_request")
+      expect(WebMock).to have_requested(:post, url).once
+    end
+
+    it "does not retry a read timeout" do
+      stub_request(:post, url).to_raise(Faraday::TimeoutError.new("Net::ReadTimeout"))
+
+      result = adapter.chat(messages: messages)
+
+      expect(result.payload[:provider_error]).to include(retryable: true, reason: "network_error")
+      expect(WebMock).to have_requested(:post, url).once
+    end
+
+    context "when streaming" do
+      let(:stream_conn) { instance_double(Faraday::Connection) }
+      let(:request) { Struct.new(:body, :options).new(nil, Struct.new(:on_data).new) }
+
+      before { allow(adapter).to receive(:connection).and_return(stream_conn) }
+
+      it "does not retry once output has been streamed" do
+        allow(stream_conn).to receive(:post) do |&blk|
+          blk.call(request)
+          request.options.on_data.call("data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n", 30, nil)
+          raise Faraday::ConnectionFailed, "Connection reset by peer"
+        end
+
+        result = adapter.chat(messages: messages) { |_chunk| }
+
+        expect(result).to be_failure
+        expect(stream_conn).to have_received(:post).once
+      end
+
+      it "retries when the connection fails before any output" do
+        calls = 0
+        allow(stream_conn).to receive(:post) do |&blk|
+          blk.call(request)
+          calls += 1
+          raise Faraday::ConnectionFailed, "execution expired" if calls == 1
+          request.options.on_data.call("data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n", 30, nil)
+        end
+        chunks = []
+
+        result = adapter.chat(messages: messages) { |c| chunks << c }
+
+        expect(result).to be_success
+        expect(chunks.map { |c| c[:content] }.join).to eq("hi")
+        expect(calls).to eq(2)
+      end
+    end
+
+    it "reads timeouts from ENV" do
+      stub_const("ENV", ENV.to_h.merge("OPENAI_COMPATIBLE_OPEN_TIMEOUT" => "3", "OPENAI_COMPATIBLE_READ_TIMEOUT" => "900"))
+
+      expect(adapter.send(:connection).options).to have_attributes(open_timeout: 3.0, timeout: 900.0)
+    end
+
+    it "defaults to a short open timeout and a long read timeout" do
+      expect(adapter.send(:connection).options).to have_attributes(open_timeout: 10.0, timeout: 600.0)
+    end
+  end
+
   describe "#models" do
     it "returns list of available models" do
       stub_request(:get, "http://localhost:8080/v1/models")
