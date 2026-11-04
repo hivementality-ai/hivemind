@@ -72,6 +72,8 @@ module Tools
       "grep" => Tools::GrepExecutor,
       "mcp" => Tools::McpExecutor,
       "connector" => Tools::ConnectorExecutor,
+      "find_tools" => Tools::FindToolsExecutor,
+      "use_tool" => Tools::UseToolExecutor,
       "task_manager" => Tools::TaskManagerExecutor,
       "propose_skill_update" => Tools::ProposeSkillUpdateExecutor,
       "flag_skill_unhelpful" => Tools::FlagSkillUnhelpfulExecutor

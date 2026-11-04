@@ -5,6 +5,9 @@ module Connectors
   # runs through Tools::Executor and carries the connector and operation to
   # Tools::ConnectorExecutor via its config.
   class ToolProxy < SystemTool
+    # @return [String] display name of the connector, searched by find_tools
+    attr_reader :connector_name
+
     EMPTY_SCHEMA = { "type" => "object", "properties" => {}, "required" => [] }.freeze
 
     # @param name [String] LLM-facing tool name
@@ -13,6 +16,7 @@ module Connectors
     def initialize(name:, connector:, operation:)
       super(name: name, description: operation["description"], executor_type: "connector")
       @connector_id = connector.id
+      @connector_name = connector.name
       @operation_name = operation["name"]
       @input_schema = operation["params"].presence || EMPTY_SCHEMA
     end
