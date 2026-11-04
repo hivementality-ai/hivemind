@@ -3,6 +3,11 @@
 module Providers
   class AnthropicAdapter < Base
     SDK_PROXY_URL = ENV.fetch("SDK_PROXY_URL", "http://sdk-proxy:3003")
+    CACHE_BREAKPOINT = { type: "ephemeral" }.freeze
+    # Anthropic allows four cache_control breakpoints per request: one on the
+    # last tool, one on the last message, leaving two for the system prompt.
+    MAX_SYSTEM_BREAKPOINTS = 2
+    UNCACHEABLE_BLOCK_TYPES = %w[thinking redacted_thinking].freeze
 
     def chat(messages:, tools: [], options: {}, &block)
       params = build_chat_params(messages:, tools:, options:)
@@ -121,10 +126,14 @@ module Providers
       end
 
       if tools.any?
-        params[:tools] = tools.map do |t|
+        # Sorted by name so the tools prefix is byte-identical from turn to turn.
+        params[:tools] = tools.sort_by { |t| t[:name].to_s }.map do |t|
           { name: t[:name], description: t[:description], input_schema: t[:input_schema] }
         end
+        params[:tools].last[:cache_control] = CACHE_BREAKPOINT.dup
       end
+
+      mark_last_message_for_cache(params[:messages])
 
       params[:temperature] = options[:temperature] if options[:temperature]
 
@@ -149,16 +158,47 @@ module Providers
       model.to_s.match?(/claude-(?:opus-5|opus-4-[5678]|sonnet-5|sonnet-4-6|fable-5)/)
     end
 
+    # Builds the system blocks with at most MAX_SYSTEM_BREAKPOINTS breakpoints:
+    # the last block (end of the whole prompt) and the longest earlier block,
+    # which is the stable core or skills text. Blocks after the stable ones
+    # (memory, addons) change per turn, so the earlier breakpoint keeps the big
+    # stable prefix cached when they do.
     def build_cached_system(content)
-      blocks = if content.is_a?(Array)
-                 content.map do |block|
-                   b = block.to_h.with_indifferent_access
-                   { type: "text", text: b[:text].to_s, cache_control: { type: "ephemeral" } }
-                 end
+      texts = if content.is_a?(Array)
+                content.map { |block| block.to_h.with_indifferent_access[:text].to_s }
       else
-                 [ { type: "text", text: content.to_s, cache_control: { type: "ephemeral" } } ]
+                [ content.to_s ]
       end
-      blocks.reject { |b| b[:text].blank? }
+      texts = texts.reject(&:blank?)
+
+      marked = [ texts.size - 1 ]
+      marked << texts[0...-1].each_index.max_by { |i| texts[i].length } if texts.size > 1
+
+      texts.each_with_index.map do |text, i|
+        block = { type: "text", text: text }
+        block[:cache_control] = CACHE_BREAKPOINT.dup if marked.include?(i)
+        block
+      end
+    end
+
+    # Puts a breakpoint on the last content block of the last message so the
+    # next turn reuses the whole conversation so far. String content becomes a
+    # single text block; blocks are copied so the caller's hashes stay untouched.
+    def mark_last_message_for_cache(messages)
+      last = messages.last
+      return unless last
+
+      content = last[:content]
+      if content.is_a?(String)
+        return if content.blank?
+
+        last[:content] = [ { type: "text", text: content, cache_control: CACHE_BREAKPOINT.dup } ]
+      elsif content.is_a?(Array) && content.any?
+        block = content.last.to_h
+        return if UNCACHEABLE_BLOCK_TYPES.include?((block[:type] || block["type"]).to_s)
+
+        last[:content] = content[0...-1] + [ block.merge(cache_control: CACHE_BREAKPOINT.dup) ]
+      end
     end
   end
 end
