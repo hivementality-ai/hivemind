@@ -101,6 +101,11 @@ RSpec.configure do |config|
     Rack::Attack.reset!
   end
 
+  # Setting changes reconcile cron entries in Redis; keep that out of unrelated specs.
+  config.before do
+    allow(Platform::SubsystemSchedule).to receive(:reconcile!)
+  end
+
   # Sidekiq test mode
   config.before do
     require 'sidekiq/testing'
