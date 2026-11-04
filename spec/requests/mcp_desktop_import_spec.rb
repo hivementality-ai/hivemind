@@ -55,6 +55,14 @@ RSpec.describe "Claude Desktop import", type: :request do
     expect(remote.resolved_auth_headers["Authorization"]).to eq("Bearer #{secret}")
   end
 
+  it "assigns imported servers to every visible agent" do
+    agent = create(:agent)
+    post preview_mcp_import_path, params: { config_json: config_json }
+    post mcp_import_path, params: { token: token_from(response.body), names: %w[github] }
+
+    expect(McpServer.find_by!(name: "github").agents).to eq([ agent ])
+  end
+
   it "skips a server whose name is already taken" do
     create(:mcp_server, name: "github")
     post preview_mcp_import_path, params: { config_json: config_json }

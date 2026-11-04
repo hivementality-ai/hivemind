@@ -74,6 +74,90 @@ RSpec.describe "MCP servers", type: :request do
       expect(server.reload).to have_attributes(name: "Renamed", command: "other")
     end
 
+    describe "agent assignment" do
+      let!(:alpha) { create(:agent, name: "Alpha") }
+      let!(:beta) { create(:agent, name: "Beta") }
+      let!(:system_agent) { create(:agent, name: "Sysbot", system_agent: true) }
+
+      it "lists visible agents on the new form, all checked, and on the edit form with the assigned ones checked" do
+        get new_mcp_server_path
+        expect(response.body).to match(/value="#{alpha.id}"[^>]*checked/)
+        expect(response.body).to match(/value="#{beta.id}"[^>]*checked/)
+        expect(response.body).not_to include("Sysbot")
+
+        server = create(:mcp_server)
+        create(:agent_mcp_server, agent: beta, mcp_server: server)
+        get edit_mcp_server_path(server)
+        expect(response.body).not_to match(/value="#{alpha.id}"[^>]*checked/)
+        expect(response.body).to match(/value="#{beta.id}"[^>]*checked/)
+      end
+
+      it "assigns the ticked agents on create" do
+        post mcp_servers_path, params: { mcp_server: { name: "Files", transport: "stdio", command: "npx files", agent_ids: [ "", alpha.id.to_s ] } }
+
+        expect(McpServer.find_by!(name: "Files").agents).to eq([ alpha ])
+      end
+
+      it "assigns every visible agent on create when the form sends no picker" do
+        post mcp_servers_path, params: { mcp_server: { name: "Files", transport: "stdio", command: "npx files" } }
+
+        expect(McpServer.find_by!(name: "Files").agents).to match_array([ alpha, beta ])
+      end
+
+      it "replaces the visible assignments on update and can clear them all" do
+        server = create(:mcp_server)
+        create(:agent_mcp_server, agent: alpha, mcp_server: server)
+        create(:agent_mcp_server, agent: system_agent, mcp_server: server)
+
+        patch mcp_server_path(server), params: { mcp_server: { name: server.name, agent_ids: [ "", beta.id.to_s ] } }
+        expect(server.reload.agents).to match_array([ beta, system_agent ])
+
+        patch mcp_server_path(server), params: { mcp_server: { name: server.name, agent_ids: [ "" ] } }
+        expect(server.reload.agents).to eq([ system_agent ])
+      end
+
+      it "keeps assignments when an update sends no picker" do
+        server = create(:mcp_server)
+        create(:agent_mcp_server, agent: alpha, mcp_server: server)
+
+        patch mcp_server_path(server), params: { mcp_server: { name: "Renamed" } }
+
+        expect(server.reload.agents).to eq([ alpha ])
+      end
+    end
+
+    describe "manual OAuth client" do
+      it "keeps the id on the row and the secret in the vault" do
+        post mcp_servers_path, params: { mcp_server: { name: "Remote", transport: "http", url: "https://mcp.example.com",
+                                                        oauth_client_id: "my-id", oauth_client_secret: "s3cret" } }
+
+        server = McpServer.find_by!(name: "Remote")
+        expect(server.metadata).to eq("oauth_client_id" => "my-id", "oauth_client_secret" => "vault:mcp_remote/oauth_client_secret")
+        expect(server.oauth_client_secret).to eq("s3cret")
+        expect(server.to_json).not_to include("s3cret")
+      end
+
+      it "keeps the stored secret when the field is left blank and clears both when the id is emptied" do
+        server = create(:mcp_server, :sse, name: "Remote")
+        patch mcp_server_path(server), params: { mcp_server: { name: "Remote", oauth_client_id: "my-id", oauth_client_secret: "s3cret" } }
+        patch mcp_server_path(server), params: { mcp_server: { name: "Remote", oauth_client_id: "my-id", oauth_client_secret: "" } }
+        expect(server.reload.oauth_client_secret).to eq("s3cret")
+
+        patch mcp_server_path(server), params: { mcp_server: { name: "Remote", oauth_client_id: "", oauth_client_secret: "" } }
+        expect(server.reload.metadata).to eq({})
+      end
+
+      it "shows the id but never the secret on the edit form" do
+        server = create(:mcp_server, :sse, name: "Remote")
+        patch mcp_server_path(server), params: { mcp_server: { name: "Remote", oauth_client_id: "my-id", oauth_client_secret: "s3cret" } }
+
+        get edit_mcp_server_path(server)
+
+        expect(response.body).to include("my-id")
+        expect(response.body).not_to include("s3cret")
+      end
+    end
+
     it "toggles enabled and closes the running session when disabling" do
       server = create(:mcp_server, enabled: true)
       allow(Mcp::StdioRegistry).to receive(:close)
