@@ -143,18 +143,13 @@ RSpec.describe "Agents API", type: :request do
       expect(response.body).to include(%(<option value="#{router.id}">OpenRouter</option>))
     end
 
-    it "tells the user what to check when an Ollama provider shows no models" do
-      create(:provider_config, :ollama, name: "Mac Studio")
+    it "gives the model picker each provider's adapter type so it can word an empty list" do
+      ollama = create(:provider_config, :ollama, name: "Mac Studio")
 
       get "/agents/#{agent.slug}/edit"
 
-      expect(response.body).to include("No models listed for an Ollama provider? Make sure Ollama is running")
-    end
-
-    it "leaves the Ollama hint off when no Ollama provider is enabled" do
-      get "/agents/#{agent.slug}/edit"
-
-      expect(response.body).not_to include("Make sure Ollama is running")
+      adapters = Nokogiri::HTML(response.body).at_css("[data-controller='model-select']")["data-model-select-adapters-value"]
+      expect(JSON.parse(adapters)).to include(ollama.id.to_s => "ollama", router.id.to_s => "openai_compatible")
     end
 
     it "lists models from the selected provider config" do
