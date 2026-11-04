@@ -292,6 +292,32 @@
     </div>
   </div>
 
+  <!-- Starter catalog -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6" id="mcp-catalog-card">
+    <h2 class="text-lg font-semibold text-white">Add an app</h2>
+    <p class="text-text-muted text-sm mb-4">One click adds the app and takes you to its sign-in page.</p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <% @mcp_catalog.each do |entry| %>
+        <% server = @mcp_servers.find { |s| s.url == entry.url } %>
+        <div class="flex items-center justify-between gap-3 bg-surface-raised border border-border-default rounded-lg p-4" data-catalog="<%= entry.key %>">
+          <div>
+            <p class="text-white font-medium"><%= entry.name %></p>
+            <p class="text-text-faint text-sm"><%= entry.summary %></p>
+          </div>
+          <% if server && (server.connected? || Mcp::OAuth.connected?(server)) %>
+            <span class="px-3 py-1 rounded-full text-xs font-medium bg-green-900 text-green-300 shrink-0">Connected</span>
+          <% elsif server %>
+            <%= button_to "Connect", oauth_connect_mcp_server_path(server), method: :post,
+                  class: "px-3 py-1 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition shrink-0" %>
+          <% else %>
+            <%= button_to "Add", add_from_catalog_mcp_servers_path(key: entry.key), method: :post,
+                  class: "px-3 py-1 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition shrink-0" %>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
   <!-- Connectors and vault -->
   <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6" id="connectors-card">
     <div class="flex items-center justify-between gap-4">

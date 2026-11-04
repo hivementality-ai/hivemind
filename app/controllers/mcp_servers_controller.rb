@@ -30,6 +30,17 @@ class McpServersController < ApplicationController
 
   def edit; end
 
+  # Adds a starter-catalog server (or reuses the one already added) and goes straight into its OAuth sign-in.
+  def add_from_catalog
+    entry = Mcp::Catalog.find(params[:key])
+    return redirect_to integrations_path, alert: "Unknown catalog server." unless entry
+
+    @server = Mcp::Catalog.server_for(entry) || McpServer.create(name: free_catalog_name(entry), transport: "http", url: entry.url)
+    return redirect_to(integrations_path, alert: @server.errors.full_messages.to_sentence) unless @server.persisted?
+
+    start_oauth(integrations_path)
+  end
+
   def update
     if @server.update(server_params)
       flush_vault_writes
@@ -66,13 +77,7 @@ class McpServersController < ApplicationController
 
   # Discovers the server's authorization server and sends the browser there.
   def oauth_connect
-    unless @server.remote?
-      return redirect_to mcp_servers_path, alert: "Only remote servers can use OAuth."
-    end
-
-    redirect_to Mcp::OAuth.authorization_url(@server, redirect_uri: oauth_redirect_uri), allow_other_host: true
-  rescue Mcp::OAuth::Error => e
-    redirect_to mcp_servers_path, alert: "Could not connect '#{@server.name}': #{e.message}"
+    start_oauth(mcp_servers_path)
   end
 
   # Return leg of the authorization flow: swaps the code for tokens, then discovers tools.
@@ -96,6 +101,24 @@ class McpServersController < ApplicationController
   end
 
   private
+
+  # The catalog name, or "Name (catalog)", "Name (catalog) 2" and so on when a different server already uses it.
+  def free_catalog_name(entry)
+    return entry.name unless McpServer.exists?(name: entry.name)
+
+    base = "#{entry.name} (catalog)"
+    candidates = [ base ].lazy + (2..).lazy.map { |n| "#{base} #{n}" }
+    candidates.find { |name| !McpServer.exists?(name: name) }
+  end
+
+  # Sends the browser to the server's authorization page, or back to +return_to+ with the reason it failed.
+  def start_oauth(return_to)
+    return redirect_to(return_to, alert: "Only remote servers can use OAuth.") unless @server.remote?
+
+    redirect_to Mcp::OAuth.authorization_url(@server, redirect_uri: oauth_redirect_uri), allow_other_host: true
+  rescue Mcp::OAuth::Error => e
+    redirect_to return_to, alert: "Could not connect '#{@server.name}': #{e.message}"
+  end
 
   # Built from the configured canonical host when set, otherwise from the request.
   def oauth_redirect_uri

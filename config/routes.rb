@@ -266,6 +266,9 @@ Rails.application.routes.draw do
 
   # MCP server settings
   resources :mcp_servers, except: :show do
+    collection do
+      post "catalog/:key", action: :add_from_catalog, as: :add_from_catalog
+    end
     member do
       patch :toggle_enabled
       post :test_connection
