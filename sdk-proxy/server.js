@@ -7,6 +7,7 @@ import { classifyError, toErrorBody } from "./error-classifier.js";
 import { credentialKey } from "./circuit-breaker.js";
 import { createGuard } from "./guard.js";
 import { createPartialStreamTracker } from "./partial-stream.js";
+import { createWarmPool, configKey } from "./warm-pool.js";
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
@@ -32,6 +33,15 @@ const CIRCUIT_ANY_FAILURE_THRESHOLD = Math.max(1, intEnv("SDK_PROXY_CIRCUIT_ANY_
 const CIRCUIT_OPEN_MS = Math.max(1000, intEnv("SDK_PROXY_CIRCUIT_OPEN_MS", 15 * 60 * 1000));
 const STDERR_CAPTURE_BYTES = 16 * 1024;
 
+// Warm Claude processes: one live subprocess per Hivemind session between
+// turns. On by default; SDK_PROXY_WARM=off restores a fresh process per turn.
+const WARM_ENABLED = !["0", "off", "false"].includes((process.env.SDK_PROXY_WARM || "").toLowerCase());
+const WARM_MAX = Math.max(1, intEnv("SDK_PROXY_WARM_MAX", 4));
+const WARM_IDLE_MS = Math.max(1000, intEnv("SDK_PROXY_WARM_IDLE_MS", 10 * 60 * 1000));
+const warmPool = WARM_ENABLED
+  ? createWarmPool({ queryFn: query, maxWarm: WARM_MAX, idleMs: WARM_IDLE_MS })
+  : null;
+
 const guard = createGuard({
   maxConcurrent: MAX_CONCURRENCY,
   maxQueue: MAX_QUEUE,
@@ -42,7 +52,7 @@ const guard = createGuard({
 
 // query() adds an exit listener per subprocess; the semaphore is the real
 // bound, this just keeps the ceiling above it so no spurious warning fires.
-process.setMaxListeners(MAX_CONCURRENCY + 20);
+process.setMaxListeners(MAX_CONCURRENCY + WARM_MAX + 20);
 
 // Health check. Reports liveness (200 whenever the HTTP server answers) plus
 // the two things that were invisible during the 40-hour silent outage: the
@@ -155,6 +165,7 @@ async function runOAuth(res, token, params, stderrCapture) {
 
   // Extract system prompt text for structured passing
   let systemText = extractSystemPrompt(systemPrompt);
+  const baseSystemText = systemText;
 
   // Build conversation transcript for context (SDK spawns fresh process each call)
   const conversationMessages = (messages || []).filter(m => m.role !== "system");
@@ -189,12 +200,16 @@ async function runOAuth(res, token, params, stderrCapture) {
   if (systemText) options.systemPrompt = systemText;
   if (model) options.model = model;
   options.env = { CLAUDE_CODE_OAUTH_TOKEN: token };
+  // A warm process outlives this request, so its callbacks reach the current
+  // turn through this sink rather than closing over this request directly.
+  const sink = { stderrCapture, toolEvent: null };
   options.stderr = (data) => {
     const text = String(data);
     console.error(`[claude-code stderr] ${text}`);
+    const capture = sink.stderrCapture;
     // Ring-capped so a chatty subprocess cannot grow this without bound.
-    if (stderrCapture.text.length < STDERR_CAPTURE_BYTES) {
-      stderrCapture.text = (stderrCapture.text + text).slice(-STDERR_CAPTURE_BYTES);
+    if (capture.text.length < STDERR_CAPTURE_BYTES) {
+      capture.text = (capture.text + text).slice(-STDERR_CAPTURE_BYTES);
     }
   };
 
@@ -228,6 +243,7 @@ async function runOAuth(res, token, params, stderrCapture) {
         sendSSE(res, type, data);
       }
     : null;
+  sink.toolEvent = sseForToolEvents;
 
   if (tool_definitions?.length && agent_id && session_id) {
     for (const def of tool_definitions) mcpToolNames.add(def.name);
@@ -237,7 +253,7 @@ async function runOAuth(res, token, params, stderrCapture) {
         tools: tool_definitions,
         agentId: agent_id,
         sessionId: session_id,
-        onToolEvent: sseForToolEvents,
+        onToolEvent: (type, data) => sink.toolEvent?.(type, data),
       });
       options.mcpServers = mcpServers;
       options.permissionMode = "bypassPermissions";
@@ -251,6 +267,31 @@ async function runOAuth(res, token, params, stderrCapture) {
       console.error("[oauth] MCP server build failed:", err);
     }
   }
+
+  // Opens one turn on a warm process when one is available, otherwise a fresh
+  // query exactly as before. finish(ok) must be called once the turn is over.
+  const convoCount = conversationMessages.length;
+  const warmKey = warmPool && session_id
+    ? configKey({ cred: credentialKey(token), model, systemText: baseSystemText, tool_definitions, agent_id, stream: !!stream })
+    : null;
+  const startTurn = ({ includePartialMessages }) => {
+    const cold = () => ({
+      messages: query({ prompt, options: includePartialMessages ? { ...options, includePartialMessages } : options }),
+      warm: false,
+      finish() {},
+      abort() {},
+    });
+    if (!warmKey) return cold();
+    return warmPool.openTurn({
+      sessionId: session_id,
+      key: warmKey,
+      messageCount: convoCount,
+      prompt,
+      options: { ...options, includePartialMessages: !!includePartialMessages },
+      sink,
+      cold,
+    });
+  };
 
   if (stream) {
     res.writeHead(200, {
@@ -268,8 +309,19 @@ async function runOAuth(res, token, params, stderrCapture) {
     let producedOutput = false;
     let lastError = null;
     let classification = null;
+    let turn = null;
+    let clientGone = false;
+
+    // A client that hangs up mid-turn discards its warm process so nothing
+    // keeps working, or stays wedged, for a reader that is no longer there.
+    res.on("close", () => {
+      if (res.writableEnded) return;
+      clientGone = true;
+      turn?.abort();
+    });
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      turn = null;
       const activeTools = new Set();
       let isThinking = false;
       let errored = false;
@@ -277,7 +329,8 @@ async function runOAuth(res, token, params, stderrCapture) {
       // Snapshot listeners before query() so we can clean up after
       const listenersBefore = process.listeners("exit").length;
       try {
-        for await (const message of query({ prompt, options: { ...options, includePartialMessages: true } })) {
+        turn = startTurn({ includePartialMessages: true });
+        for await (const message of turn.messages) {
           if (message.type === "stream_event") {
             const delta = partials.textDelta(message);
             if (delta) {
@@ -366,15 +419,17 @@ async function runOAuth(res, token, params, stderrCapture) {
         // specific message and append the wrapper's, so both are classifiable.
         lastError = lastError ? `${lastError} (${err.message})` : err.message;
       } finally {
-        // Clean up exit listeners added by query() subprocess
+        turn?.finish(!errored);
+        // Clean up exit listeners added by query() subprocess. A warm process
+        // keeps its listener until the SDK removes it on close.
         const listenersAfter = process.listeners("exit");
-        if (listenersAfter.length > listenersBefore) {
+        if (!turn?.warm && listenersAfter.length > listenersBefore) {
           const toRemove = listenersAfter.slice(listenersBefore);
           toRemove.forEach(fn => process.removeListener("exit", fn));
         }
       }
 
-      if (!errored) break;
+      if (!errored || clientGone) break;
 
       // Classify BEFORE deciding to retry. Retrying a permanent failure is
       // exactly what consumed the host's port pool: a quota 400 will fail
@@ -403,6 +458,7 @@ async function runOAuth(res, token, params, stderrCapture) {
       break;
     }
 
+    if (clientGone) return;
     sendSSE(res, "done", {});
     res.end();
 
@@ -422,10 +478,12 @@ async function runOAuth(res, token, params, stderrCapture) {
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       fullContent = "";
       let errored = false;
+      let turn = null;
       const listenersBefore = process.listeners("exit").length;
 
       try {
-        for await (const message of query({ prompt, options })) {
+        turn = startTurn({ includePartialMessages: false });
+        for await (const message of turn.messages) {
           if (message.type === "text") {
             fullContent += message.text || "";
           } else if (message.type === "assistant") {
@@ -455,9 +513,11 @@ async function runOAuth(res, token, params, stderrCapture) {
         // specific message and append the wrapper's, so both are classifiable.
         lastError = lastError ? `${lastError} (${err.message})` : err.message;
       } finally {
-        // Clean up exit listeners added by query() subprocess
+        turn?.finish(!errored);
+        // Clean up exit listeners added by query() subprocess. A warm process
+        // keeps its listener until the SDK removes it on close.
         const listenersAfter = process.listeners("exit");
-        if (listenersAfter.length > listenersBefore) {
+        if (!turn?.warm && listenersAfter.length > listenersBefore) {
           const toRemove = listenersAfter.slice(listenersBefore);
           toRemove.forEach(fn => process.removeListener("exit", fn));
         }
@@ -618,6 +678,16 @@ process.on("unhandledRejection", (err) => {
   console.error("[FATAL] Unhandled rejection:", err);
 });
 
-app.listen(PORT, "0.0.0.0", () => {
+const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`SDK proxy listening on port ${PORT}`);
 });
+
+// Warm subprocesses must not outlive the proxy.
+if (warmPool) {
+  process.on("SIGTERM", () => {
+    console.log("[shutdown] SIGTERM, closing warm processes");
+    warmPool.closeAll();
+    server.close();
+    process.exit(0);
+  });
+}
