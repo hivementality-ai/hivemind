@@ -12,6 +12,8 @@ class McpServer < ApplicationRecord
   validates :command, presence: true, if: :stdio?
   validates :url, presence: true, if: :remote?
 
+  after_destroy { VaultEntry.where(namespace: "mcp_oauth_#{id}").delete_all }
+
   scope :enabled, -> { where(enabled: true) }
   scope :preset, -> { where(preset: true) }
   scope :by_transport, ->(transport) { where(transport: transport) }
