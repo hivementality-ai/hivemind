@@ -18,6 +18,7 @@ class ChannelsController < ApplicationController
 
     if @channel.save
       store_credentials(@credentials) if @credentials.present?
+      start_channel_services(@channel)
       configure_connector(@channel, @credentials)
       process_agent_assignments(params[:agent_assignments].to_unsafe_h) if params[:agent_assignments].present?
       redirect_to channels_path, notice: "#{@channel.name} channel created"
@@ -73,6 +74,7 @@ class ChannelsController < ApplicationController
 
     if @channel.update(channel_params)
       store_credentials(@credentials) if @credentials.present?
+      start_channel_services(@channel)
       configure_connector(@channel, @credentials)
       process_agent_assignments(params[:agent_assignments].to_unsafe_h) if params[:agent_assignments].present?
       redirect_to channels_path, notice: "#{@channel.name} updated"
@@ -111,6 +113,13 @@ class ChannelsController < ApplicationController
       permitted[:routing_rules] = rules
     end
     permitted
+  end
+
+  def start_channel_services(channel)
+    result = Channels::ComposeProfiles.ensure_running(channel)
+    Rails.logger.warn("[Channels] Could not start services for #{channel.channel_type}: #{result.error}") if result&.failure?
+  rescue StandardError => e
+    Rails.logger.warn("[Channels] Could not start services for #{channel.channel_type}: #{e.message}")
   end
 
   def configure_connector(channel, creds)

@@ -91,6 +91,26 @@ RSpec.describe TaskPipelineContinuation do
         new_session = Session.last
         expect(new_session.metadata["pipeline"]["current_hook_index"]).to eq(1)
       end
+
+      it "records the task's project on the next hook session" do
+        project = create(:project)
+        task.update!(project: project)
+        hook1 = create(:task_hook, :pre, task: task, skill: skill, on_status: "in_progress")
+        hook2 = create(:task_hook, :pre, task: task, skill: create(:skill), on_status: "in_progress")
+        task.lock_transition!(agent)
+        session = create(:session, agent: agent, metadata: {
+          "type" => "task_hook_pipeline",
+          "pipeline" => {
+            "task_id" => task.id, "new_status" => "in_progress", "triggering_agent_id" => agent.id,
+            "context_json" => "{}", "phase" => "pre", "hook_ids" => [ hook1.id, hook2.id ],
+            "current_hook_index" => 0
+          }
+        })
+
+        harness.continue_task_pipeline_if_needed(session)
+
+        expect(Session.last.project).to eq(project)
+      end
     end
 
     context "post-phase completion" do

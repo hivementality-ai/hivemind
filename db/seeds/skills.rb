@@ -413,6 +413,37 @@ skills = [
       - Use "executive_summary" format for decision-makers
       - You can cancel active research with `deep_research_status` action: cancel
     CONTENT
+  },
+  {
+    name: "connector-builder",
+    description: "Connect Hivemind to any web app with an API (\"connect to my Notion\") by drafting a connector the user approves.",
+    category: "integrations",
+    content: <<~CONTENT
+      # Connector Builder
+
+      Use this when the user asks to connect an app. You draft the connector; the user stores the key and approves it. You never see or write a secret.
+
+      ## Steps
+      1. Check the MCP catalog first. If the app has an official MCP server, offer that instead.
+      2. Find the app's API docs or OpenAPI spec with `web_search` and `web_fetch`. Read how it authenticates and what the base URL is.
+      3. Pick 3 to 6 operations the user is likely to want. Start with read-only ones (list, get, search). Add a write operation only if the user asked for it, and mark it `read_only: false`.
+      4. Call `create_connector` with name, slug, base_url, auth_scheme, auth_config and operations. Each operation needs name, description, method, path, params (JSON schema object) and read_only. Every `{placeholder}` in a path must appear in params.
+      5. Secrets go in `auth_config` as vault references only, like `vault:notion/api_token`. Never paste a key, token, or password. If the user pasted one in chat, do not repeat it; tell them to store it in the vault instead.
+      6. The connector is saved disabled. Tell the user which vault entry to fill (namespace and key) and ask them to approve it.
+      7. After approval, call one read-only operation (`connector__<slug>__<operation>`) to prove it works. Report the result. If it fails, say why and if the error says the connector may be out of date, re-read the API docs and call `propose_connector_fix` with the corrected operations; do not retry with guesses.
+
+      ## Auth schemes
+      - `bearer`: auth_config `{ "secret": "vault:ns/key" }`
+      - `api_key_header`: `{ "header_name": "X-Api-Key", "secret": "vault:ns/key" }`
+      - `api_key_query`: `{ "param_name": "key", "secret": "vault:ns/key" }`
+      - `basic`: `{ "username": "vault:ns/user", "password": "vault:ns/pass" }`
+      - `none`: `{}`
+
+      ## Rules
+      - Base URL must be https (http only for localhost or the local network) with no query string.
+      - Slugs and operation names are lowercase snake_case.
+      - Keep descriptions short and plain so other agents can pick the right operation.
+    CONTENT
   }
 ]
 
@@ -427,7 +458,8 @@ SKILL_TOOL_MAP = {
   "docker" => [ "shell" ],
   "git" => [ "shell", "file_read", "file_write", "file_edit" ],
   "ticket-planning" => [ "ask_user", "file_read", "web_fetch" ],
-  "deep_research" => [ "deep_research", "deep_research_status", "web_search", "web_fetch" ]
+  "deep_research" => [ "deep_research", "deep_research_status", "web_search", "web_fetch" ],
+  "connector-builder" => [ "create_connector", "propose_connector_fix", "web_search", "web_fetch" ]
 }.freeze
 
 SKILL_TIER_METADATA = {
@@ -440,7 +472,8 @@ SKILL_TIER_METADATA = {
   "google-workspace" => { tier: "contextual", tags: %w[google gmail calendar drive docs sheets slides], trigger_patterns: ["gmail", "google.*calendar", "google.*drive", "send.*email", "calendar.*event", "google.*doc"] },
   "summarize"        => { tier: "contextual", tags: %w[summarize summary pdf document article read extract], trigger_patterns: ["summarize", "summary", "tldr", "read.*pdf", "extract.*from", "recap"] },
   "ticket-planning"  => { tier: "contextual", tags: %w[ticket task planning breakdown sprint roadmap estimate], trigger_patterns: ["break.*down", "plan.*task", "create.*ticket", "sprint.*planning", "estimate", "user story"] },
-  "deep_research"    => { tier: "contextual", tags: %w[research investigate deep-dive analysis report findings], trigger_patterns: ["research", "investigate", "deep.*dive", "find.*information", "look.*into", "analyze.*topic"] }
+  "deep_research"    => { tier: "contextual", tags: %w[research investigate deep-dive analysis report findings], trigger_patterns: ["research", "investigate", "deep.*dive", "find.*information", "look.*into", "analyze.*topic"] },
+  "connector-builder" => { tier: "contextual", tags: %w[connect connector api integration key], trigger_patterns: ["connect.*(to|my)", "set.*up.*integration", "hook.*up", "add.*connector", "integrate.*with"] }
 }.freeze
 
 skills.each do |attrs|

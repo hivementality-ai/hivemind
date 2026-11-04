@@ -91,6 +91,20 @@
         </div>
         <p class="text-text-muted text-xs"><%= @agent.role %> · <%= @agent.llm_model %> · <%= @agent.model_provider %></p>
       </div>
+      <div data-controller="brain-picker"
+           data-brain-picker-models-url-value="<%= api_v1_providers_models_path %>"
+           data-brain-picker-save-url-value="<%= brain_session_path(@session) %>"
+           data-brain-picker-providers-value="<%= ProviderConfig.enabled_providers.order(:name).map { |p| { id: p.id, name: p.name } }.to_json %>"
+           data-brain-picker-provider-value="<%= @session.provider_config_id %>"
+           data-brain-picker-model-value="<%= @session.llm_model %>"
+           data-brain-picker-csrf-value="<%= form_authenticity_token %>">
+        <select data-brain-picker-target="select"
+                data-action="change->brain-picker#save"
+                title="Model for this chat"
+                class="bg-surface-raised border border-border-default rounded text-text-muted text-xs px-2 py-1 max-w-48 focus:outline-none focus:ring-1 focus:ring-brand">
+          <option value="">Agent default</option>
+        </select>
+      </div>
       <div class="ml-auto flex items-center gap-4">
         <%= link_to timeline_session_path(@session), class: "flex items-center gap-1 text-text-muted hover:text-white text-xs transition px-2 py-1 border border-border-default rounded hover:border-brand", title: "Session timeline" do %>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

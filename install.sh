@@ -544,6 +544,40 @@ setup_memory_embeddings() {
 }
 
 # ----------------------------------------------------------
+# Remote access — just asks the question and records the answer.
+# All real setup (verification, Cloudflare API calls, health checks) lives
+# in the Remote Access wizard in the web UI, not here. This just records
+# intent so print_success can point the admin at the right place.
+# ----------------------------------------------------------
+setup_remote_access_prompt() {
+  echo ""
+  echo -e "${BOLD}${CYAN}🌐 Remote Access${NC}"
+  echo -e "  Give your desktop app a public URL to reach this instance from anywhere."
+  echo ""
+  echo -e "  ${BOLD}1)${NC} I already have a tunnel (paste + verify a URL)"
+  echo -e "  ${BOLD}2)${NC} Guide me through a free Cloudflare Tunnel"
+  echo -e "  ${BOLD}3)${NC} Later"
+  echo ""
+
+  local choice="3"
+  if [ -t 0 ] || [ -e /dev/tty ]; then
+    read -rp "$(echo -e "${CYAN}▸${NC}") Choice [1/2/3, default 3]: " choice < /dev/tty 2>/dev/null || choice="3"
+  else
+    info "Non-interactive install — deferring remote access setup"
+  fi
+  choice="${choice:-3}"
+
+  case "$choice" in
+    1) REMOTE_ACCESS_CHOICE="byo" ;;
+    2) REMOTE_ACCESS_CHOICE="cloudflare" ;;
+    *) REMOTE_ACCESS_CHOICE="later" ;;
+  esac
+
+  echo "REMOTE_ACCESS_SETUP_CHOICE=$REMOTE_ACCESS_CHOICE" >> "$HIVEMIND_DIR/.env"
+  ok "Recorded remote access choice: $REMOTE_ACCESS_CHOICE (finish setup in the wizard)"
+}
+
+# ----------------------------------------------------------
 # Build and start
 # ----------------------------------------------------------
 build_and_start() {
@@ -643,6 +677,16 @@ print_success() {
   echo ""
   echo -e "  ${CYAN}Next: Create your account and add your first agent in Mission Control.${NC}"
   echo -e "  ${CYAN}Add API keys and integrations under Settings → Integrations.${NC}"
+
+  local wizard_url="http://localhost:8080/remote_access"
+  if [ -n "$ip" ]; then
+    wizard_url="http://${ip}:8080/remote_access"
+  fi
+  case "${REMOTE_ACCESS_CHOICE:-later}" in
+    byo)        echo -e "  ${CYAN}Remote access: finish verifying your tunnel URL at ${wizard_url}${NC}" ;;
+    cloudflare) echo -e "  ${CYAN}Remote access: finish the guided Cloudflare setup at ${wizard_url}${NC}" ;;
+    *)          echo -e "  ${CYAN}Remote access (optional): set it up anytime at ${wizard_url}${NC}" ;;
+  esac
   echo ""
   echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   echo -e "${YELLOW}⚠  Heads up!${NC}"
@@ -671,6 +715,7 @@ main() {
   setup_env
   setup_shared_workspace
   setup_memory_embeddings
+  setup_remote_access_prompt
   install_cli
   build_and_start
   print_success

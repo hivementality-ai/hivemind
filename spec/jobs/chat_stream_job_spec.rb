@@ -30,6 +30,101 @@ RSpec.describe ChatStreamJob, type: :job do
     allow(Channels::OriginDelivery).to receive(:call)
   end
 
+  describe "per-session turn lock" do
+    let(:lock_key) { "#{described_class::LOCK_KEY_PREFIX}#{session.id}" }
+
+    before { Redis.current.del(lock_key) }
+
+    after { Redis.current.del(lock_key) }
+
+    it "does not run a second turn while one holds the lock, and requeues it" do
+      runs = []
+      allow_any_instance_of(described_class).to receive(:run_turn) do |_job, *args|
+        runs << args
+        described_class.new.perform(session.id, "second")
+      end
+
+      expect { described_class.new.perform(session.id, "first") }
+        .to have_enqueued_job(described_class).with(session.id, "second", [])
+
+      expect(runs.map(&:second)).to eq([ "first" ])
+    end
+
+    it "requeues a busy turn on the queue the job ran on" do
+      Redis.current.set(lock_key, "other", ex: 60)
+      job = described_class.new
+      job.queue_name = "interactive"
+
+      expect { job.perform(session.id, "second") }
+        .to have_enqueued_job(described_class).on_queue("interactive")
+    end
+
+    context "with the heartbeat" do
+      let(:flag_key) { "#{described_class::PROCESSING_KEY_PREFIX}#{session.id}" }
+
+      before do
+        stub_const("ChatStreamJob::HEARTBEAT_INTERVAL", 0.05)
+        Redis.current.del(flag_key)
+      end
+
+      after { Redis.current.del(flag_key) }
+
+      it "renews the lock and processing flag while a slow turn runs" do
+        ttls = []
+        allow_any_instance_of(described_class).to receive(:run_turn) do
+          Redis.current.setex(flag_key, 30, "1")
+          Redis.current.expire(lock_key, 1)
+          sleep 0.3
+          ttls << Redis.current.ttl(lock_key) << Redis.current.ttl(flag_key)
+        end
+
+        described_class.new.perform(session.id, "slow")
+
+        expect(ttls.first).to be > 1
+        expect(ttls.last).to be > 30
+      end
+
+      it "stops the heartbeat as soon as the turn ends instead of waiting out the interval" do
+        stub_const("ChatStreamJob::HEARTBEAT_INTERVAL", 5)
+        allow_any_instance_of(described_class).to receive(:run_turn)
+
+        started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        described_class.new.perform(session.id, "quick")
+
+        expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 1
+      end
+
+      it "stops renewing once the lock holds a different token" do
+        ttl = nil
+        allow_any_instance_of(described_class).to receive(:run_turn) do
+          Redis.current.set(lock_key, "someone-else", ex: 1)
+          sleep 0.3
+          ttl = Redis.current.ttl(lock_key)
+        end
+
+        described_class.new.perform(session.id, "slow")
+
+        expect(ttl).to be <= 1
+      end
+    end
+
+    it "releases the lock after a turn so the next one runs" do
+      allow_any_instance_of(described_class).to receive(:run_turn)
+
+      described_class.new.perform(session.id, "first")
+
+      expect(Redis.current.get(lock_key)).to be_nil
+    end
+
+    it "does not release a lock held by another turn" do
+      allow_any_instance_of(described_class).to receive(:run_turn) { Redis.current.set(lock_key, "someone-else") }
+
+      described_class.new.perform(session.id, "first")
+
+      expect(Redis.current.get(lock_key)).to eq("someone-else")
+    end
+  end
+
   describe "#perform" do
     context "hashtag bypass" do
       let(:hashtag_bypass) do
@@ -89,6 +184,67 @@ RSpec.describe ChatStreamJob, type: :job do
       end
     end
 
+    context "with a session brain override" do
+      let(:override_config) { create(:provider_config, :openai) }
+
+      before do
+        session.update!(provider_config: override_config, llm_model: "gpt-session")
+        allow(adapter).to receive(:chat).and_return(double(success?: true, data: { content: "Hi", usage: {} }))
+      end
+
+      it "resolves the override provider and sends the override model" do
+        described_class.perform_now(session.id, "Hello")
+
+        expect(Providers::Resolver).to have_received(:call)
+          .with(hash_including(provider_name: "openai", provider_config: override_config))
+        expect(adapter).to have_received(:chat)
+          .with(hash_including(options: hash_including(model: "gpt-session")))
+      end
+    end
+
+    context "when the user redirects a running turn" do
+      it "re-enqueues the redirect message on the interactive queue" do
+        allow(adapter).to receive(:chat).and_raise(AgentRedirected.new("do this instead"))
+
+        expect { described_class.perform_now(session.id, "Hello") }
+          .to have_enqueued_job(described_class).with(session.id, "do this instead", []).on_queue("interactive")
+      end
+    end
+
+    context "stop and redirect signal polling while streaming" do
+      let(:clock) { [ 100.0 ] }
+
+      before do
+        allow(Process).to receive(:clock_gettime).and_call_original
+        allow(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC) { clock.first }
+        allow(SessionSignal).to receive(:check).and_return(nil)
+      end
+
+      it "reads Redis a bounded number of times for a burst of tokens" do
+        allow(adapter).to receive(:chat) do |**_opts, &block|
+          50.times { block.call(type: "content", content: "x") }
+          double(success?: true, data: { content: "x", usage: { input_tokens: 1, output_tokens: 1 } })
+        end
+
+        described_class.perform_now(session.id, "Hello")
+
+        expect(SessionSignal).to have_received(:check).once
+      end
+
+      it "reads again once the interval has elapsed and honors a stop" do
+        allow(SessionSignal).to receive(:check).and_return(nil, { type: "cancel" })
+        allow(adapter).to receive(:chat) do |**_opts, &block|
+          block.call(type: "content", content: "a")
+          clock[0] += described_class::SIGNAL_CHECK_INTERVAL + 0.01
+          block.call(type: "content", content: "b")
+          raise "stream was not interrupted"
+        end
+
+        expect { described_class.perform_now(session.id, "Hello") }.not_to raise_error
+        expect(SessionSignal).to have_received(:check).twice
+      end
+    end
+
     context "done broadcast always includes content for UI fallback" do
       it "includes full content in done broadcast after streaming" do
         allow(adapter).to receive(:chat) do |**_opts, &block|
@@ -130,6 +286,91 @@ RSpec.describe ChatStreamJob, type: :job do
       it "calls ToolLoop when tools are available" do
         described_class.perform_now(session.id, "Hello")
         expect(Agents::ToolLoop).to have_received(:call)
+      end
+    end
+
+    context "when the sdk-proxy path fails" do
+      let(:tool) { create(:tool, enabled: true, builtin: true) }
+      let(:adapter) { double("AnthropicAdapter", oauth_token?: true) }
+      let(:local_adapter) { double("OpenaiCompatibleAdapter") }
+      let(:local_config) { create(:provider_config, adapter_type: "openai_compatible", model_definitions: [ { "name" => "qwen" } ]) }
+      let(:failure) { ServiceResponse.failure(error: "SDK proxy error (503): overloaded") }
+      let(:loop_result) { double(success?: true, data: { content: "Local answer", thinking: nil, usage: {}, tool_history: [] }) }
+
+      before do
+        allow(adapter).to receive(:is_a?).and_return(false)
+        allow(adapter).to receive(:is_a?).with(Providers::AnthropicAdapter).and_return(true)
+        allow(Providers::AnthropicAdapter).to receive(:sdk_proxy_enabled?).and_return(true)
+        allow(Tool).to receive_message_chain(:enabled, :builtin, :to_a).and_return([ tool ])
+        allow(Providers::Resolver).to receive(:call)
+          .with(hash_including(provider_config: local_config))
+          .and_return(double(success?: true, data: { adapter: local_adapter }))
+        allow(Agents::ToolLoop).to receive(:call).and_return(loop_result)
+        allow(adapter).to receive(:chat).and_return(failure)
+      end
+
+      context "with a default fallback configured" do
+        before { Setting.set(Providers::DefaultFallback::SETTING_KEY, [ { provider_config_id: local_config.id } ].to_json) }
+
+        it "runs ToolLoop with the real tools on the fallback provider and says so" do
+          described_class.perform_now(session.id, "Hello")
+
+          expect(Agents::ToolLoop).to have_received(:call) do |**kwargs|
+            expect(kwargs[:tools]).to include(tool)
+            expect(kwargs[:adapter]).to eq(local_adapter)
+            expect(kwargs[:options]).to include(model: "qwen")
+            expect(kwargs[:options]).not_to include(:tool_definitions)
+          end
+          expect(ActionCable.server).to have_received(:broadcast)
+            .with(channel, hash_including(type: "token", content: /backup brain answered/))
+          expect(session.reload.transcript.last["content"]).to eq("#{described_class::FALLBACK_NOTICE}\n\nLocal answer")
+        end
+
+        it "does not fall back once content has streamed" do
+          allow(adapter).to receive(:chat) do |**_opts, &block|
+            block.call(type: "content", content: "Half an ans")
+            failure
+          end
+
+          described_class.perform_now(session.id, "Hello")
+
+          expect(Agents::ToolLoop).not_to have_received(:call)
+        end
+
+        it "does not fall back once a tool has run" do
+          allow(adapter).to receive(:chat) do |**_opts, &block|
+            block.call(type: "tool_start", tool: "x", input: {})
+            failure
+          end
+
+          described_class.perform_now(session.id, "Hello")
+
+          expect(Agents::ToolLoop).not_to have_received(:call)
+        end
+
+        it "does not fall back when the turn never used the sdk-proxy tool path" do
+          allow(Tool).to receive_message_chain(:enabled, :builtin, :to_a).and_return([])
+
+          described_class.perform_now(session.id, "Hello")
+
+          expect(Agents::ToolLoop).not_to have_received(:call)
+        end
+
+        it "does not fall back on a non-transient error" do
+          allow(adapter).to receive(:chat).and_return(ServiceResponse.failure(error: "bad request shape"))
+
+          described_class.perform_now(session.id, "Hello")
+
+          expect(Agents::ToolLoop).not_to have_received(:call)
+        end
+      end
+
+      it "keeps the current error behavior with no fallback configured" do
+        described_class.perform_now(session.id, "Hello")
+
+        expect(Agents::ToolLoop).not_to have_received(:call)
+        expect(ActionCable.server).to have_received(:broadcast)
+          .with(channel, hash_including(type: "error", content: /LLM error/))
       end
     end
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_04_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -69,6 +69,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
     t.index ["agent_id", "channel_id"], name: "index_agent_channels_on_agent_id_and_channel_id", unique: true
     t.index ["agent_id"], name: "index_agent_channels_on_agent_id"
     t.index ["channel_id"], name: "index_agent_channels_on_channel_id"
+  end
+
+  create_table "agent_connector_exclusions", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.bigint "connector_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id", "connector_id"], name: "index_agent_connector_exclusions_on_agent_id_and_connector_id", unique: true
+    t.index ["agent_id"], name: "index_agent_connector_exclusions_on_agent_id"
+    t.index ["connector_id"], name: "index_agent_connector_exclusions_on_connector_id"
   end
 
   create_table "agent_mcp_servers", force: :cascade do |t|
@@ -137,6 +147,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
     t.string "model_provider", default: "openai"
     t.decimal "monthly_budget_limit", precision: 10, scale: 4, default: "100.0"
     t.string "name"
+    t.bigint "provider_config_id"
     t.bigint "reports_to_id"
     t.string "role"
     t.citext "slug", null: false
@@ -154,6 +165,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
     t.string "workspace_path"
     t.index ["enabled"], name: "index_agents_on_enabled"
     t.index ["name"], name: "index_agents_on_name", unique: true
+    t.index ["provider_config_id"], name: "index_agents_on_provider_config_id"
     t.index ["reports_to_id"], name: "index_agents_on_reports_to_id"
     t.index ["slug"], name: "index_agents_on_slug", unique: true
     t.index ["status"], name: "index_agents_on_status"
@@ -281,6 +293,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
     t.index ["task_key"], name: "index_coding_agent_tasks_on_task_key", unique: true
   end
 
+  create_table "connectors", force: :cascade do |t|
+    t.jsonb "auth_config", default: {}, null: false
+    t.string "auth_scheme", default: "none", null: false
+    t.string "base_url", null: false
+    t.datetime "created_at", null: false
+    t.bigint "created_by_id"
+    t.string "created_by_type"
+    t.text "description"
+    t.boolean "enabled", default: true, null: false
+    t.jsonb "health", default: {}, null: false
+    t.string "name", null: false
+    t.jsonb "operations", default: [], null: false
+    t.boolean "pending_approval", default: false, null: false
+    t.string "slug", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_type", "created_by_id"], name: "index_connectors_on_created_by_type_and_created_by_id"
+    t.index ["enabled"], name: "index_connectors_on_enabled"
+    t.index ["slug"], name: "index_connectors_on_slug", unique: true
+  end
+
   create_table "delivery_queue_entries", force: :cascade do |t|
     t.bigint "agent_id"
     t.integer "attempts", default: 0, null: false
@@ -300,6 +332,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
     t.index ["channel_id"], name: "index_delivery_queue_entries_on_channel_id"
     t.index ["session_id"], name: "index_delivery_queue_entries_on_session_id"
     t.index ["status", "next_attempt_at"], name: "index_delivery_queue_entries_on_status_and_next_attempt_at"
+  end
+
+  create_table "desktop_pairing_codes", force: :cascade do |t|
+    t.string "code", null: false
+    t.string "code_challenge", null: false
+    t.datetime "created_at", null: false
+    t.string "device_name", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "used_at"
+    t.bigint "user_id", null: false
+    t.index ["code"], name: "index_desktop_pairing_codes_on_code", unique: true
+    t.index ["user_id"], name: "index_desktop_pairing_codes_on_user_id"
   end
 
   create_table "embedding_migration_statuses", force: :cascade do |t|
@@ -430,6 +475,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
     t.index ["memory_type"], name: "index_memory_entries_on_memory_type"
     t.index ["shadow_embedding"], name: "index_memory_entries_on_shadow_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["source_type", "source_id"], name: "index_memory_entries_on_source_type_and_source_id"
+    t.check_constraint "category::text = ANY (ARRAY['user_preference'::character varying, 'project_context'::character varying, 'decision'::character varying, 'learned_behavior'::character varying, 'factual'::character varying, 'general'::character varying]::text[])", name: "memory_entries_category_check"
+    t.check_constraint "status::text = ANY (ARRAY['active'::character varying, 'archived'::character varying, 'superseded'::character varying]::text[])", name: "memory_entries_status_check"
   end
 
   create_table "outbound_messages", force: :cascade do |t|
@@ -503,9 +550,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
     t.datetime "deadline"
     t.text "description"
     t.bigint "lead_agent_id"
+    t.string "llm_model"
     t.jsonb "metadata", default: {}, null: false
     t.jsonb "notification_prefs", default: {}, null: false
     t.string "priority", default: "normal", null: false
+    t.bigint "provider_config_id"
     t.datetime "started_at"
     t.string "status", default: "planning", null: false
     t.bigint "team_id", null: false
@@ -513,6 +562,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["lead_agent_id"], name: "index_projects_on_lead_agent_id"
+    t.index ["provider_config_id"], name: "index_projects_on_provider_config_id"
     t.index ["status"], name: "index_projects_on_status"
     t.index ["team_id", "status"], name: "index_projects_on_team_id_and_status"
     t.index ["team_id"], name: "index_projects_on_team_id"
@@ -596,11 +646,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
     t.tsvector "fts_vector"
     t.bigint "input_tokens"
     t.datetime "last_activity_at"
+    t.string "llm_model"
     t.jsonb "metadata"
     t.bigint "origin_channel_id"
     t.string "origin_channel_type"
     t.string "origin_sender"
     t.bigint "output_tokens"
+    t.bigint "project_id"
+    t.bigint "provider_config_id"
     t.string "session_key"
     t.integer "status"
     t.integer "summary_through_index", default: 0
@@ -615,6 +668,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
     t.index ["last_activity_at"], name: "index_sessions_on_last_activity_at"
     t.index ["origin_channel_type", "origin_sender"], name: "index_sessions_on_origin_channel_type_and_origin_sender"
     t.index ["origin_channel_type"], name: "index_sessions_on_origin_channel_type"
+    t.index ["project_id"], name: "index_sessions_on_project_id"
+    t.index ["provider_config_id"], name: "index_sessions_on_provider_config_id"
     t.index ["session_key"], name: "index_sessions_on_session_key", unique: true
     t.index ["team_chat_session_id"], name: "index_sessions_on_team_chat_session_id"
   end
@@ -735,6 +790,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
     t.bigint "child_session_id"
     t.datetime "completed_at"
     t.datetime "created_at", null: false
+    t.integer "depth", default: 1, null: false
     t.bigint "parent_agent_id", null: false
     t.bigint "parent_session_id"
     t.text "result"
@@ -881,24 +937,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
     t.index ["user_id"], name: "index_team_chat_sessions_on_user_id"
   end
 
-  create_table "team_messages", force: :cascade do |t|
-    t.datetime "completed_at"
-    t.text "content"
-    t.datetime "created_at", null: false
-    t.bigint "from_agent_id", null: false
-    t.string "message_type"
-    t.jsonb "metadata"
-    t.string "status", default: "pending"
-    t.bigint "team_id", null: false
-    t.bigint "to_agent_id"
-    t.datetime "updated_at", null: false
-    t.index ["from_agent_id"], name: "index_team_messages_on_from_agent_id"
-    t.index ["status"], name: "index_team_messages_on_status"
-    t.index ["team_id", "created_at"], name: "index_team_messages_on_team_id_and_created_at"
-    t.index ["team_id"], name: "index_team_messages_on_team_id"
-    t.index ["to_agent_id"], name: "index_team_messages_on_to_agent_id"
-  end
-
   create_table "teams", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "custom_soul"
@@ -981,7 +1019,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
     t.datetime "created_at", null: false
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false
-    t.jsonb "notification_preferences", default: {"budget_alerts" => true, "agent_responses" => true, "task_completions" => true, "heartbeat_findings" => false}, null: false
+    t.jsonb "notification_preferences", default: {"errors" => true, "needs_input" => true, "budget_alerts" => true, "agent_responses" => true, "task_completions" => true, "heartbeat_findings" => false}, null: false
     t.datetime "remember_created_at"
     t.datetime "reset_password_sent_at"
     t.string "reset_password_token"
@@ -1028,6 +1066,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
   add_foreign_key "agent_budgets", "agents"
   add_foreign_key "agent_channels", "agents"
   add_foreign_key "agent_channels", "channels"
+  add_foreign_key "agent_connector_exclusions", "agents"
+  add_foreign_key "agent_connector_exclusions", "connectors"
   add_foreign_key "agent_mcp_servers", "agents"
   add_foreign_key "agent_mcp_servers", "mcp_servers"
   add_foreign_key "agent_skills", "agents"
@@ -1035,6 +1075,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
   add_foreign_key "agent_tools", "agents"
   add_foreign_key "agent_tools", "tools"
   add_foreign_key "agents", "agents", column: "reports_to_id", on_delete: :nullify
+  add_foreign_key "agents", "provider_configs", on_delete: :nullify
   add_foreign_key "agents", "teams"
   add_foreign_key "api_integrations", "users"
   add_foreign_key "api_tokens", "users"
@@ -1047,6 +1088,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
   add_foreign_key "delivery_queue_entries", "agents"
   add_foreign_key "delivery_queue_entries", "channels"
   add_foreign_key "delivery_queue_entries", "sessions"
+  add_foreign_key "desktop_pairing_codes", "users"
   add_foreign_key "heartbeat_runs", "agents"
   add_foreign_key "heartbeat_runs", "sessions"
   add_foreign_key "inbound_messages", "channels"
@@ -1064,6 +1106,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
   add_foreign_key "project_milestones", "projects"
   add_foreign_key "project_milestones", "sessions"
   add_foreign_key "projects", "agents", column: "lead_agent_id"
+  add_foreign_key "projects", "provider_configs", on_delete: :nullify
   add_foreign_key "projects", "teams"
   add_foreign_key "projects", "users"
   add_foreign_key "push_subscriptions", "users"
@@ -1071,6 +1114,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
   add_foreign_key "research_sessions", "sessions"
   add_foreign_key "scheduled_tasks", "agents"
   add_foreign_key "sessions", "agents"
+  add_foreign_key "sessions", "projects", on_delete: :nullify
+  add_foreign_key "sessions", "provider_configs", on_delete: :nullify
   add_foreign_key "sessions", "team_chat_sessions"
   add_foreign_key "skill_load_events", "agents"
   add_foreign_key "skill_load_events", "sessions"
@@ -1105,9 +1150,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_030001) do
   add_foreign_key "team_chat_messages", "team_chat_sessions"
   add_foreign_key "team_chat_sessions", "teams"
   add_foreign_key "team_chat_sessions", "users"
-  add_foreign_key "team_messages", "agents", column: "from_agent_id"
-  add_foreign_key "team_messages", "agents", column: "to_agent_id"
-  add_foreign_key "team_messages", "teams"
   add_foreign_key "tool_executions", "agents"
   add_foreign_key "tool_executions", "sessions"
   add_foreign_key "tool_executions", "tools"
