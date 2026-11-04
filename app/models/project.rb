@@ -4,6 +4,7 @@ class Project < ApplicationRecord
   belongs_to :team
   belongs_to :user
   belongs_to :lead_agent, class_name: "Agent", optional: true
+  belongs_to :provider_config, optional: true
   has_many :milestones, class_name: "ProjectMilestone", dependent: :destroy
   has_many :tasks, dependent: :nullify
   has_many :events, class_name: "ProjectEvent", dependent: :destroy

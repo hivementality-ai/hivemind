@@ -49,6 +49,9 @@ module Tools
         })
       end
 
+      # Notify the user the agent is blocked waiting on their answer
+      WebPush::NotificationTriggers.needs_input(session: session, questions: questions)
+
       # Wait for user response with timeout
       timeout_at = Time.current + DEFAULT_TIMEOUT
       response = nil

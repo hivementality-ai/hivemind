@@ -1,9 +1,10 @@
 import { Controller } from "@hotwired/stimulus"
 import { createConsumer } from "@rails/actioncable"
 import { marked } from "marked"
+import DOMPurify from "dompurify"
 
 export default class extends Controller {
-  static targets = ["messages", "input", "sendBtn", "stopBtn", "thinkingArea", "emptyState", "mentionBar", "toolToggle", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown", "titleText", "titleInput"]
+  static targets = ["messages", "input", "sendBtn", "stopBtn", "thinkingArea", "emptyState", "mentionBar", "toolToggle", "fileInput", "imagePreview", "imageThumbs", "attachPreview", "attachList", "hashtagDropdown", "titleText", "titleInput", "workingChip", "workingChipText"]
   static values = { sessionId: Number, messageUrl: String, updateUrl: String, interruptUrl: String, csrf: String, agents: Array }
 
   connect() {
@@ -27,6 +28,10 @@ export default class extends Controller {
     this.agentsValue.forEach((agent, i) => {
       this.agentColors[agent.id] = colors[i % colors.length]
     })
+
+    this.workingAgents = new Map() // agent_id -> current task, for agents mid-turn
+    this.agentsValue.filter((agent) => agent.working).forEach((agent) => this.workingAgents.set(agent.id, agent.task))
+    this.renderWorkingStatus()
 
     this.subscription = this.consumer.subscriptions.create(
       { channel: "TeamChatChannel", team_chat_session_id: this.sessionIdValue },
@@ -158,8 +163,38 @@ export default class extends Controller {
     }
   }
 
+  setAgentWorking(agentId, working, task) {
+    if (working) this.workingAgents.set(agentId, task)
+    else this.workingAgents.delete(agentId)
+    this.renderWorkingStatus()
+  }
+
+  // Paints the header dots, sidebar dots and the single working chip.
+  renderWorkingStatus() {
+    this.agentsValue.forEach((agent) => {
+      const working = this.workingAgents.has(agent.id)
+      const dotClass = working ? "bg-yellow-400 animate-pulse" : "bg-surface-overlay"
+      const dots = this.element.querySelectorAll(`[data-header-status-dot="${agent.id}"], [data-sidebar-status-dot="${agent.id}"]`)
+      dots.forEach((dot) => {
+        dot.classList.remove("bg-yellow-400", "animate-pulse", "bg-surface-overlay")
+        dot.classList.add(...dotClass.split(" "))
+      })
+      const label = this.element.querySelector(`[data-sidebar-status-label="${agent.id}"]`)
+      if (label) label.textContent = working ? (this.workingAgents.get(agent.id) || "Working…") : label.dataset.role
+    })
+
+    if (!this.hasWorkingChipTarget) return
+    const names = this.agentsValue.filter((agent) => this.workingAgents.has(agent.id)).map((agent) => agent.name)
+    this.workingChipTarget.classList.toggle("hidden", names.length === 0)
+    this.workingChipTarget.classList.toggle("flex", names.length > 0)
+    this.workingChipTextTarget.textContent = names.length === 1 ? `${names[0]} is working…` : `${names.join(", ")} are working…`
+  }
+
   handleMessage(data) {
     switch (data.type) {
+      case "agent_status":
+        this.setAgentWorking(data.agent_id, data.status === "thinking" || data.status === "executing", data.current_task)
+        break
       case "user_message":
         this.appendUserMessage(data.content, data.target_agent_name, data.images, data.files)
         break
@@ -912,11 +947,7 @@ export default class extends Controller {
   }
 
   renderMarkdown(text) {
-    const raw = marked.parse(text)
-    return raw
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-      .replace(/\son\w+\s*=/gi, " data-blocked=")
-      .trim()
+    return DOMPurify.sanitize(marked.parse(text)).trim()
   }
 
   // ─── Inline Title Edit ─────────────────────────────────

@@ -39,9 +39,69 @@ meta_tools = [
         "description" => { "type" => "string", "description" => "What the tool does" },
         "script_template" => { "type" => "string", "description" => "Bash script with {{param}} placeholders" },
         "parameters" => { "type" => "object", "description" => "Parameter definitions: { name: { type, description, required } }" },
+        "secrets" => {
+          "type" => "object",
+          "description" => "Secrets the script needs: { ENV_NAME: \"vault:namespace/key\" }. Pass vault references only, never the secret. The script reads $ENV_NAME."
+        },
         "share_with_team" => { "type" => "boolean", "description" => "Share with teammates (default: false)" }
       },
       "required" => %w[name description script_template]
+    }
+  },
+  {
+    name: "create_connector",
+    description: "Draft a connector for an HTTP API: base URL, auth scheme and a few operations. It is saved " \
+                 "disabled; the user stores the key in the vault and approves it before it can run. " \
+                 "Pass vault references only, never a secret.",
+    executor_type: "create_connector",
+    builtin: true,
+    enabled: true,
+    parameters_schema: {
+      "properties" => {
+        "name" => { "type" => "string", "description" => "Display name, e.g. Notion" },
+        "slug" => { "type" => "string", "description" => "Short snake_case id used in tool names, e.g. notion" },
+        "description" => { "type" => "string", "description" => "What the API is for" },
+        "base_url" => { "type" => "string", "description" => "API base URL, https, no query string" },
+        "auth_scheme" => {
+          "type" => "string",
+          "enum" => Connector::AUTH_SCHEMES,
+          "description" => "How the API authenticates"
+        },
+        "auth_config" => {
+          "type" => "object",
+          "description" => "Secret fields as vault references like vault:notion/api_token (bearer: secret; " \
+                           "api_key_header: header_name + secret; api_key_query: param_name + secret; " \
+                           "basic: username + password). Never the secret itself."
+        },
+        "operations" => {
+          "type" => "array",
+          "description" => "3-6 operations, read-only first. Each: name (snake_case), description, method, " \
+                           "path (starts with /, {placeholders} must be in params), params (JSON schema object), read_only (boolean)",
+          "items" => { "type" => "object" }
+        }
+      },
+      "required" => %w[name slug base_url auth_scheme auth_config operations]
+    }
+  },
+  {
+    name: "propose_connector_fix",
+    description: "Propose a corrected definition for a connector whose calls keep failing with 404, 405 or " \
+                 "schema errors. Pass the full corrected operations list. The user sees a before/after diff " \
+                 "and approves it. Auth and secrets cannot be changed.",
+    executor_type: "propose_connector_fix",
+    builtin: true,
+    enabled: true,
+    parameters_schema: {
+      "properties" => {
+        "slug" => { "type" => "string", "description" => "Slug of the connector to fix" },
+        "operations" => {
+          "type" => "array",
+          "description" => "The complete corrected operations list (same shape as create_connector)",
+          "items" => { "type" => "object" }
+        },
+        "base_url" => { "type" => "string", "description" => "Corrected API base URL, only if it changed" }
+      },
+      "required" => %w[slug operations]
     }
   }
 ]

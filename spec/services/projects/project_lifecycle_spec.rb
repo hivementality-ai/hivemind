@@ -261,6 +261,18 @@ RSpec.describe Projects::StallDetector, type: :service do
     expect(ChatStreamJob).to have_received(:perform_later)
   end
 
+  it "records the project on the resumed milestone session" do
+    project = create(:project, :active, team: team, user: user)
+    stale_session = create(:session, agent: agent, last_activity_at: 2.hours.ago)
+    milestone = create(:project_milestone,
+      project: project, agent: agent, status: "in_progress",
+      session: stale_session, started_at: 2.hours.ago)
+
+    described_class.call(project: project)
+
+    expect(milestone.reload.session.project).to eq(project)
+  end
+
   it "does not resume active milestones" do
     project = create(:project, :active, team: team, user: user)
     active_session = create(:session, agent: agent, last_activity_at: 5.minutes.ago)

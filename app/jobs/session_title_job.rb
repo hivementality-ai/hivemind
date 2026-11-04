@@ -107,13 +107,7 @@ class SessionTitleJob < ApplicationJob
     # Last resort: agent's own provider (may be OAuth, but better than nothing)
     resolver = Providers::Resolver.call(provider_name: agent.model_provider, agent: agent)
     if resolver.success?
-      cheap =
-        case agent.model_provider
-        when "anthropic" then LlmModelRegistry::Anthropic::DEFAULT_SUMMARIZER
-        when "openai"    then LlmModelRegistry::OpenAI::DEFAULT_SUMMARIZER
-        else agent.llm_model
-        end
-      return [ resolver.data[:adapter], cheap ]
+      return [ resolver.data[:adapter], BackgroundModel.for(agent) ]
     end
 
     [ nil, nil ]

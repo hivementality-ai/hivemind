@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 import { createConsumer } from "@rails/actioncable"
 import { marked } from "marked"
+import DOMPurify from "dompurify"
 
 marked.setOptions({ breaks: true, gfm: true, silent: true })
 
@@ -102,7 +103,19 @@ export default class extends Controller {
       case "agent_done":
         this.finalizeMessage(data.agent_name)
         break
+      case "notice":
+        this.appendNotice(data.content)
+        break
     }
+  }
+
+  // Renders a server-side note (such as an approval result) as a finished assistant bubble,
+  // leaving any in-flight stream untouched.
+  appendNotice(content) {
+    const wrapper = this.createAssistantBubble()
+    wrapper.querySelector(".message-content").innerHTML = this.renderMarkdown(content || "")
+    this.hideEmptyState()
+    this.scrollToBottom()
   }
 
   appendToken(token) {
@@ -482,19 +495,10 @@ export default class extends Controller {
   renderMarkdown(text) {
     if (!text) return ""
     try {
-      const html = marked.parse(text)
-      return this.sanitize(html)
+      return DOMPurify.sanitize(marked.parse(text)).trim()
     } catch {
       return this.escapeHtml(text).replace(/\n/g, "<br>")
     }
-  }
-
-  sanitize(html) {
-    return html
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-      .replace(/<(iframe|object|embed|form)\b[^>]*>[\s\S]*?<\/\1>/gi, "")
-      .replace(/\son\w+\s*=/gi, " data-blocked=")
-      .trim()
   }
 
   escapeHtml(text) {

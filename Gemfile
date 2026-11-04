@@ -43,11 +43,10 @@ gem "faraday-retry"
 gem "oj"
 
 # Deployment
-gem "kamal", require: false
 gem "thruster", require: false
 
 # ActiveRecord Encryption + pgvector for memory search
-gem "neighbor", "~> 1.1"
+gem "neighbor", "~> 1.2"
 
 # Image processing
 gem "image_processing", "~> 2.0"

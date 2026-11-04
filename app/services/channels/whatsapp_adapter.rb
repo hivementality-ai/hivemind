@@ -54,8 +54,9 @@ module Channels
       # Connector bridge doesn't use signatures (internal network)
       return true unless cloud_api_mode?
 
-      app_secret = channel.config&.dig("app_secret")
-      return true unless app_secret
+      # Gate and HMAC both use the vault secret (channel_webhooks / whatsapp_secret).
+      # Store your Meta app secret there; Meta signs X-Hub-Signature-256 with it.
+      return true unless webhook_secret
 
       signature = request.headers["X-Hub-Signature-256"]&.sub("sha256=", "")
       return false unless signature
@@ -151,6 +152,8 @@ module Channels
       req.body = body.to_json
 
       JSON.parse(http.request(req).body)
+    rescue Errno::ECONNREFUSED
+      raise
     rescue StandardError => e
       { "error" => e.message }
     end

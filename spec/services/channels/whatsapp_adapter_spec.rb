@@ -108,15 +108,11 @@ RSpec.describe Channels::WhatsappAdapter do
       end
 
       it "returns failure when the connector is unreachable" do
-        # Errno::ECONNREFUSED is caught by post_json's StandardError rescue, so the
-        # error surfaces via the else-branch as "Connector error: ..." rather than the
-        # send_via_connector rescue branch ("connector not running").
-        # ponytail: unreachable rescue in send_via_connector — bug noted in PR.
         stub_request(:post, "http://connector:3002/send").to_raise(Errno::ECONNREFUSED)
 
         result = adapter.send_message(to: "15551234567", content: "no connector")
         expect(result).not_to be_success
-        expect(result.error).to match(/Connector error|send failed/)
+        expect(result.error).to include("connector not running at http://connector:3002")
       end
     end
 
@@ -180,18 +176,10 @@ RSpec.describe Channels::WhatsappAdapter do
     end
 
     context "Cloud API mode" do
-      # NOTE: verify_webhook checks channel.config["app_secret"] for *presence*,
-      # but the actual HMAC is computed against webhook_secret from the vault
-      # (namespace "channel_webhooks", key "whatsapp_secret").  These two values
-      # are independent — a bug: app_secret from config is never used in the HMAC.
-      # See PR description for details.
       let(:hmac_secret) { "vault_hmac_secret_value" }
 
       before do
-        channel.update!(config: channel.config.merge(
-          "mode" => "cloud_api",
-          "app_secret" => "presence_only_value"   # triggers verification path
-        ))
+        channel.update!(config: channel.config.merge("mode" => "cloud_api"))
         create(:vault_entry, namespace: "channel_webhooks", key: "whatsapp_secret", value: hmac_secret)
       end
 
@@ -222,10 +210,31 @@ RSpec.describe Channels::WhatsappAdapter do
         expect(adapter.verify_webhook(request)).to be false
       end
 
-      it "trusts requests when app_secret is not set (verification optional)" do
-        channel.update!(config: { "mode" => "cloud_api" })
+      it "returns true when no vault secret is configured (verification optional)" do
+        VaultEntry.where(namespace: "channel_webhooks", key: "whatsapp_secret").destroy_all
         result = adapter.verify_webhook(double("request"))
         expect(result).to be true
+      end
+
+      # Previously broken: gate checked app_secret (config) but HMAC used vault secret.
+      # Now both use the vault secret — test the two previously-broken combinations.
+      it "skips verification when config has app_secret but vault entry is absent" do
+        VaultEntry.where(namespace: "channel_webhooks", key: "whatsapp_secret").destroy_all
+        channel.update!(config: channel.config.merge("app_secret" => "irrelevant"))
+        result = adapter.verify_webhook(double("request"))
+        expect(result).to be true
+      end
+
+      it "verifies signature when vault secret exists even without app_secret in config" do
+        body = '{"object":"whatsapp_business_account"}'
+        sig  = OpenSSL::HMAC.hexdigest("SHA256", hmac_secret, body)
+        request = double("request",
+          headers: { "X-Hub-Signature-256" => "sha256=#{sig}" },
+          raw_post: body
+        )
+        # config has no app_secret — vault secret alone must trigger verification
+        expect(channel.config.key?("app_secret")).to be false
+        expect(adapter.verify_webhook(request)).to be true
       end
     end
   end

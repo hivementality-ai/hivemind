@@ -7,18 +7,20 @@ module Api
       before_action :authenticate_user!
 
       # GET /api/v1/providers/models?provider=ollama
+      # GET /api/v1/providers/models?provider_config_id=3
       def models
-        provider = params[:provider]
+        config = ProviderConfig.find_by(id: params[:provider_config_id]) if params[:provider_config_id].present?
+        provider = config&.adapter_type || params[:provider]
 
         models = case provider
         when "ollama"
-                   fetch_ollama_models
+                   fetch_ollama_models(config)
         when "anthropic"
                    fetch_anthropic_models
         when "openai"
                    fetch_openai_models
         when "openai_compatible"
-                   fetch_openai_compatible_models
+                   fetch_openai_compatible_models(config)
         else
                    []
         end
@@ -28,8 +30,8 @@ module Api
 
       private
 
-      def fetch_ollama_models
-        config = ProviderConfig.find_by(adapter_type: "ollama")
+      def fetch_ollama_models(config = nil)
+        config ||= ProviderConfig.find_by(adapter_type: "ollama")
         return [] unless config
 
         # Return manually configured models from model_definitions
@@ -65,8 +67,8 @@ module Api
         end
       end
 
-      def fetch_openai_compatible_models
-        config = ProviderConfig.find_by(adapter_type: "openai_compatible")
+      def fetch_openai_compatible_models(config = nil)
+        config ||= ProviderConfig.find_by(adapter_type: "openai_compatible")
         return [] unless config
 
         # Return manually configured models from model_definitions

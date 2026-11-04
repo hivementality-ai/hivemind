@@ -101,6 +101,40 @@
     <% end %>
   </div>
 
+  <!-- Backup brain -->
+  <div class="mt-8 bg-surface-card rounded-xl border border-border-default p-6">
+    <h2 class="text-xl font-semibold text-white">Backup brain</h2>
+    <p class="text-text-faint text-sm mt-1 mb-4">If your main brain fails, Hivemind tries these next, in order.</p>
+
+    <% if @chain_error %>
+      <div class="mb-4 bg-red-900/50 border border-red-600 text-red-200 px-4 py-3 rounded-lg text-sm"><%= @chain_error %></div>
+    <% end %>
+
+    <% if @chain_rows.empty? %>
+      <p class="text-text-muted text-sm">Add an enabled provider to choose a backup brain.</p>
+    <% else %>
+      <%= form_with url: fallback_chain_providers_path, method: :patch, data: { controller: "chain-order" } do %>
+        <ol class="space-y-2 mb-4">
+          <% @chain_rows.each do |row| %>
+            <% config = row[:config] %>
+            <li class="flex items-center gap-3 bg-surface-overlay rounded-lg px-3 py-2">
+              <label class="flex items-center gap-2 flex-1 text-white text-sm">
+                <%= check_box_tag "chain_ids[]", config.id, row[:checked], id: "chain_ids_#{config.id}" %>
+                <%= config.name %>
+              </label>
+              <%= select_tag "models[#{config.id}]",
+                             options_for_select([ [ "Default model", "" ] ] + config.model_names.map { |n| [ n, n ] }, row[:model]),
+                             class: "bg-surface-raised text-white text-sm rounded px-2 py-1" %>
+              <button type="button" data-action="chain-order#up" class="px-2 py-1 bg-surface-raised text-white rounded" aria-label="Move up">&uarr;</button>
+              <button type="button" data-action="chain-order#down" class="px-2 py-1 bg-surface-raised text-white rounded" aria-label="Move down">&darr;</button>
+            </li>
+          <% end %>
+        </ol>
+        <%= submit_tag "Save backup brain", class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition" %>
+      <% end %>
+    <% end %>
+  </div>
+
   <!-- Info Box -->
   <div class="mt-8 p-4 bg-brand-glow/30 border border-brand-dark/50 rounded-lg flex items-start gap-3">
     <svg class="w-5 h-5 text-brand-light flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

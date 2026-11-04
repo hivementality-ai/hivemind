@@ -114,6 +114,35 @@ migrate_env() {
   fi
 }
 
+# Persist COMPOSE_PROFILES in .env for the channel services (connector,
+# signal-cli) that installs with channels already rely on. Asks the freshly
+# built app which profiles the enabled channels need and merges them into
+# whatever .env already has. Idempotent; if the app cannot answer, falls back
+# to enabling both so an existing channel user never loses a service.
+persist_channel_profiles() {
+  local env_file="$HIVEMIND_DIR/.env" version="$1" out needed current merged
+  [ -f "$env_file" ] || return 0
+
+  if out="$(HIVEMIND_VERSION="$version" docker compose run --rm -T -e RAILS_ENV=production app bin/rails hivemind:compose_profiles 2>/dev/null)"; then
+    needed="$(printf '%s\n' "$out" | grep -E '^COMPOSE_PROFILES=' | tail -1 | cut -d'=' -f2- | tr -d '\r' || true)"
+  else
+    warn "Could not read channel settings; keeping channel services enabled."
+    needed="channels,signal"
+  fi
+  [ -n "$needed" ] || return 0
+
+  current="$(grep -E '^COMPOSE_PROFILES=' "$env_file" | tail -1 | cut -d'=' -f2- | tr -d '"' || true)"
+  merged="$(printf '%s,%s' "$current" "$needed" | tr ',' '\n' | awk 'NF && !seen[$0]++' | paste -sd, -)"
+  [ "$merged" = "$current" ] && return 0
+
+  if grep -q '^COMPOSE_PROFILES=' "$env_file"; then
+    sed -i.bak "s|^COMPOSE_PROFILES=.*|COMPOSE_PROFILES=$merged|" "$env_file" && rm -f "$env_file.bak"
+  else
+    printf '\n# Optional compose services in use (managed by hivemind)\nCOMPOSE_PROFILES=%s\n' "$merged" >> "$env_file"
+  fi
+  ok "Channel services enabled in .env (COMPOSE_PROFILES=$merged)"
+}
+
 # ----------------------------------------------------------
 # Commands
 # ----------------------------------------------------------
@@ -140,6 +169,91 @@ cmd_status() {
   else
     warn "Web UI not responding at http://localhost:8080"
   fi
+}
+
+# ----------------------------------------------------------
+# Host ephemeral-port tuning
+#
+# `hivemind update` and `scripts/upgrade.sh` are two independent update
+# paths, and this has to hang off both: the CLI is the one the installer
+# symlinks into /usr/local/bin, so it is the path an operator actually
+# takes. Wiring only upgrade.sh left the tuning uninstalled on a host
+# that had faithfully run `hivemind update`.
+#
+# Never fatal. An untuned host runs Hivemind fine; it just has less
+# headroom before a runaway stack exhausts the host's port pool.
+# ----------------------------------------------------------
+tune_host() {
+  local script="$HIVEMIND_DIR/scripts/host-tuning.sh"
+  [ -f "$script" ] || return 0
+
+  if bash "$script" --check --quiet >/dev/null 2>&1; then
+    return 0  # already correct — say nothing
+  fi
+
+  echo ""
+  warn "Host port tuning has drifted (see MULTI-STACK.md §2)."
+  info "Untuned, this host has a 16,384-port pool and a 30s TIME_WAIT:"
+  info "a third the capacity, recycling 15x slower."
+
+  if bash "$script"; then
+    ok "Host tuning applied."
+  else
+    warn "Could not apply host tuning — continuing with the update."
+    warn "Fix it later with: ./scripts/host-tuning.sh"
+  fi
+}
+
+# Dump the production database to $HIVEMIND_DIR/backups before an update.
+# Sets BACKUP_FILE on success. Skips (returns 0) when no db container is
+# running; returns 1 when a running database could not be dumped.
+backup_database_before_update() {
+  BACKUP_FILE=""
+  local backup_dir="$HIVEMIND_DIR/backups"
+  mkdir -p "$backup_dir"
+
+  if [ -z "$(docker compose ps --status running --services db 2>/dev/null)" ]; then
+    warn "Database container is not running, skipping backup"
+    return 0
+  fi
+
+  local file="$backup_dir/pre-update-$(date +%Y%m%d-%H%M%S).sql"
+  info "Backing up database..."
+  if docker compose exec -T db pg_dump -U hivemind --clean --if-exists hivemind_production > "$file"; then
+    BACKUP_FILE="$file"
+    ok "Database backed up: $file"
+    prune_backups "$backup_dir"
+    return 0
+  fi
+  rm -f "$file"
+  return 1
+}
+
+# Keep the newest HIVEMIND_BACKUPS_KEEP (default 5) pre-update backups.
+prune_backups() {
+  local backup_dir="$1" keep="${HIVEMIND_BACKUPS_KEEP:-5}"
+  ls -1t "$backup_dir"/pre-update-*.sql 2>/dev/null | tail -n +"$((keep + 1))" | while IFS= read -r old; do
+    rm -f "$old"
+  done
+}
+
+# Poll the app's /up endpoint until it answers 200 or the timeout passes.
+# Timeout and interval come from HIVEMIND_HEALTH_TIMEOUT (120s) and
+# HIVEMIND_HEALTH_INTERVAL (3s).
+wait_for_healthy() {
+  local timeout="${HIVEMIND_HEALTH_TIMEOUT:-120}" interval="${HIVEMIND_HEALTH_INTERVAL:-3}"
+  local port
+  port="$(grep -E '^APP_PORT=' "$HIVEMIND_DIR/.env" 2>/dev/null | head -1 | cut -d'=' -f2- || true)"
+  local url="http://localhost:${port:-8080}/up"
+  local waited=0
+  while [ "$waited" -lt "$timeout" ]; do
+    if curl -sf "$url" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep "$interval"
+    waited=$((waited + interval))
+  done
+  return 1
 }
 
 cmd_update() {
@@ -196,6 +310,10 @@ cmd_update() {
     ok "CLI updated"
   fi
 
+  # After the checkout above, so this always runs the freshly-pulled
+  # script and plist rather than the copy this release replaced.
+  tune_host
+
   # Resolve version from current tag
   local version
   version="$(current_version)"
@@ -203,25 +321,49 @@ cmd_update() {
   # Backfill .env with any new keys added in later versions
   migrate_env
 
+  # Back up before anything can touch the schema
+  backup_database_before_update || fail "Database backup failed; aborting update. Nothing was changed."
+
   # Pull prebuilt images first, fall back to building from source
   info "Pulling prebuilt images (version: $version)..."
-  if HIVEMIND_VERSION="$version" docker compose pull app workspace connector 2>/dev/null; then
+  if HIVEMIND_VERSION="$version" docker compose pull app workspace connector sdk-proxy browser-sidecar 2>/dev/null; then
     ok "Prebuilt images pulled successfully"
   else
     warn "Prebuilt images not available, building from source..."
     HIVEMIND_VERSION="$version" docker compose build --build-arg HIVEMIND_VERSION="$version"
   fi
 
-  # Migrate
+  # Migrate; never recreate the stack on top of a half-migrated database
   info "Running migrations..."
-  HIVEMIND_VERSION="$version" docker compose run --rm -e RAILS_ENV=production app bin/rails db:migrate 2>/dev/null || warn "Migration skipped (app not running?)"
+  if ! HIVEMIND_VERSION="$version" docker compose run --rm -e RAILS_ENV=production app bin/rails db:migrate; then
+    echo ""
+    warn "Migration failed. The running containers were left untouched."
+    if [ -n "$BACKUP_FILE" ]; then
+      warn "Your pre-update backup is at: $BACKUP_FILE"
+      warn "To restore it: docker compose exec -T db psql -U hivemind -d hivemind_production < $BACKUP_FILE"
+    fi
+    fail "Update aborted. Fix the error above and rerun 'hivemind update'."
+  fi
+
+  # Keep connector/signal-cli running for installs that use channels
+  persist_channel_profiles "$version"
 
   # Restart with new images
   info "Restarting..."
   HIVEMIND_VERSION="$version" docker compose up -d --force-recreate
 
+  info "Waiting for the app to become healthy..."
+  if wait_for_healthy; then
+    echo ""
+    ok "Hivemind updated to $version and healthy!"
+    if [ -n "$BACKUP_FILE" ]; then info "Pre-update backup: $BACKUP_FILE"; fi
+    return 0
+  fi
   echo ""
-  ok "Hivemind updated to $version!"
+  warn "Hivemind $version was started but the app did not answer /up within ${HIVEMIND_HEALTH_TIMEOUT:-120}s."
+  warn "Check 'hivemind logs app' for errors."
+  if [ -n "$BACKUP_FILE" ]; then warn "Pre-update backup: $BACKUP_FILE"; fi
+  return 1
 }
 
 cmd_restart() {
@@ -541,6 +683,11 @@ EOF
 # ----------------------------------------------------------
 # Router
 # ----------------------------------------------------------
+# Allow tests to source this file for its functions.
+if [ "${BASH_SOURCE[0]}" != "$0" ]; then
+  return 0
+fi
+
 case "${1:-}" in
   status)   cmd_status ;;
   start)    cmd_start ;;
