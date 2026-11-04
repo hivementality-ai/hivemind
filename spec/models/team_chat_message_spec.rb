@@ -182,4 +182,29 @@ RSpec.describe TeamChatMessage, type: :model do
       expect(build(:team_chat_message, :team_broadcast)).to be_valid
     end
   end
+
+  describe '.extract_mentions' do
+    let(:team) { create(:team) }
+    let!(:vida) { create(:agent, team: team, name: 'Vida', enabled: true) }
+
+    it 'finds a plain mention' do
+      expect(described_class.extract_mentions('hey @Vida look', team)[:agents]).to eq([ vida ])
+    end
+
+    it 'finds a mention wrapped in bold' do
+      expect(described_class.extract_mentions('**@Vida** can you take this?', team)[:agents]).to eq([ vida ])
+    end
+
+    it 'finds a mention wrapped in underscores' do
+      expect(described_class.extract_mentions('ping _@Vida_ now', team)[:agents]).to eq([ vida ])
+    end
+
+    it 'matches names case-insensitively' do
+      expect(described_class.extract_mentions('**@vida**', team)[:agents]).to eq([ vida ])
+    end
+
+    it 'ignores a name that is not a mention' do
+      expect(described_class.extract_mentions('Vida said so, mail me@Vida.com', team)[:agents]).to be_empty
+    end
+  end
 end

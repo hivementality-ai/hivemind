@@ -734,4 +734,43 @@ RSpec.describe TeamChatJob, type: :job do
       expect(session.team_chat_messages.where(sender_type: "agent").count).to eq(TeamChatJob::MAX_MENTION_HOPS + 1)
     end
   end
+
+  describe "working status" do
+    let!(:agent) { create(:agent, team: team, name: "Alice", enabled: true) }
+    let!(:teammate) { create(:agent, team: team, name: "Vida", enabled: true) }
+    let(:trigger) do
+      session.team_chat_messages.create!(sender_type: "user", sender_id: user.id, content: "go", target_agent_id: agent.id)
+    end
+
+    before do
+      allow(HashtagActions::Processor).to receive(:call).and_return(
+        HashtagActions::Processor::ProcessResult.new(
+          bypass_llm: false, response: nil, clean_message: "go", prompt_addons: [], side_effects: []
+        )
+      )
+      adapter = double("adapter", chat: double(success?: true, data: { content: "ok", usage: {} }))
+      allow(Providers::Resolver).to receive(:call).and_return(double(success?: true, data: { adapter: adapter }))
+    end
+
+    it "shows the agent as thinking during the turn and idle after" do
+      status_during = nil
+      allow(Agents::ToolLoop).to receive(:call) do
+        status_during = agent.reload.status
+        double(success?: true, data: { content: "ok", usage: {} })
+      end
+
+      TeamChatJob.perform_now(session.id, trigger.id, responding_agent_id: agent.id)
+
+      expect(status_during).to eq("thinking")
+      expect(agent.reload).to be_idle
+    end
+
+    it "returns the agent to idle when the turn fails" do
+      allow(Agents::ToolLoop).to receive(:call).and_raise(RuntimeError, "boom")
+
+      TeamChatJob.perform_now(session.id, trigger.id, responding_agent_id: agent.id)
+
+      expect(agent.reload).to be_idle
+    end
+  end
 end
