@@ -29,14 +29,14 @@ class TeamChatMessage < ApplicationRecord
   def self.extract_mentions(text, team)
     agents = team.agents.to_a
     mentioned = []
-    broadcast = text.match?(/(?:^|\s)@team\b/i)
-    god = text.match?(/(?:^|\s)@god\b/i)
+    broadcast = text.match?(/(?<![\w@])@team\b/i)
+    god = text.match?(/(?<![\w@])@god\b/i)
 
     if broadcast
       mentioned = agents.select(&:enabled?)
     else
       agents.each do |agent|
-        if text.match?(/(?:^|\s)@#{Regexp.escape(agent.name)}\b/i)
+        if text.match?(/(?<![\w@])@#{Regexp.escape(agent.name)}\b/i)
           mentioned << agent
         end
       end
