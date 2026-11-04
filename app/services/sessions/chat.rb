@@ -20,7 +20,8 @@ module Sessions
       @session.append_transcript({ "role" => "user", "content" => @message })
 
       # 2. Resolve the provider adapter
-      resolver = Providers::Resolver.call(provider_name: agent.model_provider, agent:)
+      brain = Sessions::BrainResolver.call(session: @session, agent:)
+      resolver = Providers::Resolver.call(provider_name: brain.provider_name, agent:, provider_config: brain.provider_config)
       return resolver unless resolver.success?
 
       adapter = resolver.data[:adapter]
@@ -45,7 +46,7 @@ module Sessions
       tools = resolve_tools(agent)
 
       # 5. Call the LLM
-      options = { model: agent.llm_model, agent_id: agent.id, session_id: @session.id }
+      options = { model: brain.model, agent_id: agent.id, session_id: @session.id }
 
       # Detect OAuth/MCP proxy path (Anthropic OAuth tokens)
       base_adapter = Providers::FailoverAdapter.unwrap(adapter)
@@ -125,6 +126,7 @@ module Sessions
       assigned = agent.agent_tools.includes(:tool).map(&:tool).select(&:enabled?)
       tools = assigned.any? ? assigned : Tool.enabled.builtin.to_a
       tools << SystemTool::LOAD_SKILL if agent.skills.enabled.any?
+      tools.concat(Tools::Search.offered(agent))
 
       # Sessions at the delegation depth limit lose the delegate tool entirely
       # so the model never sees the option (Delegations::Request would reject

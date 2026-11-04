@@ -1,0 +1,31 @@
+<% input_class = "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white font-mono focus:border-amber-500 focus:outline-none" %>
+<%= form_with url: url, scope: :vault_entry, method: method, class: "space-y-5" do |f| %>
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Namespace</label>
+    <% if entry.persisted? %>
+      <p class="text-white font-mono"><%= entry.namespace %></p>
+    <% else %>
+      <%= f.text_field :namespace, value: entry.namespace, required: true, placeholder: "e.g. github, stripe", class: input_class %>
+      <p class="text-text-faint text-xs mt-1">Groups related keys. Connectors refer to a key as <span class="font-mono">vault:namespace/key</span>.</p>
+    <% end %>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Key</label>
+    <% if entry.persisted? %>
+      <p class="text-white font-mono"><%= entry.key %></p>
+    <% else %>
+      <%= f.text_field :key, value: entry.key, required: true, placeholder: "e.g. api_key, token", class: input_class %>
+    <% end %>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1"><%= entry.persisted? ? "New value" : "Value" %></label>
+    <%= f.password_field :value, required: true, autocomplete: "off", placeholder: "Paste the secret", class: input_class %>
+  </div>
+
+  <div class="flex gap-3 pt-2">
+    <%= f.submit submit, class: "px-4 py-2 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400 transition cursor-pointer" %>
+    <%= link_to "Cancel", vault_entries_path, class: "px-4 py-2 text-text-muted hover:text-white transition" %>
+  </div>
+<% end %>

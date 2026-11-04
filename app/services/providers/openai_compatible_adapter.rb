@@ -4,6 +4,13 @@ require "securerandom"
 
 module Providers
   class OpenaiCompatibleAdapter < Base
+    # Connect-phase faults and these statuses get one more attempt when nothing
+    # has reached the caller yet.
+    RETRYABLE_STATUSES = [ 408, 429, 500, 502, 503, 504 ].freeze
+    TRANSIENT_RETRIES = 1
+    RETRY_BACKOFF = 0.5
+    MAX_RETRY_AFTER = 10
+
     def chat(messages:, tools: [], options: {}, &block)
       with_circuit_breaker do
         params = build_chat_params(messages:, tools:, options:)
@@ -14,7 +21,7 @@ module Providers
           sync_chat(params:)
         end
       rescue Faraday::Error => e
-        ServiceResponse.failure(error: "OpenAI-compatible API error: #{e.message}")
+        classified_failure(e)
       end
     end
 
@@ -42,16 +49,77 @@ module Providers
     private
 
     def connection
-      @connection ||= Faraday.new(url: server_url) do |f|
+      @connection ||= build_connection
+    end
+
+    def build_connection
+      Faraday.new(url: server_url) do |f|
         f.request :json
         if api_key.present?
           f.request :authorization, "Bearer", api_key
         end
         f.response :raise_error
-        f.options.open_timeout = 10
-        f.options.timeout = 600
+        f.options.open_timeout = open_timeout
+        f.options.timeout = read_timeout
         f.adapter Faraday.default_adapter
       end
+    end
+
+    # Seconds allowed to open the TCP/TLS connection. Kept short so a dead
+    # host fails fast and can be retried.
+    def open_timeout
+      Float(ENV.fetch("OPENAI_COMPATIBLE_OPEN_TIMEOUT", 10))
+    end
+
+    # Seconds allowed between response bytes. Long because local models can
+    # think for minutes before the first token.
+    def read_timeout
+      Float(ENV.fetch("OPENAI_COMPATIBLE_READ_TIMEOUT", 600))
+    end
+
+    # Run the block, retrying once on a transient fault. Never retries after
+    # +started+ reports that output already went to the caller, and never
+    # retries a read timeout, since replaying a long generation is not a blip.
+    def with_transient_retry(started: -> { false })
+      attempts = 0
+      begin
+        yield
+      rescue Faraday::Error => e
+        delay = retry_delay(e)
+        raise unless attempts < TRANSIENT_RETRIES && delay && !started.call
+
+        attempts += 1
+        pause(delay)
+        retry
+      end
+    end
+
+    # @return [Float, nil] seconds to wait before retrying, nil when not retryable
+    def retry_delay(error)
+      if error.is_a?(Faraday::ConnectionFailed)
+        RETRY_BACKOFF
+      elsif RETRYABLE_STATUSES.include?(error.response_status)
+        header = error.response_headers&.[]("Retry-After")
+        return RETRY_BACKOFF if header.blank?
+
+        seconds = Float(header, exception: false)
+        seconds && seconds <= MAX_RETRY_AFTER ? [ seconds, RETRY_BACKOFF ].max : nil
+      end
+    end
+
+    def pause(seconds)
+      sleep(seconds)
+    end
+
+    # Failure response carrying the typed verdict from the shared classifier.
+    def classified_failure(error, prefix: "OpenAI-compatible API error")
+      verdict = ErrorClassifier.call(
+        message: "#{prefix}: #{error.message}",
+        status: error.response_status,
+        body: error.response_body,
+        provider: provider_name
+      )
+      ServiceResponse.failure(error: verdict.message, payload: { provider_error: verdict.to_h })
     end
 
     def server_url
@@ -143,108 +211,96 @@ module Providers
     end
 
     def stream_chat(params:, &block)
-      # Fall back to sync when tools are present
-      if params[:tools].present?
-        result = sync_chat(params:)
-        if result.success?
-          content = result.data[:content]
-          content&.each_char { |char| block.call({ type: "content", content: char }) }
-        end
-        return result
-      end
-
       full_content = +""
       full_thinking = +""
       thinking_started = false
       in_think_tag = false
       content_buffer = +""
+      tool_fragments = {}
 
-      streaming_conn = Faraday.new(url: server_url) do |f|
-        f.request :json
-        if api_key.present?
-          f.request :authorization, "Bearer", api_key
-        end
-        f.options.open_timeout = 10
-        f.options.timeout = 600
-        f.adapter Faraday.default_adapter
-      end
+      streaming_conn = connection
+      received_data = false
 
-      buffer = +""
+      with_transient_retry(started: -> { received_data }) do
+        buffer = +""
+        streaming_conn.post("/v1/chat/completions") do |req|
+          req.body = params.merge(stream: true).to_json
+          req.options.on_data = proc do |chunk, _overall_received_bytes, _env|
+            received_data = true
+            buffer << chunk
+            while (line_end = buffer.index("\n"))
+              line = buffer.slice!(0..line_end).strip
+              next if line.empty?
+              next unless line.start_with?("data: ")
 
-      streaming_conn.post("/v1/chat/completions") do |req|
-        req.body = params.merge(stream: true).to_json
-        req.options.on_data = proc do |chunk, _overall_received_bytes, _env|
-          buffer << chunk
-          while (line_end = buffer.index("\n"))
-            line = buffer.slice!(0..line_end).strip
-            next if line.empty?
-            next unless line.start_with?("data: ")
+              data = line.sub(/\Adata: /, "")
+              next if data == "[DONE]"
 
-            data = line.sub(/\Adata: /, "")
-            next if data == "[DONE]"
+              begin
+                parsed = JSON.parse(data)
 
-            begin
-              parsed = JSON.parse(data)
+                accumulate_tool_call_deltas(tool_fragments, parsed.dig("choices", 0, "delta", "tool_calls"))
 
-              reasoning = parsed.dig("choices", 0, "delta", "reasoning_content")
-              if reasoning
-                unless thinking_started
-                  block.call({ type: "thinking_start" })
-                  thinking_started = true
-                end
-                full_thinking << reasoning
-                block.call({ type: "thinking", content: reasoning })
-              end
-
-              delta = parsed.dig("choices", 0, "delta", "content")
-              if delta
-                if thinking_started
-                  block.call({ type: "thinking_stop" })
-                  thinking_started = false
+                reasoning = parsed.dig("choices", 0, "delta", "reasoning_content")
+                if reasoning
+                  unless thinking_started
+                    block.call({ type: "thinking_start" })
+                    thinking_started = true
+                  end
+                  full_thinking << reasoning
+                  block.call({ type: "thinking", content: reasoning })
                 end
 
-                # Buffer content to detect and strip <think> tags
-                content_buffer << delta
+                delta = parsed.dig("choices", 0, "delta", "content")
+                if delta
+                  if thinking_started
+                    block.call({ type: "thinking_stop" })
+                    thinking_started = false
+                  end
 
-                # Process complete <think>...</think> blocks
-                while content_buffer.include?("</think>")
-                  before, _, after = content_buffer.partition(/<think>.*?<\/think>/m)
-                  think_match = content_buffer.match(/<think>(.*?)<\/think>/m)
-                  if think_match
-                    full_thinking << think_match[1]
-                    # Emit any content before the think block
+                  # Buffer content to detect and strip <think> tags
+                  content_buffer << delta
+
+                  # Process complete <think>...</think> blocks
+                  while content_buffer.include?("</think>")
+                    before, _, after = content_buffer.partition(/<think>.*?<\/think>/m)
+                    think_match = content_buffer.match(/<think>(.*?)<\/think>/m)
+                    if think_match
+                      full_thinking << think_match[1]
+                      # Emit any content before the think block
+                      if before.present?
+                        full_content << before
+                        block.call({ type: "content", content: before })
+                      end
+                      content_buffer = after
+                    else
+                      break
+                    end
+                  end
+
+                  # If we have an open <think> tag, keep buffering
+                  if content_buffer.include?("<think>") && !content_buffer.include?("</think>")
+                    in_think_tag = true
+                    before = content_buffer.split("<think>", 2).first
                     if before.present?
                       full_content << before
                       block.call({ type: "content", content: before })
+                      content_buffer = content_buffer.sub(before, "")
                     end
-                    content_buffer = after
-                  else
-                    break
+                  elsif !in_think_tag && !content_buffer.match?(/<?$/) # avoid partial tag
+                    # Safe to flush — no partial tag at end
+                    safe = content_buffer.sub(/<[^>]*\z/, "")
+                    remainder = content_buffer[safe.length..]
+                    if safe.present?
+                      full_content << safe
+                      block.call({ type: "content", content: safe })
+                    end
+                    content_buffer = remainder || +""
                   end
                 end
-
-                # If we have an open <think> tag, keep buffering
-                if content_buffer.include?("<think>") && !content_buffer.include?("</think>")
-                  in_think_tag = true
-                  before = content_buffer.split("<think>", 2).first
-                  if before.present?
-                    full_content << before
-                    block.call({ type: "content", content: before })
-                    content_buffer = content_buffer.sub(before, "")
-                  end
-                elsif !in_think_tag && !content_buffer.match?(/<?$/) # avoid partial tag
-                  # Safe to flush — no partial tag at end
-                  safe = content_buffer.sub(/<[^>]*\z/, "")
-                  remainder = content_buffer[safe.length..]
-                  if safe.present?
-                    full_content << safe
-                    block.call({ type: "content", content: safe })
-                  end
-                  content_buffer = remainder || +""
-                end
+              rescue JSON::ParserError
+                next
               end
-            rescue JSON::ParserError
-              next
             end
           end
         end
@@ -262,13 +318,38 @@ module Providers
 
       thinking = full_thinking.presence
 
-      result = ServiceResponse.success(data: { content: full_content, thinking:, usage: {} })
+      tool_calls = tool_fragments.sort_by { |index, _| index }.map { |_, f| build_tool_call(f[:id], f[:name], f[:arguments]) }
+      tool_calls = nil if tool_calls.empty?
+
+      result = ServiceResponse.success(data: { content: full_content, thinking:, tool_calls:, usage: {} })
       inject_request_payload(result, params)
     end
 
+    # Merge one chunk's +tool_calls+ deltas into +fragments+, keyed by index.
+    # The id and function name arrive on a call's first chunk; the arguments
+    # arrive as string fragments across later chunks.
+    def accumulate_tool_call_deltas(fragments, deltas)
+      Array(deltas).each_with_index do |delta, position|
+        fragment = fragments[delta["index"] || position] ||= { id: nil, name: nil, arguments: +"" }
+        fragment[:id] ||= delta["id"]
+        fragment[:name] ||= delta.dig("function", "name")
+        fragment[:arguments] << delta.dig("function", "arguments").to_s
+      end
+    end
+
+    # Normalized tool call hash shared by the sync and streaming paths.
+    def build_tool_call(id, name, args)
+      args = "{}" if args.blank?
+      args = JSON.parse(args) if args.is_a?(String) rescue args
+
+      { "id" => id || "oai_compat_#{SecureRandom.hex(4)}", "name" => name, "input" => args }
+    end
+
     def sync_chat(params:)
-      response = connection.post("/v1/chat/completions") do |req|
-        req.body = params.to_json
+      response = with_transient_retry do
+        connection.post("/v1/chat/completions") do |req|
+          req.body = params.to_json
+        end
       end
 
       body = JSON.parse(response.body)
@@ -282,14 +363,7 @@ module Providers
       raw_tool_calls = choice&.dig("tool_calls")
 
       tool_calls = raw_tool_calls&.map do |tc|
-        args = tc.dig("function", "arguments") || "{}"
-        args = JSON.parse(args) if args.is_a?(String) rescue args
-
-        {
-          "id" => tc["id"] || "oai_compat_#{SecureRandom.hex(4)}",
-          "name" => tc.dig("function", "name"),
-          "input" => args
-        }
+        build_tool_call(tc["id"], tc.dig("function", "name"), tc.dig("function", "arguments"))
       end
 
       tool_calls = nil if tool_calls&.empty?

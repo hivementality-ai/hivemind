@@ -56,6 +56,7 @@ Rails.application.routes.draw do
   # Chat Sessions
   resources :sessions, only: [ :index, :show, :create, :update ] do
     member do
+      patch :brain
       post :message
       post :interrupt
       get :canvas
@@ -140,6 +141,10 @@ Rails.application.routes.draw do
 
   # Providers (admin interface)
   resources :providers, only: [ :index, :show, :new, :create, :edit, :update ] do
+    collection do
+      # Save the ordered list of backup brains.
+      patch :fallback_chain
+    end
     member do
       # Clear a provider-unavailable circuit after a human fixes the account.
       post :reset_circuit
@@ -251,6 +256,40 @@ Rails.application.routes.draw do
   resources :analytics, only: [ :index, :show ] do
     member do
       get "payload/:usage_id", action: :payload, as: :payload
+    end
+  end
+
+  # Import MCP servers from a Claude Desktop config
+  get "mcp_servers/import", to: "mcp_imports#new", as: :new_mcp_import
+  post "mcp_servers/import/preview", to: "mcp_imports#preview", as: :preview_mcp_import
+  post "mcp_servers/import", to: "mcp_imports#create", as: :mcp_import
+
+  # MCP server settings
+  resources :mcp_servers, except: :show do
+    collection do
+      post "catalog/:key", action: :add_from_catalog, as: :add_from_catalog
+    end
+    member do
+      patch :toggle_enabled
+      post :test_connection
+      post :oauth_connect
+      get :oauth_callback
+      delete :oauth_disconnect
+    end
+  end
+
+  # Vault: shared secrets; values are write-only in the UI
+  resources :vault_entries, only: [ :index, :new, :create, :edit, :update, :destroy ]
+
+  # Connectors: HTTP APIs described as data
+  resources :connectors, except: :show do
+    collection do
+      post :import
+    end
+    member do
+      get :export
+      patch :toggle_enabled
+      post "operations/:operation/try", action: :try_operation, as: :try_operation
     end
   end
 

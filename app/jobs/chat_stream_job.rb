@@ -5,7 +5,59 @@ class ChatStreamJob < ApplicationJob
 
   queue_as :agents
 
+  PROCESSING_KEY_PREFIX = "session_processing:"
+  LOCK_KEY_PREFIX = "session_turn_lock:"
+  FALLBACK_NOTICE = "_Claude was unavailable, so the backup brain answered._"
+  # The lock is short-lived and renewed by a heartbeat while a turn runs, so a
+  # dead worker's lock disappears within LOCK_TTL.
+  LOCK_TTL = 90
+  HEARTBEAT_INTERVAL = 30
+  # Backstop only; the flag is cleared at turn end or by StuckTurnSweepJob.
+  PROCESSING_TTL = 1.hour.to_i
+  # Minimum wall-clock gap between stop/redirect signal reads while streaming.
+  SIGNAL_CHECK_INTERVAL = 0.25
+  LOCK_RETRY_DELAY = 5.seconds
+
+  RELEASE_LOCK_SCRIPT = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) end return 0"
+  RENEW_LOCK_SCRIPT = <<~LUA.squish
+    if redis.call('get', KEYS[1]) == ARGV[1] then
+      redis.call('expire', KEYS[2], ARGV[3])
+      return redis.call('expire', KEYS[1], ARGV[2])
+    end
+    return 0
+  LUA
+
+  # Releases a session turn lock, but only if +token+ still owns it.
+  #
+  # @param lock_key [String]
+  # @param token [String] value the lock was taken with
+  def self.release_lock(lock_key, token)
+    Redis.current.eval(RELEASE_LOCK_SCRIPT, keys: [ lock_key ], argv: [ token ])
+  end
+
+  # Runs one turn at a time per session. A turn that arrives while another is
+  # running is requeued behind it, on the same queue, rather than dropped.
   def perform(session_id, user_message, attachment_ids = [])
+    token = SecureRandom.hex(8)
+    lock_key = "#{LOCK_KEY_PREFIX}#{session_id}"
+    unless Redis.current.set(lock_key, token, nx: true, ex: LOCK_TTL)
+      self.class.set(queue: queue_name, wait: LOCK_RETRY_DELAY).perform_later(session_id, user_message, attachment_ids)
+      return
+    end
+
+    stop = Thread::Queue.new
+    heartbeat = start_heartbeat(lock_key, "#{PROCESSING_KEY_PREFIX}#{session_id}", token, stop)
+    begin
+      run_turn(session_id, user_message, attachment_ids)
+    ensure
+      stop << true
+      heartbeat.join
+      set_processing(session_id, false)
+      self.class.release_lock(lock_key, token)
+    end
+  end
+
+  def run_turn(session_id, user_message, attachment_ids)
     session = Session.find(session_id)
     agent = session.agent
     channel = "session_#{session.id}"
@@ -89,7 +141,8 @@ class ChatStreamJob < ApplicationJob
     end
 
     # Resolve provider
-    resolver = Providers::Resolver.call(provider_name: agent.model_provider, agent:)
+    brain = Sessions::BrainResolver.call(session:, agent:)
+    resolver = Providers::Resolver.call(provider_name: brain.provider_name, agent:, provider_config: brain.provider_config)
     unless resolver.success?
       ActionCable.server.broadcast(channel, { type: "error", content: resolver.error })
       return
@@ -110,7 +163,7 @@ class ChatStreamJob < ApplicationJob
     messages = message_result.data[:messages]
 
     # Prune messages to fit within context budget
-    context_manager = Agents::ContextManager.new(agent.llm_model, 8192, provider: agent.model_provider, agent: agent)
+    context_manager = Agents::ContextManager.new(brain.model, 8192, provider: brain.provider_name, agent: agent)
     messages = context_manager.prune_messages(messages)
 
     # If there's a hashtag response to prepend (non-bypass actions), broadcast it
@@ -123,7 +176,7 @@ class ChatStreamJob < ApplicationJob
 
     begin
       # Build LLM options (with thinking if enabled)
-      resolved_model = resolve_model(agent, effective_message)
+      resolved_model = resolve_model(brain, agent, effective_message)
       llm_options = { model: resolved_model, max_tokens: agent.max_output_tokens || 8192 }
       llm_options.merge!(agent.inference_options)
       if agent.thinking_enabled?
@@ -154,7 +207,7 @@ class ChatStreamJob < ApplicationJob
       if tools.any? && !oauth_mcp
         result = Agents::ToolLoop.call(
           adapter:, agent:, session:, messages:, tools:, channel:, options: llm_options
-        )
+        ) { |_delta| check_stream_signal!(session) }
         if result && !result.success?
           error_msg = "⚠️ LLM error: #{result.error}"
           ActionCable.server.broadcast(channel, { type: "error", content: error_msg })
@@ -168,6 +221,7 @@ class ChatStreamJob < ApplicationJob
       else
         full_content = +""
         full_thinking = +""
+        tool_activity = false
         result = adapter.chat(messages:, options: llm_options) do |chunk|
           case chunk[:type]
           when "thinking_start"
@@ -184,6 +238,7 @@ class ChatStreamJob < ApplicationJob
               check_stream_signal!(session)
             end
           when "tool_start"
+            tool_activity = true
             Plugins::Hooks.trigger("before_tool_call", tool_name: chunk[:tool], input: chunk[:input] || {}, agent: agent, source: :proxy)
             ActionCable.server.broadcast(channel, { type: "tool_start", tool: chunk[:tool], input: chunk[:input] })
           when "tool_result"
@@ -194,7 +249,20 @@ class ChatStreamJob < ApplicationJob
 
         thinking_content = full_thinking.presence
 
-        if full_content.empty? && result&.success?
+        fallback_brain = oauth_mcp && full_content.empty? && !tool_activity &&
+                         Providers::FailoverAdapter.failover_worthy?(result) &&
+                         Providers::DefaultFallback.call(failed: brain.provider_config, failed_adapter_type: brain.provider_name)
+        if fallback_brain
+          result = run_fallback_tool_loop(fallback_brain, agent:, session:, messages:, tools:, channel:, llm_options:, primary_error: result.error)
+          if result.success?
+            full_content = "#{FALLBACK_NOTICE}\n\n#{result.data[:content]}"
+            thinking_content = result.data[:thinking]
+            tool_history = result.data[:tool_history]
+          else
+            full_content = "⚠️ LLM error: #{result.error}"
+            ActionCable.server.broadcast(channel, { type: "error", content: full_content })
+          end
+        elsif full_content.empty? && result&.success?
           full_content = result.data[:content].to_s
           thinking_content ||= result.data[:thinking]
           ActionCable.server.broadcast(channel, { type: "token", content: full_content })
@@ -239,7 +307,7 @@ class ChatStreamJob < ApplicationJob
       end
       ActionCable.server.broadcast(channel, { type: "redirected", content: e.redirect_message })
       Rails.logger.info("ChatStreamJob: redirected for session #{session.id}")
-      ChatStreamJob.perform_later(session.id, e.redirect_message, [])
+      ChatStreamJob.set(queue: :interactive).perform_later(session.id, e.redirect_message, [])
 
     rescue StandardError => e
       ActionCable.server.broadcast(channel, { type: "error", content: "Error: #{e.message}" })
@@ -272,7 +340,31 @@ class ChatStreamJob < ApplicationJob
 
   private
 
+  private :run_turn
+
+  # Renews the turn lock (and the processing flag) while the turn runs; stops
+  # once the lock is no longer ours.
+  # Renews the lock every HEARTBEAT_INTERVAL until +stop+ receives a value.
+  # Stopping through the queue, not Thread#kill, never interrupts a Redis call.
+  def start_heartbeat(lock_key, flag_key, token, stop)
+    Thread.new do
+      loop do
+        break if stop.pop(timeout: HEARTBEAT_INTERVAL)
+        renewed = Redis.current.eval(RENEW_LOCK_SCRIPT, keys: [ lock_key, flag_key ], argv: [ token, LOCK_TTL, PROCESSING_TTL ])
+        break if renewed.to_i.zero?
+      end
+    rescue StandardError => e
+      Rails.logger.warn("[ChatStreamJob] Lock heartbeat stopped: #{e.message}")
+    end
+  end
+
+  # Reads the stop/redirect signal at most once per SIGNAL_CHECK_INTERVAL so a
+  # long stream does not hit Redis for every token.
   def check_stream_signal!(session)
+    now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    return if @signal_checked_at && now - @signal_checked_at < SIGNAL_CHECK_INTERVAL
+    @signal_checked_at = now
+
     signal = SessionSignal.check(session.id)
     return unless signal
 
@@ -285,9 +377,9 @@ class ChatStreamJob < ApplicationJob
   end
 
   def set_processing(session_id, active)
-    key = "session_processing:#{session_id}"
+    key = "#{PROCESSING_KEY_PREFIX}#{session_id}"
     if active
-      Redis.current.setex(key, 600, "1")
+      Redis.current.setex(key, PROCESSING_TTL, "1")
     else
       Redis.current.del(key)
     end
@@ -372,30 +464,44 @@ class ChatStreamJob < ApplicationJob
     Rails.logger.error("[Heartbeat] Finalization failed: #{e.message}\n#{e.backtrace&.first(3)&.join("\n")}")
   end
 
+  # Re-runs the turn on the default backup brain through Agents::ToolLoop with
+  # the same tools the sdk-proxy path was given, after telling the user.
+  def run_fallback_tool_loop(brain, agent:, session:, messages:, tools:, channel:, llm_options:, primary_error:)
+    Rails.logger.warn("[ChatStreamJob] sdk-proxy failed (#{primary_error.to_s.truncate(200)}); falling back to #{brain.provider_name}/#{brain.model}")
+    resolved = Providers::Resolver.call(provider_name: brain.provider_name, agent:, provider_config: brain.provider_config, failover: false)
+    return resolved unless resolved.success?
+
+    ActionCable.server.broadcast(channel, { type: "token", content: "#{FALLBACK_NOTICE}\n\n" })
+    options = llm_options.except(:agent_id, :session_id, :tool_definitions).merge(model: brain.model)
+    Agents::ToolLoop.call(
+      adapter: resolved.data[:adapter], agent:, session:, messages:, tools:, channel:, options:
+    ) { |_delta| check_stream_signal!(session) }
+  end
+
   def resolve_tools(agent)
     assigned = agent.agent_tools.includes(:tool).map(&:tool).select(&:enabled?)
     tools = assigned.any? ? assigned : Tool.enabled.builtin.to_a
 
     tools << SystemTool::LOAD_SKILL if agent.skills.enabled.any?
+    tools.concat(Tools::Search.offered(agent))
 
     tools
   end
 
-  # Resolves the agent's llm_model. If the agent is pinned to "auto" and
-  # its provider supports routing (anthropic or openai), delegate to
-  # Agents::ModelRouter and log the picked model. Otherwise use the
-  # pinned model verbatim.
-  def resolve_model(agent, user_message)
-    return agent.llm_model unless agent.llm_model.to_s == "auto"
-    return agent.llm_model unless Agents::ModelRouter.auto_supported?(agent.model_provider)
+  # Resolves the chat brain's model. If it is "auto" and its provider supports
+  # routing (anthropic or openai), delegate to Agents::ModelRouter and log the
+  # picked model. Otherwise use the chosen model verbatim.
+  def resolve_model(brain, agent, user_message)
+    return brain.model unless brain.model.to_s == "auto"
+    return brain.model unless Agents::ModelRouter.auto_supported?(brain.provider_name)
 
     picked = Agents::ModelRouter.route(
-      provider: agent.model_provider,
+      provider: brain.provider_name,
       message_text: user_message.to_s,
       recent_tools: recent_tool_names(agent)
     )
-    Rails.logger.info("[ModelRouter] agent=#{agent.id} provider=#{agent.model_provider} picked=#{picked}")
-    picked || Agents::ModelRouter::DEFAULT_RULES.dig(agent.model_provider, "tiers", "mid")
+    Rails.logger.info("[ModelRouter] agent=#{agent.id} provider=#{brain.provider_name} picked=#{picked}")
+    picked || Agents::ModelRouter::DEFAULT_RULES.dig(brain.provider_name, "tiers", "mid")
   end
 
   # Peek at the last few tool executions on this agent so ModelRouter can

@@ -52,6 +52,13 @@ services:
     networks:
       - internal
       - web
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/up"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+    stop_grace_period: 30s
     restart: unless-stopped
 
   # System worker — handles heartbeats, task pipeline transitions, notifications,
@@ -62,7 +69,7 @@ services:
     command: bundle exec sidekiq -C config/sidekiq.yml
     depends_on:
       app:
-        condition: service_started
+        condition: service_healthy
       cache:
         condition: service_healthy
     volumes:
@@ -93,9 +100,16 @@ services:
           cpus: "${SIDEKIQ_SYSTEM_CPUS:-0.5}"
     networks:
       - internal
+    healthcheck:
+      test: ["CMD-SHELL", "grep -qaE '[s]idekiq' /proc/[0-9]*/cmdline"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    stop_grace_period: 30s
     restart: unless-stopped
 
-  # Agent worker — handles ChatStreamJob, InboundMessageJob, SubAgentJob,
+  # Agent worker — handles heartbeat, scheduled and sub-agent ChatStreamJob runs, InboundMessageJob, SubAgentJob,
   # and other long-running LLM sessions. Isolated from system jobs so agent
   # work can never starve heartbeats or task transitions.
   worker-agents:
@@ -103,7 +117,7 @@ services:
     command: bundle exec sidekiq -C config/sidekiq_agents.yml
     depends_on:
       app:
-        condition: service_started
+        condition: service_healthy
       cache:
         condition: service_healthy
     volumes:
@@ -134,6 +148,60 @@ services:
           cpus: "${SIDEKIQ_AGENT_CPUS:-1.0}"
     networks:
       - internal
+    healthcheck:
+      test: ["CMD-SHELL", "grep -qaE '[s]idekiq' /proc/[0-9]*/cmdline"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    stop_grace_period: 30s
+    restart: unless-stopped
+
+  # Interactive worker — only turns a person is waiting on (the interactive
+  # queue). Its own thread pool, so agent-queue work can never starve a reply.
+  worker-interactive:
+    image: ghcr.io/hivementality-ai/hivemind/app:${HIVEMIND_VERSION:-latest}
+    command: bundle exec sidekiq -C config/sidekiq_interactive.yml
+    depends_on:
+      app:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+    volumes:
+      - workspace_data:/workspace
+      - active_storage_data:/rails/storage
+      - rclone_config:/rails/storage/rclone
+      - ${AGENTS_SHARED_DIR:-/hivemind-agents-shared-unset}:/app/agents-shared
+      - ./plugins:/rails/plugins
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgres://hivemind:hivemind@db:5432/hivemind_production
+      - REDIS_URL=redis://cache:6379/0
+      - RAILS_ENV=production
+      - RAILS_MASTER_KEY=${RAILS_MASTER_KEY}
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE:-${RAILS_MASTER_KEY}}
+      - DOCKER_HOST=tcp://docker-proxy:2375
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - MEMORY_EMBEDDINGS_ENABLED=${MEMORY_EMBEDDINGS_ENABLED:-true}
+      - MEMORY_EMBEDDINGS_PROVIDER=${MEMORY_EMBEDDINGS_PROVIDER:-ollama}
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      - BROWSER_SIDECAR_URL=http://browser-sidecar:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          memory: ${SIDEKIQ_INTERACTIVE_MEMORY:-1g}
+          cpus: "${SIDEKIQ_INTERACTIVE_CPUS:-1.0}"
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "grep -qaE '[s]idekiq' /proc/[0-9]*/cmdline"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    stop_grace_period: 30s
     restart: unless-stopped
 
   db:
@@ -236,6 +304,11 @@ services:
       # Consecutive permanent failures (out of credit, bad token) before this
       # credential stops being dialled at all.
       - SDK_PROXY_CIRCUIT_THRESHOLD=${SDK_PROXY_CIRCUIT_THRESHOLD:-3}
+      # Backstop: consecutive failures of ANY class before this credential
+      # stops being dialled. Port exhaustion arrives as an ordinary connection
+      # error, which never classifies as permanent — without this ceiling an
+      # unbroken run of them dials forever. See MULTI-STACK.md §3.
+      - SDK_PROXY_CIRCUIT_ANY_THRESHOLD=${SDK_PROXY_CIRCUIT_ANY_THRESHOLD:-10}
       - SDK_PROXY_CIRCUIT_OPEN_MS=${SDK_PROXY_CIRCUIT_OPEN_MS:-900000}
     networks:
       - internal
@@ -253,6 +326,10 @@ services:
       dockerfile: Dockerfile
     depends_on:
       - app
+    # Started on demand (profile "channels") once a channel that needs it exists;
+    # `hivemind update` persists COMPOSE_PROFILES in .env for installs that have one.
+    profiles:
+      - channels
     environment:
       - HIVEMIND_URL=http://app:3000
       - CONNECTOR_PORT=3002
@@ -298,6 +375,8 @@ services:
 
   signal-cli:
     image: bbernhard/signal-cli-rest-api:latest
+    profiles:
+      - signal
     environment:
       - MODE=normal
     volumes:

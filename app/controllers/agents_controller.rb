@@ -182,12 +182,13 @@ class AgentsController < ApplicationController
 
   def agent_params
     params.require(:agent).permit(
-      :name, :title, :team_id, :reports_to_id, :model_provider, :llm_model,
+      :name, :title, :team_id, :reports_to_id, :model_provider, :provider_config_id, :llm_model,
       :daily_budget_limit, :monthly_budget_limit, :workspace_path,
       :system_prompt, :custom_instructions, :enabled, :avatar,
       :thinking_enabled, :thinking_budget_tokens, :thinking_visibility,
       tool_ids: [],
-      skill_ids: []
+      skill_ids: [],
+      visible_connector_ids: []
     )
   end
 

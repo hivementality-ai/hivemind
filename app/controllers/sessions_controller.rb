@@ -5,7 +5,7 @@ class SessionsController < ApplicationController
 
   before_action :authenticate_user!
   before_action :set_agent, only: [ :create ]
-  before_action :set_session, only: [ :show, :message, :interrupt, :update, :canvas, :export, :timeline ]
+  before_action :set_session, only: [ :show, :message, :interrupt, :update, :brain, :canvas, :export, :timeline ]
 
   # GET /sessions — list all sessions
   def index
@@ -13,7 +13,7 @@ class SessionsController < ApplicationController
     if params[:agent_id].present? && request.get?
       agent = resolve_agent(params[:agent_id])
       if agent
-        session = create_chat_session(agent: agent, user: current_user)
+        session = create_chat_session(agent: agent, user: current_user, project: requested_project)
         redirect_to session_path(session) and return
       end
     end
@@ -54,7 +54,7 @@ class SessionsController < ApplicationController
 
   # POST /sessions — start a new chat with an agent
   def create
-    @session = create_chat_session(agent: @agent, user: current_user)
+    @session = create_chat_session(agent: @agent, user: current_user, project: requested_project)
 
     redirect_to session_path(@session)
   end
@@ -99,6 +99,20 @@ class SessionsController < ApplicationController
     else
       render json: { title: result[:title] }
     end
+  end
+
+  # PATCH /sessions/:id/brain — set or clear this chat's provider and model
+  # override. Blank values fall back to the project, then the agent.
+  def brain
+    model = params[:llm_model].to_s.strip.presence
+    config = ProviderConfig.enabled_providers.find_by(id: params[:provider_config_id]) if params[:provider_config_id].present?
+
+    if model && config.nil?
+      return render json: { error: "Pick an enabled provider for the model" }, status: :unprocessable_entity
+    end
+
+    @session.update!(llm_model: model, provider_config: model ? config : nil)
+    render json: { llm_model: @session.llm_model, provider_config_id: @session.provider_config_id }
   end
 
   # GET /sessions/:id/canvas — live canvas view
@@ -161,6 +175,11 @@ class SessionsController < ApplicationController
   def set_agent
     @agent = resolve_agent(params[:agent_id])
     render file: "public/404.html", status: :not_found unless @agent
+  end
+
+  # The project a chat is started from, when the request names one.
+  def requested_project
+    Project.find_by(id: params[:project_id]) if params[:project_id].present?
   end
 
   def set_session

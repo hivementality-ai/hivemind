@@ -126,8 +126,11 @@ module Providers
     def stream_chat(client:, params:, &block)
       full_content = +""
       usage = {}
+      tool_fragments = {}
 
       client.chat(parameters: params.merge(stream: proc { |chunk|
+        accumulate_tool_call_deltas(tool_fragments, chunk.dig("choices", 0, "delta", "tool_calls"))
+
         delta = chunk.dig("choices", 0, "delta", "content")
         if delta
           full_content << delta
@@ -144,8 +147,28 @@ module Providers
         end
       }))
 
-      result = ServiceResponse.success(data: { content: full_content, usage: })
+      tool_calls = tool_fragments.sort_by { |index, _| index }.map { |_, f| build_tool_call(f[:id], f[:name], f[:arguments]) }
+      tool_calls = nil if tool_calls.empty?
+
+      result = ServiceResponse.success(data: { content: full_content, tool_calls:, usage: })
       inject_request_payload(result, params)
+    end
+
+    # Merge one chunk's +tool_calls+ deltas into +fragments+, keyed by index.
+    # The id and function name arrive on a call's first chunk; the arguments
+    # arrive as string fragments across later chunks.
+    def accumulate_tool_call_deltas(fragments, deltas)
+      Array(deltas).each_with_index do |delta, position|
+        fragment = fragments[delta["index"] || position] ||= { id: nil, name: nil, arguments: +"" }
+        fragment[:id] ||= delta["id"]
+        fragment[:name] ||= delta.dig("function", "name")
+        fragment[:arguments] << delta.dig("function", "arguments").to_s
+      end
+    end
+
+    # Normalized tool call hash shared by the sync and streaming paths.
+    def build_tool_call(id, name, arguments)
+      { "id" => id, "name" => name, "input" => JSON.parse(arguments.presence || "{}") }
     end
 
     def sync_chat(client:, params:)
@@ -161,11 +184,7 @@ module Providers
 
       # Normalize OpenAI tool calls to our internal format
       tool_calls = raw_tool_calls&.map do |tc|
-        {
-          "id" => tc["id"],
-          "name" => tc.dig("function", "name"),
-          "input" => JSON.parse(tc.dig("function", "arguments") || "{}")
-        }
+        build_tool_call(tc["id"], tc.dig("function", "name"), tc.dig("function", "arguments"))
       end
 
       result = ServiceResponse.success(data: { content:, tool_calls:, usage: })

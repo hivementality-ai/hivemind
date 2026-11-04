@@ -202,26 +202,53 @@ RSpec.describe Providers::OpenaiCompatibleAdapter, type: :service do
       end
     end
 
-    context "streaming" do
-      it "falls back to sync mode when tools are present" do
-        tools = [ { name: "shell", description: "Run shell", input_schema: { type: "object" } } ]
+    context "streaming with tools" do
+      let(:tools) { [ { name: "shell", description: "Run shell", input_schema: { type: "object" } } ] }
 
+      def sse(*events)
+        events.map { |e| "data: #{e.to_json}\n\n" }.join + "data: [DONE]\n\n"
+      end
+
+      def delta(payload)
+        { choices: [ { delta: payload } ] }
+      end
+
+      it "assembles index-keyed tool calls from fragmented deltas" do
+        body = sse(
+          delta({ content: "On it." }),
+          delta({ tool_calls: [ { index: 0, id: "call_a", type: "function", function: { name: "shell", arguments: "" } } ] }),
+          delta({ tool_calls: [ { index: 0, function: { arguments: "{\"comm" } } ] }),
+          delta({ tool_calls: [ { index: 1, id: "call_b", type: "function", function: { name: "shell", arguments: "{\"command\":\"pwd\"}" } } ] }),
+          delta({ tool_calls: [ { index: 0, function: { arguments: "and\":" } } ] }),
+          delta({ tool_calls: [ { index: 0, function: { arguments: "\"ls\"}" } } ] })
+        )
         stub_request(:post, "http://localhost:8080/v1/chat/completions")
-          .to_return(
-            status: 200,
-            body: {
-              choices: [ { message: { content: "Response without streaming" } } ],
-              usage: { prompt_tokens: 10, completion_tokens: 5 }
-            }.to_json
-          )
+          .with(body: hash_including(stream: true))
+          .to_return(status: 200, body: body)
 
-        content_chunks = []
+        content = []
         result = adapter.chat(messages: messages, tools: tools, options: options) do |chunk|
-          content_chunks << chunk[:content] if chunk[:type] == "content"
+          content << chunk[:content] if chunk[:type] == "content"
         end
 
         expect(result).to be_success
-        expect(content_chunks.join).to eq("Response without streaming")
+        expect(content.join).to eq("On it.")
+        expect(result.data[:tool_calls]).to eq(
+          [
+            { "id" => "call_a", "name" => "shell", "input" => { "command" => "ls" } },
+            { "id" => "call_b", "name" => "shell", "input" => { "command" => "pwd" } }
+          ]
+        )
+      end
+
+      it "returns no tool calls when the stream carries none" do
+        stub_request(:post, "http://localhost:8080/v1/chat/completions")
+          .to_return(status: 200, body: sse(delta({ content: "Just text" })))
+
+        result = adapter.chat(messages: messages, tools: tools, options: options) { |_| }
+
+        expect(result.data[:content]).to eq("Just text")
+        expect(result.data[:tool_calls]).to be_nil
       end
     end
 
@@ -260,6 +287,120 @@ RSpec.describe Providers::OpenaiCompatibleAdapter, type: :service do
         expect(result.success?).to be_falsey
         expect(result.error).to include("OpenAI-compatible API error")
       end
+    end
+  end
+
+  describe "transient fault handling" do
+    let(:url) { "http://localhost:8080/v1/chat/completions" }
+    let(:ok_body) { { choices: [ { message: { content: "recovered" } } ], usage: {} }.to_json }
+
+    before { allow(adapter).to receive(:pause) }
+
+    it "retries once after a connect timeout and succeeds" do
+      stub_request(:post, url)
+        .to_raise(Faraday::ConnectionFailed.new("Failed to open TCP connection (execution expired)")).then
+        .to_return(status: 200, body: ok_body)
+
+      result = adapter.chat(messages: messages)
+
+      expect(result).to be_success
+      expect(result.data[:content]).to eq("recovered")
+      expect(adapter).to have_received(:pause).once
+    end
+
+    it "classifies two consecutive timeouts as a transient failure" do
+      stub_request(:post, url)
+        .to_raise(Faraday::ConnectionFailed.new("Failed to open TCP connection (execution expired)"))
+
+      result = adapter.chat(messages: messages)
+
+      expect(result).to be_failure
+      expect(result.payload[:provider_error]).to include(retryable: true, reason: "network_error")
+      expect(WebMock).to have_requested(:post, url).twice
+    end
+
+    it "retries a 503 and honours a short Retry-After" do
+      stub_request(:post, url)
+        .to_return(status: 503, headers: { "Retry-After" => "2" }).then
+        .to_return(status: 200, body: ok_body)
+
+      expect(adapter.chat(messages: messages)).to be_success
+      expect(adapter).to have_received(:pause).with(2.0)
+    end
+
+    it "does not retry when Retry-After exceeds the cap" do
+      stub_request(:post, url).to_return(status: 429, headers: { "Retry-After" => "120" })
+
+      result = adapter.chat(messages: messages)
+
+      expect(result.payload[:provider_error]).to include(retryable: true, reason: "rate_limited")
+      expect(WebMock).to have_requested(:post, url).once
+    end
+
+    it "does not retry a 400 and classifies it permanent" do
+      stub_request(:post, url).to_return(status: 400, body: { error: "bad" }.to_json)
+
+      result = adapter.chat(messages: messages)
+
+      expect(result).to be_failure
+      expect(result.payload[:provider_error]).to include(retryable: false, reason: "invalid_request")
+      expect(WebMock).to have_requested(:post, url).once
+    end
+
+    it "does not retry a read timeout" do
+      stub_request(:post, url).to_raise(Faraday::TimeoutError.new("Net::ReadTimeout"))
+
+      result = adapter.chat(messages: messages)
+
+      expect(result.payload[:provider_error]).to include(retryable: true, reason: "network_error")
+      expect(WebMock).to have_requested(:post, url).once
+    end
+
+    context "when streaming" do
+      let(:stream_conn) { instance_double(Faraday::Connection) }
+      let(:request) { Struct.new(:body, :options).new(nil, Struct.new(:on_data).new) }
+
+      before { allow(adapter).to receive(:connection).and_return(stream_conn) }
+
+      it "does not retry once output has been streamed" do
+        allow(stream_conn).to receive(:post) do |&blk|
+          blk.call(request)
+          request.options.on_data.call("data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n", 30, nil)
+          raise Faraday::ConnectionFailed, "Connection reset by peer"
+        end
+
+        result = adapter.chat(messages: messages) { |_chunk| }
+
+        expect(result).to be_failure
+        expect(stream_conn).to have_received(:post).once
+      end
+
+      it "retries when the connection fails before any output" do
+        calls = 0
+        allow(stream_conn).to receive(:post) do |&blk|
+          blk.call(request)
+          calls += 1
+          raise Faraday::ConnectionFailed, "execution expired" if calls == 1
+          request.options.on_data.call("data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n", 30, nil)
+        end
+        chunks = []
+
+        result = adapter.chat(messages: messages) { |c| chunks << c }
+
+        expect(result).to be_success
+        expect(chunks.map { |c| c[:content] }.join).to eq("hi")
+        expect(calls).to eq(2)
+      end
+    end
+
+    it "reads timeouts from ENV" do
+      stub_const("ENV", ENV.to_h.merge("OPENAI_COMPATIBLE_OPEN_TIMEOUT" => "3", "OPENAI_COMPATIBLE_READ_TIMEOUT" => "900"))
+
+      expect(adapter.send(:connection).options).to have_attributes(open_timeout: 3.0, timeout: 900.0)
+    end
+
+    it "defaults to a short open timeout and a long read timeout" do
+      expect(adapter.send(:connection).options).to have_attributes(open_timeout: 10.0, timeout: 600.0)
     end
   end
 

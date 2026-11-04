@@ -14,10 +14,25 @@
       <% end %>
     </div>
     
-    <!-- Template Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <% @templates.each do |template| %>
-        <div class="bg-surface-card rounded-lg p-6 hover:bg-surface-raised transition">
+    <div data-controller="template-filter" data-template-filter-open-value="<%= params[:category].present? %>">
+      <div class="mb-6">
+        <input type="search" placeholder="Search templates by name or description"
+               aria-label="Search templates"
+               class="w-full md:w-96 px-4 py-2 rounded-lg bg-surface-card text-white placeholder-text-faint"
+               data-template-filter-target="input"
+               data-action="input->template-filter#filter">
+        <p class="text-sm text-text-muted mt-2 hidden" data-template-filter-target="empty">No templates match your search.</p>
+      </div>
+
+      <% @grouped_templates.each do |category, templates| %>
+      <details class="mb-4" data-template-filter-target="group" <%= "open" if params[:category].present? %>>
+        <summary class="cursor-pointer select-none text-xl font-semibold py-2">
+          <%= category.titleize %>
+          <span class="text-sm text-text-muted font-normal" data-template-filter-target="count">(<%= templates.size %>)</span>
+        </summary>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+      <% templates.each do |template| %>
+        <div class="bg-surface-card rounded-lg p-6 hover:bg-surface-raised transition" data-template-filter-target="item" data-search-text="<%= "#{template.name} #{template.description}".downcase %>">
           <div class="flex items-start justify-between mb-4">
             <div class="w-12 h-12 bg-brand rounded-xl flex items-center justify-center text-white font-bold text-sm"><%= template.icon || "AG" %></div>
             <% if template.featured %>
@@ -61,8 +76,11 @@
           </div>
         </div>
       <% end %>
+        </div>
+      </details>
+      <% end %>
     </div>
-    
+
     <% if @templates.empty? %>
       <div class="text-center py-12">
         <p class="text-text-muted">No templates found in this category.</p>

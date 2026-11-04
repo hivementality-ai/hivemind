@@ -41,6 +41,7 @@ module Api
             {
               provider: c.provider, credential: c.credential, state: c.state,
               reason: c.reason, consecutive_failures: c.failures,
+              consecutive_failures_any_class: c.any_failures,
               opened_at: c.opened_at&.iso8601, message: c.message
             }
           end,

@@ -26,6 +26,7 @@ module Tasks
 
       session = Session.create!(
         agent: @agent,
+        project: @task.project,
         session_key: SecureRandom.uuid,
         title: "Task Hook: #{@hook.trigger}/#{@hook.on_status} — #{@task.title}",
         status: "active",

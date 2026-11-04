@@ -64,7 +64,7 @@
     <div class="bg-surface-card rounded-xl border border-border-default p-12 text-center">
       <%= hex_link_icon(size: "w-12 h-12 mx-auto mb-4", css: "text-text-faint") %>
       <p class="text-text-muted mb-2">No channels configured yet</p>
-      <p class="text-text-faint text-sm">Connect Discord, Slack, Telegram, WhatsApp, or Signal</p>
+      <p class="text-text-faint text-sm">Connect <%= Channel.platform_sentence(conjunction: "or") %></p>
     </div>
   <% end %>
 </div>

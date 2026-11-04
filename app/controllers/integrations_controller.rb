@@ -30,6 +30,7 @@ class IntegrationsController < ApplicationController
     @mcp_servers = McpServer.order(:name)
     @mcp_presets = @mcp_servers.where(preset: true)
     @mcp_custom = @mcp_servers.where(preset: false)
+    @mcp_catalog = Mcp::Catalog.entries
     @agents = Agent.visible.order(:name)
   end
 
@@ -222,7 +223,7 @@ class IntegrationsController < ApplicationController
 
   def connect_mcp_server
     server = McpServer.find(params[:id])
-    result = server.stdio? ? Mcp::ProcessManager.new(server).start : Mcp::SseClient.discover_tools(server)
+    result = server.stdio? ? Mcp::ProcessManager.new(server).start : Mcp::HttpClient.discover_tools(server)
 
     if result.success?
       redirect_to integrations_path, notice: "Connected to '#{server.name}'"
@@ -239,7 +240,7 @@ class IntegrationsController < ApplicationController
 
   def refresh_mcp_tools
     server = McpServer.find(params[:id])
-    result = server.stdio? ? Mcp::StdioClient.discover_tools(server) : Mcp::SseClient.discover_tools(server)
+    result = server.stdio? ? Mcp::StdioClient.discover_tools(server) : Mcp::HttpClient.discover_tools(server)
 
     if result.success?
       tools = result.data.is_a?(Hash) ? (result.data[:tools] || result.data["tools"] || []) : []

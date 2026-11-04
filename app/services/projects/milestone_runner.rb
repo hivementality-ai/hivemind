@@ -50,6 +50,7 @@ module Projects
         # Create new session but carry forward the summary from the stalled one
         Session.create!(
           agent: agent,
+          project: @milestone.project,
           session_key: SecureRandom.uuid,
           title: "#{@milestone.project.title} — #{@milestone.title} (resumed)",
           status: "active",
@@ -67,6 +68,7 @@ module Projects
       else
         Session.create!(
           agent: agent,
+          project: @milestone.project,
           session_key: SecureRandom.uuid,
           title: "#{@milestone.project.title} — #{@milestone.title}",
           status: "active",

@@ -3,6 +3,31 @@
 require "rails_helper"
 
 RSpec.describe Memory::Embedding, type: :service do
+  describe "unreachable provider" do
+    let(:adapter) { instance_double(Embeddings::OllamaAdapter) }
+
+    before do
+      allow(Embeddings::Registry).to receive(:current).and_return(adapter)
+      allow(adapter).to receive(:embed_text).and_raise(Faraday::ConnectionFailed, "refused")
+      allow(adapter).to receive(:embed_query).and_raise(Faraday::TimeoutError, "timed out")
+      allow(Rails.logger).to receive(:warn)
+    end
+
+    it "generate_query returns nil and logs one warning" do
+      expect(described_class.generate_query("hi")).to be_nil
+      expect(Rails.logger).to have_received(:warn).once
+    end
+
+    it "generate returns nil by default" do
+      expect(described_class.generate("hi")).to be_nil
+    end
+
+    it "generate raises TransientProviderError when asked" do
+      expect { described_class.generate("hi", raise_unreachable: true) }
+        .to raise_error(TransientProviderError)
+    end
+  end
+
   describe ".generate" do
     it "returns nil for blank text" do
       expect(described_class.generate("")).to be_nil

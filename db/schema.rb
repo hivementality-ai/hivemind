@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_04_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -69,6 +69,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
     t.index ["agent_id", "channel_id"], name: "index_agent_channels_on_agent_id_and_channel_id", unique: true
     t.index ["agent_id"], name: "index_agent_channels_on_agent_id"
     t.index ["channel_id"], name: "index_agent_channels_on_channel_id"
+  end
+
+  create_table "agent_connector_exclusions", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.bigint "connector_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id", "connector_id"], name: "index_agent_connector_exclusions_on_agent_id_and_connector_id", unique: true
+    t.index ["agent_id"], name: "index_agent_connector_exclusions_on_agent_id"
+    t.index ["connector_id"], name: "index_agent_connector_exclusions_on_connector_id"
   end
 
   create_table "agent_mcp_servers", force: :cascade do |t|
@@ -137,6 +147,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
     t.string "model_provider", default: "openai"
     t.decimal "monthly_budget_limit", precision: 10, scale: 4, default: "100.0"
     t.string "name"
+    t.bigint "provider_config_id"
     t.bigint "reports_to_id"
     t.string "role"
     t.citext "slug", null: false
@@ -154,6 +165,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
     t.string "workspace_path"
     t.index ["enabled"], name: "index_agents_on_enabled"
     t.index ["name"], name: "index_agents_on_name", unique: true
+    t.index ["provider_config_id"], name: "index_agents_on_provider_config_id"
     t.index ["reports_to_id"], name: "index_agents_on_reports_to_id"
     t.index ["slug"], name: "index_agents_on_slug", unique: true
     t.index ["status"], name: "index_agents_on_status"
@@ -279,6 +291,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
     t.index ["agent_id"], name: "index_coding_agent_tasks_on_agent_id"
     t.index ["session_id"], name: "index_coding_agent_tasks_on_session_id"
     t.index ["task_key"], name: "index_coding_agent_tasks_on_task_key", unique: true
+  end
+
+  create_table "connectors", force: :cascade do |t|
+    t.jsonb "auth_config", default: {}, null: false
+    t.string "auth_scheme", default: "none", null: false
+    t.string "base_url", null: false
+    t.datetime "created_at", null: false
+    t.bigint "created_by_id"
+    t.string "created_by_type"
+    t.text "description"
+    t.boolean "enabled", default: true, null: false
+    t.jsonb "health", default: {}, null: false
+    t.string "name", null: false
+    t.jsonb "operations", default: [], null: false
+    t.boolean "pending_approval", default: false, null: false
+    t.string "slug", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_type", "created_by_id"], name: "index_connectors_on_created_by_type_and_created_by_id"
+    t.index ["enabled"], name: "index_connectors_on_enabled"
+    t.index ["slug"], name: "index_connectors_on_slug", unique: true
   end
 
   create_table "delivery_queue_entries", force: :cascade do |t|
@@ -518,9 +550,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
     t.datetime "deadline"
     t.text "description"
     t.bigint "lead_agent_id"
+    t.string "llm_model"
     t.jsonb "metadata", default: {}, null: false
     t.jsonb "notification_prefs", default: {}, null: false
     t.string "priority", default: "normal", null: false
+    t.bigint "provider_config_id"
     t.datetime "started_at"
     t.string "status", default: "planning", null: false
     t.bigint "team_id", null: false
@@ -528,6 +562,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["lead_agent_id"], name: "index_projects_on_lead_agent_id"
+    t.index ["provider_config_id"], name: "index_projects_on_provider_config_id"
     t.index ["status"], name: "index_projects_on_status"
     t.index ["team_id", "status"], name: "index_projects_on_team_id_and_status"
     t.index ["team_id"], name: "index_projects_on_team_id"
@@ -611,11 +646,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
     t.tsvector "fts_vector"
     t.bigint "input_tokens"
     t.datetime "last_activity_at"
+    t.string "llm_model"
     t.jsonb "metadata"
     t.bigint "origin_channel_id"
     t.string "origin_channel_type"
     t.string "origin_sender"
     t.bigint "output_tokens"
+    t.bigint "project_id"
+    t.bigint "provider_config_id"
     t.string "session_key"
     t.integer "status"
     t.integer "summary_through_index", default: 0
@@ -630,6 +668,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
     t.index ["last_activity_at"], name: "index_sessions_on_last_activity_at"
     t.index ["origin_channel_type", "origin_sender"], name: "index_sessions_on_origin_channel_type_and_origin_sender"
     t.index ["origin_channel_type"], name: "index_sessions_on_origin_channel_type"
+    t.index ["project_id"], name: "index_sessions_on_project_id"
+    t.index ["provider_config_id"], name: "index_sessions_on_provider_config_id"
     t.index ["session_key"], name: "index_sessions_on_session_key", unique: true
     t.index ["team_chat_session_id"], name: "index_sessions_on_team_chat_session_id"
   end
@@ -1026,6 +1066,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
   add_foreign_key "agent_budgets", "agents"
   add_foreign_key "agent_channels", "agents"
   add_foreign_key "agent_channels", "channels"
+  add_foreign_key "agent_connector_exclusions", "agents"
+  add_foreign_key "agent_connector_exclusions", "connectors"
   add_foreign_key "agent_mcp_servers", "agents"
   add_foreign_key "agent_mcp_servers", "mcp_servers"
   add_foreign_key "agent_skills", "agents"
@@ -1033,6 +1075,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
   add_foreign_key "agent_tools", "agents"
   add_foreign_key "agent_tools", "tools"
   add_foreign_key "agents", "agents", column: "reports_to_id", on_delete: :nullify
+  add_foreign_key "agents", "provider_configs", on_delete: :nullify
   add_foreign_key "agents", "teams"
   add_foreign_key "api_integrations", "users"
   add_foreign_key "api_tokens", "users"
@@ -1063,6 +1106,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
   add_foreign_key "project_milestones", "projects"
   add_foreign_key "project_milestones", "sessions"
   add_foreign_key "projects", "agents", column: "lead_agent_id"
+  add_foreign_key "projects", "provider_configs", on_delete: :nullify
   add_foreign_key "projects", "teams"
   add_foreign_key "projects", "users"
   add_foreign_key "push_subscriptions", "users"
@@ -1070,6 +1114,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
   add_foreign_key "research_sessions", "sessions"
   add_foreign_key "scheduled_tasks", "agents"
   add_foreign_key "sessions", "agents"
+  add_foreign_key "sessions", "projects", on_delete: :nullify
+  add_foreign_key "sessions", "provider_configs", on_delete: :nullify
   add_foreign_key "sessions", "team_chat_sessions"
   add_foreign_key "skill_load_events", "agents"
   add_foreign_key "skill_load_events", "sessions"

@@ -9,18 +9,21 @@ module Providers
       "openai_compatible" => Providers::OpenaiCompatibleAdapter
     }.freeze
 
-    def self.call(provider_name:, agent: nil, failover: true)
-      new(provider_name:, agent:, failover:).call
+    def self.call(provider_name:, agent: nil, failover: true, provider_config: nil)
+      new(provider_name:, agent:, failover:, provider_config:).call
     end
 
-    def initialize(provider_name:, agent: nil, failover: true)
+    def initialize(provider_name:, agent: nil, failover: true, provider_config: nil)
+      @provider_config = provider_config
       @provider_name = provider_name
       @agent = agent
       @failover = failover
     end
 
     def call
-      config = ProviderConfig.enabled_providers.find_by(adapter_type: @provider_name) ||
+      config = explicit_config ||
+               pinned_config ||
+               ProviderConfig.enabled_providers.find_by(adapter_type: @provider_name) ||
                ProviderConfig.enabled_providers.find_by(name: @provider_name)
 
       unless config
@@ -41,6 +44,21 @@ module Providers
     end
 
     private
+
+    # A ProviderConfig chosen by the caller (a session or project override),
+    # used only while it is enabled.
+    def explicit_config
+      @provider_config if @provider_config&.enabled?
+    end
+
+    # The agent's own ProviderConfig, when it is enabled and speaks the
+    # requested adapter type; nil falls back to the by-type lookup.
+    def pinned_config
+      return unless @agent.respond_to?(:provider_config_id) && @agent.provider_config_id
+
+      config = ProviderConfig.enabled_providers.find_by(id: @agent.provider_config_id)
+      config if config && (config.adapter_type == @provider_name || config.name == @provider_name)
+    end
 
     # Wrap the adapter in the agent's failover chain (if configured) so every
     # call site — chat jobs, background jobs, ToolLoop — gets failover for

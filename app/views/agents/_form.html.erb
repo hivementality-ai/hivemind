@@ -84,15 +84,16 @@
   <div class="bg-surface-card rounded-xl border border-border-default p-6"
        data-controller="model-select"
        data-model-select-url-value="<%= api_v1_providers_models_path %>"
+       data-model-select-adapters-value="<%= ProviderConfig.enabled_providers.pluck(:id, :adapter_type).to_h.to_json %>"
        data-model-select-current-value="<%= agent.llm_model %>">
     <h2 class="text-lg font-semibold text-white mb-4">Model</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
-        <%= form.label :model_provider, "Provider", class: "block text-sm font-medium text-text-primary mb-1" %>
-        <%= form.select :model_provider,
+        <%= form.label :provider_config_id, "Provider", class: "block text-sm font-medium text-text-primary mb-1" %>
+        <%= form.select :provider_config_id,
             options_for_select(
-              ProviderConfig.enabled_providers.map { |p| [p.adapter_type.titleize, p.adapter_type] },
-              agent.model_provider
+              ProviderConfig.enabled_providers.order(:name).map { |p| [p.name, p.id] },
+              agent.provider_config_id || ProviderConfig.enabled_providers.order(:id).find_by(adapter_type: agent.model_provider)&.id
             ),
             {},
             { class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand",
@@ -291,21 +292,39 @@
   </div>
   <% end %>
 
+  <!-- Connectors -->
+  <% connectors = Connector.enabled.order(:name) %>
+  <% if connectors.any? %>
+  <div class="bg-surface-card rounded-xl border border-border-default p-6">
+    <div class="mb-4">
+      <h2 class="text-lg font-semibold text-white">Connectors</h2>
+      <p class="text-text-muted text-sm mt-1">Unchecking a connector hides it from this agent. New connectors are visible to every agent.</p>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+      <% excluded_ids = agent.persisted? ? agent.agent_connector_exclusions.pluck(:connector_id) : [] %>
+      <% connectors.each do |connector| %>
+        <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-raised/50 hover:bg-surface-raised transition cursor-pointer">
+          <%= check_box_tag "agent[visible_connector_ids][]", connector.id,
+              excluded_ids.exclude?(connector.id),
+              id: "agent_visible_connector_ids_#{connector.id}",
+              class: "w-4 h-4 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay" %>
+          <span class="text-text-primary text-sm truncate"><%= connector.name %></span>
+        </label>
+      <% end %>
+    </div>
+
+    <%= hidden_field_tag "agent[visible_connector_ids][]", "", id: nil %>
+  </div>
+  <% end %>
+
   <!-- Budgets -->
   <div class="bg-surface-card rounded-xl border border-border-default p-6">
     <h2 class="text-lg font-semibold text-white mb-4">Budgets</h2>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <%= form.label :daily_budget_limit, "Daily limit (cents)", class: "block text-sm font-medium text-text-primary mb-1" %>
-        <%= form.number_field :daily_budget_limit, placeholder: "e.g. 500 = $5.00",
-            class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
-      </div>
-      <div>
-        <%= form.label :monthly_budget_limit, "Monthly limit (cents)", class: "block text-sm font-medium text-text-primary mb-1" %>
-        <%= form.number_field :monthly_budget_limit, placeholder: "e.g. 10000 = $100.00",
-            class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
-      </div>
-    </div>
+    <p class="text-text-muted text-sm">
+      Spending limits are set in dollars on the
+      <%= link_to "Budgets page", budgets_path, class: "text-brand-light hover:underline" %>.
+    </p>
   </div>
 
   <!-- Network Egress Policy -->

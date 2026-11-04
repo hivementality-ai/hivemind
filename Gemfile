@@ -43,7 +43,6 @@ gem "faraday-retry"
 gem "oj"
 
 # Deployment
-gem "kamal", require: false
 gem "thruster", require: false
 
 # ActiveRecord Encryption + pgvector for memory search

@@ -1,0 +1,9 @@
+<div class="max-w-xl mx-auto py-8 px-4">
+  <div class="mb-6">
+    <%= link_to vault_entries_path, class: "text-text-faint hover:text-white text-sm" do %>&larr; Back to vault<% end %>
+    <h1 class="text-2xl font-bold text-white mt-2">Add key</h1>
+    <p class="text-text-muted mt-1">The value is encrypted and never displayed again.</p>
+  </div>
+
+  <%= render "form", entry: @entry, url: vault_entries_path, method: :post, submit: "Save key" %>
+</div>

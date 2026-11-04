@@ -50,7 +50,7 @@ Full write-up: `HANDOFF-PORT-EXHAUSTION.md`.
 
 ---
 
-## 2. Host tuning (do this once, per host)
+## 2. Host tuning (carried by the release process)
 
 Widening the range and shortening TIME_WAIT raises the ceiling from ~16k to
 ~49k concurrent outbound sockets and frees each one 15× faster:
@@ -60,23 +60,46 @@ Widening the range and shortening TIME_WAIT raises the ceiling from ~16k to
 ≈ 24,500 connections per second, host-wide
 ```
 
-Install the LaunchDaemon so it survives reboot:
+**Both update paths do this for you.** `hivemind update` (the CLI the
+installer symlinks into `/usr/local/bin`) and `scripts/upgrade.sh` each call
+`scripts/host-tuning.sh`, so a host that rebooted and lost its sysctls is
+repaired by updating even when there is no new release to install. The step is
+silent when the host is already correct, prompts once for `sudo` when it is
+not, and never fails the update.
+
+One caveat on the first update after 2026.09.01-rc: the update runs the CLI
+that was already on disk, and that older copy has no tuning step. Run
+`./scripts/host-tuning.sh` once by hand, or simply update a second time.
+Every update after that is self-healing.
+
+To run it on its own, or to check without changing anything:
 
 ```bash
-sudo cp scripts/hivemind-host-tuning.plist \
-        /Library/LaunchDaemons/com.hivemind.host-tuning.plist
-sudo chown root:wheel /Library/LaunchDaemons/com.hivemind.host-tuning.plist
-sudo chmod 644        /Library/LaunchDaemons/com.hivemind.host-tuning.plist
-sudo launchctl load -w /Library/LaunchDaemons/com.hivemind.host-tuning.plist
-
-# verify
-sysctl net.inet.ip.portrange.first net.inet.tcp.msl
-# expect: 16384 and 1000
+./scripts/host-tuning.sh           # install or repair
+./scripts/host-tuning.sh --check   # report only; exit 1 if drifted
 ```
+
+It is idempotent, and it treats an installed-but-stale LaunchDaemon as drift —
+that state is worse than a missing one, because it looks handled and then
+reverts to the wrong values at the next boot.
+
+### Why this cannot ship inside a container
+
+On macOS, Docker Desktop runs the containers in a Linux VM but routes their
+egress through the **host's** socket pool via `com.docker.backend`. The pool is
+Darwin kernel state (`net.inet.*`), which no Linux namespace can reach and no
+container can widen — privileged or not. A script the operator runs on the host
+is the only vehicle, which is why this hangs off the upgrade path rather than
+`docker-compose.yml`. On Linux hosts the script is a deliberate no-op: container
+networks there have their own port space and do not draw on the host's range.
 
 > **This is headroom, not a fix.** A stack retrying without bound will exhaust
 > 49k ports too; it just takes longer. The tuning buys time for the per-stack
 > ceilings below to do the actual work.
+>
+> The 2026-09-08 recurrence is the proof: the tuning was applied by hand on
+> 2026-08-24, was never made persistent, and vanished on the first reboot 70
+> days later. Tuning that depends on someone remembering is not tuning.
 
 ---
 
@@ -89,10 +112,30 @@ Each stack declares its share in its `.env`. Defaults live in
 | ----------------------------- | -------- | ----------------------------------------------------------- |
 | `SDK_PROXY_MAX_CONCURRENCY`   | `4`      | Provider calls in flight at once. Each spawns one Claude Code subprocess. |
 | `SDK_PROXY_MAX_QUEUE`         | `16`     | Callers allowed to wait for a slot. Beyond this, requests are shed with `429`. |
-| `SDK_PROXY_CIRCUIT_THRESHOLD` | `3`      | Consecutive permanent failures before the credential stops being dialled. |
+| `SDK_PROXY_CIRCUIT_THRESHOLD` | `3`      | Consecutive **permanent** failures before the credential stops being dialled. |
+| `SDK_PROXY_CIRCUIT_ANY_THRESHOLD` | `10` | Consecutive failures of **any** class before it stops. The backstop — see below. |
 | `SDK_PROXY_CIRCUIT_OPEN_MS`   | `900000` | How long the circuit stays open (15 min) before one probe. |
 | `PROVIDER_CIRCUIT_THRESHOLD`  | `3`      | Same, on the Rails side (shared across workers via Redis).  |
+| `PROVIDER_CIRCUIT_ANY_THRESHOLD` | `10`  | Rails-side backstop.                                        |
 | `PROVIDER_CIRCUIT_OPEN_SECONDS` | `900`  | Rails-side cooldown.                                        |
+
+### Why there are two thresholds
+
+The permanent threshold catches the 2026-08-24 failure: a quota 400 that can
+never succeed. It is deliberately tight (3) because retrying is pointless.
+
+The backstop catches the 2026-09-08 recurrence on the same host, which the
+permanent threshold could not see. Port exhaustion does not announce itself —
+the Claude Code subprocess reports it as `API Error: Connection error.`, which
+is indistinguishable from a real network blip and classifies as *transient*.
+Transient failures were exempt from the circuit by design, so an unbroken run
+of them dialled forever, one fresh TCP connection per attempt, and the host
+wedged with 66,099 sockets in `TIME_WAIT` against a 49,152-port pool.
+
+A single transient failure still must not open the circuit; that is what
+"transient" means. But a credential that has failed 10 times in a row without
+one success is not experiencing a blip, whatever the errors are called. Any
+success resets the run, so genuine flakiness never accumulates.
 
 ### Budget arithmetic
 
@@ -286,7 +329,7 @@ Checklist before adding a stack to a host:
 - [ ] Distinct published host port for `app`
 - [ ] Distinct `AGENTS_SHARED_DIR`
 - [ ] `SDK_PROXY_MAX_CONCURRENCY` set so the host-wide sum still satisfies §3
-- [ ] Host tuning LaunchDaemon installed (§2)
+- [ ] Host tuning applied: `./scripts/host-tuning.sh --check` exits 0 (§2)
 - [ ] Canary running in cron (§5)
 
 ---

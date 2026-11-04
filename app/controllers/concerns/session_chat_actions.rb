@@ -14,9 +14,10 @@ module SessionChatActions
     Agent.by_slug(identifier).first || Agent.find_by(id: identifier)
   end
 
-  def create_chat_session(agent:, user:)
+  def create_chat_session(agent:, user:, project: nil)
     session = Session.create!(
       agent: agent,
+      project: project,
       session_key: SecureRandom.uuid,
       status: :active,
       transcript: [],
@@ -40,7 +41,7 @@ module SessionChatActions
     attachment_ids = process_message_attachments(session: session, images: images, files: files)
 
     ActionCable.server.broadcast("session_#{session.id}", { type: "user_message", content: user_message })
-    ChatStreamJob.perform_later(session.id, user_message.to_s, attachment_ids)
+    ChatStreamJob.set(queue: :interactive).perform_later(session.id, user_message.to_s, attachment_ids)
     :enqueued
   end
 
