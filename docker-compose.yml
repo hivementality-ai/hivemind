@@ -164,7 +164,7 @@ services:
     command: bundle exec sidekiq -C config/sidekiq_interactive.yml
     depends_on:
       app:
-        condition: service_started
+        condition: service_healthy
       cache:
         condition: service_healthy
     volumes:
@@ -195,6 +195,13 @@ services:
           cpus: "${SIDEKIQ_INTERACTIVE_CPUS:-1.0}"
     networks:
       - internal
+    healthcheck:
+      test: ["CMD-SHELL", "grep -qaE '[s]idekiq' /proc/[0-9]*/cmdline"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    stop_grace_period: 30s
     restart: unless-stopped
 
   db:
