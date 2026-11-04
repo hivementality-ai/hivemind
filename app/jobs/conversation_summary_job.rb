@@ -106,5 +106,4 @@ class ConversationSummaryJob < ApplicationJob
 
     parts.join("\n")
   end
-
 end
