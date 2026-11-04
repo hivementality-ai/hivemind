@@ -248,11 +248,18 @@
             <p class="text-text-muted text-sm mb-3">Connect Google Workspace so agents can use Drive, Calendar, and Gmail.</p>
             <ol class="text-text-muted text-sm space-y-2 list-decimal list-inside">
               <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-brand-light hover:underline">Google Cloud Console > Credentials</a></li>
-              <li>Click <strong class="text-white">Create Credentials</strong> > <strong class="text-white">OAuth client ID</strong></li>
+              <li>Open <strong class="text-white">OAuth consent screen</strong> (Google Auth Platform > Branding), choose <strong class="text-white">External</strong> and fill in the app name and your email</li>
+              <li>Under <strong class="text-white">Audience</strong> (Test users), click <strong class="text-white">Add users</strong> and <strong class="text-white">add yourself as a test user</strong>, using the Google account you will connect</li>
+              <li>Back in Credentials, click <strong class="text-white">Create Credentials</strong> > <strong class="text-white">OAuth client ID</strong></li>
               <li>Select <strong class="text-white">Web application</strong> as the type</li>
               <li>Add <code class="text-amber-300"><%= request.base_url %>/oauth/google/callback</code> as an authorized redirect URI</li>
               <li>Copy the <strong class="text-white">Client ID</strong> and <strong class="text-white">Client Secret</strong> below</li>
             </ol>
+            <% unless request.ssl? || %w[localhost 127.0.0.1 ::1 [::1]].include?(request.host) %>
+              <p class="text-amber-300 text-xs mt-3" id="gws-redirect-warning">
+                This page is served from <code><%= request.base_url %></code>. Google only accepts redirect URIs that are https or localhost, so a LAN address will be rejected. Open Hivemind over https or at localhost before connecting.
+              </p>
+            <% end %>
             <p class="text-text-faint text-xs mt-3">Also enable the Google Drive, Calendar, and Gmail APIs in your project's <a href="https://console.cloud.google.com/apis/library" target="_blank" class="text-brand-light hover:underline">API Library</a>.</p>
           </div>
         <% end %>
@@ -274,13 +281,27 @@
                   autocomplete: "off" %>
             </div>
             <div class="flex justify-end">
-              <%= submit_tag @gws_oauth_configured ? "Update Credentials" : "Save & Connect",
+              <%= submit_tag @gws_oauth_configured ? "Update Credentials" : "Save credentials",
                 class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
             </div>
           </div>
         <% end %>
       </div>
     <% end %>
+  </div>
+
+  <!-- MCP servers -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6" id="mcp-servers-card">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-semibold text-white">MCP servers</h2>
+        <p class="text-text-muted text-sm">
+          <%= pluralize(@mcp_servers.size, "MCP server") %> configured
+        </p>
+      </div>
+      <%= link_to "Manage MCP servers", mcp_servers_path,
+          class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition" %>
+    </div>
   </div>
 
   <!-- Jira -->
