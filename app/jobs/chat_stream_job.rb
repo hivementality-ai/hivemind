@@ -195,7 +195,7 @@ class ChatStreamJob < ApplicationJob
       if tools.any? && !oauth_mcp
         result = Agents::ToolLoop.call(
           adapter:, agent:, session:, messages:, tools:, channel:, options: llm_options
-        )
+        ) { |_delta| check_stream_signal!(session) }
         if result && !result.success?
           error_msg = "⚠️ LLM error: #{result.error}"
           ActionCable.server.broadcast(channel, { type: "error", content: error_msg })

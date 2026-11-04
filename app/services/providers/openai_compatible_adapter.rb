@@ -211,21 +211,12 @@ module Providers
     end
 
     def stream_chat(params:, &block)
-      # Fall back to sync when tools are present
-      if params[:tools].present?
-        result = sync_chat(params:)
-        if result.success?
-          content = result.data[:content]
-          content&.each_char { |char| block.call({ type: "content", content: char }) }
-        end
-        return result
-      end
-
       full_content = +""
       full_thinking = +""
       thinking_started = false
       in_think_tag = false
       content_buffer = +""
+      tool_fragments = {}
 
       streaming_conn = connection
       received_data = false
@@ -247,6 +238,8 @@ module Providers
 
               begin
                 parsed = JSON.parse(data)
+
+                accumulate_tool_call_deltas(tool_fragments, parsed.dig("choices", 0, "delta", "tool_calls"))
 
                 reasoning = parsed.dig("choices", 0, "delta", "reasoning_content")
                 if reasoning
@@ -325,8 +318,31 @@ module Providers
 
       thinking = full_thinking.presence
 
-      result = ServiceResponse.success(data: { content: full_content, thinking:, usage: {} })
+      tool_calls = tool_fragments.sort_by { |index, _| index }.map { |_, f| build_tool_call(f[:id], f[:name], f[:arguments]) }
+      tool_calls = nil if tool_calls.empty?
+
+      result = ServiceResponse.success(data: { content: full_content, thinking:, tool_calls:, usage: {} })
       inject_request_payload(result, params)
+    end
+
+    # Merge one chunk's +tool_calls+ deltas into +fragments+, keyed by index.
+    # The id and function name arrive on a call's first chunk; the arguments
+    # arrive as string fragments across later chunks.
+    def accumulate_tool_call_deltas(fragments, deltas)
+      Array(deltas).each_with_index do |delta, position|
+        fragment = fragments[delta["index"] || position] ||= { id: nil, name: nil, arguments: +"" }
+        fragment[:id] ||= delta["id"]
+        fragment[:name] ||= delta.dig("function", "name")
+        fragment[:arguments] << delta.dig("function", "arguments").to_s
+      end
+    end
+
+    # Normalized tool call hash shared by the sync and streaming paths.
+    def build_tool_call(id, name, args)
+      args = "{}" if args.blank?
+      args = JSON.parse(args) if args.is_a?(String) rescue args
+
+      { "id" => id || "oai_compat_#{SecureRandom.hex(4)}", "name" => name, "input" => args }
     end
 
     def sync_chat(params:)
@@ -347,14 +363,7 @@ module Providers
       raw_tool_calls = choice&.dig("tool_calls")
 
       tool_calls = raw_tool_calls&.map do |tc|
-        args = tc.dig("function", "arguments") || "{}"
-        args = JSON.parse(args) if args.is_a?(String) rescue args
-
-        {
-          "id" => tc["id"] || "oai_compat_#{SecureRandom.hex(4)}",
-          "name" => tc.dig("function", "name"),
-          "input" => args
-        }
+        build_tool_call(tc["id"], tc.dig("function", "name"), tc.dig("function", "arguments"))
       end
 
       tool_calls = nil if tool_calls&.empty?

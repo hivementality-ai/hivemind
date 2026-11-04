@@ -202,26 +202,53 @@ RSpec.describe Providers::OpenaiCompatibleAdapter, type: :service do
       end
     end
 
-    context "streaming" do
-      it "falls back to sync mode when tools are present" do
-        tools = [ { name: "shell", description: "Run shell", input_schema: { type: "object" } } ]
+    context "streaming with tools" do
+      let(:tools) { [ { name: "shell", description: "Run shell", input_schema: { type: "object" } } ] }
 
+      def sse(*events)
+        events.map { |e| "data: #{e.to_json}\n\n" }.join + "data: [DONE]\n\n"
+      end
+
+      def delta(payload)
+        { choices: [ { delta: payload } ] }
+      end
+
+      it "assembles index-keyed tool calls from fragmented deltas" do
+        body = sse(
+          delta({ content: "On it." }),
+          delta({ tool_calls: [ { index: 0, id: "call_a", type: "function", function: { name: "shell", arguments: "" } } ] }),
+          delta({ tool_calls: [ { index: 0, function: { arguments: "{\"comm" } } ] }),
+          delta({ tool_calls: [ { index: 1, id: "call_b", type: "function", function: { name: "shell", arguments: "{\"command\":\"pwd\"}" } } ] }),
+          delta({ tool_calls: [ { index: 0, function: { arguments: "and\":" } } ] }),
+          delta({ tool_calls: [ { index: 0, function: { arguments: "\"ls\"}" } } ] })
+        )
         stub_request(:post, "http://localhost:8080/v1/chat/completions")
-          .to_return(
-            status: 200,
-            body: {
-              choices: [ { message: { content: "Response without streaming" } } ],
-              usage: { prompt_tokens: 10, completion_tokens: 5 }
-            }.to_json
-          )
+          .with(body: hash_including(stream: true))
+          .to_return(status: 200, body: body)
 
-        content_chunks = []
+        content = []
         result = adapter.chat(messages: messages, tools: tools, options: options) do |chunk|
-          content_chunks << chunk[:content] if chunk[:type] == "content"
+          content << chunk[:content] if chunk[:type] == "content"
         end
 
         expect(result).to be_success
-        expect(content_chunks.join).to eq("Response without streaming")
+        expect(content.join).to eq("On it.")
+        expect(result.data[:tool_calls]).to eq(
+          [
+            { "id" => "call_a", "name" => "shell", "input" => { "command" => "ls" } },
+            { "id" => "call_b", "name" => "shell", "input" => { "command" => "pwd" } }
+          ]
+        )
+      end
+
+      it "returns no tool calls when the stream carries none" do
+        stub_request(:post, "http://localhost:8080/v1/chat/completions")
+          .to_return(status: 200, body: sse(delta({ content: "Just text" })))
+
+        result = adapter.chat(messages: messages, tools: tools, options: options) { |_| }
+
+        expect(result.data[:content]).to eq("Just text")
+        expect(result.data[:tool_calls]).to be_nil
       end
     end
 
