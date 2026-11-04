@@ -7,6 +7,7 @@ class ChatStreamJob < ApplicationJob
 
   PROCESSING_KEY_PREFIX = "session_processing:"
   LOCK_KEY_PREFIX = "session_turn_lock:"
+  FALLBACK_NOTICE = "_Claude was unavailable, so the backup brain answered._"
   # The lock is short-lived and renewed by a heartbeat while a turn runs, so a
   # dead worker's lock disappears within LOCK_TTL.
   LOCK_TTL = 90
@@ -212,6 +213,7 @@ class ChatStreamJob < ApplicationJob
       else
         full_content = +""
         full_thinking = +""
+        tool_activity = false
         result = adapter.chat(messages:, options: llm_options) do |chunk|
           case chunk[:type]
           when "thinking_start"
@@ -228,6 +230,7 @@ class ChatStreamJob < ApplicationJob
               check_stream_signal!(session)
             end
           when "tool_start"
+            tool_activity = true
             Plugins::Hooks.trigger("before_tool_call", tool_name: chunk[:tool], input: chunk[:input] || {}, agent: agent, source: :proxy)
             ActionCable.server.broadcast(channel, { type: "tool_start", tool: chunk[:tool], input: chunk[:input] })
           when "tool_result"
@@ -238,7 +241,20 @@ class ChatStreamJob < ApplicationJob
 
         thinking_content = full_thinking.presence
 
-        if full_content.empty? && result&.success?
+        fallback_brain = oauth_mcp && full_content.empty? && !tool_activity &&
+                         Providers::FailoverAdapter.failover_worthy?(result) &&
+                         Providers::DefaultFallback.call(failed: brain.provider_config, failed_adapter_type: brain.provider_name)
+        if fallback_brain
+          result = run_fallback_tool_loop(fallback_brain, agent:, session:, messages:, tools:, channel:, llm_options:, primary_error: result.error)
+          if result.success?
+            full_content = "#{FALLBACK_NOTICE}\n\n#{result.data[:content]}"
+            thinking_content = result.data[:thinking]
+            tool_history = result.data[:tool_history]
+          else
+            full_content = "⚠️ LLM error: #{result.error}"
+            ActionCable.server.broadcast(channel, { type: "error", content: full_content })
+          end
+        elsif full_content.empty? && result&.success?
           full_content = result.data[:content].to_s
           thinking_content ||= result.data[:thinking]
           ActionCable.server.broadcast(channel, { type: "token", content: full_content })
@@ -438,6 +454,20 @@ class ChatStreamJob < ApplicationJob
     end
   rescue StandardError => e
     Rails.logger.error("[Heartbeat] Finalization failed: #{e.message}\n#{e.backtrace&.first(3)&.join("\n")}")
+  end
+
+  # Re-runs the turn on the default backup brain through Agents::ToolLoop with
+  # the same tools the sdk-proxy path was given, after telling the user.
+  def run_fallback_tool_loop(brain, agent:, session:, messages:, tools:, channel:, llm_options:, primary_error:)
+    Rails.logger.warn("[ChatStreamJob] sdk-proxy failed (#{primary_error.to_s.truncate(200)}); falling back to #{brain.provider_name}/#{brain.model}")
+    resolved = Providers::Resolver.call(provider_name: brain.provider_name, agent:, provider_config: brain.provider_config, failover: false)
+    return resolved unless resolved.success?
+
+    ActionCable.server.broadcast(channel, { type: "token", content: "#{FALLBACK_NOTICE}\n\n" })
+    options = llm_options.except(:agent_id, :session_id, :tool_definitions).merge(model: brain.model)
+    Agents::ToolLoop.call(
+      adapter: resolved.data[:adapter], agent:, session:, messages:, tools:, channel:, options:
+    ) { |_delta| check_stream_signal!(session) }
   end
 
   def resolve_tools(agent)

@@ -53,6 +53,20 @@ module Providers
       self === adapter ? adapter.primary : adapter
     end
 
+    # True when a failed adapter result is an unavailability-class error worth
+    # trying another provider for.
+    def self.failover_worthy?(result)
+      return false if result.nil? || result.success?
+
+      # Prefer the typed verdict the adapter attached; fall back to the string
+      # regex only for adapters that have not been through the classifier.
+      reason = result.payload.is_a?(Hash) ? result.payload.dig(:provider_error, :reason) : nil
+      return false if reason.present? && NEVER_FAILOVER_REASONS.include?(reason)
+      return FAILOVER_REASONS.include?(reason) if reason.present?
+
+      result.error.to_s.match?(RETRYABLE_ERROR)
+    end
+
     def initialize(primary:, chain:, agent:)
       @primary = primary
       @chain = chain
@@ -97,17 +111,7 @@ module Providers
 
     private
 
-    def retryable_failure?(result)
-      return false if result.nil? || result.success?
-
-      # Prefer the typed verdict the adapter attached; fall back to the string
-      # regex only for adapters that have not been through the classifier.
-      reason = result.payload.is_a?(Hash) ? result.payload.dig(:provider_error, :reason) : nil
-      return false if reason.present? && NEVER_FAILOVER_REASONS.include?(reason)
-      return FAILOVER_REASONS.include?(reason) if reason.present?
-
-      result.error.to_s.match?(RETRYABLE_ERROR)
-    end
+    def retryable_failure?(result) = self.class.failover_worthy?(result)
 
     def resolve_adapter(entry)
       resolved = Providers::Resolver.call(provider_name: entry[:provider], agent: @agent, failover: false)

@@ -289,6 +289,91 @@ RSpec.describe ChatStreamJob, type: :job do
       end
     end
 
+    context "when the sdk-proxy path fails" do
+      let(:tool) { create(:tool, enabled: true, builtin: true) }
+      let(:adapter) { double("AnthropicAdapter", oauth_token?: true) }
+      let(:local_adapter) { double("OpenaiCompatibleAdapter") }
+      let(:local_config) { create(:provider_config, adapter_type: "openai_compatible", model_definitions: [ { "name" => "qwen" } ]) }
+      let(:failure) { ServiceResponse.failure(error: "SDK proxy error (503): overloaded") }
+      let(:loop_result) { double(success?: true, data: { content: "Local answer", thinking: nil, usage: {}, tool_history: [] }) }
+
+      before do
+        allow(adapter).to receive(:is_a?).and_return(false)
+        allow(adapter).to receive(:is_a?).with(Providers::AnthropicAdapter).and_return(true)
+        allow(Providers::AnthropicAdapter).to receive(:sdk_proxy_enabled?).and_return(true)
+        allow(Tool).to receive_message_chain(:enabled, :builtin, :to_a).and_return([ tool ])
+        allow(Providers::Resolver).to receive(:call)
+          .with(hash_including(provider_config: local_config))
+          .and_return(double(success?: true, data: { adapter: local_adapter }))
+        allow(Agents::ToolLoop).to receive(:call).and_return(loop_result)
+        allow(adapter).to receive(:chat).and_return(failure)
+      end
+
+      context "with a default fallback configured" do
+        before { Setting.set(Providers::DefaultFallback::SETTING_KEY, [ { provider_config_id: local_config.id } ].to_json) }
+
+        it "runs ToolLoop with the real tools on the fallback provider and says so" do
+          described_class.perform_now(session.id, "Hello")
+
+          expect(Agents::ToolLoop).to have_received(:call) do |**kwargs|
+            expect(kwargs[:tools]).to include(tool)
+            expect(kwargs[:adapter]).to eq(local_adapter)
+            expect(kwargs[:options]).to include(model: "qwen")
+            expect(kwargs[:options]).not_to include(:tool_definitions)
+          end
+          expect(ActionCable.server).to have_received(:broadcast)
+            .with(channel, hash_including(type: "token", content: /backup brain answered/))
+          expect(session.reload.transcript.last["content"]).to eq("#{described_class::FALLBACK_NOTICE}\n\nLocal answer")
+        end
+
+        it "does not fall back once content has streamed" do
+          allow(adapter).to receive(:chat) do |**_opts, &block|
+            block.call(type: "content", content: "Half an ans")
+            failure
+          end
+
+          described_class.perform_now(session.id, "Hello")
+
+          expect(Agents::ToolLoop).not_to have_received(:call)
+        end
+
+        it "does not fall back once a tool has run" do
+          allow(adapter).to receive(:chat) do |**_opts, &block|
+            block.call(type: "tool_start", tool: "x", input: {})
+            failure
+          end
+
+          described_class.perform_now(session.id, "Hello")
+
+          expect(Agents::ToolLoop).not_to have_received(:call)
+        end
+
+        it "does not fall back when the turn never used the sdk-proxy tool path" do
+          allow(Tool).to receive_message_chain(:enabled, :builtin, :to_a).and_return([])
+
+          described_class.perform_now(session.id, "Hello")
+
+          expect(Agents::ToolLoop).not_to have_received(:call)
+        end
+
+        it "does not fall back on a non-transient error" do
+          allow(adapter).to receive(:chat).and_return(ServiceResponse.failure(error: "bad request shape"))
+
+          described_class.perform_now(session.id, "Hello")
+
+          expect(Agents::ToolLoop).not_to have_received(:call)
+        end
+      end
+
+      it "keeps the current error behavior with no fallback configured" do
+        described_class.perform_now(session.id, "Hello")
+
+        expect(Agents::ToolLoop).not_to have_received(:call)
+        expect(ActionCable.server).to have_received(:broadcast)
+          .with(channel, hash_including(type: "error", content: /LLM error/))
+      end
+    end
+
     context "thinking support" do
       let(:agent) { create(:agent, model_provider: "anthropic", llm_model: "claude-3-5-sonnet", thinking_enabled: true, thinking_budget_tokens: 5000, thinking_visibility: "debug") }
 
