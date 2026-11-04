@@ -255,6 +255,14 @@ Rails.application.routes.draw do
     end
   end
 
+  # MCP server settings
+  resources :mcp_servers, except: :show do
+    member do
+      patch :toggle_enabled
+      post :test_connection
+    end
+  end
+
   # Plugins
   resources :plugins, only: [ :index, :show ] do
     member do

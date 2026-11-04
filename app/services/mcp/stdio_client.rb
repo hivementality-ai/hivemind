@@ -1,12 +1,10 @@
 # frozen_string_literal: true
 
-require "open3"
-require "json"
-require "shellwords"
-
 module Mcp
+  # MCP client for stdio servers; requests run over the long-lived session
+  # Mcp::StdioRegistry keeps for each server.
   class StdioClient
-    WORKSPACE_CONTAINER = "#{ENV.fetch('COMPOSE_PROJECT_NAME', 'hivemind')}-workspace-1"
+    MAX_TOOL_PAGES = 20
 
     def self.discover_tools(server)
       new(server).discover_tools
@@ -21,13 +19,7 @@ module Mcp
     end
 
     def discover_tools
-      request = build_jsonrpc("tools/list", {})
-      response = execute_jsonrpc(request)
-      return ServiceResponse.failure(error: "No JSON response from server") unless response
-      if response["error"]
-        return ServiceResponse.failure(error: response["error"]["message"])
-      end
-      tools = response.dig("result", "tools") || []
+      tools = Mcp::StdioRegistry.with_session(@server) { |session| list_all_tools(session) }
       @server.mark_connected!(tools: tools)
       ServiceResponse.success(data: { tools: tools })
     rescue StandardError => e
@@ -36,40 +28,36 @@ module Mcp
     end
 
     def call_tool(tool_name:, arguments: {})
-      request = build_jsonrpc("tools/call", { name: tool_name, arguments: arguments })
-      response = execute_jsonrpc(request)
-      return ServiceResponse.failure(error: "No JSON response from server") unless response
-      if response["error"]
-        return ServiceResponse.failure(error: response["error"]["message"])
+      result = Mcp::StdioRegistry.with_session(@server) do |session|
+        session.request("tools/call", { name: tool_name, arguments: arguments })
       end
-      content = response.dig("result", "content") || []
-      output = content.map { |c| c["text"] || c.to_json }.join("\n")
-      ServiceResponse.success(data: { output: output, raw: response["result"] })
+      output = extract_content(result)
+      return ServiceResponse.failure(error: "Tool call failed: #{output}") if result["isError"]
+
+      ServiceResponse.success(data: { output: output, raw: result })
     rescue StandardError => e
       ServiceResponse.failure(error: e.message)
     end
 
     private
 
-    def build_jsonrpc(method, params)
-      { jsonrpc: "2.0", id: SecureRandom.uuid, method: method, params: params }.to_json
+    def list_all_tools(session)
+      tools = []
+      cursor = nil
+      MAX_TOOL_PAGES.times do
+        result = session.request("tools/list", cursor ? { cursor: cursor } : {})
+        tools.concat(result["tools"] || [])
+        cursor = result["nextCursor"]
+        break if cursor.blank?
+      end
+      tools
     end
 
-    def execute_jsonrpc(request_json)
-      env_args = @server.resolved_env_vars.flat_map { |k, v| [ "--env", "#{k}=#{v}" ] }
-      cmd = [ "docker", "exec", "-i", *env_args, WORKSPACE_CONTAINER, *Shellwords.shellsplit(@server.command) ]
-      stdout, stderr, status = Open3.capture3(*cmd, stdin_data: request_json + "\n")
-      raise "Command failed: #{stderr}" unless status.success?
-      stdout.lines.each do |line|
-        line = line.strip
-        next if line.empty?
-        begin
-          return JSON.parse(line)
-        rescue JSON::ParserError
-          next
-        end
-      end
-      nil
+    def extract_content(result)
+      content = result["content"]
+      return result.to_json unless content.is_a?(Array)
+
+      content.map { |c| c["text"] || c.to_json }.join("\n")
     end
   end
 end

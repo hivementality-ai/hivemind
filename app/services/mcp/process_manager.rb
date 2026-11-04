@@ -22,6 +22,7 @@ module Mcp
     def stop
       pid = @server.metadata&.dig("pid")
       kill_process(pid) if pid
+      Mcp::StdioRegistry.close(@server)
       @server.mark_disconnected!
       ServiceResponse.success(data: { stopped: true })
     rescue StandardError => e
