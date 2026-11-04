@@ -9,6 +9,8 @@ Sidekiq.configure_server do |config|
     schedule = YAML.load_file(schedule_file)
     Sidekiq::Cron::Job.load_from_hash(schedule) if schedule.present?
   end
+
+  config.on(:startup) { StuckTurnSweepJob.perform_later }
 end
 
 Sidekiq.configure_client do |config|

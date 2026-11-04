@@ -30,6 +30,43 @@ RSpec.describe ChatStreamJob, type: :job do
     allow(Channels::OriginDelivery).to receive(:call)
   end
 
+  describe "per-session turn lock" do
+    let(:lock_key) { "#{described_class::LOCK_KEY_PREFIX}#{session.id}" }
+
+    before { Redis.current.del(lock_key) }
+
+    after { Redis.current.del(lock_key) }
+
+    it "does not run a second turn while one holds the lock, and requeues it" do
+      runs = []
+      allow_any_instance_of(described_class).to receive(:run_turn) do |_job, *args|
+        runs << args
+        described_class.new.perform(session.id, "second")
+      end
+
+      expect { described_class.new.perform(session.id, "first") }
+        .to have_enqueued_job(described_class).with(session.id, "second", [])
+
+      expect(runs.map(&:second)).to eq([ "first" ])
+    end
+
+    it "releases the lock after a turn so the next one runs" do
+      allow_any_instance_of(described_class).to receive(:run_turn)
+
+      described_class.new.perform(session.id, "first")
+
+      expect(Redis.current.get(lock_key)).to be_nil
+    end
+
+    it "does not release a lock held by another turn" do
+      allow_any_instance_of(described_class).to receive(:run_turn) { Redis.current.set(lock_key, "someone-else") }
+
+      described_class.new.perform(session.id, "first")
+
+      expect(Redis.current.get(lock_key)).to eq("someone-else")
+    end
+  end
+
   describe "#perform" do
     context "hashtag bypass" do
       let(:hashtag_bypass) do

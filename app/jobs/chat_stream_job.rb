@@ -5,7 +5,35 @@ class ChatStreamJob < ApplicationJob
 
   queue_as :agents
 
+  PROCESSING_KEY_PREFIX = "session_processing:"
+  LOCK_KEY_PREFIX = "session_turn_lock:"
+  # Upper bound on one turn; also how long a dead worker's flag and lock can linger.
+  PROCESSING_TTL = 20.minutes.to_i
+  # A flag older than this with no session activity is treated as an orphaned turn.
+  STALE_AFTER = 15.minutes.to_i
+  LOCK_RETRY_DELAY = 3.seconds
+
+  RELEASE_LOCK_SCRIPT = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) end return 0"
+
+  # Runs one turn at a time per session. A turn that arrives while another is
+  # running is requeued behind it rather than dropped.
   def perform(session_id, user_message, attachment_ids = [])
+    token = SecureRandom.hex(8)
+    lock_key = "#{LOCK_KEY_PREFIX}#{session_id}"
+    unless Redis.current.set(lock_key, token, nx: true, ex: PROCESSING_TTL)
+      self.class.set(wait: LOCK_RETRY_DELAY).perform_later(session_id, user_message, attachment_ids)
+      return
+    end
+
+    begin
+      run_turn(session_id, user_message, attachment_ids)
+    ensure
+      set_processing(session_id, false)
+      Redis.current.eval(RELEASE_LOCK_SCRIPT, keys: [ lock_key ], argv: [ token ])
+    end
+  end
+
+  def run_turn(session_id, user_message, attachment_ids)
     session = Session.find(session_id)
     agent = session.agent
     channel = "session_#{session.id}"
@@ -272,6 +300,8 @@ class ChatStreamJob < ApplicationJob
 
   private
 
+  private :run_turn
+
   def check_stream_signal!(session)
     signal = SessionSignal.check(session.id)
     return unless signal
@@ -285,9 +315,9 @@ class ChatStreamJob < ApplicationJob
   end
 
   def set_processing(session_id, active)
-    key = "session_processing:#{session_id}"
+    key = "#{PROCESSING_KEY_PREFIX}#{session_id}"
     if active
-      Redis.current.setex(key, 600, "1")
+      Redis.current.setex(key, PROCESSING_TTL, "1")
     else
       Redis.current.del(key)
     end
