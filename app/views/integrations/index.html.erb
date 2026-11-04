@@ -304,6 +304,25 @@
     </div>
   </div>
 
+  <!-- Connectors and vault -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6" id="connectors-card">
+    <div class="flex items-center justify-between gap-4">
+      <div>
+        <h2 class="text-lg font-semibold text-white">Connectors</h2>
+        <p class="text-text-muted text-sm">
+          Connectors let Hivemind use any app with a web API. Keys are kept in the vault and never shown to the AI.
+          <%= pluralize(Connector.count, "connector") %>, <%= pluralize(VaultEntry.global.count, "vault key") %>.
+        </p>
+      </div>
+      <div class="flex gap-2 shrink-0">
+        <%= link_to "Manage connectors", connectors_path,
+            class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition" %>
+        <%= link_to "Vault", vault_entries_path,
+            class: "px-4 py-2 bg-surface-raised border border-border-default text-white text-sm font-medium rounded-lg transition" %>
+      </div>
+    </div>
+  </div>
+
   <!-- Jira -->
   <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
     <div class="flex items-center justify-between mb-4">
