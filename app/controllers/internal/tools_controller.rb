@@ -48,7 +48,9 @@ module Internal
     private
 
     SYSTEM_TOOLS = {
-      "load_skill" => SystemTool::LOAD_SKILL
+      "load_skill" => SystemTool::LOAD_SKILL,
+      "find_tools" => SystemTool::FIND_TOOLS,
+      "use_tool" => SystemTool::USE_TOOL
     }.freeze
 
     def resolve_system_tool(name)
