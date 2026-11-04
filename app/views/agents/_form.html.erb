@@ -88,11 +88,11 @@
     <h2 class="text-lg font-semibold text-white mb-4">Model</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
-        <%= form.label :model_provider, "Provider", class: "block text-sm font-medium text-text-primary mb-1" %>
-        <%= form.select :model_provider,
+        <%= form.label :provider_config_id, "Provider", class: "block text-sm font-medium text-text-primary mb-1" %>
+        <%= form.select :provider_config_id,
             options_for_select(
-              ProviderConfig.enabled_providers.map { |p| [p.adapter_type.titleize, p.adapter_type] },
-              agent.model_provider
+              ProviderConfig.enabled_providers.order(:name).map { |p| [p.name, p.id] },
+              agent.provider_config_id || ProviderConfig.enabled_providers.order(:id).find_by(adapter_type: agent.model_provider)&.id
             ),
             {},
             { class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand",
