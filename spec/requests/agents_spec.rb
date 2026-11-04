@@ -143,6 +143,20 @@ RSpec.describe "Agents API", type: :request do
       expect(response.body).to include(%(<option value="#{router.id}">OpenRouter</option>))
     end
 
+    it "tells the user what to check when an Ollama provider shows no models" do
+      create(:provider_config, :ollama, name: "Mac Studio")
+
+      get "/agents/#{agent.slug}/edit"
+
+      expect(response.body).to include("No models listed for an Ollama provider? Make sure Ollama is running")
+    end
+
+    it "leaves the Ollama hint off when no Ollama provider is enabled" do
+      get "/agents/#{agent.slug}/edit"
+
+      expect(response.body).not_to include("Make sure Ollama is running")
+    end
+
     it "lists models from the selected provider config" do
       omlx.update!(model_definitions: [ { "id" => "qwen-local" } ])
       router.update!(model_definitions: [ { "id" => "gpt-routed" } ])
