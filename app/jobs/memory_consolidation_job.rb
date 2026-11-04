@@ -91,7 +91,7 @@ class MemoryConsolidationJob < ApplicationJob
       { role: "user", content: conversation.truncate(8000) }
     ]
 
-    response = adapter.chat(messages: messages, options: { model: agent.llm_model })
+    response = adapter.chat(messages: messages, options: { model: BackgroundModel.for(agent) })
     return [] unless response.success?
 
     content = response.data[:content].to_s.strip

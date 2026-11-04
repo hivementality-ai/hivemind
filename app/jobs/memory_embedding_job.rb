@@ -3,6 +3,9 @@
 class MemoryEmbeddingJob < ApplicationJob
   queue_as :low
   retry_on StandardError, wait: :polynomially_longer, attempts: 3
+  retry_on TransientProviderError, wait: :polynomially_longer, attempts: 3 do |job, error|
+    Rails.logger.warn("[MemoryEmbeddingJob] giving up on entry #{job.arguments.first}: #{error.message}")
+  end
 
   # Generate embedding and check for duplicates
   def perform(memory_entry_id)
@@ -10,7 +13,7 @@ class MemoryEmbeddingJob < ApplicationJob
     return unless entry
     return if entry.embedded?
 
-    embedding = Memory::Embedding.generate(entry.content)
+    embedding = Memory::Embedding.generate(entry.content, raise_unreachable: true)
     return unless embedding
 
     # Check for near-duplicates before saving

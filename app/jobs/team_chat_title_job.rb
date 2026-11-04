@@ -26,7 +26,7 @@ class TeamChatTitleJob < ApplicationJob
     return unless resolver.success?
 
     adapter     = resolver.data[:adapter]
-    title_model = cheapest_model(agent.model_provider)
+    title_model = BackgroundModel.for(agent)
     conversation = build_conversation_excerpt(messages)
 
     result = adapter.chat(
@@ -80,14 +80,6 @@ class TeamChatTitleJob < ApplicationJob
     "Generate a concise 3-8 word title for this conversation. " \
     "No quotes, no punctuation at the end, no meta-commentary. " \
     "Just the title."
-  end
-
-  def cheapest_model(provider)
-    case provider
-    when "anthropic" then LlmModelRegistry::Anthropic::DEFAULT_SUMMARIZER
-    when "openai"    then LlmModelRegistry::OpenAI::DEFAULT_SUMMARIZER
-    else                  LlmModelRegistry::Anthropic::DEFAULT_SUMMARIZER
-    end
   end
 
   def track_usage(agent:, session:, model:, usage:)

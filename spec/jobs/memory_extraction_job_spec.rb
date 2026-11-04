@@ -61,6 +61,17 @@ RSpec.describe MemoryExtractionJob, type: :job do
       expect(Memory::Store).not_to have_received(:call)
     end
 
+    it "requests the background model, not the agent's main model, in one call" do
+      agent.update!(llm_model: "claude-opus-4-7")
+      stub_llm('[{"content": "A", "type": "semantic", "importance": 0.5}, {"content": "B", "type": "semantic", "importance": 0.5}]')
+
+      described_class.perform_now(agent.id, "always send me a PR please", "Got it, PRs from now on.")
+
+      expect(adapter).to have_received(:chat).once.with(
+        hash_including(options: { model: LlmModelRegistry::Anthropic::DEFAULT_SUMMARIZER })
+      )
+    end
+
     it "skips trivial exchanges without calling the LLM" do
       allow(adapter).to receive(:chat)
 
@@ -80,5 +91,22 @@ RSpec.describe MemoryConsolidationJob, type: :job do
       expect(prompt).to include("NOT the user's name")
       expect(prompt).not_to include("User's name is Alex")
     end
+  end
+end
+
+RSpec.describe MemoryConsolidationJob, "background model", type: :job do
+  it "requests the background model rather than the agent's main model" do
+    agent   = create(:agent, model_provider: "anthropic", llm_model: "claude-opus-4-7")
+    adapter = instance_double(Providers::AnthropicAdapter)
+    transcript = Array.new(4) { |i| { "role" => i.even? ? "user" : "assistant", "content" => "message #{i}" } }
+    session = create(:session, agent:, transcript:)
+    allow(Providers::Resolver).to receive(:call).and_return(double(success?: true, data: { adapter: adapter }))
+    allow(adapter).to receive(:chat).and_return(double(success?: true, data: { content: "[]" }))
+
+    described_class.perform_now(session.id)
+
+    expect(adapter).to have_received(:chat).once.with(
+      hash_including(options: { model: LlmModelRegistry::Anthropic::DEFAULT_SUMMARIZER })
+    )
   end
 end

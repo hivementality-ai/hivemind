@@ -52,6 +52,13 @@ services:
     networks:
       - internal
       - web
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/up"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+    stop_grace_period: 30s
     restart: unless-stopped
 
   # System worker — handles heartbeats, task pipeline transitions, notifications,
@@ -62,7 +69,7 @@ services:
     command: bundle exec sidekiq -C config/sidekiq.yml
     depends_on:
       app:
-        condition: service_started
+        condition: service_healthy
       cache:
         condition: service_healthy
     volumes:
@@ -93,6 +100,13 @@ services:
           cpus: "${SIDEKIQ_SYSTEM_CPUS:-0.5}"
     networks:
       - internal
+    healthcheck:
+      test: ["CMD-SHELL", "grep -qaE '[s]idekiq' /proc/[0-9]*/cmdline"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    stop_grace_period: 30s
     restart: unless-stopped
 
   # Agent worker — handles heartbeat, scheduled and sub-agent ChatStreamJob runs, InboundMessageJob, SubAgentJob,
@@ -103,7 +117,7 @@ services:
     command: bundle exec sidekiq -C config/sidekiq_agents.yml
     depends_on:
       app:
-        condition: service_started
+        condition: service_healthy
       cache:
         condition: service_healthy
     volumes:
@@ -134,6 +148,13 @@ services:
           cpus: "${SIDEKIQ_AGENT_CPUS:-1.0}"
     networks:
       - internal
+    healthcheck:
+      test: ["CMD-SHELL", "grep -qaE '[s]idekiq' /proc/[0-9]*/cmdline"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    stop_grace_period: 30s
     restart: unless-stopped
 
   # Interactive worker — only turns a person is waiting on (the interactive

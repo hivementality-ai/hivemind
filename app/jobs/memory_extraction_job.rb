@@ -77,7 +77,7 @@ class MemoryExtractionJob < ApplicationJob
       { role: "user", content: exchange }
     ]
 
-    response = adapter.chat(messages: messages, options: { model: agent.llm_model })
+    response = adapter.chat(messages: messages, options: { model: BackgroundModel.for(agent) })
     return [] unless response.success?
 
     content = response.data[:content].to_s.strip

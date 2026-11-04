@@ -20,7 +20,8 @@ module Providers
     end
 
     def call
-      config = ProviderConfig.enabled_providers.find_by(adapter_type: @provider_name) ||
+      config = pinned_config ||
+               ProviderConfig.enabled_providers.find_by(adapter_type: @provider_name) ||
                ProviderConfig.enabled_providers.find_by(name: @provider_name)
 
       unless config
@@ -41,6 +42,15 @@ module Providers
     end
 
     private
+
+    # The agent's own ProviderConfig, when it is enabled and speaks the
+    # requested adapter type; nil falls back to the by-type lookup.
+    def pinned_config
+      return unless @agent.respond_to?(:provider_config_id) && @agent.provider_config_id
+
+      config = ProviderConfig.enabled_providers.find_by(id: @agent.provider_config_id)
+      config if config && (config.adapter_type == @provider_name || config.name == @provider_name)
+    end
 
     # Wrap the adapter in the agent's failover chain (if configured) so every
     # call site — chat jobs, background jobs, ToolLoop — gets failover for

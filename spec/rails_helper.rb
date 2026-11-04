@@ -25,6 +25,8 @@ unless ENV['DISABLE_SIMPLECOV']
 end
 
 require 'spec_helper'
+require_relative 'support/test_database_guard'
+TestDatabaseGuard.new(ENV).enforce!
 ENV['RAILS_ENV'] = 'test'
 require_relative '../config/environment'
 
