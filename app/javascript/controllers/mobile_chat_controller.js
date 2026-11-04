@@ -103,7 +103,19 @@ export default class extends Controller {
       case "agent_done":
         this.finalizeMessage(data.agent_name)
         break
+      case "notice":
+        this.appendNotice(data.content)
+        break
     }
+  }
+
+  // Renders a server-side note (such as an approval result) as a finished assistant bubble,
+  // leaving any in-flight stream untouched.
+  appendNotice(content) {
+    const wrapper = this.createAssistantBubble()
+    wrapper.querySelector(".message-content").innerHTML = this.renderMarkdown(content || "")
+    this.hideEmptyState()
+    this.scrollToBottom()
   }
 
   appendToken(token) {
