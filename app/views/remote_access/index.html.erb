@@ -1,0 +1,193 @@
+<div class="max-w-3xl mx-auto px-6 py-8">
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-white">Remote Access</h1>
+    <p class="text-text-muted mt-1">Expose this hivemind instance on a public URL so the desktop app can reach it.</p>
+  </div>
+
+  <% if @configured %>
+    <!-- Status card -->
+    <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-brand/20 rounded-lg flex items-center justify-center">
+            <svg class="w-6 h-6 text-brand-light" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-lg font-semibold text-white">Public URL</h2>
+            <p class="text-text-faint text-sm"><%= @canonical_host %></p>
+          </div>
+        </div>
+        <span class="px-3 py-1 rounded-full text-xs font-medium <%= @http_ok && @websocket_ok ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300' %>">
+          <%= @http_ok && @websocket_ok ? "Reachable" : "Unreachable" %>
+        </span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="bg-surface-base/50 rounded-lg px-4 py-3">
+          <p class="text-text-faint text-xs mb-1">HTTP check</p>
+          <p class="<%= @http_ok ? 'text-green-300' : 'text-red-300' %> text-sm font-medium"><%= @http_ok ? "Passing" : "Failing" %></p>
+        </div>
+        <div class="bg-surface-base/50 rounded-lg px-4 py-3">
+          <p class="text-text-faint text-xs mb-1">/cable WebSocket</p>
+          <p class="<%= @websocket_ok ? 'text-green-300' : 'text-red-300' %> text-sm font-medium"><%= @websocket_ok ? "Passing" : "Failing" %></p>
+        </div>
+        <div class="bg-surface-base/50 rounded-lg px-4 py-3">
+          <p class="text-text-faint text-xs mb-1">Mode</p>
+          <p class="text-text-primary text-sm font-medium"><%= @mode == "cloudflare" ? "Guided Cloudflare Tunnel" : "Bring your own tunnel" %></p>
+        </div>
+        <div class="bg-surface-base/50 rounded-lg px-4 py-3">
+          <p class="text-text-faint text-xs mb-1">Last checked</p>
+          <p class="text-text-primary text-sm font-medium"><%= @last_check_at ? time_ago_in_words(@last_check_at) + " ago" : "Never" %></p>
+        </div>
+      </div>
+
+      <% if @mode == "cloudflare" && @connector_status %>
+        <div class="bg-surface-base/50 rounded-lg px-4 py-3 mb-4">
+          <p class="text-text-faint text-xs mb-1">Connector (cloudflared)</p>
+          <p class="text-text-primary text-sm font-medium">
+            <% if @connector_status.success? %>
+              <%= @connector_status.data[:state] == :running ? "Running" : @connector_status.data[:state].to_s.capitalize %>
+            <% else %>
+              Unknown (<%= @connector_status.error %>)
+            <% end %>
+          </p>
+        </div>
+      <% end %>
+
+      <% if @last_error.present? %>
+        <div class="bg-red-900/20 border border-red-900/40 rounded-lg px-4 py-3 mb-4">
+          <p class="text-red-300 text-xs"><%= @last_error %></p>
+        </div>
+      <% end %>
+
+      <div class="flex items-center gap-3 flex-wrap">
+        <%= button_to "Re-verify", re_verify_remote_access_path, method: :post,
+            class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+
+        <% if @mode == "cloudflare" %>
+          <%= button_to "Restart connector", restart_connector_remote_access_path, method: :post,
+              class: "px-4 py-2 bg-surface-raised hover:bg-surface-overlay text-text-primary text-sm font-medium rounded-lg transition cursor-pointer" %>
+        <% end %>
+
+        <%= button_to "Reconfigure", reconfigure_remote_access_path, method: :post,
+            class: "px-4 py-2 bg-surface-raised hover:bg-surface-overlay text-text-primary text-sm font-medium rounded-lg transition cursor-pointer" %>
+
+        <%= button_to "Disconnect", remote_access_path, method: :delete,
+            data: { turbo_confirm: "Disconnect remote access? Your public URL will stop being the canonical host." },
+            class: "px-4 py-2 bg-red-900/30 hover:bg-red-900/50 text-red-300 text-sm font-medium rounded-lg transition cursor-pointer" %>
+      </div>
+    </div>
+  <% else %>
+    <!-- Wizard -->
+
+    <% if @checks.present? %>
+      <div class="bg-surface-card rounded-xl border border-red-900/40 p-6 mb-6">
+        <h3 class="text-white font-semibold mb-3">Verification results for <%= @attempted_url %></h3>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-surface-base/50 rounded-lg px-4 py-3">
+            <p class="text-text-faint text-xs mb-1">HTTP check</p>
+            <p class="<%= @checks.dig(:http, :ok) ? 'text-green-300' : 'text-red-300' %> text-sm font-medium">
+              <%= @checks.dig(:http, :ok) ? "Passed" : "Failed — #{@checks.dig(:http, :error)}" %>
+            </p>
+          </div>
+          <div class="bg-surface-base/50 rounded-lg px-4 py-3">
+            <p class="text-text-faint text-xs mb-1">/cable WebSocket</p>
+            <p class="<%= @checks.dig(:websocket, :ok) ? 'text-green-300' : 'text-red-300' %> text-sm font-medium">
+              <%= @checks.dig(:websocket, :ok) ? "Passed" : "Failed — #{@checks.dig(:websocket, :error)}" %>
+            </p>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Path A: bring your own tunnel -->
+    <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 bg-surface-overlay/20 rounded-lg flex items-center justify-center">
+          <svg class="w-6 h-6 text-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-lg font-semibold text-white">I already have a tunnel</h2>
+          <p class="text-text-faint text-sm">Existing cloudflared, Tailscale Funnel, nginx, frp — point it at this app's port and paste the URL.</p>
+        </div>
+      </div>
+
+      <%= form_tag verify_byo_remote_access_path, method: :post do %>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-text-muted text-sm mb-1">Public URL</label>
+            <%= text_field_tag :public_url, @attempted_url,
+                placeholder: "https://hivemind.example.com",
+                class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand" %>
+            <p class="text-gray-600 text-xs mt-1">We'll run an HTTP health check and a real WebSocket handshake against <code>&lt;url&gt;/cable</code> before saving it.</p>
+          </div>
+          <div class="flex justify-end">
+            <%= submit_tag "Verify & Save", class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <!-- Path B: guided Cloudflare -->
+    <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 bg-orange-600/20 rounded-lg flex items-center justify-center">
+          <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-lg font-semibold text-white">Guide me — Cloudflare Tunnel</h2>
+          <p class="text-text-faint text-sm">Free, stable URL on your own domain. Three manual steps, then hivemind automates the rest.</p>
+        </div>
+      </div>
+
+      <ol class="space-y-3 mb-6 text-sm text-text-muted list-decimal list-inside">
+        <li>
+          Create a free Cloudflare account and add a domain you own — Cloudflare will give you two
+          nameservers to set at your domain registrar.
+          <a href="https://dash.cloudflare.com/sign-up" target="_blank" class="text-brand-light hover:underline">Sign up at cloudflare.com &rarr;</a>
+        </li>
+        <li>Wait for the nameserver change to take effect (Cloudflare emails you once the domain is active).</li>
+        <li>
+          Create an API token with <strong>Cloudflare Tunnel: Edit</strong> and <strong>DNS: Edit</strong> scopes.
+          <a href="<%= @cloudflare_token_deep_link %>" target="_blank" class="text-brand-light hover:underline">Create token &rarr;</a>
+        </li>
+      </ol>
+
+      <%= form_tag provision_cloudflare_remote_access_path, method: :post do %>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-text-muted text-sm mb-1">Cloudflare API Token</label>
+            <%= password_field_tag :cloudflare_api_token, nil,
+                placeholder: "paste the token from step 3",
+                autocomplete: "off",
+                class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand" %>
+          </div>
+          <div>
+            <label class="block text-text-muted text-sm mb-1">Hostname</label>
+            <%= text_field_tag :hostname, nil,
+                placeholder: "hivemind.example.com",
+                class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand" %>
+            <p class="text-gray-600 text-xs mt-1">Must be a subdomain of a domain already active in your Cloudflare account.</p>
+          </div>
+          <div class="flex justify-end">
+            <%= submit_tag "Create Tunnel", class: "px-4 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <div class="bg-surface-card/50 rounded-xl border border-border-default p-6">
+      <h3 class="text-white font-semibold mb-2">Other options (manual, docs only)</h3>
+      <p class="text-text-muted text-sm">
+        Tailscale Funnel and frp aren't automated yet — run <code class="text-text-primary">tailscale funnel &lt;port&gt;</code> or
+        stand up your own frp server, then paste the resulting URL into "I already have a tunnel" above.
+      </p>
+    </div>
+  <% end %>
+</div>

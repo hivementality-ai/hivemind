@@ -37,6 +37,16 @@ RSpec.describe Tasks::PreTransitionJob, type: :job do
         expect(session.metadata["pipeline"]["hook_ids"]).to include(hook.id)
       end
 
+      it "records the task's project on the hook session" do
+        project = create(:project)
+        task.update!(project: project)
+        create(:task_hook, :pre, task: task, skill: skill, on_status: "in_progress")
+
+        described_class.new.perform(task.id, "in_progress", agent.id, "{}")
+
+        expect(Session.last.project).to eq(project)
+      end
+
       it "resolves the agent from the task's assignee, not the triggering agent" do
         other_agent = create(:agent, :with_team, name: "Queen Bee")
         task.update!(assigned_to_agent: other_agent)

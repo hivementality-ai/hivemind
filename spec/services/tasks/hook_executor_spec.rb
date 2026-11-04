@@ -27,6 +27,15 @@ RSpec.describe Tasks::HookExecutor do
       expect(event.summary).to include(skill.name)
     end
 
+    it "records the task's project on the hook session" do
+      project = create(:project)
+      task.update!(project: project)
+
+      result = described_class.call(hook: hook, task: task, agent: agent)
+
+      expect(Session.find(result.data[:session_id]).project).to eq(project)
+    end
+
     it "creates a session with correct metadata" do
       result = described_class.call(hook: hook, task: task, agent: agent)
       session = Session.find(result.data[:session_id])
@@ -190,7 +199,7 @@ RSpec.describe Tasks::HookExecutor do
 
     it "does NOT inline checklist, comments, artifacts, or dependencies" do
       task.update!(
-        checklist: [{ "title" => "Write tests", "checked" => false }],
+        checklist: [ { "title" => "Write tests", "checked" => false } ],
         description: "Build it"
       )
       task.add_comment(author_name: "Doc Brown", body: "Great Scott!")

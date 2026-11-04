@@ -21,6 +21,7 @@ class Agent < ApplicationRecord
   has_one_attached :avatar
 
   belongs_to :team, optional: true
+  belongs_to :provider_config, optional: true
   belongs_to :manager, class_name: "Agent", foreign_key: :reports_to_id, optional: true, inverse_of: :direct_reports
 
   has_many :direct_reports, class_name: "Agent", foreign_key: :reports_to_id, dependent: :nullify, inverse_of: :manager
@@ -37,8 +38,6 @@ class Agent < ApplicationRecord
   has_many :memory_entries, dependent: :destroy
   has_many :research_sessions, dependent: :destroy
   has_many :delivery_queue_entries, dependent: :destroy
-  has_many :sent_team_messages, class_name: "TeamMessage", foreign_key: :from_agent_id, dependent: :destroy, inverse_of: :from_agent
-  has_many :received_team_messages, class_name: "TeamMessage", foreign_key: :to_agent_id, dependent: :destroy, inverse_of: :to_agent
   has_many :parent_sub_agent_tasks, class_name: "SubAgentTask", foreign_key: :parent_agent_id, dependent: :destroy, inverse_of: :parent_agent
   has_many :child_sub_agent_tasks, class_name: "SubAgentTask", foreign_key: :child_agent_id, dependent: :destroy, inverse_of: :child_agent
   has_many :targeted_team_chat_messages, class_name: "TeamChatMessage", foreign_key: :target_agent_id, dependent: :nullify, inverse_of: :target_agent
@@ -54,6 +53,8 @@ class Agent < ApplicationRecord
   has_many :heartbeat_runs, dependent: :destroy
   has_many :agent_mcp_servers, dependent: :destroy
   has_many :mcp_servers, through: :agent_mcp_servers
+  has_many :agent_connector_exclusions, dependent: :destroy
+  has_many :excluded_connectors, through: :agent_connector_exclusions, source: :connector
 
   enum :status, { idle: 0, thinking: 1, executing: 2, waiting: 3, error: 4 }, default: :idle
 
@@ -65,10 +66,32 @@ class Agent < ApplicationRecord
   validate :validate_egress_policy
   validate :validate_no_self_reporting
   validate :validate_no_reporting_cycle
+  validate :validate_effort
+
+  # Connectors this agent may use: every connector except the ones excluded for it.
+  #
+  # @return [ActiveRecord::Relation<Connector>]
+  def visible_connectors
+    Connector.where.not(id: agent_connector_exclusions.select(:connector_id))
+  end
+
+  # Marks every enabled connector outside +ids+ as excluded for this agent. Disabled
+  # connectors were not on the form, so they keep their current exclusion state.
+  def visible_connector_ids=(ids)
+    keep = Array(ids).filter_map { |id| Integer(id, exception: false) }
+    shown = Connector.enabled
+    kept_exclusions = agent_connector_exclusions.pluck(:connector_id) - shown.pluck(:id)
+    self.excluded_connector_ids = kept_exclusions + shown.where.not(id: keep).pluck(:id)
+  end
+
+  # Reasoning-effort levels accepted by output_config.effort (Anthropic) /
+  # reasoning_effort (OpenAI). Ordered low → high.
+  EFFORT_LEVELS = %w[low medium high xhigh max].freeze
 
   attr_accessor :egress_policy_mode, :egress_policy_rules, :egress_policy_log_blocked
 
   before_validation :generate_slug
+  before_validation :sync_model_provider_from_config
   before_validation :compose_egress_policy_from_virtual_attrs
 
   scope :active, -> { where.not(status: :error) }
@@ -179,6 +202,13 @@ class Agent < ApplicationRecord
 
   private
 
+  # Keeps the legacy model_provider adapter type in step with the pinned config.
+  def sync_model_provider_from_config
+    return unless provider_config
+
+    self.model_provider = provider_config.adapter_type
+  end
+
   def generate_slug
     self.slug = name.parameterize(separator: "_") if name.present? && slug.blank?
   end
@@ -207,6 +237,13 @@ class Agent < ApplicationRecord
     return unless reports_to_id.present? && id.present?
 
     errors.add(:reports_to_id, "cannot report to self") if reports_to_id == id
+  end
+
+  def validate_effort
+    val = (model_config || {})["effort"]
+    return if val.blank? || EFFORT_LEVELS.include?(val.to_s)
+
+    errors.add(:base, "Effort must be one of: #{EFFORT_LEVELS.join(', ')}")
   end
 
   def validate_no_reporting_cycle
@@ -285,6 +322,22 @@ class Agent < ApplicationRecord
     (model_config || {})["max_output_tokens"]&.to_i
   end
 
+  # Ordered LLM failover chain, configured in model_config["fallback_models"].
+  # Entries are either a bare model id string (same provider) or a hash
+  # {"provider" => "openai", "model" => "gpt-..."}. Providers::Resolver uses
+  # this to wrap the adapter in a FailoverAdapter.
+  def fallback_models
+    Array((model_config || {})["fallback_models"]).filter_map do |entry|
+      case entry
+      when String
+        { provider: model_provider, model: entry } if entry.present?
+      when Hash
+        e = entry.with_indifferent_access
+        { provider: e[:provider].presence || model_provider, model: e[:model] } if e[:model].present?
+      end
+    end
+  end
+
   def inference_options
     mc = model_config || {}
     opts = {}
@@ -292,7 +345,19 @@ class Agent < ApplicationRecord
     opts[:top_p] = mc["top_p"].to_f if mc["top_p"].present?
     opts[:top_k] = mc["top_k"].to_i if mc["top_k"].present?
     opts[:repeat_penalty] = mc["repeat_penalty"].to_f if mc["repeat_penalty"].present?
+    opts[:effort] = effective_effort if effective_effort.present?
     opts
+  end
+
+  # This agent's own effort override (nil when it inherits the provider default).
+  def effort
+    (model_config || {})["effort"].presence
+  end
+
+  # Resolved effort: the agent's override, else the provider-level default
+  # Setting, else nil (the API's own default — "high" on current models).
+  def effective_effort
+    effort || Setting.get("provider_effort_#{model_provider}").presence
   end
 
   def effective_egress_policy

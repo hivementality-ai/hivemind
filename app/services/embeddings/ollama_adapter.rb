@@ -16,11 +16,12 @@ module Embeddings
       }
     end
 
-    def embed_text(text, dimensions: nil)
-      response = Faraday.post(
+    def embed_text(text, dimensions: nil, timeouts: nil)
+      response = post_json(
         "#{base_url}/api/embeddings",
         { model: model_name, prompt: text, options: { num_ctx: 2048 } }.to_json,
-        { "Content-Type" => "application/json" }
+        { "Content-Type" => "application/json" },
+        timeouts: timeouts
       )
 
       return nil unless response.success?

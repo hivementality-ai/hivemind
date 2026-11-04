@@ -1,8 +1,0 @@
-# Connector sidecar configuration
-# Enable channels as needed
-
-whatsapp:
-  enabled: false
-
-signal:
-  enabled: false

@@ -124,6 +124,14 @@ RSpec.describe TeamChatMessage, type: :model do
       end
     end
 
+    context 'when the mention is wrapped in markdown' do
+      it 'matches bold and punctuation prefixes but not email addresses' do
+        expect(TeamChatMessage.extract_mentions("**@Alice** take this", team.reload)[:agents]).to eq([ agent1 ])
+        expect(TeamChatMessage.extract_mentions("(@Charlie)", team.reload)[:agents]).to eq([ agent3 ])
+        expect(TeamChatMessage.extract_mentions("mail me at x@Alice.com", team.reload)[:agents]).to be_empty
+      end
+    end
+
     context 'when text has no mentions' do
       it 'returns empty agents array' do
         result = TeamChatMessage.extract_mentions("Just a regular message", team.reload)
@@ -172,6 +180,31 @@ RSpec.describe TeamChatMessage, type: :model do
       expect(build(:team_chat_message, :from_user)).to be_valid
       expect(build(:team_chat_message, :from_agent)).to be_valid
       expect(build(:team_chat_message, :team_broadcast)).to be_valid
+    end
+  end
+
+  describe '.extract_mentions' do
+    let(:team) { create(:team) }
+    let!(:vida) { create(:agent, team: team, name: 'Vida', enabled: true) }
+
+    it 'finds a plain mention' do
+      expect(described_class.extract_mentions('hey @Vida look', team)[:agents]).to eq([ vida ])
+    end
+
+    it 'finds a mention wrapped in bold' do
+      expect(described_class.extract_mentions('**@Vida** can you take this?', team)[:agents]).to eq([ vida ])
+    end
+
+    it 'finds a mention wrapped in underscores' do
+      expect(described_class.extract_mentions('ping _@Vida_ now', team)[:agents]).to eq([ vida ])
+    end
+
+    it 'matches names case-insensitively' do
+      expect(described_class.extract_mentions('**@vida**', team)[:agents]).to eq([ vida ])
+    end
+
+    it 'ignores a name that is not a mention' do
+      expect(described_class.extract_mentions('Vida said so, mail me@Vida.com', team)[:agents]).to be_empty
     end
   end
 end

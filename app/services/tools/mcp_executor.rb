@@ -3,8 +3,8 @@
 module Tools
   class McpExecutor < BaseExecutor
     def call
-      server_id = input["server_id"] || input.dig("_mcp", "server_id")
-      tool_name = input["tool_name"] || input.dig("_mcp", "original_tool_name")
+      server_id = config[:server_id] || input["server_id"] || input.dig("_mcp", "server_id")
+      tool_name = config[:tool_name] || input["tool_name"] || input.dig("_mcp", "original_tool_name")
       return ServiceResponse.failure(error: "Missing server_id") unless server_id
       return ServiceResponse.failure(error: "Missing tool_name") unless tool_name
       server = McpServer.find_by(id: server_id)
@@ -14,7 +14,7 @@ module Tools
       if server.stdio?
         Mcp::StdioClient.call_tool(server, tool_name: tool_name, arguments: arguments)
       else
-        Mcp::SseClient.call_tool(server, tool_name: tool_name, arguments: arguments)
+        Mcp::HttpClient.call_tool(server, tool_name: tool_name, arguments: arguments)
       end
     end
   end

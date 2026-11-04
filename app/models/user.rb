@@ -7,6 +7,7 @@ class User < ApplicationRecord
          :recoverable, :rememberable, :validatable
 
   has_many :api_tokens, dependent: :destroy
+  has_many :desktop_pairing_codes, dependent: :destroy
   has_many :projects
 
   enum :role, { viewer: 0, operator: 1, admin: 2, owner: 3 }, default: :owner
