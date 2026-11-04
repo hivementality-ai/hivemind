@@ -64,8 +64,7 @@ module Approvals
         actor_type: "User",
         actor_id: @resolved_by,
         action: "approval_#{@decision}",
-        resource_type: "ApprovalRequest",
-        resource_id: approval.id,
+        resource: "ApprovalRequest##{approval.id}",
         metadata: {
           original_action: approval.action,
           resource: approval.resource,
@@ -83,7 +82,16 @@ module Approvals
         activate_skill(approval)
       when "create_tool"
         activate_tool(approval)
+      when "create_connector"
+        activate_connector(approval)
       end
+    end
+
+    def activate_connector(approval)
+      connector = Connector.find_by(id: approval.params["connector_id"])
+      return unless connector&.pending_approval?
+
+      connector.update!(enabled: true, pending_approval: false)
     end
 
     def activate_skill(approval)

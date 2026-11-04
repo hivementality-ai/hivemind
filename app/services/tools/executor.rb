@@ -59,6 +59,7 @@ module Tools
       "stt" => Tools::SttExecutor,
       "create_skill" => Tools::CreateSkillExecutor,
       "create_tool" => Tools::CreateToolExecutor,
+      "create_connector" => Tools::CreateConnectorExecutor,
       "google_drive" => Tools::GoogleDriveExecutor,
       "google_calendar" => Tools::GoogleCalendarExecutor,
       "google_gmail" => Tools::GoogleGmailExecutor,

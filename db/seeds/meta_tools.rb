@@ -47,6 +47,41 @@ meta_tools = [
       },
       "required" => %w[name description script_template]
     }
+  },
+  {
+    name: "create_connector",
+    description: "Draft a connector for an HTTP API: base URL, auth scheme and a few operations. It is saved " \
+                 "disabled; the user stores the key in the vault and approves it before it can run. " \
+                 "Pass vault references only, never a secret.",
+    executor_type: "create_connector",
+    builtin: true,
+    enabled: true,
+    parameters_schema: {
+      "properties" => {
+        "name" => { "type" => "string", "description" => "Display name, e.g. Notion" },
+        "slug" => { "type" => "string", "description" => "Short snake_case id used in tool names, e.g. notion" },
+        "description" => { "type" => "string", "description" => "What the API is for" },
+        "base_url" => { "type" => "string", "description" => "API base URL, https, no query string" },
+        "auth_scheme" => {
+          "type" => "string",
+          "enum" => Connector::AUTH_SCHEMES,
+          "description" => "How the API authenticates"
+        },
+        "auth_config" => {
+          "type" => "object",
+          "description" => "Secret fields as vault references like vault:notion/api_token (bearer: secret; " \
+                           "api_key_header: header_name + secret; api_key_query: param_name + secret; " \
+                           "basic: username + password). Never the secret itself."
+        },
+        "operations" => {
+          "type" => "array",
+          "description" => "3-6 operations, read-only first. Each: name (snake_case), description, method, " \
+                           "path (starts with /, {placeholders} must be in params), params (JSON schema object), read_only (boolean)",
+          "items" => { "type" => "object" }
+        }
+      },
+      "required" => %w[name slug base_url auth_scheme auth_config operations]
+    }
   }
 ]
 
