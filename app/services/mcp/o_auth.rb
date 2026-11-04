@@ -177,12 +177,19 @@ module Mcp
     def client_for(info, redirect_uri)
       client = read(:client)
       issuer = info["as"]["issuer"].presence || info["as"]["token_endpoint"]
-      if client.blank? || client["redirect_uri"] != redirect_uri || client["issuer"] != issuer
+      if @server.oauth_client_id
+        client = manual_client.merge("redirect_uri" => redirect_uri, "issuer" => issuer)
+      elsif client.blank? || client["redirect_uri"] != redirect_uri || client["issuer"] != issuer
         client = register(info["as"], redirect_uri).merge("redirect_uri" => redirect_uri, "issuer" => issuer)
       end
       client = client.merge("token_endpoint" => info["as"]["token_endpoint"])
       write(:client, client)
       client
+    end
+
+    # The client id and secret entered on the server form, used instead of registering.
+    def manual_client
+      { "client_id" => @server.oauth_client_id, "client_secret" => @server.oauth_client_secret.presence }.compact
     end
 
     def register(as, redirect_uri)

@@ -10,6 +10,8 @@ class McpServersController < ApplicationController
   before_action :authorize_admin_or_owner!
   before_action :set_server, only: %i[edit update destroy toggle_enabled test_connection oauth_connect oauth_callback oauth_disconnect]
 
+  helper_method :visible_agents
+
   def index
     @servers = McpServer.order(:name)
   end
@@ -22,6 +24,7 @@ class McpServersController < ApplicationController
     @server = McpServer.new(server_params)
     if @server.save
       flush_vault_writes
+      assign_agents
       redirect_to mcp_servers_path, notice: "MCP server '#{@server.name}' added. Use Test connection to discover its tools."
     else
       render :new, status: :unprocessable_entity
@@ -35,7 +38,11 @@ class McpServersController < ApplicationController
     entry = Mcp::Catalog.find(params[:key])
     return redirect_to integrations_path, alert: "Unknown catalog server." unless entry
 
-    @server = Mcp::Catalog.server_for(entry) || McpServer.create(name: free_catalog_name(entry), transport: "http", url: entry.url)
+    @server = Mcp::Catalog.server_for(entry)
+    unless @server
+      @server = McpServer.create(name: free_catalog_name(entry), transport: "http", url: entry.url)
+      @server.assign_to_visible_agents! if @server.persisted?
+    end
     return redirect_to(integrations_path, alert: @server.errors.full_messages.to_sentence) unless @server.persisted?
 
     start_oauth(integrations_path)
@@ -44,6 +51,7 @@ class McpServersController < ApplicationController
   def update
     if @server.update(server_params)
       flush_vault_writes
+      assign_agents
       redirect_to mcp_servers_path, notice: "MCP server '#{@server.name}' updated."
     else
       render :edit, status: :unprocessable_entity
@@ -126,6 +134,21 @@ class McpServersController < ApplicationController
     "#{base.chomp('/')}#{oauth_callback_mcp_server_path(@server)}"
   end
 
+  # The agents listed in the form's checklist.
+  def visible_agents
+    @visible_agents ||= Agent.visible.order(:name)
+  end
+
+  # Applies the form's agent checklist. Without one, a new server goes to every visible agent and an existing one keeps its agents.
+  # Assignments to system agents, which the form does not list, are left alone.
+  def assign_agents
+    ids = params.dig(:mcp_server, :agent_ids)
+    return @server.assign_to_visible_agents! if ids.nil? && @server.previously_new_record?
+    return if ids.nil?
+
+    @server.agent_ids = @server.agents.where(system_agent: true).ids | Agent.visible.where(id: Array(ids).compact_blank).ids
+  end
+
   def set_server
     @server = McpServer.find(params[:id])
   end
@@ -134,9 +157,31 @@ class McpServersController < ApplicationController
     permitted = params.require(:mcp_server).permit(:name, :transport, :command, :url, :npm_package, :enabled)
     env_text = params.dig(:mcp_server, :env_vars_text)
     auth_text = params.dig(:mcp_server, :auth_config_text)
+    permitted[:metadata] = oauth_client_metadata(permitted[:name] || @server&.name)
     permitted[:env_vars] = vaulted_pairs(env_text, permitted[:name] || @server&.name, "env") { |k, v| secret_looking?(k) && !vault_ref?(v) } unless env_text.nil?
     permitted[:auth_config] = vaulted_pairs(auth_text, permitted[:name] || @server&.name, "auth") { |_k, v| !vault_ref?(v) } unless auth_text.nil?
     permitted
+  end
+
+  # The row's metadata with the manual OAuth client merged in: the id as given, the secret as a vault reference.
+  # A blank secret keeps the stored one; a blank id removes both.
+  def oauth_client_metadata(server_name)
+    return (@server&.metadata || {}) unless params[:mcp_server]&.key?(:oauth_client_id)
+
+    metadata = (@server&.metadata || {}).except("oauth_client_id", "oauth_client_secret")
+    id =params.dig(:mcp_server, :oauth_client_id).to_s.strip
+    return metadata if id.blank?
+
+    secret = params.dig(:mcp_server, :oauth_client_secret).to_s.strip
+    metadata["oauth_client_id"] = id
+    if secret.present?
+      namespace = "mcp_#{server_name.to_s.parameterize(separator: '_')}"
+      (@vault_writes ||= []) << [ namespace, "oauth_client_secret", secret ]
+      metadata["oauth_client_secret"] = "vault:#{namespace}/oauth_client_secret"
+    elsif @server&.metadata&.key?("oauth_client_secret")
+      metadata["oauth_client_secret"] = @server.metadata["oauth_client_secret"]
+    end
+    metadata
   end
 
   # Parses "KEY=value" lines into a hash, moving values the block selects into the vault.

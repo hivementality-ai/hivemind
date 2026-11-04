@@ -41,6 +41,25 @@ class McpServer < ApplicationRecord
     status == "connected"
   end
 
+  # Gives every visible agent this server's tools; assignment is opt-in, so an unassigned server reaches no agent.
+  def assign_to_visible_agents!
+    Agent.visible.where.not(id: agent_mcp_servers.select(:agent_id)).find_each { |agent| agent_mcp_servers.create!(agent: agent) }
+  end
+
+  # @return [String, nil] the OAuth client id set by hand, which skips dynamic client registration
+  def oauth_client_id
+    metadata.to_h["oauth_client_id"].presence
+  end
+
+  # @return [String, nil] the hand-set OAuth client secret, read from the vault
+  def oauth_client_secret
+    ref = metadata.to_h["oauth_client_secret"].to_s
+    return ref.presence unless ref.start_with?("vault:")
+
+    namespace, vault_key = ref.delete_prefix("vault:").split("/", 2)
+    VaultEntry.find_by(namespace: namespace, key: vault_key)&.value
+  end
+
   def mark_connected!(pid: nil, tools: nil)
     attrs = { status: "connected", last_connected_at: Time.current, last_error: nil }
     attrs[:metadata] = (metadata || {}).merge("pid" => pid) if pid

@@ -53,6 +53,33 @@
   </div>
 
   <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">OAuth client ID</label>
+    <%= text_field_tag "mcp_server[oauth_client_id]", server.oauth_client_id, autocomplete: "off",
+          class: "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white font-mono text-sm focus:border-amber-500 focus:outline-none" %>
+    <label class="block text-sm font-medium text-text-primary mt-3 mb-1">OAuth client secret</label>
+    <%= password_field_tag "mcp_server[oauth_client_secret]", nil, autocomplete: "new-password",
+          placeholder: (server.oauth_client_secret.present? ? "Saved, leave blank to keep" : nil),
+          class: "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white font-mono text-sm focus:border-amber-500 focus:outline-none" %>
+    <p class="text-text-faint text-xs mt-1">Optional, for remote servers that do not support automatic client registration. With a client ID set, Connect uses it instead of registering. The secret is stored in the vault.</p>
+  </div>
+
+  <% assigned_ids = server.new_record? ? visible_agents.map(&:id) : server.agent_ids %>
+  <div>
+    <span class="block text-sm font-medium text-text-primary mb-1">Agents</span>
+    <%= hidden_field_tag "mcp_server[agent_ids][]", "" %>
+    <div class="space-y-1">
+      <% visible_agents.each do |agent| %>
+        <label class="flex items-center gap-3 cursor-pointer">
+          <%= check_box_tag "mcp_server[agent_ids][]", agent.id, assigned_ids.include?(agent.id), id: "mcp_server_agent_ids_#{agent.id}",
+                class: "rounded border-border-default bg-surface-raised text-amber-500 focus:ring-amber-500" %>
+          <span class="text-sm text-text-primary"><%= agent.name %></span>
+        </label>
+      <% end %>
+    </div>
+    <p class="text-text-faint text-xs mt-1">A server's tools reach only the agents ticked here. A server with no agents ticked reaches none.</p>
+  </div>
+
+  <div>
     <label class="flex items-center gap-3 cursor-pointer">
       <%= f.check_box :enabled, class: "rounded border-border-default bg-surface-raised text-amber-500 focus:ring-amber-500" %>
       <span class="text-sm font-medium text-text-primary">Enabled</span>

@@ -66,6 +66,28 @@ RSpec.describe "MCP starter catalog", type: :request do
       expect(response.location).to start_with("https://auth.example.com/authorize?")
     end
 
+    it "assigns a newly added server to every visible agent so its tools reach them" do
+      visible = create_list(:agent, 2)
+      hidden = create(:agent, system_agent: true)
+
+      post add_from_catalog_mcp_servers_path(key: "notion")
+      server = McpServer.find_by!(name: "Notion")
+      server.mark_connected!(tools: [ { "name" => "search", "description" => "Search" } ])
+
+      expect(server.agents).to match_array(visible)
+      expect(Mcp::ToolResolver.call(visible.first).data[:tools].map { |t| t[:name] }).to eq([ "mcp_notion_search" ])
+      expect(Mcp::ToolResolver.call(hidden).data[:tools]).to be_empty
+    end
+
+    it "leaves an already added server's assignments alone" do
+      agent = create(:agent)
+      create(:mcp_server, :sse, name: "Notion", url: notion_url)
+
+      post add_from_catalog_mcp_servers_path(key: "notion")
+
+      expect(McpServer.find_by!(name: "Notion").agents).not_to include(agent)
+    end
+
     it "reuses the server when it was already added" do
       create(:mcp_server, :sse, name: "Notion", url: notion_url)
 

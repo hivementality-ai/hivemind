@@ -82,6 +82,7 @@ module Mcp
         server.env_vars = vault_all(namespace, "env", entry.env)
         server.auth_config = vault_all(namespace, "auth", entry.headers)
         server.save!
+        server.assign_to_visible_agents!
       end
       true
     end

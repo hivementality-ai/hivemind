@@ -71,6 +71,49 @@ RSpec.describe Mcp::OAuth do
       }
     end
 
+    context "with a manual client id" do
+      before do
+        server.update!(metadata: { "oauth_client_id" => "manual-id", "oauth_client_secret" => "vault:mcp_x/oauth_client_secret" })
+        VaultEntry.create!(namespace: "mcp_x", key: "oauth_client_secret", value: "manual-secret")
+      end
+
+      it "skips dynamic registration and authorizes with the given id" do
+        params = authorize_params(described_class.authorization_url(server, redirect_uri: redirect_uri))
+
+        expect(params["client_id"]).to eq("manual-id")
+        expect(WebMock).not_to have_requested(:post, as_meta[:registration_endpoint])
+      end
+
+      it "works against a server that offers no registration endpoint" do
+        stub_request(:get, as_url).to_return(status: 200, body: as_meta.except(:registration_endpoint).to_json)
+
+        params = authorize_params(described_class.authorization_url(server, redirect_uri: redirect_uri))
+
+        expect(params["client_id"]).to eq("manual-id")
+      end
+
+      it "sends the id and secret on the token request" do
+        state = authorize_params(described_class.authorization_url(server, redirect_uri: redirect_uri))["state"]
+        stub_token
+
+        described_class.complete!(server, code: "c", state: state)
+
+        expect(WebMock).to have_requested(:post, as_meta[:token_endpoint]).with { |req|
+          form = Rack::Utils.parse_query(req.body)
+          form["client_id"] == "manual-id" && form["client_secret"] == "manual-secret"
+        }
+      end
+
+      it "replaces a client registered earlier" do
+        VaultEntry.create!(namespace: "mcp_oauth_#{server.id}", key: "client",
+                           value: { client_id: "old", redirect_uri: redirect_uri, issuer: "https://auth.example.com" }.to_json)
+
+        params = authorize_params(described_class.authorization_url(server, redirect_uri: redirect_uri))
+
+        expect(params["client_id"]).to eq("manual-id")
+      end
+    end
+
     it "falls back to well-known protected resource metadata when the 401 has no pointer" do
       stub_discovery(challenge: "Bearer")
 
