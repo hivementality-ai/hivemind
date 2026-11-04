@@ -16,6 +16,9 @@ module Mcp
 
     class Error < StandardError; end
 
+    # The server answered with a JSON-RPC error; the session itself is still healthy.
+    class RpcError < Error; end
+
     WORKSPACE_CONTAINER = "#{ENV.fetch('COMPOSE_PROJECT_NAME', 'hivemind')}-workspace-1"
 
     # @return [Array<String>] argv that runs the server's command inside the workspace container
@@ -70,7 +73,7 @@ module Mcp
       write_message(jsonrpc: "2.0", id: id, method: method, params: params)
       message = read_response(id, timeout)
       @last_used_at = Time.current
-      raise Error, "#{message['error']['message']} (code #{message['error']['code']})" if message["error"]
+      raise RpcError, "#{message['error']['message']} (code #{message['error']['code']})" if message["error"]
 
       message["result"] || {}
     end

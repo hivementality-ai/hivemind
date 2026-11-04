@@ -49,6 +49,25 @@ RSpec.describe Mcp::StdioRegistry do
     expect(pid_of).not_to eq(first)
   end
 
+  it "keeps the same process after a JSON-RPC error response" do
+    first = pid_of
+    expect do
+      registry.with_session(server) { |s| s.request("tools/call", { name: "fail", arguments: {} }) }
+    end.to raise_error(Mcp::StdioSession::RpcError, /tool exploded/)
+
+    expect(pid_of).to eq(first)
+  end
+
+  it "builds a single shared instance across threads" do
+    described_class.instance_variable_set(:@instance, nil)
+    instances = 8.times.map { Thread.new { described_class.instance } }.map(&:value)
+
+    expect(instances.uniq.size).to eq(1)
+  ensure
+    described_class.shutdown
+    described_class.instance_variable_set(:@instance, nil)
+  end
+
   it "starts a fresh process when the server command changes" do
     first = pid_of
     server.update!(command: "other-command")

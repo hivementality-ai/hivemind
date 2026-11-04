@@ -21,6 +21,7 @@ class McpServersController < ApplicationController
   def create
     @server = McpServer.new(server_params)
     if @server.save
+      flush_vault_writes
       redirect_to mcp_servers_path, notice: "MCP server '#{@server.name}' added. Use Test connection to discover its tools."
     else
       render :new, status: :unprocessable_entity
@@ -31,6 +32,7 @@ class McpServersController < ApplicationController
 
   def update
     if @server.update(server_params)
+      flush_vault_writes
       redirect_to mcp_servers_path, notice: "MCP server '#{@server.name}' updated."
     else
       render :edit, status: :unprocessable_entity
@@ -85,10 +87,17 @@ class McpServersController < ApplicationController
       if value.present? && yield(key, value)
         namespace = "mcp_#{server_name.to_s.parameterize(separator: '_')}"
         vault_key = "#{prefix}_#{key.downcase.gsub(/[^a-z0-9]+/, '_')}"
-        VaultEntry.find_or_initialize_by(namespace: namespace, key: vault_key).tap { |entry| entry.value = value }.save!
+        (@vault_writes ||= []) << [ namespace, vault_key, value ]
         value = "vault:#{namespace}/#{vault_key}"
       end
       [ key, value ]
+    end
+  end
+
+  # Stores the secrets collected while parsing; only runs once the record is saved.
+  def flush_vault_writes
+    Array(@vault_writes).each do |namespace, key, value|
+      VaultEntry.find_or_initialize_by(namespace: namespace, key: key).tap { |entry| entry.value = value }.save!
     end
   end
 

@@ -9,10 +9,11 @@ module Mcp
     IDLE_TIMEOUT = 300
     REAP_INTERVAL = 30
 
+    INSTANCE_LOCK = Mutex.new
     Slot = Struct.new(:mutex, :session, :fingerprint)
 
     def self.instance
-      @instance ||= new.tap { |registry| at_exit { registry.shutdown } }
+      INSTANCE_LOCK.synchronize { @instance ||= new.tap { |registry| at_exit { registry.shutdown } } }
     end
 
     class << self
@@ -27,7 +28,8 @@ module Mcp
 
     # Yields a live session for the server, starting or replacing one as needed.
     # Calls to the same server are serialized. A failure inside the block
-    # discards the session so the next call starts fresh.
+    # discards the session so the next call starts fresh, except a JSON-RPC
+    # error reply, which leaves a healthy session in place.
     def with_session(server)
       slot = @mutex.synchronize { @slots[server.id] ||= Slot.new(Mutex.new) }
       ensure_reaper
@@ -35,8 +37,8 @@ module Mcp
         refresh(slot, server)
         begin
           yield slot.session
-        rescue StandardError
-          discard(slot)
+        rescue StandardError => e
+          discard(slot) unless e.is_a?(StdioSession::RpcError)
           raise
         end
       end

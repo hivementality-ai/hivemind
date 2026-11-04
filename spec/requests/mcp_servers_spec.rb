@@ -44,6 +44,12 @@ RSpec.describe "MCP servers", type: :request do
       expect(server.resolved_auth_headers).to eq("Authorization" => "Bearer xyz")
     end
 
+    it "leaves no vault entry behind when the create fails validation" do
+      expect do
+        post mcp_servers_path, params: { mcp_server: { name: "Bad", transport: "stdio", command: "", env_vars_text: "API_TOKEN=abc" } }
+      end.not_to change(VaultEntry, :count)
+    end
+
     it "keeps existing vault references when editing" do
       server = create(:mcp_server, env_vars: { "API_TOKEN" => "vault:mcp_x/env_api_token" })
 
