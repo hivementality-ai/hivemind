@@ -294,18 +294,10 @@
   <!-- Budgets -->
   <div class="bg-surface-card rounded-xl border border-border-default p-6">
     <h2 class="text-lg font-semibold text-white mb-4">Budgets</h2>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <%= form.label :daily_budget_limit, "Daily limit (cents)", class: "block text-sm font-medium text-text-primary mb-1" %>
-        <%= form.number_field :daily_budget_limit, placeholder: "e.g. 500 = $5.00",
-            class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
-      </div>
-      <div>
-        <%= form.label :monthly_budget_limit, "Monthly limit (cents)", class: "block text-sm font-medium text-text-primary mb-1" %>
-        <%= form.number_field :monthly_budget_limit, placeholder: "e.g. 10000 = $100.00",
-            class: "w-full px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand" %>
-      </div>
-    </div>
+    <p class="text-text-muted text-sm">
+      Spending limits are set in dollars on the
+      <%= link_to "Budgets page", budgets_path, class: "text-brand-light hover:underline" %>.
+    </p>
   </div>
 
   <!-- Network Egress Policy -->

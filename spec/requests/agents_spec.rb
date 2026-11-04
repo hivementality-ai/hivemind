@@ -27,6 +27,16 @@ RSpec.describe "Agents API", type: :request do
     end
   end
 
+  describe "budget fields on the edit form" do
+    it "points to the Budgets page instead of offering a limit field in cents" do
+      get "/agents/#{agent.slug}/edit"
+
+      expect(response.body).not_to include("agent[daily_budget_limit]")
+      expect(response.body).not_to include("(cents)")
+      expect(response.body).to include(%(href="#{budgets_path}"))
+    end
+  end
+
   describe "PATCH /agents/:slug" do
     it "updates agent by slug" do
       patch "/agents/#{agent.slug}", params: { agent: { role: "Updated Role" } }
