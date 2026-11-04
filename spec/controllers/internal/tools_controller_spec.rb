@@ -76,6 +76,21 @@ RSpec.describe Internal::ToolsController, type: :controller do
       end
     end
 
+    context "with a connector operation" do
+      before do
+        create(:connector, slug: "widgets")
+        allow(Connectors::AddressGuard).to receive(:lookup).and_return([ "93.184.216.34" ])
+        stub_request(:get, "https://api.widgets.test/v1/widgets/5").to_return(status: 200, body: "widget five")
+      end
+
+      it "resolves it by name and runs it" do
+        post :execute, params: { tool_name: "connector__widgets__get_widget", agent_id: agent.id, session_id: session.id, input: { id: "5" } }
+
+        expect(response).to have_http_status(:ok)
+        expect(JSON.parse(response.body)["output"]).to eq("widget five")
+      end
+    end
+
     context "with a system tool (load_skill)" do
       let(:skill) { create(:skill, name: "deep_research") }
 

@@ -39,6 +39,10 @@ meta_tools = [
         "description" => { "type" => "string", "description" => "What the tool does" },
         "script_template" => { "type" => "string", "description" => "Bash script with {{param}} placeholders" },
         "parameters" => { "type" => "object", "description" => "Parameter definitions: { name: { type, description, required } }" },
+        "secrets" => {
+          "type" => "object",
+          "description" => "Secrets the script needs: { ENV_NAME: \"vault:namespace/key\" }. Pass vault references only, never the secret. The script reads $ENV_NAME."
+        },
         "share_with_team" => { "type" => "boolean", "description" => "Share with teammates (default: false)" }
       },
       "required" => %w[name description script_template]

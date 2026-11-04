@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_04_130500) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_04_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -281,6 +281,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_04_130500) do
     t.index ["agent_id"], name: "index_coding_agent_tasks_on_agent_id"
     t.index ["session_id"], name: "index_coding_agent_tasks_on_session_id"
     t.index ["task_key"], name: "index_coding_agent_tasks_on_task_key", unique: true
+  end
+
+  create_table "connectors", force: :cascade do |t|
+    t.jsonb "auth_config", default: {}, null: false
+    t.string "auth_scheme", default: "none", null: false
+    t.string "base_url", null: false
+    t.datetime "created_at", null: false
+    t.bigint "created_by_id"
+    t.string "created_by_type"
+    t.text "description"
+    t.boolean "enabled", default: true, null: false
+    t.string "name", null: false
+    t.jsonb "operations", default: [], null: false
+    t.string "slug", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_type", "created_by_id"], name: "index_connectors_on_created_by_type_and_created_by_id"
+    t.index ["enabled"], name: "index_connectors_on_enabled"
+    t.index ["slug"], name: "index_connectors_on_slug", unique: true
   end
 
   create_table "delivery_queue_entries", force: :cascade do |t|
