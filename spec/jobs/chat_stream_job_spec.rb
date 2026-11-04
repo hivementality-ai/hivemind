@@ -211,6 +211,40 @@ RSpec.describe ChatStreamJob, type: :job do
       end
     end
 
+    context "stop and redirect signal polling while streaming" do
+      let(:clock) { [ 100.0 ] }
+
+      before do
+        allow(Process).to receive(:clock_gettime).and_call_original
+        allow(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC) { clock.first }
+        allow(SessionSignal).to receive(:check).and_return(nil)
+      end
+
+      it "reads Redis a bounded number of times for a burst of tokens" do
+        allow(adapter).to receive(:chat) do |**_opts, &block|
+          50.times { block.call(type: "content", content: "x") }
+          double(success?: true, data: { content: "x", usage: { input_tokens: 1, output_tokens: 1 } })
+        end
+
+        described_class.perform_now(session.id, "Hello")
+
+        expect(SessionSignal).to have_received(:check).once
+      end
+
+      it "reads again once the interval has elapsed and honors a stop" do
+        allow(SessionSignal).to receive(:check).and_return(nil, { type: "cancel" })
+        allow(adapter).to receive(:chat) do |**_opts, &block|
+          block.call(type: "content", content: "a")
+          clock[0] += described_class::SIGNAL_CHECK_INTERVAL + 0.01
+          block.call(type: "content", content: "b")
+          raise "stream was not interrupted"
+        end
+
+        expect { described_class.perform_now(session.id, "Hello") }.not_to raise_error
+        expect(SessionSignal).to have_received(:check).twice
+      end
+    end
+
     context "done broadcast always includes content for UI fallback" do
       it "includes full content in done broadcast after streaming" do
         allow(adapter).to receive(:chat) do |**_opts, &block|
