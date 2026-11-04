@@ -82,13 +82,29 @@ export function splitDynamic(systemPrompt, dynamicText) {
 }
 
 /**
+ * Picks the system text a turn starts a process with. A warm-eligible request
+ * with a splittable dynamic block gets the static text only, and the dynamic
+ * text travels as prompt context instead, so every turn uses one path.
+ * @param {string|Array<{text?: string}>|null} systemPrompt
+ * @param {string|null} systemDynamic
+ * @param {boolean} warmEligible whether this request may use a warm process
+ * @param {string|null} fullText the whole system prompt flattened to text
+ * @returns {{systemText: string|null, dynamicText: string|null}}
+ */
+export function systemForTurn(systemPrompt, systemDynamic, warmEligible, fullText) {
+  const split = warmEligible ? splitDynamic(systemPrompt, systemDynamic) : null;
+  if (!split) return { systemText: fullText, dynamicText: null };
+  return { systemText: split.staticText, dynamicText: split.dynamicText };
+}
+
+/**
  * Prefixes a prompt with fresh per-turn context.
  * @param {string} prompt
  * @param {string} dynamicText
  * @returns {string}
  */
 export function withTurnContext(prompt, dynamicText) {
-  return `<turn_context>\n${dynamicText}\n</turn_context>\n\n${prompt}`;
+  return `<turn_context>\nContext for this turn (replaces any earlier turn_context):\n${dynamicText}\n</turn_context>\n\n${prompt}`;
 }
 
 /** One live process and its turn bookkeeping. */
@@ -272,13 +288,16 @@ export function createWarmPool({ queryFn, maxWarm = 4, idleMs = 10 * 60 * 1000, 
     if (entry) {
       logger.log(`[warm] reusing session=${sessionId}`);
       Object.assign(entry.sink, sink);
-      // The process was started with the dynamic block it saw then; only a
-      // changed block needs to reach it again, as context ahead of the prompt.
+      // Only a block that changed since this process last saw one needs to
+      // reach it again, as context ahead of the prompt.
       if (dynamicText && dynamicText !== entry.dynamicText) turnPrompt = withTurnContext(prompt, dynamicText);
       entry.dynamicText = dynamicText;
     } else {
       entry = create(sessionId, key, options);
       if (!entry) return cold();
+      // The process starts on the static system text, so the first turn's
+      // context arrives the same way as every later change.
+      if (dynamicText) turnPrompt = withTurnContext(prompt, dynamicText);
       entry.sink = sink;
       entry.dynamicText = dynamicText;
       logger.log(`[warm] started session=${sessionId}`);

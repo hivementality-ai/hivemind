@@ -7,7 +7,7 @@ import { classifyError, toErrorBody } from "./error-classifier.js";
 import { credentialKey } from "./circuit-breaker.js";
 import { createGuard } from "./guard.js";
 import { createPartialStreamTracker } from "./partial-stream.js";
-import { createWarmPool, configKey, splitDynamic } from "./warm-pool.js";
+import { createWarmPool, configKey, systemForTurn, withTurnContext } from "./warm-pool.js";
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
@@ -165,11 +165,13 @@ async function runOAuth(res, token, params, stderrCapture) {
   const { messages, systemPrompt, model, stream, agent_id, session_id, tool_definitions, system_dynamic } = params;
 
   // Extract system prompt text for structured passing
-  let systemText = extractSystemPrompt(systemPrompt);
-  // Warm processes are keyed on the stable system text only; Rails flags the
-  // per-turn block it appends last so it can be re-sent as prompt context.
-  const dynamicSplit = splitDynamic(systemPrompt, system_dynamic);
-  const baseSystemText = dynamicSplit ? dynamicSplit.staticText : systemText;
+  // Warm processes run on the stable system text only; Rails flags the
+  // per-turn block it appends last so it travels as prompt context instead.
+  const warmEligible = !!(warmPool && session_id);
+  const turnSystem = systemForTurn(systemPrompt, system_dynamic, warmEligible, extractSystemPrompt(systemPrompt));
+  let systemText = turnSystem.systemText;
+  const baseSystemText = systemText;
+  const turnContext = turnSystem.dynamicText;
 
   // Build conversation transcript for context (SDK spawns fresh process each call)
   const conversationMessages = (messages || []).filter(m => m.role !== "system");
@@ -194,11 +196,12 @@ async function runOAuth(res, token, params, stderrCapture) {
   const lastUserMsg = conversationMessages
     .filter(m => m.role === "user")
     .pop();
-  const prompt = typeof lastUserMsg?.content === "string"
+  const rawPrompt = typeof lastUserMsg?.content === "string"
     ? lastUserMsg.content
     : Array.isArray(lastUserMsg?.content)
       ? lastUserMsg.content.filter(b => b.type === "text").map(b => b.text).join("\n")
       : "Continue";
+  const prompt = turnContext ? withTurnContext(rawPrompt, turnContext) : rawPrompt;
 
   const options = {};
   if (systemText) options.systemPrompt = systemText;
@@ -290,11 +293,11 @@ async function runOAuth(res, token, params, stderrCapture) {
       sessionId: session_id,
       key: warmKey,
       messageCount: convoCount,
-      prompt,
+      prompt: rawPrompt,
       options: { ...options, includePartialMessages: !!includePartialMessages },
       sink,
       cold,
-      dynamicText: dynamicSplit?.dynamicText ?? null,
+      dynamicText: turnContext,
     });
   };
 

@@ -4,7 +4,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createWarmPool, configKey, splitDynamic, withTurnContext } from "../warm-pool.js";
+import { createWarmPool, configKey, splitDynamic, systemForTurn, withTurnContext } from "../warm-pool.js";
 
 const silent = { log() {}, error() {}, warn() {} };
 
@@ -315,12 +315,41 @@ async function turnResult(turn) {
   return messages.at(-1).result;
 }
 
-test("a cold first turn sends the prompt alone", async () => {
+const wrapped = (ctx) =>
+  `<turn_context>\nContext for this turn (replaces any earlier turn_context):\n${ctx}\n</turn_context>\n\n`;
+
+test("a cold first turn carries its context in the prompt", async () => {
   const { pool } = build();
 
   const result = await turnResult(open(pool, { prompt: "one", dynamicText: "ctx A" }));
 
-  assert.equal(result, "echo one");
+  assert.equal(result, `echo ${wrapped("ctx A")}one`);
+});
+
+test("a cold first turn without a dynamic block sends the prompt alone", async () => {
+  const { pool } = build();
+
+  assert.equal(await turnResult(open(pool, { prompt: "one" })), "echo one");
+});
+
+test("a request that cannot use the pool is not split, keeping the whole system text", () => {
+  const blocks = [{ text: "core" }, { text: "ctx" }];
+
+  assert.deepEqual(systemForTurn(blocks, "ctx", false, "core\n\nctx"), { systemText: "core\n\nctx", dynamicText: null });
+});
+
+test("a warm-eligible request starts on the static system text, without the dynamic text", () => {
+  const blocks = [{ text: "core" }, { text: "ctx" }];
+
+  const { systemText, dynamicText } = systemForTurn(blocks, "ctx", true, "core\n\nctx");
+
+  assert.equal(systemText, "core");
+  assert.equal(systemText.includes("ctx"), false);
+  assert.equal(dynamicText, "ctx");
+});
+
+test("an unsplittable prompt keeps today's system text even when warm-eligible", () => {
+  assert.deepEqual(systemForTurn("plain", "ctx", true, "plain"), { systemText: "plain", dynamicText: null });
 });
 
 test("reuse with a changed dynamic block carries the new context in the prompt", async () => {
@@ -332,7 +361,7 @@ test("reuse with a changed dynamic block carries the new context in the prompt",
 
   assert.equal(second.warm, true);
   assert.equal(spawned.length, 1);
-  assert.equal(result, "echo <turn_context>\nctx B\n</turn_context>\n\ntwo");
+  assert.equal(result, `echo ${wrapped("ctx B")}two`);
 });
 
 test("reuse with an unchanged dynamic block sends the prompt alone", async () => {
@@ -351,7 +380,7 @@ test("the last seen context is tracked per turn, so returning to an old one re-s
 
   const result = await turnResult(open(pool, { prompt: "three", messageCount: 5, dynamicText: "ctx A" }));
 
-  assert.equal(result, "echo <turn_context>\nctx A\n</turn_context>\n\nthree");
+  assert.equal(result, `echo ${wrapped("ctx A")}three`);
 });
 
 test("reuse without any dynamic block sends the prompt alone", async () => {
@@ -378,5 +407,5 @@ test("splitDynamic declines when the last block differs, the text is empty, or t
 });
 
 test("withTurnContext wraps the context ahead of the prompt", () => {
-  assert.equal(withTurnContext("hi", "ctx"), "<turn_context>\nctx\n</turn_context>\n\nhi");
+  assert.equal(withTurnContext("hi", "ctx"), `${wrapped("ctx")}hi`);
 });
