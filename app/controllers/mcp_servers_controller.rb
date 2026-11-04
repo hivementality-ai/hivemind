@@ -35,7 +35,9 @@ class McpServersController < ApplicationController
     entry = Mcp::Catalog.find(params[:key])
     return redirect_to integrations_path, alert: "Unknown catalog server." unless entry
 
-    @server = Mcp::Catalog.server_for(entry) || McpServer.create!(name: entry.name, transport: "http", url: entry.url)
+    @server = Mcp::Catalog.server_for(entry) || McpServer.create(name: free_catalog_name(entry), transport: "http", url: entry.url)
+    return redirect_to(integrations_path, alert: @server.errors.full_messages.to_sentence) unless @server.persisted?
+
     start_oauth(integrations_path)
   end
 
@@ -99,6 +101,15 @@ class McpServersController < ApplicationController
   end
 
   private
+
+  # The catalog name, or "Name (catalog)", "Name (catalog) 2" and so on when a different server already uses it.
+  def free_catalog_name(entry)
+    return entry.name unless McpServer.exists?(name: entry.name)
+
+    base = "#{entry.name} (catalog)"
+    candidates = [ base ].lazy + (2..).lazy.map { |n| "#{base} #{n}" }
+    candidates.find { |name| !McpServer.exists?(name: name) }
+  end
 
   # Sends the browser to the server's authorization page, or back to +return_to+ with the reason it failed.
   def start_oauth(return_to)

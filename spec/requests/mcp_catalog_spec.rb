@@ -73,6 +73,17 @@ RSpec.describe "MCP starter catalog", type: :request do
       expect(response.location).to start_with("https://auth.example.com/authorize?")
     end
 
+    it "adds under a free name when a different server already uses the name" do
+      existing = create(:mcp_server, :sse, name: "Notion", url: "https://example.com/sse")
+      create(:mcp_server, :sse, name: "Notion (catalog)", url: "https://example.com/other")
+
+      expect { post add_from_catalog_mcp_servers_path(key: "notion") }.to change(McpServer, :count).by(1)
+
+      expect(McpServer.find_by(name: "Notion (catalog) 2")).to have_attributes(url: notion_url)
+      expect(existing.reload).to have_attributes(name: "Notion", url: "https://example.com/sse")
+      expect(response.location).to start_with("https://auth.example.com/authorize?")
+    end
+
     it "rejects a key that is not in the catalog" do
       expect { post add_from_catalog_mcp_servers_path(key: "nope") }.not_to change(McpServer, :count)
       expect(response).to redirect_to(integrations_path)
