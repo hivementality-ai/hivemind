@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_04_160000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_04_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -69,6 +69,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_04_160000) do
     t.index ["agent_id", "channel_id"], name: "index_agent_channels_on_agent_id_and_channel_id", unique: true
     t.index ["agent_id"], name: "index_agent_channels_on_agent_id"
     t.index ["channel_id"], name: "index_agent_channels_on_channel_id"
+  end
+
+  create_table "agent_connector_exclusions", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.bigint "connector_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id", "connector_id"], name: "index_agent_connector_exclusions_on_agent_id_and_connector_id", unique: true
+    t.index ["agent_id"], name: "index_agent_connector_exclusions_on_agent_id"
+    t.index ["connector_id"], name: "index_agent_connector_exclusions_on_connector_id"
   end
 
   create_table "agent_mcp_servers", force: :cascade do |t|
@@ -1056,6 +1066,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_04_160000) do
   add_foreign_key "agent_budgets", "agents"
   add_foreign_key "agent_channels", "agents"
   add_foreign_key "agent_channels", "channels"
+  add_foreign_key "agent_connector_exclusions", "agents"
+  add_foreign_key "agent_connector_exclusions", "connectors"
   add_foreign_key "agent_mcp_servers", "agents"
   add_foreign_key "agent_mcp_servers", "mcp_servers"
   add_foreign_key "agent_skills", "agents"

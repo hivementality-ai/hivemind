@@ -119,4 +119,13 @@ RSpec.describe Connector do
       expect(connector.operation("nope")).to be_nil
     end
   end
+
+  describe "deleting" do
+    it "removes the exclusions that hide it from agents" do
+      connector = create(:connector)
+      create(:agent_connector_exclusion, connector: connector)
+
+      expect { connector.destroy! }.to change(AgentConnectorExclusion, :count).by(-1)
+    end
+  end
 end
