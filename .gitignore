@@ -64,3 +64,6 @@ spec/examples.txt
 
 # Local AI tooling index (not shared)
 /.rubyn-code/
+
+# Database backups written by hivemind update
+/backups/
