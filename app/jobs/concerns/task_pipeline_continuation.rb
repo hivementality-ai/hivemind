@@ -79,6 +79,7 @@ module TaskPipelineContinuation
 
     session = Session.create!(
       agent: resolved_agent,
+      project: task.project,
       session_key: SecureRandom.uuid,
       title: "Task Hook: #{phase}/#{pipeline['new_status']} — #{task.title}",
       status: "active",

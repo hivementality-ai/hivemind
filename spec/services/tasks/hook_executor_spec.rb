@@ -199,7 +199,7 @@ RSpec.describe Tasks::HookExecutor do
 
     it "does NOT inline checklist, comments, artifacts, or dependencies" do
       task.update!(
-        checklist: [{ "title" => "Write tests", "checked" => false }],
+        checklist: [ { "title" => "Write tests", "checked" => false } ],
         description: "Build it"
       )
       task.add_comment(author_name: "Doc Brown", body: "Great Scott!")
