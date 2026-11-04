@@ -7,7 +7,11 @@ module Memory
     # Generate an embedding vector for the given text.
     # Returns Array[Float] (768 dims) or nil on failure.
     # Delegates to the pluggable adapter registry.
-    def self.generate(text, provider: nil)
+    #
+    # With raise_unreachable: true, an unreachable provider raises
+    # TransientProviderError (so a job can retry with backoff) instead of
+    # returning nil.
+    def self.generate(text, provider: nil, raise_unreachable: false)
       return nil if text.blank?
 
       adapter = if provider
@@ -18,6 +22,11 @@ module Memory
       return nil unless adapter
 
       adapter.embed_text(text)
+    rescue Faraday::ConnectionFailed, Faraday::TimeoutError => e
+      raise TransientProviderError.new(e.message, reason: :unreachable) if raise_unreachable
+
+      Rails.logger.warn("[Memory::Embedding] Embedding provider unreachable: #{e.message}")
+      nil
     rescue StandardError => e
       Rails.logger.error("[Memory::Embedding] Failed to generate embedding: #{e.message}")
       nil
@@ -35,6 +44,9 @@ module Memory
       return nil unless adapter
 
       adapter.embed_query(text)
+    rescue Faraday::ConnectionFailed, Faraday::TimeoutError => e
+      Rails.logger.warn("[Memory::Embedding] Recall skipped, embedding provider unreachable: #{e.message}")
+      nil
     rescue StandardError => e
       Rails.logger.error("[Memory::Embedding] Failed to generate query embedding: #{e.message}")
       nil

@@ -12,7 +12,8 @@ module Tools
         description: input["description"].to_s.strip,
         script_template: input["script_template"].to_s,
         parameters: parameters || {},
-        share_with_team: input["share_with_team"] == true
+        share_with_team: input["share_with_team"] == true,
+        secrets: input["secrets"].is_a?(Hash) ? input["secrets"] : {}
       )
 
       if result.success?

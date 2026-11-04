@@ -22,6 +22,7 @@ module Mcp
     def stop
       pid = @server.metadata&.dig("pid")
       kill_process(pid) if pid
+      Mcp::StdioRegistry.close(@server)
       @server.mark_disconnected!
       ServiceResponse.success(data: { stopped: true })
     rescue StandardError => e
@@ -41,7 +42,7 @@ module Mcp
 
     def spawn_process
       env_args = build_env_args
-      safe_cmd = Shellwords.join(Shellwords.shellsplit(@server.command))
+      safe_cmd = Shellwords.join(@server.resolved_command_args)
       cmd = [ "docker", "exec", "-d", *env_args, WORKSPACE_CONTAINER, "sh", "-c", "#{safe_cmd} & echo $!" ]
       stdout, stderr, status = Open3.capture3(*cmd)
       raise "Failed to start: #{stderr}" unless status.success?

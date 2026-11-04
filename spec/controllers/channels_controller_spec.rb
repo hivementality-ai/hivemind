@@ -48,6 +48,21 @@ RSpec.describe ChannelsController, type: :controller do
       expect(VaultEntry.find_by(namespace: 'channel_credentials')).to be_present
     end
 
+    it 'starts the compose services the new channel needs' do
+      allow(Channels::ComposeProfiles).to receive(:ensure_running).and_return(ServiceResponse.success)
+
+      post :create, params: valid_params
+
+      expect(Channels::ComposeProfiles).to have_received(:ensure_running).with(Channel.last)
+    end
+
+    it 'still creates the channel when starting services fails' do
+      allow(Channels::ComposeProfiles).to receive(:ensure_running).and_raise(StandardError, 'no docker')
+
+      expect { post :create, params: valid_params }.to change(Channel, :count).by(1)
+      expect(response).to redirect_to(channels_path)
+    end
+
     context 'with invalid params' do
       it 'renders new' do
         post :create, params: { channel: { name: '', channel_type: '' } }

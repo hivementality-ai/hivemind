@@ -1,0 +1,87 @@
+<% input_class = "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white focus:border-amber-500 focus:outline-none" %>
+<% vault_refs = VaultEntry.global.order(:namespace, :key).map { |e| "vault:#{e.namespace}/#{e.key}" } %>
+<% scheme_labels = {
+     "none" => "No sign-in", "api_key_header" => "API key in a header", "api_key_query" => "API key in the URL",
+     "bearer" => "Bearer token", "basic" => "Username and password", "oauth2" => "OAuth2 access token"
+   } %>
+<% auth_fields = {
+     "header_name" => [ "Header name (API key in a header)", :text ], "param_name" => [ "URL parameter name (API key in the URL)", :text ],
+     "secret" => [ "Key or token (API key, bearer)", :vault ], "username" => [ "Username (basic)", :vault ],
+     "password" => [ "Password (basic)", :vault ], "access_token" => [ "Access token (OAuth2)", :vault ],
+     "refresh_token" => [ "Refresh token (OAuth2, optional)", :vault ], "client_id" => [ "Client ID (OAuth2, optional)", :vault ],
+     "client_secret" => [ "Client secret (OAuth2, optional)", :vault ], "token_url" => [ "Token URL (OAuth2, optional)", :text ]
+   } %>
+<% config = connector.auth_config.is_a?(Hash) ? connector.auth_config : {} %>
+
+<%= form_with model: connector, url: (connector.new_record? ? connectors_path : connector_path(connector)),
+      method: (connector.new_record? ? :post : :patch), class: "space-y-5" do |f| %>
+  <% if connector.errors.any? %>
+    <div class="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
+      <ul class="list-disc list-inside space-y-1">
+        <% connector.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Name</label>
+    <%= f.text_field :name, required: true, placeholder: "Widgets API", class: input_class %>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Short name <span class="text-text-faint">(optional)</span></label>
+    <%= f.text_field :slug, placeholder: "widgets", class: "#{input_class} font-mono" %>
+    <p class="text-text-faint text-xs mt-1">Lowercase letters, numbers and underscores. Made from the name when left blank.</p>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Description <span class="text-text-faint">(optional)</span></label>
+    <%= f.text_field :description, class: input_class %>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Base URL</label>
+    <%= f.url_field :base_url, required: true, placeholder: "https://api.example.com/v1", class: "#{input_class} font-mono" %>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">How it signs in</label>
+    <%= f.select :auth_scheme, Connector::AUTH_SCHEMES.map { |s| [ scheme_labels[s], s ] }, {}, class: input_class %>
+    <p class="text-text-faint text-xs mt-1">Fill in only the fields for the sign-in method you picked. Keys come from the <%= link_to "vault", vault_entries_path, class: "underline" %>; nothing secret is typed here.</p>
+  </div>
+
+  <div class="space-y-3 bg-surface-card/40 border border-border-default/50 rounded-lg p-4">
+    <% auth_fields.each do |field, (label, kind)| %>
+      <div>
+        <label class="block text-xs font-medium text-text-muted mb-1"><%= label %></label>
+        <% if kind == :vault %>
+          <% current = config[field].to_s %>
+          <% options = (vault_refs + [ current ]).reject(&:blank?).uniq %>
+          <%= select_tag "connector[auth][#{field}]", options_for_select(options, current), include_blank: "Not used", class: "#{input_class} font-mono text-sm" %>
+        <% else %>
+          <%= text_field_tag "connector[auth][#{field}]", config[field], class: "#{input_class} font-mono text-sm" %>
+        <% end %>
+      </div>
+    <% end %>
+    <% if vault_refs.empty? %>
+      <p class="text-amber-400 text-xs">The vault has no keys yet. <%= link_to "Add one first", new_vault_entry_path, class: "underline" %>.</p>
+    <% end %>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Operations (JSON)</label>
+    <%= text_area_tag "connector[operations_json]", @operations_text, rows: 14, spellcheck: false, class: "#{input_class} font-mono text-sm" %>
+    <p class="text-text-faint text-xs mt-1">A list. Each operation needs name, description, method, path (like /widgets/{id}), read_only, and optionally params as a JSON schema object.</p>
+  </div>
+
+  <label class="flex items-center gap-2 text-sm text-text-primary">
+    <%= f.check_box :enabled %> Enabled
+  </label>
+
+  <div class="flex gap-3 pt-2">
+    <%= f.submit (connector.new_record? ? "Add connector" : "Save changes"), class: "px-4 py-2 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400 transition cursor-pointer" %>
+    <%= link_to "Cancel", connectors_path, class: "px-4 py-2 text-text-muted hover:text-white transition" %>
+  </div>
+<% end %>

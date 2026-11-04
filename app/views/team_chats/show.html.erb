@@ -5,7 +5,7 @@
      data-team-chat-update-url-value="<%= team_chat_path(@session) %>"
      data-team-chat-interrupt-url-value="<%= interrupt_team_chat_path(@session) %>"
      data-team-chat-csrf-value="<%= form_authenticity_token %>"
-     data-team-chat-agents-value="<%= @agents.map { |a| { id: a.id, name: a.name, role: a.role, initial: a.name[0].upcase } }.to_json %>">
+     data-team-chat-agents-value="<%= @agents.map { |a| { id: a.id, name: a.name, role: a.role, initial: a.name[0].upcase, working: TeamChats::AgentActivity.working?(a), task: a.current_task } }.to_json %>">
   <!-- Sidebar -->
   <div class="w-64 bg-surface-card border-r border-border-default flex flex-col flex-shrink-0">
     <div class="p-4 border-b border-border-default">
@@ -47,12 +47,16 @@
                 data-action="click->team-chat#pinAgentFromSidebar"
                 data-agent-name="<%= agent.name %>"
                 title="Click to pin @<%= agent.name %> to chat">
-          <div class="w-6 h-6 <%= colors[i % colors.size] %> rounded-full flex items-center justify-center text-white font-bold text-xs">
-            <%= agent.name[0].upcase %>
+          <div class="relative">
+            <div class="w-6 h-6 <%= colors[i % colors.size] %> rounded-full flex items-center justify-center text-white font-bold text-xs">
+              <%= agent.name[0].upcase %>
+            </div>
+            <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-surface-card bg-surface-overlay"
+                  data-sidebar-status-dot="<%= agent.id %>"></span>
           </div>
-          <div>
-            <div class="text-sm text-text-primary"><%= agent.name %></div>
-            <div class="text-xs text-text-faint"><%= agent.role %></div>
+          <div class="min-w-0 flex-1">
+            <div class="text-sm text-text-primary truncate"><%= agent.name %></div>
+            <div class="text-xs text-text-faint truncate" data-sidebar-status-label="<%= agent.id %>" data-role="<%= agent.role %>"><%= agent.role %></div>
           </div>
         </button>
       <% end %>
@@ -93,6 +97,11 @@
         <p class="text-text-faint text-xs"><%= @session.session_key %></p>
       </div>
       <div class="ml-auto flex items-center gap-3">
+        <div class="hidden items-center gap-2 px-2.5 py-1 rounded-full bg-yellow-900/40 border border-yellow-600/40 text-yellow-200 text-xs max-w-xs"
+             data-team-chat-target="workingChip">
+          <span class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse flex-shrink-0"></span>
+          <span class="truncate" data-team-chat-target="workingChipText"></span>
+        </div>
         <%= link_to export_team_chat_path(@session), class: "flex items-center gap-1 text-text-muted hover:text-white text-xs transition px-2 py-1 border border-border-default rounded hover:border-purple-400", title: "Export debug JSON" do %>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -105,9 +114,11 @@
           <span class="text-xs text-text-muted">Show Tool Calls</span>
         </label>
         <% @agents.each_with_index do |agent, i| %>
-          <div class="w-7 h-7 <%= colors[i % colors.size] %> rounded-full flex items-center justify-center text-white font-bold text-xs"
+          <div class="relative w-7 h-7 <%= colors[i % colors.size] %> rounded-full flex items-center justify-center text-white font-bold text-xs"
                title="<%= agent.name %> — <%= agent.role %>">
             <%= agent.name[0].upcase %>
+            <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-surface-card bg-surface-overlay"
+                  data-header-status-dot="<%= agent.id %>"></span>
           </div>
         <% end %>
       </div>

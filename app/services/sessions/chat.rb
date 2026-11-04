@@ -20,7 +20,8 @@ module Sessions
       @session.append_transcript({ "role" => "user", "content" => @message })
 
       # 2. Resolve the provider adapter
-      resolver = Providers::Resolver.call(provider_name: agent.model_provider, agent:)
+      brain = Sessions::BrainResolver.call(session: @session, agent:)
+      resolver = Providers::Resolver.call(provider_name: brain.provider_name, agent:, provider_config: brain.provider_config)
       return resolver unless resolver.success?
 
       adapter = resolver.data[:adapter]
@@ -28,6 +29,14 @@ module Sessions
       # 3. Budget enforcement — block over-budget agents before any LLM call
       budget_check = Budgets::Check.call(agent: agent)
       return ServiceResponse.failure(error: "Agent #{agent.name} has exceeded its budget for this period.") unless budget_check.success?
+
+      # 3b. Shared orchestration budget — a delegation tree stops everywhere
+      # once its combined spend crosses the ceiling, no matter which agent
+      # or session the next call would come from.
+      orchestration_id = @session.metadata&.dig("orchestration_id")
+      if Delegations::OrchestrationBudget.exceeded?(orchestration_id)
+        return ServiceResponse.failure(error: "Orchestration budget exhausted for this delegation tree.")
+      end
 
       # 4. Build messages array (includes memory context, summary, transcript)
       message_result = Sessions::MessageBuilder.call(session: @session, agent: agent)
@@ -37,11 +46,12 @@ module Sessions
       tools = resolve_tools(agent)
 
       # 5. Call the LLM
-      options = { model: agent.llm_model, agent_id: agent.id, session_id: @session.id }
+      options = { model: brain.model, agent_id: agent.id, session_id: @session.id }
 
       # Detect OAuth/MCP proxy path (Anthropic OAuth tokens)
-      oauth_mcp = adapter.is_a?(Providers::AnthropicAdapter) &&
-                  (adapter.send(:api_key) rescue nil)&.start_with?("sk-ant-oat") &&
+      base_adapter = Providers::FailoverAdapter.unwrap(adapter)
+      oauth_mcp = base_adapter.is_a?(Providers::AnthropicAdapter) &&
+                  (base_adapter.send(:api_key) rescue nil)&.start_with?("sk-ant-oat") &&
                   tools.any?
 
       if oauth_mcp
@@ -116,6 +126,15 @@ module Sessions
       assigned = agent.agent_tools.includes(:tool).map(&:tool).select(&:enabled?)
       tools = assigned.any? ? assigned : Tool.enabled.builtin.to_a
       tools << SystemTool::LOAD_SKILL if agent.skills.enabled.any?
+      tools.concat(Tools::Search.offered(agent))
+
+      # Sessions at the delegation depth limit lose the delegate tool entirely
+      # so the model never sees the option (Delegations::Request would reject
+      # the call anyway — this avoids a wasted attempt).
+      if @session.metadata&.dig("delegation_depth").to_i >= Delegations::Config.max_depth
+        tools = tools.reject { |t| t.name == "delegate" }
+      end
+
       tools
     rescue StandardError => e
       Rails.logger.warn("[Sessions::Chat] Tool resolution failed: #{e.message}")

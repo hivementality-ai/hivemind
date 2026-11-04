@@ -56,6 +56,7 @@ Rails.application.routes.draw do
   # Chat Sessions
   resources :sessions, only: [ :index, :show, :create, :update ] do
     member do
+      patch :brain
       post :message
       post :interrupt
       get :canvas
@@ -136,10 +137,28 @@ Rails.application.routes.draw do
   end
 
   # Knowledge Base
-  resources :knowledge_documents, path: "knowledge", only: [:index, :show, :new, :create, :destroy]
+  resources :knowledge_documents, path: "knowledge", only: [ :index, :show, :new, :create, :destroy ]
 
   # Providers (admin interface)
-  resources :providers, only: [ :index, :show, :new, :create, :edit, :update ]
+  resources :providers, only: [ :index, :show, :new, :create, :edit, :update ] do
+    collection do
+      # Save the ordered list of backup brains.
+      patch :fallback_chain
+    end
+    member do
+      # Clear a provider-unavailable circuit after a human fixes the account.
+      post :reset_circuit
+    end
+  end
+
+  # Remote Access (admin/owner interface) — tunnel wizard + status card
+  get "remote_access", to: "remote_access#index", as: :remote_access
+  post "remote_access/verify_byo", to: "remote_access#verify_byo", as: :verify_byo_remote_access
+  post "remote_access/provision_cloudflare", to: "remote_access#provision_cloudflare", as: :provision_cloudflare_remote_access
+  post "remote_access/re_verify", to: "remote_access#re_verify", as: :re_verify_remote_access
+  post "remote_access/restart_connector", to: "remote_access#restart_connector", as: :restart_connector_remote_access
+  post "remote_access/reconfigure", to: "remote_access#reconfigure", as: :reconfigure_remote_access
+  delete "remote_access", to: "remote_access#disconnect", as: :disconnect_remote_access
 
   # Tools
   resources :tools
@@ -153,6 +172,8 @@ Rails.application.routes.draw do
       patch :rollback
     end
     collection do
+      get :marketplace
+      post :install_from_marketplace
       post :import
       get :review_import
       post :confirm_import
@@ -218,7 +239,7 @@ Rails.application.routes.draw do
   end
 
   # Approval Inbox
-  resources :approvals, only: [:index] do
+  resources :approvals, only: [ :index ] do
     member do
       post :approve
       post :reject
@@ -235,6 +256,40 @@ Rails.application.routes.draw do
   resources :analytics, only: [ :index, :show ] do
     member do
       get "payload/:usage_id", action: :payload, as: :payload
+    end
+  end
+
+  # Import MCP servers from a Claude Desktop config
+  get "mcp_servers/import", to: "mcp_imports#new", as: :new_mcp_import
+  post "mcp_servers/import/preview", to: "mcp_imports#preview", as: :preview_mcp_import
+  post "mcp_servers/import", to: "mcp_imports#create", as: :mcp_import
+
+  # MCP server settings
+  resources :mcp_servers, except: :show do
+    collection do
+      post "catalog/:key", action: :add_from_catalog, as: :add_from_catalog
+    end
+    member do
+      patch :toggle_enabled
+      post :test_connection
+      post :oauth_connect
+      get :oauth_callback
+      delete :oauth_disconnect
+    end
+  end
+
+  # Vault: shared secrets; values are write-only in the UI
+  resources :vault_entries, only: [ :index, :new, :create, :edit, :update, :destroy ]
+
+  # Connectors: HTTP APIs described as data
+  resources :connectors, except: :show do
+    collection do
+      post :import
+    end
+    member do
+      get :export
+      patch :toggle_enabled
+      post "operations/:operation/try", action: :try_operation, as: :try_operation
     end
   end
 
@@ -282,8 +337,6 @@ Rails.application.routes.draw do
   get "integrations/jira/test", to: "integrations#test_jira", as: :test_jira_integrations
   patch "integrations/trello", to: "integrations#update_trello", as: :update_trello_integrations
   get "integrations/trello/test", to: "integrations#test_trello", as: :test_trello_integrations
-  patch "integrations/composio", to: "integrations#update_composio", as: :update_composio_integrations
-  patch "integrations/nango", to: "integrations#update_nango", as: :update_nango_integrations
   post "integrations/cloud_remote", to: "integrations#add_cloud_remote", as: :add_cloud_remote_integrations
   delete "integrations/cloud_remote", to: "integrations#remove_cloud_remote", as: :remove_cloud_remote_integrations
   get "integrations/cloud_remote/test", to: "integrations#test_cloud_remote", as: :test_cloud_remote_integrations
@@ -308,6 +361,12 @@ Rails.application.routes.draw do
 
   # API Token Management
   resources :api_tokens, only: [ :index, :create, :destroy ]
+
+  # Desktop Pairing (browser-side leg — Devise session + unauthenticated code exchange)
+  get  "desktop_pairing/authorize", to: "desktop_pairing#new",      as: :new_desktop_pairing
+  post "desktop_pairing/authorize", to: "desktop_pairing#create",   as: :desktop_pairing
+  post "desktop_pairing/deny",      to: "desktop_pairing#deny",     as: :deny_desktop_pairing
+  post "desktop_pairing/exchange",  to: "desktop_pairing#exchange", as: :exchange_desktop_pairing
 
   # API Integrations
   resources :api_integrations do
@@ -346,15 +405,20 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       resources :agents, only: [ :index, :show, :create, :update, :destroy ], param: :slug
-      resources :sessions, only: [ :index, :show, :destroy ] do
+      resources :sessions, only: [ :index, :show, :create, :update, :destroy ] do
         member do
           get :export
+          post :messages
+          post :interrupt
         end
       end
       post "plans/save", to: "plans#save", as: :save_plan
       get "providers/models", to: "providers#models"
       get "hashtag_actions", to: "hashtag_actions#index"
       get "system/version", to: "system#version"
+      # Provider reachability: circuit state + sdk-proxy ceilings. 503 when degraded.
+      get "system/provider_health", to: "system#provider_health"
+      delete "desktop_pairing/token", to: "desktop_pairing#revoke_self", as: :revoke_desktop_pairing_token
       resources :projects, only: [ :index, :show, :create, :update ] do
         resources :milestones, only: [ :index, :show, :update ], controller: "project_milestones" do
           member do

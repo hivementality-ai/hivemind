@@ -1,0 +1,17 @@
+<%# Optional provider and model for every chat in this project; blank uses the agent's own. %>
+<div data-controller="model-select"
+     data-model-select-url-value="<%= api_v1_providers_models_path %>"
+     data-model-select-adapters-value="<%= ProviderConfig.enabled_providers.pluck(:id, :adapter_type).to_h.to_json %>"
+     data-model-select-current-value="<%= project.llm_model %>">
+  <h3 class="text-white font-medium text-sm mb-2">Chat model</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <%= form.select :provider_config_id,
+        options_for_select(ProviderConfig.enabled_providers.order(:name).map { |p| [ p.name, p.id ] }, project.provider_config_id),
+        { include_blank: "Agent default" },
+        { class: "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white text-sm",
+          data: { model_select_target: "provider", action: "change->model-select#providerChanged" } } %>
+    <%= form.select :llm_model, options_for_select([], project.llm_model), {},
+        { class: "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white text-sm",
+          data: { model_select_target: "model", blank_label: "Agent default" } } %>
+  </div>
+</div>

@@ -2,6 +2,10 @@
 
 class ApiController < ApplicationController
   skip_before_action :verify_authenticity_token
+  # Bearer ApiTokens are the credential for this whole namespace — headless
+  # clients (e.g. the desktop app) never hold a Devise session cookie, so the
+  # inherited session-based authenticate_user! must not gate these actions.
+  skip_before_action :authenticate_user!
   before_action :authenticate_api_token
 
   rescue_from ActiveRecord::RecordNotFound do |e|
@@ -28,5 +32,11 @@ class ApiController < ApplicationController
 
   def current_api_token
     @current_api_token
+  end
+
+  # Overrides Devise's session-based current_user so downstream code (e.g.
+  # `current_user.id` when creating records) resolves to the token's owner.
+  def current_user
+    @current_api_token&.user
   end
 end

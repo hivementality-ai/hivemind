@@ -19,7 +19,7 @@ module Mcp
         results[:checked] += 1
         healthy = case server.transport
         when "stdio" then check_stdio(server)
-        when "sse" then check_sse(server)
+        when "sse", "http" then check_sse(server)
         else false
         end
         if healthy

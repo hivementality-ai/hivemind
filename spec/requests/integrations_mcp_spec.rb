@@ -44,7 +44,7 @@ RSpec.describe "Integrations MCP Servers", type: :request do
     let!(:server) { create(:mcp_server, :sse) }
 
     it "connects to an SSE server" do
-      allow(Mcp::SseClient).to receive(:discover_tools).and_return(ServiceResponse.success(data: { tools: [] }))
+      allow(Mcp::HttpClient).to receive(:discover_tools).and_return(ServiceResponse.success(data: { tools: [] }))
       post connect_mcp_server_path(server)
       expect(response).to redirect_to(integrations_path)
     end
@@ -65,7 +65,7 @@ RSpec.describe "Integrations MCP Servers", type: :request do
 
     it "refreshes tools" do
       tools = [ { "name" => "test", "description" => "A tool" } ]
-      allow(Mcp::SseClient).to receive(:discover_tools).and_return(ServiceResponse.success(data: { tools: tools }))
+      allow(Mcp::HttpClient).to receive(:discover_tools).and_return(ServiceResponse.success(data: { tools: tools }))
       get refresh_mcp_tools_path(server)
       expect(response).to redirect_to(integrations_path)
     end

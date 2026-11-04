@@ -2,12 +2,14 @@
 
 module Mobile
   class SettingsController < BaseController
-    VALID_PREF_KEYS = %w[agent_responses task_completions budget_alerts heartbeat_findings].freeze
+    VALID_PREF_KEYS = %w[agent_responses task_completions budget_alerts heartbeat_findings needs_input errors].freeze
     DEFAULT_PREFS = {
       "agent_responses" => true,
       "task_completions" => true,
       "budget_alerts" => true,
-      "heartbeat_findings" => false
+      "heartbeat_findings" => false,
+      "needs_input" => true,
+      "errors" => true
     }.freeze
 
     def index

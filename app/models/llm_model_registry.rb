@@ -83,16 +83,58 @@ module LlmModelRegistry
     # ── Anthropic Claude ──────────────────────────────────────────────────
 
     Model.new(
+      api_id:               "claude-fable-5",
+      display_name:         "Claude Fable 5",
+      provider:             "anthropic",
+      family:               "fable",
+      context_window:       200_000,
+      input_cost_per_mtok:  1000,
+      output_cost_per_mtok: 5000,
+      status:               :active,
+      sunset_date:          nil,
+      description:          "Most capable — next-gen intelligence for long-running agents",
+      capabilities:         %i[vision tool_use extended_thinking]
+    ),
+
+    Model.new(
+      api_id:               "claude-opus-5",
+      display_name:         "Claude Opus 5",
+      provider:             "anthropic",
+      family:               "opus",
+      context_window:       200_000,
+      input_cost_per_mtok:  500,
+      output_cost_per_mtok: 2500,
+      status:               :active,
+      sunset_date:          nil,
+      description:          "Frontier agentic coding & enterprise work",
+      capabilities:         %i[vision tool_use extended_thinking]
+    ),
+
+    Model.new(
+      api_id:               "claude-sonnet-5",
+      display_name:         "Claude Sonnet 5",
+      provider:             "anthropic",
+      family:               "sonnet",
+      context_window:       200_000,
+      input_cost_per_mtok:  200,
+      output_cost_per_mtok: 1000,
+      status:               :active,
+      sunset_date:          nil,
+      description:          "Best balance of speed & intelligence",
+      capabilities:         %i[vision tool_use extended_thinking]
+    ),
+
+    Model.new(
       api_id:               "claude-opus-4-8",
       display_name:         "Claude Opus 4.8",
       provider:             "anthropic",
       family:               "opus",
       context_window:       200_000,
-      input_cost_per_mtok:  750,
-      output_cost_per_mtok: 3750,
+      input_cost_per_mtok:  500,
+      output_cost_per_mtok: 2500,
       status:               :active,
       sunset_date:          nil,
-      description:          "Most capable — frontier reasoning & code",
+      description:          "Previous Opus — frontier reasoning & code",
       capabilities:         %i[vision tool_use extended_thinking]
     ),
 
@@ -134,7 +176,7 @@ module LlmModelRegistry
       output_cost_per_mtok: 1500,
       status:               :active,
       sunset_date:          nil,
-      description:          "Best balance of speed & intelligence",
+      description:          "Previous Sonnet — balanced speed & intelligence",
       capabilities:         %i[vision tool_use]
     ),
 
@@ -574,6 +616,9 @@ module LlmModelRegistry
   # Reference these in application code rather than bare string literals.
 
   module Anthropic
+    FABLE_5    = "claude-fable-5"
+    OPUS_5     = "claude-opus-5"
+    SONNET_5   = "claude-sonnet-5"
     OPUS_4_8   = "claude-opus-4-8"
     OPUS_4_7   = "claude-opus-4-7"
     OPUS_4_6   = "claude-opus-4-6"
@@ -583,8 +628,8 @@ module LlmModelRegistry
 
     # Tier defaults — point these to the recommended model per tier.
     DEFAULT_CHEAP      = HAIKU_4_5
-    DEFAULT_MID        = SONNET_4_6
-    DEFAULT_TOP        = OPUS_4_8
+    DEFAULT_MID        = SONNET_5
+    DEFAULT_TOP        = OPUS_5
     DEFAULT_SUMMARIZER = HAIKU_4_5
   end
 
