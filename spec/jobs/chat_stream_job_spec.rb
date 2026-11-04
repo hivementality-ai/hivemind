@@ -89,6 +89,15 @@ RSpec.describe ChatStreamJob, type: :job do
       end
     end
 
+    context "when the user redirects a running turn" do
+      it "re-enqueues the redirect message on the interactive queue" do
+        allow(adapter).to receive(:chat).and_raise(AgentRedirected.new("do this instead"))
+
+        expect { described_class.perform_now(session.id, "Hello") }
+          .to have_enqueued_job(described_class).with(session.id, "do this instead", []).on_queue("interactive")
+      end
+    end
+
     context "done broadcast always includes content for UI fallback" do
       it "includes full content in done broadcast after streaming" do
         allow(adapter).to receive(:chat) do |**_opts, &block|

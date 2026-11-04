@@ -40,7 +40,7 @@ module SessionChatActions
     attachment_ids = process_message_attachments(session: session, images: images, files: files)
 
     ActionCable.server.broadcast("session_#{session.id}", { type: "user_message", content: user_message })
-    ChatStreamJob.perform_later(session.id, user_message.to_s, attachment_ids)
+    ChatStreamJob.set(queue: :interactive).perform_later(session.id, user_message.to_s, attachment_ids)
     :enqueued
   end
 
