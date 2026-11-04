@@ -142,6 +142,39 @@ cmd_status() {
   fi
 }
 
+# ----------------------------------------------------------
+# Host ephemeral-port tuning
+#
+# `hivemind update` and `scripts/upgrade.sh` are two independent update
+# paths, and this has to hang off both: the CLI is the one the installer
+# symlinks into /usr/local/bin, so it is the path an operator actually
+# takes. Wiring only upgrade.sh left the tuning uninstalled on a host
+# that had faithfully run `hivemind update`.
+#
+# Never fatal. An untuned host runs Hivemind fine; it just has less
+# headroom before a runaway stack exhausts the host's port pool.
+# ----------------------------------------------------------
+tune_host() {
+  local script="$HIVEMIND_DIR/scripts/host-tuning.sh"
+  [ -f "$script" ] || return 0
+
+  if bash "$script" --check --quiet >/dev/null 2>&1; then
+    return 0  # already correct — say nothing
+  fi
+
+  echo ""
+  warn "Host port tuning has drifted (see MULTI-STACK.md §2)."
+  info "Untuned, this host has a 16,384-port pool and a 30s TIME_WAIT:"
+  info "a third the capacity, recycling 15x slower."
+
+  if bash "$script"; then
+    ok "Host tuning applied."
+  else
+    warn "Could not apply host tuning — continuing with the update."
+    warn "Fix it later with: ./scripts/host-tuning.sh"
+  fi
+}
+
 cmd_update() {
   require_dir
   echo -e "${BOLD}🐝 Updating Hivemind${NC}"
@@ -195,6 +228,10 @@ cmd_update() {
     fi
     ok "CLI updated"
   fi
+
+  # After the checkout above, so this always runs the freshly-pulled
+  # script and plist rather than the copy this release replaced.
+  tune_host
 
   # Resolve version from current tag
   local version
