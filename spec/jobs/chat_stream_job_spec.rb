@@ -50,6 +50,54 @@ RSpec.describe ChatStreamJob, type: :job do
       expect(runs.map(&:second)).to eq([ "first" ])
     end
 
+    it "requeues a busy turn on the queue the job ran on" do
+      Redis.current.set(lock_key, "other", ex: 60)
+      job = described_class.new
+      job.queue_name = "interactive"
+
+      expect { job.perform(session.id, "second") }
+        .to have_enqueued_job(described_class).on_queue("interactive")
+    end
+
+    context "with the heartbeat" do
+      let(:flag_key) { "#{described_class::PROCESSING_KEY_PREFIX}#{session.id}" }
+
+      before do
+        stub_const("ChatStreamJob::HEARTBEAT_INTERVAL", 0.05)
+        Redis.current.del(flag_key)
+      end
+
+      after { Redis.current.del(flag_key) }
+
+      it "renews the lock and processing flag while a slow turn runs" do
+        ttls = []
+        allow_any_instance_of(described_class).to receive(:run_turn) do
+          Redis.current.setex(flag_key, 30, "1")
+          Redis.current.expire(lock_key, 1)
+          sleep 0.3
+          ttls << Redis.current.ttl(lock_key) << Redis.current.ttl(flag_key)
+        end
+
+        described_class.new.perform(session.id, "slow")
+
+        expect(ttls.first).to be > 1
+        expect(ttls.last).to be > 30
+      end
+
+      it "stops renewing once the lock holds a different token" do
+        ttl = nil
+        allow_any_instance_of(described_class).to receive(:run_turn) do
+          Redis.current.set(lock_key, "someone-else", ex: 1)
+          sleep 0.3
+          ttl = Redis.current.ttl(lock_key)
+        end
+
+        described_class.new.perform(session.id, "slow")
+
+        expect(ttl).to be <= 1
+      end
+    end
+
     it "releases the lock after a turn so the next one runs" do
       allow_any_instance_of(described_class).to receive(:run_turn)
 

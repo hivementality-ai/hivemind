@@ -10,7 +10,7 @@ Sidekiq.configure_server do |config|
     Sidekiq::Cron::Job.load_from_hash(schedule) if schedule.present?
   end
 
-  config.on(:startup) { StuckTurnSweepJob.perform_later }
+  config.on(:startup) { StuckTurnSweepJob.set(wait: ChatStreamJob::LOCK_TTL.seconds).perform_later }
 end
 
 Sidekiq.configure_client do |config|

@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-# Clears chat turns whose worker died mid-reply (deploy, crash, OOM). Such a
-# turn leaves its processing flag and turn lock behind, so the UI spins and
-# later messages queue behind a lock nobody holds.
+# Clears chat turns whose worker died mid-reply (deploy, crash, OOM). A live
+# turn holds a heartbeat-renewed lock, so a processing flag with no lock means
+# the worker is gone and the UI would otherwise spin forever.
 class StuckTurnSweepJob < ApplicationJob
   queue_as :system
 
@@ -21,15 +21,12 @@ class StuckTurnSweepJob < ApplicationJob
   private
 
   def sweep(key)
-    remaining = Redis.current.ttl(key)
-    return false if remaining.negative?
-    return false if ChatStreamJob::PROCESSING_TTL - remaining < ChatStreamJob::STALE_AFTER
-
     session_id = key.delete_prefix(ChatStreamJob::PROCESSING_KEY_PREFIX)
-    session = Session.find_by(id: session_id)
-    return false if session&.last_activity_at && session.last_activity_at > ChatStreamJob::STALE_AFTER.seconds.ago
+    return false if Redis.current.exists?("#{ChatStreamJob::LOCK_KEY_PREFIX}#{session_id}")
 
-    Redis.current.del(key, "#{ChatStreamJob::LOCK_KEY_PREFIX}#{session_id}")
+    return false if Redis.current.del(key).zero?
+
+    session = Session.find_by(id: session_id)
     notify(session) if session
     true
   rescue StandardError => e
