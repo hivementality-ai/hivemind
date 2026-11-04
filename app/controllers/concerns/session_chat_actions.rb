@@ -14,9 +14,10 @@ module SessionChatActions
     Agent.by_slug(identifier).first || Agent.find_by(id: identifier)
   end
 
-  def create_chat_session(agent:, user:)
+  def create_chat_session(agent:, user:, project: nil)
     session = Session.create!(
       agent: agent,
+      project: project,
       session_key: SecureRandom.uuid,
       status: :active,
       transcript: [],
