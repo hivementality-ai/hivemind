@@ -99,7 +99,7 @@ class McpServersController < ApplicationController
 
   # Built from the configured canonical host when set, otherwise from the request.
   def oauth_redirect_uri
-    base = Setting.get("canonical_host").presence || request.base_url
+    base = RemoteAccess::ConfigStore.canonical_host.presence || request.base_url
     "#{base.chomp('/')}#{oauth_callback_mcp_server_path(@server)}"
   end
 

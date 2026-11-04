@@ -109,6 +109,13 @@ RSpec.describe Mcp::OAuth do
       expect { described_class.authorization_url(server, redirect_uri: redirect_uri) }
         .to raise_error(described_class::Error, /authorization server metadata/)
     end
+
+    it "refuses a plain-http token endpoint on a public host" do
+      stub_request(:get, as_url).to_return(status: 200, body: as_meta.merge(token_endpoint: "http://auth.example.com/token").to_json)
+
+      expect { described_class.authorization_url(server, redirect_uri: redirect_uri) }
+        .to raise_error(described_class::Error, /must use https/)
+    end
   end
 
   describe ".complete!" do

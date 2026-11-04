@@ -117,6 +117,9 @@ module Mcp
       candidates = well_known_candidates(issuer, "oauth-authorization-server") + [ "#{issuer.chomp('/')}/.well-known/openid-configuration" ]
       as = candidates.lazy.filter_map { |u| fetch_json(u) }.first
       raise Error, "Could not find authorization server metadata for #{issuer}" unless as&.dig("authorization_endpoint") && as["token_endpoint"]
+      unless %w[authorization_endpoint token_endpoint].all? { |k| secure_url?(as[k]) }
+        raise Error, "Authorization server endpoints must use https"
+      end
 
       { "as" => as, "scope" => challenge[:scope] || prm&.dig("scopes_supported")&.join(" ") }
     end
