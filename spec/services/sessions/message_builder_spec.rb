@@ -183,5 +183,28 @@ RSpec.describe Sessions::MessageBuilder do
         expect(messages.size).to eq(2)
       end
     end
+
+    context "when the embedding provider hangs" do
+      let(:transcript) do
+        [ { "role" => "user", "content" => "Tell me something", "timestamp" => Time.current.iso8601 } ]
+      end
+
+      before do
+        allow(Memory::ContextBuilder).to receive(:call).and_call_original
+        allow(ProviderConfig).to receive(:find_by).and_call_original
+        allow(ProviderConfig).to receive(:find_by).with(adapter_type: "ollama").and_return(nil)
+        allow(Embeddings::Registry).to receive(:current).and_return(Embeddings::OllamaAdapter.new)
+        stub_request(:post, "http://localhost:11434/api/embeddings").to_timeout
+      end
+
+      it "builds the turn promptly without recalled memories" do
+        started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+        expect(result.success?).to be true
+        expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 2
+        system_text = result.data[:messages].first.to_s
+        expect(system_text).not_to include("Relevant Knowledge")
+      end
+    end
   end
 end

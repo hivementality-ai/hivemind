@@ -21,11 +21,12 @@ module Embeddings
       }
     end
 
-    def embed_text(text, dimensions: nil)
+    def embed_text(text, dimensions: nil, timeouts: nil)
       call_api(
         content: { parts: [ { text: text } ] },
         task_type: "RETRIEVAL_DOCUMENT",
-        dimensions: dimensions
+        dimensions: dimensions,
+        timeouts: timeouts
       )
     end
 
@@ -33,7 +34,8 @@ module Embeddings
       call_api(
         content: { parts: [ { text: text } ] },
         task_type: "RETRIEVAL_QUERY",
-        dimensions: dimensions
+        dimensions: dimensions,
+        timeouts: recall_timeouts
       )
     end
 
@@ -79,7 +81,7 @@ module Embeddings
 
     private
 
-    def call_api(content:, task_type: nil, dimensions: nil)
+    def call_api(content:, task_type: nil, dimensions: nil, timeouts: nil)
       key = api_key
       return nil unless key
 
@@ -91,10 +93,11 @@ module Embeddings
       }
       body[:taskType] = task_type if task_type
 
-      response = Faraday.post(
+      response = post_json(
         "#{API_BASE}/#{model_name}:embedContent?key=#{key}",
         body.to_json,
-        { "Content-Type" => "application/json" }
+        { "Content-Type" => "application/json" },
+        timeouts: timeouts
       )
 
       return nil unless response.success?
