@@ -38,9 +38,12 @@
         </div>
         <div class="flex items-center justify-between">
           <% if @github_configured %>
-            <button type="button" onclick="testGitHub()" class="text-brand-light hover:text-brand-light text-sm font-medium cursor-pointer">
-              Test Connection
-            </button>
+            <span data-controller="connection-test" data-connection-test-url-value="<%= test_github_integrations_path %>" data-connection-test-kind-value="github" class="flex items-center gap-3">
+              <button type="button" data-action="connection-test#run" class="text-brand-light hover:text-brand-light text-sm font-medium cursor-pointer">
+                Test Connection
+              </button>
+              <span data-connection-test-target="status" role="status" class="text-sm"></span>
+            </span>
           <% else %>
             <span></span>
           <% end %>
@@ -56,21 +59,6 @@
       </div>
     <% end %>
   </div>
-
-  <script>
-    function testGitHub() {
-      fetch("<%= test_github_integrations_path %>")
-        .then(r => r.json())
-        .then(data => {
-          if (data.status === "connected") {
-            alert(`✅ Connected as ${data.user} (${data.name})`)
-          } else {
-            alert(`❌ ${data.message}`)
-          }
-        })
-        .catch(() => alert("❌ Connection failed"))
-    }
-  </script>
 
   <!-- Gmail -->
   <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
@@ -430,9 +418,12 @@
         </div>
         <div class="flex items-center justify-between">
           <% if @trello_configured %>
-            <button type="button" onclick="testTrello()" class="text-brand-light hover:text-brand-light text-sm font-medium cursor-pointer">
-              Test Connection
-            </button>
+            <span data-controller="connection-test" data-connection-test-url-value="<%= test_trello_integrations_path %>" data-connection-test-kind-value="trello" class="flex items-center gap-3">
+              <button type="button" data-action="connection-test#run" class="text-brand-light hover:text-brand-light text-sm font-medium cursor-pointer">
+                Test Connection
+              </button>
+              <span data-connection-test-target="status" role="status" class="text-sm"></span>
+            </span>
           <% else %>
             <span></span>
           <% end %>
@@ -448,21 +439,6 @@
       </div>
     <% end %>
   </div>
-
-  <script>
-    function testTrello() {
-      fetch("<%= test_trello_integrations_path %>")
-        .then(r => r.json())
-        .then(data => {
-          if (data.status === "connected") {
-            alert(`✅ Connected as ${data.user} (@${data.username})`)
-          } else {
-            alert(`❌ ${data.message}`)
-          }
-        })
-        .catch(() => alert("❌ Connection failed"))
-    }
-  </script>
 
   <!-- Web Search -->
   <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
@@ -516,9 +492,12 @@
         </div>
         <div class="flex items-center justify-between">
           <% if @search_configured %>
-            <button type="button" onclick="testSearch()" class="text-brand-light hover:text-brand-light text-sm font-medium cursor-pointer">
-              Test Connection
-            </button>
+            <span data-controller="connection-test" data-connection-test-url-value="<%= test_search_integrations_path %>" data-connection-test-kind-value="search" class="flex items-center gap-3">
+              <button type="button" data-action="connection-test#run" class="text-brand-light hover:text-brand-light text-sm font-medium cursor-pointer">
+                Test Connection
+              </button>
+              <span data-connection-test-target="status" role="status" class="text-sm"></span>
+            </span>
           <% else %>
             <span></span>
           <% end %>
@@ -551,19 +530,6 @@
         help.innerHTML = links[value] || 'Select a provider to see signup details';
       }
     }
-
-    function testSearch() {
-      fetch("<%= test_search_integrations_path %>")
-        .then(r => r.json())
-        .then(data => {
-          if (data.status === "connected") {
-            alert(`✅ ${data.provider} working — got ${data.results} results ("${data.first_result}")`)
-          } else {
-            alert(`❌ ${data.message}`)
-          }
-        })
-        .catch(() => alert("❌ Connection failed"))
-    }
   </script>
 
   <!-- Messaging Channels -->
@@ -575,7 +541,7 @@
         </div>
         <div>
           <h2 class="text-lg font-semibold text-white">Messaging Channels</h2>
-          <p class="text-text-faint text-sm">Discord, Slack, Telegram, WhatsApp, Signal</p>
+          <p class="text-text-faint text-sm"><%= Channel.platform_sentence %></p>
         </div>
       </div>
       <%= link_to "Manage Channels", channels_path, class: "text-brand-light hover:underline text-sm font-medium" %>
@@ -685,7 +651,7 @@
         </div>
         <div>
           <h2 class="text-lg font-semibold text-white">Cloud Storage</h2>
-          <p class="text-text-faint text-sm">Connect Google Drive, S3, Dropbox, OneDrive, B2, SFTP via rclone</p>
+          <p class="text-text-faint text-sm">Connect Google Drive, S3, Dropbox, OneDrive, B2, or SFTP</p>
         </div>
       </div>
       <span class="px-3 py-1 rounded-full text-xs font-medium
@@ -694,6 +660,9 @@
       </span>
     </div>
 
+    <details class="group">
+      <summary class="cursor-pointer text-text-muted hover:text-white text-sm font-medium select-none">Advanced</summary>
+      <div class="mt-4">
     <!-- Existing remotes -->
     <% if @remotes.any? %>
       <div class="space-y-2 mb-6">
@@ -746,6 +715,7 @@
 
             <div class="bg-surface-base rounded-lg p-4">
               <p class="text-text-primary text-sm font-medium mb-2">Get your token:</p>
+              <p class="text-yellow-400 text-xs mb-2">This step needs a terminal on your own computer.</p>
               <ol class="text-text-muted text-sm space-y-1 list-decimal list-inside">
                 <li>Install rclone on your local machine: <code class="text-text-primary bg-surface-card px-1 rounded">curl https://rclone.org/install.sh | sudo bash</code></li>
                 <li>Run: <code class="text-text-primary bg-surface-card px-1 rounded">rclone authorize "<span data-cloud-remote-target="authBackend">drive</span>"</code></li>
@@ -884,5 +854,7 @@
         <% end %>
       </div>
     </div>
+      </div>
+    </details>
   </div>
 </div>
