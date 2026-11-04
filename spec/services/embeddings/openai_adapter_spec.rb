@@ -43,6 +43,19 @@ RSpec.describe Embeddings::OpenaiAdapter, type: :service do
     end
   end
 
+  describe "recall timeouts" do
+    it "uses short open and read timeouts for embed_query" do
+      options = captured_request_options { adapter.embed_query("q") }
+      expect(options.open_timeout).to eq(1.0)
+      expect(options.timeout).to eq(3.0)
+    end
+
+    it "leaves document embedding on default timeouts" do
+      options = captured_request_options { adapter.embed_text("doc") }
+      expect(options.timeout).to be_nil
+    end
+  end
+
   describe "#healthy?" do
     it "returns true when API key exists in vault" do
       expect(adapter.healthy?).to be true

@@ -16,7 +16,10 @@ RSpec.describe "Approvals", type: :request do
       get: nil,
       ttl: 900,
       del: 1,
-      setex: "OK")
+      setex: "OK",
+      # The layout's provider-circuit banner scans for open circuits on
+      # every render; no circuits here.
+      scan_each: [].each)
   end
 
   describe "GET /approvals (index)" do

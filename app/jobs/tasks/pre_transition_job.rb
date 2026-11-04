@@ -84,6 +84,7 @@ module Tasks
 
       session = Session.create!(
         agent: resolved_agent,
+        project: task.project,
         session_key: SecureRandom.uuid,
         title: "Task Hook: pre/#{pipeline_meta[:new_status]} — #{task.title}",
         status: "active",

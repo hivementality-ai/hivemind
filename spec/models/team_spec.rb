@@ -5,7 +5,6 @@ require 'rails_helper'
 RSpec.describe Team, type: :model do
   describe 'associations' do
     it { should have_many(:agents).dependent(:destroy) }
-    it { should have_many(:team_messages).dependent(:destroy) }
   end
 
   describe 'validations' do

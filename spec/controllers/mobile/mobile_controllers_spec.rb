@@ -88,14 +88,16 @@ RSpec.describe Mobile::SessionsController, type: :controller do
       allow(Sessions::ResolvePendingQuestion).to receive(:call).and_return(
         ServiceResponse.failure(error: "no pending")
       )
-      allow(ChatStreamJob).to receive(:perform_later)
+      allow(ChatStreamJob).to receive(:set).with(queue: :interactive).and_return(interactive_job)
       allow(ActionCable.server).to receive(:broadcast)
     end
 
-    it "enqueues a ChatStreamJob" do
+    let(:interactive_job) { instance_double(ActiveJob::ConfiguredJob, perform_later: true) }
+
+    it "enqueues a ChatStreamJob on the interactive queue" do
       post :message, params: { id: session_record.id, message: "Hello" }
       expect(response).to have_http_status(:ok)
-      expect(ChatStreamJob).to have_received(:perform_later).with(session_record.id, "Hello", [])
+      expect(interactive_job).to have_received(:perform_later).with(session_record.id, "Hello", [])
     end
 
     it "rejects blank messages with no attachments" do
@@ -284,6 +286,17 @@ RSpec.describe Mobile::SettingsController, type: :controller do
       }
       user.reload
       expect(user.notification_preferences).not_to have_key("evil_key")
+    end
+
+    it "persists the needs_input and errors toggles" do
+      patch :update_preferences, params: {
+        preferences: { "needs_input" => "1", "errors" => "0" }
+      }
+      expect(response).to redirect_to(mobile_settings_path)
+
+      user.reload
+      expect(user.notification_preferences["needs_input"]).to be true
+      expect(user.notification_preferences["errors"]).to be false
     end
   end
 

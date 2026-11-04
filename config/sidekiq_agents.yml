@@ -6,5 +6,8 @@
 ---
 :concurrency: <%= ENV.fetch('SIDEKIQ_AGENT_CONCURRENCY', 5).to_i %>
 :queues:
+  # Overflow for interactive turns; the interactive worker owns the reserved
+  # threads. Highest weight so it is polled first.
+  - [interactive, 10]
   - [agents, 5]
   - [research, 3]

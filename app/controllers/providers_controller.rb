@@ -2,12 +2,33 @@
 
 class ProvidersController < ApplicationController
   before_action :authorize_admin_or_owner!
-  before_action :load_provider, only: [ :show, :edit, :update ]
+  before_action :load_provider, only: [ :show, :edit, :update, :reset_circuit ]
 
   # GET /providers
   # Admin interface to manage all provider credentials
   def index
     @providers = ProviderConfig.order(:name)
+    @chain_rows = fallback_chain_rows
+  end
+
+  # PATCH /providers/fallback_chain
+  # Save the ordered backup brains. Rejects the whole list when any entry points
+  # at a missing or disabled provider, or a model that provider does not offer.
+  def fallback_chain
+    ids = Array(params[:chain_ids]).map(&:to_s).uniq
+    models = params[:models].respond_to?(:to_unsafe_h) ? params[:models].to_unsafe_h : {}
+    entries = ids.map { |id| { "provider_config_id" => id.to_i, "model" => models[id].to_s.presence }.compact }
+
+    error = fallback_chain_error(entries)
+    if error
+      @providers = ProviderConfig.order(:name)
+      @chain_rows = fallback_chain_rows(selected: entries)
+      @chain_error = error
+      render :index, status: :unprocessable_entity
+    else
+      Setting.set(Providers::DefaultFallback::SETTING_KEY, entries.to_json)
+      redirect_to providers_path, notice: "Backup brain saved."
+    end
   end
 
   # GET /providers/:id
@@ -108,6 +129,16 @@ class ProvidersController < ApplicationController
         Setting.set("default_model_#{@provider.adapter_type}", default_model)
       end
 
+      # Provider-level default reasoning effort (blank clears it → model default).
+      if %w[anthropic openai].include?(@provider.adapter_type) && provider_params.key?(:effort)
+        effort = provider_params[:effort].to_s
+        if effort.present? && Agent::EFFORT_LEVELS.include?(effort)
+          Setting.set("provider_effort_#{@provider.adapter_type}", effort)
+        else
+          Setting.set("provider_effort_#{@provider.adapter_type}", "")
+        end
+      end
+
       # Anthropic-only debug toggles (always write both so unchecking
       # actually clears the flag — checkboxes don't post when unchecked,
       # but the hidden twin in the form posts "0" as a floor value).
@@ -115,6 +146,10 @@ class ProvidersController < ApplicationController
         Setting.set("prompt_debug_enabled", bool_param(provider_params[:prompt_debug_enabled]).to_s)
         Setting.set("anthropic_use_sdk_proxy", bool_param(provider_params[:anthropic_use_sdk_proxy]).to_s)
       end
+
+      # A human just touched this credential, so stop waiting out the circuit
+      # breaker's cooldown — the next call should try again immediately.
+      Providers::CircuitBreaker.reset_provider!(@provider.adapter_type)
 
       redirect_to provider_path(@provider), notice: "Provider updated successfully."
     else
@@ -125,14 +160,46 @@ class ProvidersController < ApplicationController
     end
   end
 
+  # POST /providers/:id/reset_circuit
+  # Clear the provider-unavailable circuit by hand (topped the account up,
+  # rotated the token) without editing the credential.
+  def reset_circuit
+    Providers::CircuitBreaker.reset_provider!(@provider.adapter_type)
+    redirect_back fallback_location: provider_path(@provider),
+                  notice: "Cleared the provider circuit for #{@provider.name}. Calls will resume on the next request."
+  end
+
   private
+
+  # Rows for the backup brain editor: chosen entries first, in order, then the
+  # remaining enabled providers unchecked.
+  def fallback_chain_rows(selected: Providers::DefaultFallback.entries)
+    enabled = ProviderConfig.enabled_providers.order(:name).index_by(&:id)
+    chosen = selected.filter_map do |entry|
+      config = enabled[entry["provider_config_id"].to_i]
+      { config:, model: entry["model"], checked: true } if config
+    end
+    rest = enabled.values.reject { |c| chosen.any? { |row| row[:config] == c } }
+    chosen + rest.map { |config| { config:, model: nil, checked: false } }
+  end
+
+  def fallback_chain_error(entries)
+    entries.each do |entry|
+      config = ProviderConfig.enabled_providers.find_by(id: entry["provider_config_id"])
+      return "Every backup brain must be an existing, enabled provider." unless config
+      next if entry["model"].blank? || config.model_names.include?(entry["model"])
+
+      return "#{config.name} does not offer the model #{entry["model"]}."
+    end
+    nil
+  end
 
   def load_provider
     @provider = ProviderConfig.find(params[:id])
   end
 
   def provider_params
-    permitted = [ :api_key, :default_model, :base_url, :prompt_debug_enabled, :anthropic_use_sdk_proxy, models: [] ]
+    permitted = [ :api_key, :default_model, :base_url, :effort, :prompt_debug_enabled, :anthropic_use_sdk_proxy, models: [] ]
     permitted.unshift(:adapter_type, :name) if action_name == "create"
     params.require(:provider_config).permit(*permitted)
   end

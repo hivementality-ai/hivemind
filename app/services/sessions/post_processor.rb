@@ -39,14 +39,15 @@ module Sessions
 
       input_tokens = @usage[:input_tokens] || 0
       output_tokens = @usage[:output_tokens] || 0
-      cost = CostEstimator.estimate(model: @agent.llm_model, input_tokens:, output_tokens:)
+      brain = Sessions::BrainResolver.call(session: @session, agent: @agent)
+      cost = CostEstimator.estimate(model: brain.model, input_tokens:, output_tokens:)
 
       Budgets::RecordSpend.call(
         agent: @agent,
         cost_cents: cost,
         session: @session,
-        provider: @agent.model_provider,
-        llm_model: @agent.llm_model,
+        provider: brain.provider_name,
+        llm_model: brain.model,
         input_tokens:,
         output_tokens:,
         request_payload: @usage[:request_payload]

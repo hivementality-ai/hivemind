@@ -558,47 +558,6 @@ BUILTIN_TOOLS = [
     }
   },
   {
-    name: "composio",
-    description: "Execute tools from Composio's catalog of 250+ app integrations (Gmail, Slack, GitHub, Linear, Notion, etc.). Use list_toolkits to browse apps, list_tools to see a toolkit's actions, list_connections to find connected accounts, and execute to run a tool.",
-    executor_type: "composio",
-    requires_approval: false,
-    parameters_schema: {
-      "properties" => {
-        "action" => { "type" => "string", "description" => "Action to perform", "enum" => %w[execute list_tools list_toolkits list_connections request] },
-        "tool_slug" => { "type" => "string", "description" => "Composio tool slug to run for execute (e.g. GITHUB_CREATE_AN_ISSUE)" },
-        "arguments" => { "type" => "object", "description" => "Arguments passed to the tool for execute" },
-        "user_id" => { "type" => "string", "description" => "Composio user/entity ID whose connected account to use for execute" },
-        "connected_account_id" => { "type" => "string", "description" => "Specific connected account ID to use for execute (optional)" },
-        "toolkit" => { "type" => "string", "description" => "Toolkit slug to filter by for list_tools (e.g. github)" },
-        "limit" => { "type" => "integer", "description" => "Max results for list_tools" },
-        "method" => { "type" => "string", "description" => "HTTP method for the raw request action (default GET)", "enum" => %w[GET POST PUT PATCH DELETE] },
-        "path" => { "type" => "string", "description" => "API path for the raw request action (e.g. /tools/execute/SLUG)" },
-        "body" => { "type" => "object", "description" => "Request body for the raw request action" },
-        "query" => { "type" => "object", "description" => "Query params for the raw request action" }
-      },
-      "required" => [ "action" ]
-    }
-  },
-  {
-    name: "nango",
-    description: "Call third-party app APIs through Nango's unified proxy. Nango injects OAuth credentials for a connected account, so you can hit any connected provider's API (Slack, Salesforce, HubSpot, GitHub, etc.) without handling tokens. Use list_connections to find connection IDs and list_integrations to see configured providers.",
-    executor_type: "nango",
-    requires_approval: false,
-    parameters_schema: {
-      "properties" => {
-        "action" => { "type" => "string", "description" => "Action to perform", "enum" => %w[proxy list_connections list_integrations] },
-        "method" => { "type" => "string", "description" => "HTTP method for proxy requests (default GET)", "enum" => %w[GET POST PUT PATCH DELETE] },
-        "endpoint" => { "type" => "string", "description" => "Path on the downstream provider API for proxy (e.g. /repos/owner/name/issues)" },
-        "connection_id" => { "type" => "string", "description" => "Nango connection ID identifying the connected account (required for proxy)" },
-        "provider_config_key" => { "type" => "string", "description" => "Nango integration/provider config key (required for proxy)" },
-        "query" => { "type" => "object", "description" => "Query parameters for proxy requests" },
-        "data" => { "type" => "object", "description" => "Request body for proxy POST/PUT/PATCH" },
-        "base_url_override" => { "type" => "string", "description" => "Override the downstream base URL Nango proxies to (optional)" }
-      },
-      "required" => [ "action" ]
-    }
-  },
-  {
     name: "email",
     description: "Send emails via SMTP. Works with any email provider (Mailtrap, SendGrid, Mailgun, Amazon SES, etc). Supports plain text and HTML emails with CC, BCC, and reply-to.",
     executor_type: "email",

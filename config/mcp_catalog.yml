@@ -1,0 +1,34 @@
+# Official remote MCP servers offered as one-click cards on the Integrations page.
+# Each URL was checked against the vendor's own docs (linked in the docs field).
+# Servers listed here must support OAuth with dynamic client registration.
+servers:
+  - key: notion
+    name: Notion
+    summary: Search, read and update your Notion pages and databases.
+    url: https://mcp.notion.com/mcp
+    docs: https://developers.notion.com/docs/get-started-with-mcp
+  - key: linear
+    name: Linear
+    summary: Find, create and update Linear issues and projects.
+    url: https://mcp.linear.app/mcp
+    docs: https://linear.app/docs/mcp
+  - key: atlassian
+    name: Atlassian
+    summary: Work with Jira issues and Confluence pages.
+    url: https://mcp.atlassian.com/v2/mcp
+    docs: https://support.atlassian.com/atlassian-rovo-mcp-server/docs/getting-started-with-the-atlassian-remote-mcp-server/
+  - key: asana
+    name: Asana
+    summary: Look up and manage Asana tasks and projects.
+    url: https://mcp.asana.com/v2/mcp
+    docs: https://developers.asana.com/docs/using-asanas-mcp-server
+  - key: stripe
+    name: Stripe
+    summary: Look up customers, payments and subscriptions in Stripe.
+    url: https://mcp.stripe.com
+    docs: https://docs.stripe.com/mcp
+  - key: sentry
+    name: Sentry
+    summary: Investigate errors and issues in your Sentry projects.
+    url: https://mcp.sentry.dev/mcp
+    docs: https://mcp.sentry.dev/

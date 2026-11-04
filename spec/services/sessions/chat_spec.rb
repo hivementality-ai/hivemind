@@ -16,6 +16,18 @@ RSpec.describe Sessions::Chat do
     allow(Sessions::PostProcessor).to receive(:call)
   end
 
+  describe "orchestration budget enforcement" do
+    it "blocks the LLM call when the session's delegation tree is over budget" do
+      session.update!(metadata: { "orchestration_id" => "orch-123" })
+      allow(Delegations::OrchestrationBudget).to receive(:exceeded?).with("orch-123").and_return(true)
+
+      result = described_class.call(session: session, message: "Keep working")
+
+      expect(result).not_to be_success
+      expect(result.error).to match(/Orchestration budget exhausted/)
+    end
+  end
+
   describe "ToolLoop integration for non-OAuth providers" do
     let(:task_manager_tool) { create(:tool, name: "task_manager", executor_type: "task_manager", enabled: true, builtin: true) }
     let(:delegate_tool) { create(:tool, name: "delegate", executor_type: "delegate", enabled: true, builtin: true) }

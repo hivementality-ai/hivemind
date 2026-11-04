@@ -52,6 +52,37 @@ RSpec.describe SessionsController, type: :controller do
   end
 
   describe 'POST #create' do
+    context 'when started from a project' do
+      let(:project_config) { create(:provider_config, :anthropic) }
+      let(:project) { create(:project, provider_config: project_config, llm_model: 'claude-project') }
+
+      it 'records the project on the session' do
+        post :create, params: { agent_id: agent.slug, project_id: project.id }
+
+        expect(Session.last.project).to eq(project)
+      end
+
+      it 'resolves the turn to the project brain' do
+        post :create, params: { agent_id: agent.slug, project_id: project.id }
+
+        brain = Sessions::BrainResolver.call(session: Session.last)
+        expect(brain.model).to eq('claude-project')
+        expect(brain.provider_config).to eq(project_config)
+      end
+
+      it 'records the project when a chat is auto-started from the index' do
+        get :index, params: { agent_id: agent.slug, project_id: project.id }
+
+        expect(Session.last.project).to eq(project)
+      end
+    end
+
+    it 'leaves the project blank without a project_id' do
+      post :create, params: { agent_id: agent.slug }
+
+      expect(Session.last.project).to be_nil
+    end
+
     context 'with valid agent' do
       it 'creates a new session' do
         expect {
