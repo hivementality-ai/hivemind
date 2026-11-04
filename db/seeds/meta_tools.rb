@@ -82,6 +82,27 @@ meta_tools = [
       },
       "required" => %w[name slug base_url auth_scheme auth_config operations]
     }
+  },
+  {
+    name: "propose_connector_fix",
+    description: "Propose a corrected definition for a connector whose calls keep failing with 404, 405 or " \
+                 "schema errors. Pass the full corrected operations list. The user sees a before/after diff " \
+                 "and approves it. Auth and secrets cannot be changed.",
+    executor_type: "propose_connector_fix",
+    builtin: true,
+    enabled: true,
+    parameters_schema: {
+      "properties" => {
+        "slug" => { "type" => "string", "description" => "Slug of the connector to fix" },
+        "operations" => {
+          "type" => "array",
+          "description" => "The complete corrected operations list (same shape as create_connector)",
+          "items" => { "type" => "object" }
+        },
+        "base_url" => { "type" => "string", "description" => "Corrected API base URL, only if it changed" }
+      },
+      "required" => %w[slug operations]
+    }
   }
 ]
 

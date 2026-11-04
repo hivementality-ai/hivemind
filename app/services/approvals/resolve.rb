@@ -84,7 +84,16 @@ module Approvals
         activate_tool(approval)
       when "create_connector"
         activate_connector(approval)
+      when "update_connector"
+        apply_connector_fix(approval)
       end
+    end
+
+    def apply_connector_fix(approval)
+      connector = Connector.find_by(id: approval.params["connector_id"])
+      return unless connector
+
+      connector.update!(operations: approval.params["operations"], base_url: approval.params["base_url_after"], health: {})
     end
 
     def activate_connector(approval)
