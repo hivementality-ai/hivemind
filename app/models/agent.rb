@@ -75,10 +75,13 @@ class Agent < ApplicationRecord
     Connector.where.not(id: agent_connector_exclusions.select(:connector_id))
   end
 
-  # Marks every connector outside +ids+ as excluded for this agent.
+  # Marks every enabled connector outside +ids+ as excluded for this agent. Disabled
+  # connectors were not on the form, so they keep their current exclusion state.
   def visible_connector_ids=(ids)
     keep = Array(ids).filter_map { |id| Integer(id, exception: false) }
-    self.excluded_connector_ids = Connector.where.not(id: keep).pluck(:id)
+    shown = Connector.enabled
+    kept_exclusions = agent_connector_exclusions.pluck(:connector_id) - shown.pluck(:id)
+    self.excluded_connector_ids = kept_exclusions + shown.where.not(id: keep).pluck(:id)
   end
 
   # Reasoning-effort levels accepted by output_config.effort (Anthropic) /

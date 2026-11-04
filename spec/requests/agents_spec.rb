@@ -90,6 +90,16 @@ RSpec.describe "Agents API", type: :request do
       expect(agent.visible_connectors).to contain_exactly(kept)
     end
 
+    it "does not hide a disabled connector that is enabled after the form was saved" do
+      shown = create(:connector)
+      later = create(:connector, enabled: false)
+
+      patch "/agents/#{agent.slug}", params: { agent: { visible_connector_ids: [ "", shown.id.to_s ] } }
+      later.update!(enabled: true)
+
+      expect(agent.reload.visible_connectors).to include(later)
+    end
+
     it "restores a connector that is checked again" do
       connector = create(:connector)
       create(:agent_connector_exclusion, agent: agent, connector: connector)
