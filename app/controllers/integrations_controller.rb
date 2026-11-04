@@ -30,6 +30,7 @@ class IntegrationsController < ApplicationController
     @mcp_servers = McpServer.order(:name)
     @mcp_presets = @mcp_servers.where(preset: true)
     @mcp_custom = @mcp_servers.where(preset: false)
+    @mcp_catalog = Mcp::Catalog.entries
     @agents = Agent.visible.order(:name)
   end
 
