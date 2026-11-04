@@ -95,6 +95,32 @@ RSpec.describe Providers::Resolver do
       end
     end
 
+    context 'with a fallback chain configured on the agent' do
+      let!(:provider_config) { create(:provider_config, :openai, name: provider_name) }
+      let(:agent) { create(:agent, model_provider: "openai", model_config: { "fallback_models" => [ "gpt-4o-mini" ] }) }
+
+      it 'wraps the adapter in a FailoverAdapter' do
+        result = described_class.call(provider_name: provider_name, agent: agent)
+
+        expect(result.success?).to be true
+        expect(result.data[:adapter]).to be_a(Providers::FailoverAdapter)
+        expect(result.data[:adapter].primary).to be_a(Providers::OpenaiAdapter)
+      end
+
+      it 'returns the bare adapter when failover: false' do
+        result = described_class.call(provider_name: provider_name, agent: agent, failover: false)
+
+        expect(result.data[:adapter]).to be_a(Providers::OpenaiAdapter)
+      end
+
+      it 'returns the bare adapter when the agent has no chain' do
+        plain_agent = create(:agent, model_provider: "openai")
+        result = described_class.call(provider_name: provider_name, agent: plain_agent)
+
+        expect(result.data[:adapter]).to be_a(Providers::OpenaiAdapter)
+      end
+    end
+
     context 'when adapter type is unknown' do
       let!(:provider_config) do
         create(:provider_config, name: provider_name, adapter_type: "openai")
@@ -110,6 +136,50 @@ RSpec.describe Providers::Resolver do
 
         expect(result.success?).to be false
         expect(result.error).to eq("Unknown adapter: openai")
+      end
+    end
+
+    context 'when two providers share an adapter type' do
+      let!(:omlx) do
+        create(:provider_config, :openai_compatible, name: "oMLX", base_url: "http://192.168.1.6:8000/v1")
+      end
+      let!(:router) do
+        create(:provider_config, :openai_compatible, name: "OpenRouter", base_url: "https://openrouter.ai/api/v1")
+      end
+
+      def base_url_for(agent)
+        described_class.call(provider_name: "openai_compatible", agent:, failover: false)
+                       .data[:adapter].instance_variable_get(:@config).base_url
+      end
+
+      it 'resolves each pinned agent to its own provider config' do
+        on_omlx = create(:agent, model_provider: "openai_compatible", provider_config: omlx)
+        on_router = create(:agent, model_provider: "openai_compatible", provider_config: router)
+
+        expect(base_url_for(on_omlx)).to eq("http://192.168.1.6:8000/v1")
+        expect(base_url_for(on_router)).to eq("https://openrouter.ai/api/v1")
+      end
+
+      it 'falls back to the first config of the type when the agent is unpinned' do
+        unpinned = create(:agent, model_provider: "openai_compatible", provider_config: nil)
+
+        expect(base_url_for(unpinned)).to eq("http://192.168.1.6:8000/v1")
+      end
+
+      it 'ignores a pinned config that is disabled' do
+        router.update!(enabled: false)
+        pinned = create(:agent, model_provider: "openai_compatible", provider_config: router)
+
+        expect(base_url_for(pinned)).to eq("http://192.168.1.6:8000/v1")
+      end
+
+      it 'ignores a pinned config of a different adapter type than requested' do
+        pinned = create(:agent, model_provider: "openai_compatible", provider_config: router)
+        create(:provider_config, :ollama, base_url: "http://localhost:11434")
+
+        result = described_class.call(provider_name: "ollama", agent: pinned, failover: false)
+
+        expect(result.data[:adapter]).to be_a(Providers::OllamaAdapter)
       end
     end
   end

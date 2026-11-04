@@ -36,6 +36,12 @@ RSpec.describe Mcp::ProcessManager do
       expect(server.reload.status).to eq("disconnected")
     end
 
+    it "closes the server's persistent session" do
+      allow(Mcp::StdioRegistry).to receive(:close)
+      manager.stop
+      expect(Mcp::StdioRegistry).to have_received(:close).with(server)
+    end
+
     it "disconnects even without pid" do
       server.update!(status: "connected")
       result = manager.stop

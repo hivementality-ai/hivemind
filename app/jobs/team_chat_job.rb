@@ -6,9 +6,11 @@ class TeamChatJob < ApplicationJob
   # Process a message in a team chat — route to targeted agent(s), handle responses.
   # Agent-to-agent communication is handled via the talk_to_teammate tool.
   AGENT_COOLDOWN_SECONDS = 10  # Min seconds between an agent's responses
+  MAX_MENTION_HOPS = 5 # Max agent-to-agent @mention wakes chained from one human message
 
   def perform(team_chat_session_id, message_id, responding_agent_id: nil, chain_depth: 0, broadcast_agent_ids: [])
     @session = TeamChatSession.find(team_chat_session_id)
+    @chain_depth = chain_depth
     @team = @session.team
     @channel = "team_chat_#{@session.id}"
     message = TeamChatMessage.find(message_id)
@@ -47,6 +49,12 @@ class TeamChatJob < ApplicationJob
   private
 
   def respond_as_agent(agent:, trigger_message:)
+    TeamChats::AgentActivity.track(agent, channel: @channel) do
+      run_agent_turn(agent:, trigger_message:)
+    end
+  end
+
+  def run_agent_turn(agent:, trigger_message:)
     # Get or create persistent session for this agent in this team chat
     @agent_session = @session.session_for(agent)
 
@@ -173,7 +181,8 @@ class TeamChatJob < ApplicationJob
 
       # Detect OAuth MCP path — when using OAuth tokens, the Agent SDK manages
       # tool execution via MCP callbacks instead of the local ToolLoop
-      oauth_mcp = adapter.is_a?(Providers::AnthropicAdapter) && adapter.send(:oauth_token?) && tools.any?
+      base_adapter = Providers::FailoverAdapter.unwrap(adapter)
+      oauth_mcp = base_adapter.is_a?(Providers::AnthropicAdapter) && base_adapter.send(:oauth_token?) && tools.any?
       if oauth_mcp
         llm_options[:agent_id] = agent.id
         llm_options[:session_id] = @agent_session.id
@@ -300,6 +309,8 @@ class TeamChatJob < ApplicationJob
         message_id: agent_message.id
       })
 
+      wake_mentioned_teammates(agent_message, agent)
+
     rescue AgentInterrupted
       if full_content.present?
         @agent_session.append_transcript({ "role" => "assistant", "content" => full_content + "\n\n_[Cancelled by user]_" })
@@ -349,6 +360,19 @@ class TeamChatJob < ApplicationJob
     rescue StandardError => e
       broadcast_error(agent:, error: e.message)
       Rails.logger.error("TeamChatJob error (#{agent.name}): #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")
+    end
+  end
+
+  # Enqueue a turn for each teammate @mentioned in an agent's reply. Skips the
+  # author and stops once the hop cap for this chain is reached.
+  def wake_mentioned_teammates(agent_message, author)
+    return if @chain_depth >= MAX_MENTION_HOPS
+
+    mentions = TeamChatMessage.extract_mentions(agent_message.content.to_s, @team)
+    return if mentions[:broadcast]
+
+    mentions[:agents].reject { |mentioned| mentioned.id == author.id || !mentioned.enabled? }.each do |mentioned|
+      TeamChatJob.perform_later(@session.id, agent_message.id, responding_agent_id: mentioned.id, chain_depth: @chain_depth + 1)
     end
   end
 
@@ -488,7 +512,7 @@ class TeamChatJob < ApplicationJob
     parts << "- To talk directly to a specific teammate, use the talk_to_teammate tool — this is the ONLY way to communicate with teammates"
     parts << "- You'll send them a message, they'll respond, and you'll get their answer"
     parts << "- Only use the tool when you need a specific teammate's input — for general discussion, just speak naturally"
-    parts << "- Never use @mentions in your responses — just use names naturally (e.g. say \"Signal\" not \"@Signal\")"
+    parts << "- Writing @Name in your reply wakes that teammate for a turn; only do it when you need their input"
     parts << "- Never start your response with [Name]: — just speak directly"
     parts << ""
     parts << "Be a teammate, not a bot. Respond when it's relevant to you. Keep it short."
@@ -547,6 +571,7 @@ class TeamChatJob < ApplicationJob
 
     # Inject system tools
     tools << SystemTool::LOAD_SKILL if agent.skills.enabled.any?
+    tools.concat(Tools::Search.offered(agent))
 
     # Inject talk_to_teammate when teammates exist
     teammates = @team.agents.enabled.where.not(id: agent.id)

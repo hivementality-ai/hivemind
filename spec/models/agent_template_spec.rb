@@ -25,6 +25,26 @@ RSpec.describe AgentTemplate, type: :model do
     end
   end
 
+  describe ".grouped_by_category" do
+    it "groups in CATEGORIES order, sorts by name, and omits empty categories" do
+      z = create(:agent_template, category: "writing", name: "Zed")
+      b = create(:agent_template, category: "coding", name: "beta")
+      a = create(:agent_template, category: "coding", name: "Alpha")
+
+      groups = described_class.grouped_by_category(described_class.all)
+
+      expect(groups.keys).to eq(%w[coding writing])
+      expect(groups["coding"]).to eq([ a, b ])
+      expect(groups["writing"]).to eq([ z ])
+    end
+
+    it "keeps templates whose category is not in CATEGORIES" do
+      odd = build_stubbed(:agent_template, category: "legacy")
+
+      expect(described_class.grouped_by_category([ odd ])).to eq("legacy" => [ odd ])
+    end
+  end
+
   describe "scopes" do
     let!(:featured) { create(:agent_template, featured: true) }
     let!(:regular) { create(:agent_template, featured: false) }

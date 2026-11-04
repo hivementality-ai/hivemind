@@ -2,6 +2,8 @@
 
 class Session < ApplicationRecord
   belongs_to :agent
+  belongs_to :project, optional: true
+  belongs_to :provider_config, optional: true
   belongs_to :team_chat_session, optional: true
   belongs_to :origin_channel, class_name: "Channel", optional: true, foreign_key: :origin_channel_id
 

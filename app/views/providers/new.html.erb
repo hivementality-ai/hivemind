@@ -98,18 +98,21 @@
                 id: "api-key-input",
                 autocomplete: "off" %>
             <p class="text-text-faint text-xs mt-2" id="api-key-hint"></p>
+            <div id="claude-subscription-steps" class="hidden">
+              <%= render "providers/claude_subscription_steps" %>
+            </div>
           </div>
         </div>
 
         <!-- Ollama Advanced Settings -->
         <div id="ollama-settings" class="hidden">
-          <details class="mt-4">
+          <details class="mt-4" open>
             <summary class="text-text-muted text-sm cursor-pointer hover:text-white transition select-none flex items-center gap-2">
               <span class="text-lg">▶</span> Advanced Settings
             </summary>
             <div class="mt-3 p-4 bg-surface-overlay rounded-lg border border-border-default space-y-3">
               <div>
-                <label class="block text-text-primary font-medium text-sm mb-1">Ollama URL</label>
+                <label class="block text-text-primary font-medium text-sm mb-1">Address of your model server</label>
                 <input type="text"
                        id="ollama-custom-url"
                        name="provider_config[base_url]"
@@ -238,7 +241,7 @@
     };
 
     const apiKeyHints = {
-      anthropic: 'Get a key at <a href="https://console.anthropic.com/" target="_blank" class="text-brand-light hover:underline">console.anthropic.com</a>. Standard API keys (<code class="text-text-muted">sk-ant-api*</code>) recommended for production. OAuth tokens (<code class="text-text-muted">sk-ant-oat*</code>) from Pro/Max subscriptions work but may be restricted by Anthropic\'s terms.',
+      anthropic: 'Get a key at <a href="https://console.anthropic.com/" target="_blank" class="text-brand-light hover:underline">console.anthropic.com</a>. Standard API keys (<code class="text-text-muted">sk-ant-api*</code>) recommended for production. OAuth tokens (<code class="text-text-muted">sk-ant-oat*</code>) from Pro/Max subscriptions also work. Check Anthropic\'s current terms before using a subscription token outside Claude Code.',
       openai: 'Get a key at <a href="https://platform.openai.com/" target="_blank" class="text-brand-light hover:underline">platform.openai.com</a>',
       ollama: 'Leave blank for local Ollama (no API key needed).',
       openai_compatible: 'Required for cloud providers (Minimax, OpenRouter, Together AI). Leave blank for local servers.'
@@ -304,6 +307,7 @@
       }
       apiKeyInput.placeholder = apiKeyPlaceholders[type] || 'Enter API key...';
       apiKeyHint.innerHTML = apiKeyHints[type] || '';
+      document.getElementById('claude-subscription-steps').classList.toggle('hidden', type !== 'anthropic');
 
       // Toggle custom model entry
       if (type === 'openai_compatible') {

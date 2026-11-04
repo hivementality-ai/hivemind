@@ -44,8 +44,9 @@ Use prefixed branch names:
 
 4. **Tests** — add specs for new features. Run existing specs before pushing:
    ```bash
-   docker compose exec rails bundle exec rspec
+   docker compose -f docker-compose.dev.yml exec -e DATABASE_URL=postgres://hivemind:hivemind@db:5432/hivemind_test app bundle exec rspec
    ```
+   Never run RSpec in the production Compose container: it truncates the database. The suite refuses to start unless `DATABASE_URL` names a `*_test` database.
 
 ### PR Review
 

@@ -1,0 +1,50 @@
+<div class="max-w-2xl mx-auto py-8 px-4">
+  <div class="mb-6">
+    <%= link_to connectors_path, class: "text-text-faint hover:text-white text-sm" do %>&larr; Back to connectors<% end %>
+    <h1 class="text-2xl font-bold text-white mt-2">Edit connector</h1>
+  </div>
+
+  <% if @try && @connector.operation(@try[:operation]).nil? %>
+    <div class="mb-6 bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm" id="try-result"><%= @try[:error] %></div>
+  <% end %>
+
+  <% if @connector.errors.empty? && @connector.operations.any? %>
+    <div class="mb-8 bg-surface-card/50 border border-border-default/50 rounded-xl p-5" id="try-it">
+      <h2 class="text-lg font-semibold text-white">Try it</h2>
+      <p class="text-text-muted text-sm mb-4">Runs the operation for real, using the saved settings. Inputs are a JSON object, like <span class="font-mono">{"id": "42"}</span>.</p>
+
+      <% @connector.operations.each do |op| %>
+        <% result = @try if @try && @try[:operation] == op["name"] %>
+        <div class="border-t border-border-default/40 py-4" id="try-<%= op["name"] %>">
+          <div class="flex items-center gap-2">
+            <span class="text-white font-mono text-sm"><%= op["name"] %></span>
+            <span class="text-text-faint text-xs font-mono"><%= op["method"].to_s.upcase %> <%= op["path"] %></span>
+            <% unless op["read_only"] %>
+              <span class="px-2 py-0.5 text-xs rounded-full bg-amber-500/10 text-amber-400">changes data</span>
+            <% end %>
+          </div>
+          <p class="text-text-muted text-xs mb-2"><%= op["description"] %></p>
+          <%= form_with url: try_operation_connector_path(@connector, operation: op["name"]), method: :post, class: "flex gap-2 items-start",
+                data: (op["read_only"] ? {} : { turbo_confirm: "This operation changes data in the other app. Run it?" }) do %>
+            <%= text_field_tag :input, (result ? params[:input] : "{}"), class: "flex-1 px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white font-mono text-sm focus:border-amber-500 focus:outline-none" %>
+            <%= submit_tag "Try it", class: "px-3 py-2 bg-amber-500 text-black text-sm font-semibold rounded-lg hover:bg-amber-400 transition cursor-pointer" %>
+          <% end %>
+
+          <% if result %>
+            <% if result[:error] %>
+              <div class="mt-3 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-red-400 text-sm" id="try-result"><%= result[:error] %></div>
+            <% else %>
+              <div class="mt-3 bg-green-500/10 border border-green-500/30 rounded-lg px-3 py-2" id="try-result">
+                <p class="text-green-400 text-sm">Worked: HTTP <%= result[:status] %></p>
+                <pre class="mt-2 text-xs text-text-primary font-mono whitespace-pre-wrap break-all"><%= result[:output] %></pre>
+                <% if result[:more] %><p class="text-text-faint text-xs mt-1">Output cut short.</p><% end %>
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <%= render "form", connector: @connector %>
+</div>

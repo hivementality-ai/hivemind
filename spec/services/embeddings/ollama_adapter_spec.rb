@@ -52,6 +52,33 @@ RSpec.describe Embeddings::OllamaAdapter, type: :service do
     end
   end
 
+  describe "recall timeouts" do
+    it "uses short open and read timeouts for embed_query" do
+      options = captured_request_options { adapter.embed_query("q") }
+      expect(options.open_timeout).to eq(1.0)
+      expect(options.timeout).to eq(3.0)
+    end
+
+    it "honours env overrides" do
+      allow(ENV).to receive(:fetch).and_call_original
+      allow(ENV).to receive(:fetch).with("MEMORY_RECALL_OPEN_TIMEOUT", 1).and_return("0.5")
+      allow(ENV).to receive(:fetch).with("MEMORY_RECALL_READ_TIMEOUT", 3).and_return("2")
+      options = captured_request_options { adapter.embed_query("q") }
+      expect(options.open_timeout).to eq(0.5)
+      expect(options.timeout).to eq(2.0)
+    end
+
+    it "leaves document embedding on default timeouts" do
+      options = captured_request_options { adapter.embed_text("doc") }
+      expect(options.timeout).to be_nil
+    end
+
+    it "raises a timeout error promptly when Ollama hangs" do
+      stub_request(:post, "#{base_url}/api/embeddings").to_timeout
+      expect { adapter.embed_query("q") }.to raise_error(Faraday::Error)
+    end
+  end
+
   describe "#healthy?" do
     it "returns true when Ollama is reachable" do
       stub_request(:get, "#{base_url}/api/tags")

@@ -35,6 +35,31 @@ RSpec.describe Providers::Anthropic::GemClient, type: :service do
         )
       end
 
+      it "assembles tool_use blocks from chunked input_json_delta events" do
+        tool_block = double("content_block", type: "tool_use", id: "toolu_1", name: "search")
+        events = [
+          build_event("content_block_start", content_block: build_content_block("text")),
+          build_event("content_block_delta", delta: build_delta(text: "Looking")),
+          build_event("content_block_stop"),
+          build_event("content_block_start", content_block: tool_block),
+          build_event("content_block_delta", delta: double("delta", partial_json: '{"query": "ca')),
+          build_event("content_block_delta", delta: double("delta", partial_json: 't food", "lim')),
+          build_event("content_block_delta", delta: double("delta", partial_json: 'it": 3}')),
+          build_event("content_block_stop")
+        ]
+        stream = instance_double("stream")
+        allow(messages_api).to receive(:stream).and_return(stream)
+        yielder = allow(stream).to receive(:each)
+        events.each { |e| yielder = yielder.and_yield(e) }
+
+        chunks = []
+        result = gem_client.chat(client:, params:) { |chunk| chunks << chunk }
+
+        expect(result.data[:content]).to eq("Looking")
+        expect(result.data[:tool_calls]).to eq([ { "id" => "toolu_1", "name" => "search", "input" => { "query" => "cat food", "limit" => 3 } } ])
+        expect(chunks).to eq([ { type: "content", content: "Looking" } ])
+      end
+
       it "handles thinking blocks" do
         events = [
           build_event("content_block_start", content_block: build_content_block("thinking")),

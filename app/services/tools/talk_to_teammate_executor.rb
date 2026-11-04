@@ -96,22 +96,24 @@ module Tools
       broadcast_extras = { agent_id: target.id, agent_name: target.name }
 
       # Execute target agent synchronously via ToolLoop
-      result = Agents::ToolLoop.call(
-        adapter: adapter,
-        agent: target,
-        session: target_session,
-        messages: target_messages,
-        tools: target_tools,
-        channel: channel,
-        options: llm_options,
-        broadcast_extras: broadcast_extras,
-        extra_config: {
-          team_chat_depth: next_depth,
-          active_agent_ids: active_ids + [ agent&.id, target.id ].compact,
-          team_chat_channel: channel,
-          session: target_session
-        }
-      )
+      result = TeamChats::AgentActivity.track(target, channel: channel, task: "Answering #{agent&.name}") do
+        Agents::ToolLoop.call(
+          adapter: adapter,
+          agent: target,
+          session: target_session,
+          messages: target_messages,
+          tools: target_tools,
+          channel: channel,
+          options: llm_options,
+          broadcast_extras: broadcast_extras,
+          extra_config: {
+            team_chat_depth: next_depth,
+            active_agent_ids: active_ids + [ agent&.id, target.id ].compact,
+            team_chat_channel: channel,
+            session: target_session
+          }
+        )
+      end
 
       response_content = result&.data&.dig(:content).to_s
       response_content = "_(No response generated)_" if response_content.blank?
