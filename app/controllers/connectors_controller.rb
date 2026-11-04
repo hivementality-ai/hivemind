@@ -11,7 +11,7 @@ class ConnectorsController < ApplicationController
                  Connector::OPTIONAL_AUTH_KEYS.values.flatten).uniq.freeze
 
   before_action :authorize_admin_or_owner!
-  before_action :set_connector, only: %i[edit update destroy toggle_enabled try_operation]
+  before_action :set_connector, only: %i[edit update destroy toggle_enabled try_operation export]
 
   def index
     @connectors = Connector.order(:name)
@@ -51,6 +51,25 @@ class ConnectorsController < ApplicationController
   def toggle_enabled
     @connector.update!(enabled: !@connector.enabled)
     redirect_to connectors_path, notice: "Connector '#{@connector.name}' #{@connector.enabled? ? 'enabled' : 'disabled'}."
+  end
+
+  # Downloads the connector as shareable JSON with every secret field left as a placeholder.
+  def export
+    send_data JSON.pretty_generate(Connectors::Exchange.export(@connector)),
+              filename: "#{@connector.slug}.connector.json", type: "application/json", disposition: "attachment"
+  end
+
+  # Adds a shared connector as a new disabled one, so a person reviews it and fills in its keys first.
+  def import
+    connector = Connectors::Exchange.build(params[:connector_json])
+    connector.created_by = current_user
+    if connector.save
+      redirect_to edit_connector_path(connector), notice: "Imported '#{connector.name}'. It is disabled until you point its keys at your vault and turn it on."
+    else
+      redirect_to connectors_path, alert: "Could not import: #{connector.errors.full_messages.to_sentence}"
+    end
+  rescue Connectors::Exchange::Error => e
+    redirect_to connectors_path, alert: "Could not import: #{e.message}"
   end
 
   # Runs one operation for real and shows the status and the start of the output on the edit page.

@@ -44,6 +44,7 @@
                 <div class="flex gap-3 justify-end items-center">
                   <%= button_to (connector.enabled? ? "Disable" : "Enable"), toggle_enabled_connector_path(connector), method: :patch,
                         class: "text-text-faint hover:text-white transition text-xs" %>
+                  <%= link_to "Export", export_connector_path(connector), class: "text-text-faint hover:text-white transition text-xs" %>
                   <%= link_to "Edit and try", edit_connector_path(connector), class: "text-amber-400 hover:text-amber-300 transition text-xs" %>
                   <%= button_to "Delete", connector_path(connector), method: :delete,
                         form: { data: { turbo_confirm: "Delete this connector?" } },
@@ -62,4 +63,14 @@
       <%= link_to "Add first connector", new_connector_path, class: "inline-block px-4 py-2 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400 transition" %>
     </div>
   <% end %>
+
+  <details class="mt-6 bg-surface-card/50 border border-border-default/50 rounded-xl p-5">
+    <summary class="text-white font-medium cursor-pointer">Import a shared connector</summary>
+    <%= form_with url: import_connectors_path, method: :post, class: "mt-4 space-y-3" do %>
+      <%= text_area_tag :connector_json, nil, rows: 8, placeholder: "Paste an exported connector",
+            class: "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white font-mono text-xs focus:border-amber-500 focus:outline-none" %>
+      <p class="text-text-faint text-xs">It is added switched off, with its keys left for you to point at your own vault entries.</p>
+      <%= submit_tag "Import", class: "px-4 py-2 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400 transition cursor-pointer" %>
+    <% end %>
+  </details>
 </div>
