@@ -14,6 +14,8 @@ class ChatStreamJob < ApplicationJob
   HEARTBEAT_INTERVAL = 30
   # Backstop only; the flag is cleared at turn end or by StuckTurnSweepJob.
   PROCESSING_TTL = 1.hour.to_i
+  # Minimum wall-clock gap between stop/redirect signal reads while streaming.
+  SIGNAL_CHECK_INTERVAL = 0.25
   LOCK_RETRY_DELAY = 5.seconds
 
   RELEASE_LOCK_SCRIPT = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) end return 0"
@@ -348,7 +350,13 @@ class ChatStreamJob < ApplicationJob
     end
   end
 
+  # Reads the stop/redirect signal at most once per SIGNAL_CHECK_INTERVAL so a
+  # long stream does not hit Redis for every token.
   def check_stream_signal!(session)
+    now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    return if @signal_checked_at && now - @signal_checked_at < SIGNAL_CHECK_INTERVAL
+    @signal_checked_at = now
+
     signal = SessionSignal.check(session.id)
     return unless signal
 
