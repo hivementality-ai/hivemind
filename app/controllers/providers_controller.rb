@@ -8,6 +8,27 @@ class ProvidersController < ApplicationController
   # Admin interface to manage all provider credentials
   def index
     @providers = ProviderConfig.order(:name)
+    @chain_rows = fallback_chain_rows
+  end
+
+  # PATCH /providers/fallback_chain
+  # Save the ordered backup brains. Rejects the whole list when any entry points
+  # at a missing or disabled provider, or a model that provider does not offer.
+  def fallback_chain
+    ids = Array(params[:chain_ids]).map(&:to_s).uniq
+    models = params[:models].respond_to?(:to_unsafe_h) ? params[:models].to_unsafe_h : {}
+    entries = ids.map { |id| { "provider_config_id" => id.to_i, "model" => models[id].to_s.presence }.compact }
+
+    error = fallback_chain_error(entries)
+    if error
+      @providers = ProviderConfig.order(:name)
+      @chain_rows = fallback_chain_rows(selected: entries)
+      @chain_error = error
+      render :index, status: :unprocessable_entity
+    else
+      Setting.set(Providers::DefaultFallback::SETTING_KEY, entries.to_json)
+      redirect_to providers_path, notice: "Backup brain saved."
+    end
   end
 
   # GET /providers/:id
@@ -149,6 +170,29 @@ class ProvidersController < ApplicationController
   end
 
   private
+
+  # Rows for the backup brain editor: chosen entries first, in order, then the
+  # remaining enabled providers unchecked.
+  def fallback_chain_rows(selected: Providers::DefaultFallback.entries)
+    enabled = ProviderConfig.enabled_providers.order(:name).index_by(&:id)
+    chosen = selected.filter_map do |entry|
+      config = enabled[entry["provider_config_id"].to_i]
+      { config:, model: entry["model"], checked: true } if config
+    end
+    rest = enabled.values.reject { |c| chosen.any? { |row| row[:config] == c } }
+    chosen + rest.map { |config| { config:, model: nil, checked: false } }
+  end
+
+  def fallback_chain_error(entries)
+    entries.each do |entry|
+      config = ProviderConfig.enabled_providers.find_by(id: entry["provider_config_id"])
+      return "Every backup brain must be an existing, enabled provider." unless config
+      next if entry["model"].blank? || config.model_names.include?(entry["model"])
+
+      return "#{config.name} does not offer the model #{entry["model"]}."
+    end
+    nil
+  end
 
   def load_provider
     @provider = ProviderConfig.find(params[:id])

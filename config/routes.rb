@@ -141,6 +141,10 @@ Rails.application.routes.draw do
 
   # Providers (admin interface)
   resources :providers, only: [ :index, :show, :new, :create, :edit, :update ] do
+    collection do
+      # Save the ordered list of backup brains.
+      patch :fallback_chain
+    end
     member do
       # Clear a provider-unavailable circuit after a human fixes the account.
       post :reset_circuit
