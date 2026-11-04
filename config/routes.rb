@@ -259,8 +259,16 @@ Rails.application.routes.draw do
     end
   end
 
+  # Import MCP servers from a Claude Desktop config
+  get "mcp_servers/import", to: "mcp_imports#new", as: :new_mcp_import
+  post "mcp_servers/import/preview", to: "mcp_imports#preview", as: :preview_mcp_import
+  post "mcp_servers/import", to: "mcp_imports#create", as: :mcp_import
+
   # MCP server settings
   resources :mcp_servers, except: :show do
+    collection do
+      post "catalog/:key", action: :add_from_catalog, as: :add_from_catalog
+    end
     member do
       patch :toggle_enabled
       post :test_connection
@@ -275,7 +283,11 @@ Rails.application.routes.draw do
 
   # Connectors: HTTP APIs described as data
   resources :connectors, except: :show do
+    collection do
+      post :import
+    end
     member do
+      get :export
       patch :toggle_enabled
       post "operations/:operation/try", action: :try_operation, as: :try_operation
     end

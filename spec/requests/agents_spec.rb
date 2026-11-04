@@ -59,11 +59,63 @@ RSpec.describe "Agents API", type: :request do
     end
   end
 
+  describe "connector checklist on the edit form" do
+    it "checks every connector for an agent with no exclusions and unchecks an excluded one" do
+      shown = create(:connector, name: "Shown API")
+      hidden = create(:connector, name: "Hidden API")
+      create(:agent_connector_exclusion, agent: agent, connector: hidden)
+
+      get "/agents/#{agent.slug}/edit"
+
+      expect(response.body).to include("Unchecking a connector hides it from this agent")
+      expect(response.body).to match(/id="agent_visible_connector_ids_#{shown.id}"[^>]*checked/)
+      expect(response.body).not_to match(/id="agent_visible_connector_ids_#{hidden.id}"[^>]*checked/)
+    end
+  end
+
   describe "PATCH /agents/:slug" do
     it "updates agent by slug" do
       patch "/agents/#{agent.slug}", params: { agent: { role: "Updated Role" } }
       expect(response).to have_http_status(:redirect)
       expect(agent.reload.role).to eq("Updated Role")
+    end
+
+    it "excludes the connectors left unchecked and keeps the checked ones" do
+      kept = create(:connector)
+      dropped = create(:connector)
+
+      patch "/agents/#{agent.slug}", params: { agent: { visible_connector_ids: [ "", kept.id.to_s ] } }
+
+      expect(agent.reload.excluded_connectors).to contain_exactly(dropped)
+      expect(agent.visible_connectors).to contain_exactly(kept)
+    end
+
+    it "does not hide a disabled connector that is enabled after the form was saved" do
+      shown = create(:connector)
+      later = create(:connector, enabled: false)
+
+      patch "/agents/#{agent.slug}", params: { agent: { visible_connector_ids: [ "", shown.id.to_s ] } }
+      later.update!(enabled: true)
+
+      expect(agent.reload.visible_connectors).to include(later)
+    end
+
+    it "restores a connector that is checked again" do
+      connector = create(:connector)
+      create(:agent_connector_exclusion, agent: agent, connector: connector)
+
+      patch "/agents/#{agent.slug}", params: { agent: { visible_connector_ids: [ "", connector.id.to_s ] } }
+
+      expect(agent.reload.excluded_connectors).to be_empty
+    end
+
+    it "leaves exclusions alone when the form does not send the checklist" do
+      connector = create(:connector)
+      create(:agent_connector_exclusion, agent: agent, connector: connector)
+
+      patch "/agents/#{agent.slug}", params: { agent: { role: "Updated Role" } }
+
+      expect(agent.reload.excluded_connectors).to contain_exactly(connector)
     end
 
     it "returns 404 for non-existent slug" do

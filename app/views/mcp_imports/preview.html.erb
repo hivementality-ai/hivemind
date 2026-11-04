@@ -1,0 +1,26 @@
+<div class="max-w-3xl mx-auto py-8 px-4">
+  <h1 class="text-2xl font-bold text-white">Choose servers to import</h1>
+  <p class="text-text-muted mt-1 mb-6">Values for the settings listed below will be saved to the vault. They are not shown here.</p>
+
+  <%= form_with url: mcp_import_path, method: :post, class: "space-y-4" do %>
+    <%= hidden_field_tag :token, @token %>
+    <div class="bg-surface-card/50 border border-border-default/50 rounded-xl divide-y divide-border-default/30">
+      <% @entries.each do |entry| %>
+        <label class="flex items-start gap-3 px-5 py-4">
+          <%= check_box_tag "names[]", entry.name, !McpServer.exists?(name: entry.name), disabled: McpServer.exists?(name: entry.name), class: "mt-1" %>
+          <span>
+            <span class="text-white font-medium"><%= entry.name %></span>
+            <span class="block text-text-faint font-mono text-xs break-all"><%= entry.target %></span>
+            <% if (entry.env.keys + entry.headers.keys).any? %>
+              <span class="block text-text-muted text-xs mt-1">Secrets to vault: <%= (entry.env.keys + entry.headers.keys).join(", ") %></span>
+            <% end %>
+            <% if McpServer.exists?(name: entry.name) %>
+              <span class="block text-amber-400 text-xs mt-1">Already added</span>
+            <% end %>
+          </span>
+        </label>
+      <% end %>
+    </div>
+    <%= submit_tag "Import selected", class: "px-4 py-2 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400 transition cursor-pointer" %>
+  <% end %>
+</div>

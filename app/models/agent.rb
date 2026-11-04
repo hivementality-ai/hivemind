@@ -53,6 +53,8 @@ class Agent < ApplicationRecord
   has_many :heartbeat_runs, dependent: :destroy
   has_many :agent_mcp_servers, dependent: :destroy
   has_many :mcp_servers, through: :agent_mcp_servers
+  has_many :agent_connector_exclusions, dependent: :destroy
+  has_many :excluded_connectors, through: :agent_connector_exclusions, source: :connector
 
   enum :status, { idle: 0, thinking: 1, executing: 2, waiting: 3, error: 4 }, default: :idle
 
@@ -65,6 +67,22 @@ class Agent < ApplicationRecord
   validate :validate_no_self_reporting
   validate :validate_no_reporting_cycle
   validate :validate_effort
+
+  # Connectors this agent may use: every connector except the ones excluded for it.
+  #
+  # @return [ActiveRecord::Relation<Connector>]
+  def visible_connectors
+    Connector.where.not(id: agent_connector_exclusions.select(:connector_id))
+  end
+
+  # Marks every enabled connector outside +ids+ as excluded for this agent. Disabled
+  # connectors were not on the form, so they keep their current exclusion state.
+  def visible_connector_ids=(ids)
+    keep = Array(ids).filter_map { |id| Integer(id, exception: false) }
+    shown = Connector.enabled
+    kept_exclusions = agent_connector_exclusions.pluck(:connector_id) - shown.pluck(:id)
+    self.excluded_connector_ids = kept_exclusions + shown.where.not(id: keep).pluck(:id)
+  end
 
   # Reasoning-effort levels accepted by output_config.effort (Anthropic) /
   # reasoning_effort (OpenAI). Ordered low → high.

@@ -30,6 +30,7 @@ class Connector < ApplicationRecord
   LAN_SUFFIXES = %w[.local .lan .home.arpa].freeze
 
   belongs_to :created_by, polymorphic: true, optional: true
+  has_many :agent_connector_exclusions, dependent: :delete_all
 
   scope :enabled, -> { where(enabled: true) }
 
