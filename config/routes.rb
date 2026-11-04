@@ -260,6 +260,9 @@ Rails.application.routes.draw do
     member do
       patch :toggle_enabled
       post :test_connection
+      post :oauth_connect
+      get :oauth_callback
+      delete :oauth_disconnect
     end
   end
 

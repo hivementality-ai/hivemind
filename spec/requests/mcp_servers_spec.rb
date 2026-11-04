@@ -93,6 +93,104 @@ RSpec.describe "MCP servers", type: :request do
       expect(response).to redirect_to(mcp_servers_path)
     end
 
+    describe "OAuth" do
+      let(:url) { "https://mcp.example.com/mcp" }
+      let(:server) { create(:mcp_server, :sse, url: url, status: "error", last_error: "HTTP 401: nope") }
+      let(:meta) do
+        { issuer: "https://auth.example.com", authorization_endpoint: "https://auth.example.com/authorize",
+          token_endpoint: "https://auth.example.com/token", registration_endpoint: "https://auth.example.com/register" }
+      end
+
+      before do
+        stub_request(:post, url).with { |r| JSON.parse(r.body)["method"] == "initialize" && r.headers["Authorization"].blank? }
+          .to_return(status: 401, headers: { "WWW-Authenticate" => 'Bearer resource_metadata="https://mcp.example.com/prm"' })
+        stub_request(:get, "https://mcp.example.com/prm").to_return(body: { authorization_servers: [ "https://auth.example.com" ] }.to_json)
+        stub_request(:get, "https://auth.example.com/.well-known/oauth-authorization-server").to_return(body: meta.to_json)
+        stub_request(:post, meta[:registration_endpoint]).to_return(status: 201, body: { client_id: "cid" }.to_json)
+      end
+
+      def start_flow
+        post oauth_connect_mcp_server_path(server)
+        Rack::Utils.parse_query(URI.parse(response.location).query)
+      end
+
+      it "shows Connect for a remote server that answered 401" do
+        server
+        get mcp_servers_path
+
+        expect(response.body).to include(oauth_connect_mcp_server_path(server))
+      end
+
+      it "redirects to the authorization server with the request host as redirect uri" do
+        params = start_flow
+
+        expect(response.location).to start_with("https://auth.example.com/authorize?")
+        expect(params["redirect_uri"]).to eq("http://www.example.com#{oauth_callback_mcp_server_path(server)}")
+      end
+
+      it "prefers the configured canonical host for the redirect uri" do
+        Setting.set("canonical_host", "https://hive.example.com/")
+
+        expect(start_flow["redirect_uri"]).to eq("https://hive.example.com#{oauth_callback_mcp_server_path(server)}")
+      end
+
+      it "completes the flow on callback, stores tokens in the vault and discovers tools" do
+        state = start_flow["state"]
+        stub_request(:post, meta[:token_endpoint]).to_return(body: { access_token: "at", refresh_token: "rt" }.to_json)
+        allow(Mcp::HttpClient).to receive(:discover_tools).with(server)
+          .and_return(ServiceResponse.success(data: { tools: [ { "name" => "a" } ] }))
+
+        get oauth_callback_mcp_server_path(server), params: { code: "abc", state: state }
+
+        expect(response).to redirect_to(mcp_servers_path)
+        expect(flash[:notice]).to include("Connected")
+        expect(Mcp::OAuth.headers_for(server)).to eq("Authorization" => "Bearer at")
+      end
+
+      it "rejects a callback with a bad state and stores nothing" do
+        start_flow
+        token = stub_request(:post, meta[:token_endpoint])
+
+        get oauth_callback_mcp_server_path(server), params: { code: "abc", state: "forged" }
+
+        expect(response).to redirect_to(mcp_servers_path)
+        expect(flash[:alert]).to include("Invalid state")
+        expect(token).not_to have_been_requested
+        expect(Mcp::OAuth).not_to be_connected(server)
+      end
+
+      it "reports an authorization error from the provider" do
+        get oauth_callback_mcp_server_path(server), params: { error: "access_denied" }
+
+        expect(flash[:alert]).to include("access_denied")
+      end
+
+      it "signs out by deleting the stored credentials" do
+        state = start_flow["state"]
+        stub_request(:post, meta[:token_endpoint]).to_return(body: { access_token: "at" }.to_json)
+        allow(Mcp::HttpClient).to receive(:discover_tools).and_return(ServiceResponse.success(data: { tools: [] }))
+        get oauth_callback_mcp_server_path(server), params: { code: "abc", state: state }
+
+        delete oauth_disconnect_mcp_server_path(server)
+
+        expect(Mcp::OAuth).not_to be_connected(server)
+        expect(VaultEntry.where(namespace: "mcp_oauth_#{server.id}")).to be_empty
+      end
+
+      it "refuses stdio servers" do
+        post oauth_connect_mcp_server_path(create(:mcp_server, :stdio))
+
+        expect(response).to redirect_to(mcp_servers_path)
+        expect(flash[:alert]).to include("remote")
+      end
+
+      it "deletes stored credentials with the server" do
+        VaultEntry.create!(namespace: "mcp_oauth_#{server.id}", key: "tokens", value: "{}")
+
+        expect { delete mcp_server_path(server) }.to change(VaultEntry, :count).by(-1)
+      end
+    end
+
     describe "POST test_connection" do
       it "reports the tool count for a stdio server" do
         server = create(:mcp_server, :stdio)

@@ -8,7 +8,7 @@
 # server row keeps only a "vault:" reference.
 class McpServersController < ApplicationController
   before_action :authorize_admin_or_owner!
-  before_action :set_server, only: %i[edit update destroy toggle_enabled test_connection]
+  before_action :set_server, only: %i[edit update destroy toggle_enabled test_connection oauth_connect oauth_callback oauth_disconnect]
 
   def index
     @servers = McpServer.order(:name)
@@ -64,7 +64,44 @@ class McpServersController < ApplicationController
     end
   end
 
+  # Discovers the server's authorization server and sends the browser there.
+  def oauth_connect
+    unless @server.remote?
+      return redirect_to mcp_servers_path, alert: "Only remote servers can use OAuth."
+    end
+
+    redirect_to Mcp::OAuth.authorization_url(@server, redirect_uri: oauth_redirect_uri), allow_other_host: true
+  rescue Mcp::OAuth::Error => e
+    redirect_to mcp_servers_path, alert: "Could not connect '#{@server.name}': #{e.message}"
+  end
+
+  # Return leg of the authorization flow: swaps the code for tokens, then discovers tools.
+  def oauth_callback
+    if params[:error].present?
+      return redirect_to mcp_servers_path, alert: "'#{@server.name}' was not authorized: #{params[:error_description].presence || params[:error]}"
+    end
+
+    Mcp::OAuth.complete!(@server, code: params[:code].to_s, state: params[:state].to_s)
+    result = Mcp::HttpClient.discover_tools(@server)
+    notice = result.success? ? "Connected to '#{@server.name}'." : "Authorized '#{@server.name}', but tool discovery failed: #{result.error}"
+    redirect_to mcp_servers_path, notice: notice
+  rescue Mcp::OAuth::Error => e
+    redirect_to mcp_servers_path, alert: "Could not authorize '#{@server.name}': #{e.message}"
+  end
+
+  def oauth_disconnect
+    VaultEntry.where(namespace: "mcp_oauth_#{@server.id}").delete_all
+    @server.mark_disconnected!
+    redirect_to mcp_servers_path, notice: "Signed out of '#{@server.name}'."
+  end
+
   private
+
+  # Built from the configured canonical host when set, otherwise from the request.
+  def oauth_redirect_uri
+    base = RemoteAccess::ConfigStore.canonical_host.presence || request.base_url
+    "#{base.chomp('/')}#{oauth_callback_mcp_server_path(@server)}"
+  end
 
   def set_server
     @server = McpServer.find(params[:id])

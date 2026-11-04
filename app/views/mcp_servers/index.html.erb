@@ -46,6 +46,15 @@
               <td class="px-5 py-3 text-text-muted"><%= server.discovered_tools.to_a.size %></td>
               <td class="px-5 py-3">
                 <div class="flex gap-3 justify-end items-center">
+                  <% if server.remote? %>
+                    <% if Mcp::OAuth.connected?(server) %>
+                      <%= button_to "Sign out", oauth_disconnect_mcp_server_path(server), method: :delete,
+                            class: "text-text-faint hover:text-white transition text-xs" %>
+                    <% elsif server.status == "error" && server.last_error.to_s.include?("HTTP 401") %>
+                      <%= button_to "Connect", oauth_connect_mcp_server_path(server), method: :post,
+                            class: "text-green-400 hover:text-green-300 transition text-xs" %>
+                    <% end %>
+                  <% end %>
                   <%= button_to "Test connection", test_connection_mcp_server_path(server), method: :post,
                         class: "text-amber-400 hover:text-amber-300 transition text-xs" %>
                   <%= button_to (server.enabled? ? "Disable" : "Enable"), toggle_enabled_mcp_server_path(server), method: :patch,

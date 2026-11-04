@@ -96,10 +96,14 @@ module Mcp
       post({ jsonrpc: "2.0", method: method })
     end
 
-    def post(payload)
+    def post(payload, retried: false)
       response = connection.post do |req|
         req.headers = request_headers
         req.body = payload.to_json
+      end
+      if response.status == 401 && !retried && Mcp::OAuth.refreshable?(@server)
+        Mcp::OAuth.refresh!(@server)
+        return post(payload, retried: true)
       end
       raise Error, "HTTP #{response.status}: #{response.body.to_s.truncate(500)}" unless response.success?
 
@@ -117,7 +121,7 @@ module Mcp
       }
       headers["Mcp-Session-Id"] = @session_id if @session_id
       headers["MCP-Protocol-Version"] = @protocol_version if @protocol_version
-      headers.merge(@server.resolved_auth_headers)
+      headers.merge(Mcp::OAuth.headers_for(@server)).merge(@server.resolved_auth_headers)
     end
 
     def find_response(response, id)

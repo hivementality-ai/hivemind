@@ -156,5 +156,58 @@ RSpec.describe Mcp::HttpClient do
 
       expect(described_class.call_tool(server, tool_name: "greet")).not_to be_success
     end
+
+  describe "OAuth bearer tokens" do
+    def connect_oauth!(expires_in: 3600)
+      VaultEntry.create!(namespace: "mcp_oauth_#{server.id}", key: "client",
+                         value: { client_id: "c1", token_endpoint: "https://auth.example.com/token" }.to_json)
+      VaultEntry.create!(namespace: "mcp_oauth_#{server.id}", key: "tokens",
+                         value: { access_token: "old", refresh_token: "rt", expires_at: Time.current.to_i + expires_in }.to_json)
+    end
+
+    it "sends the stored access token" do
+      connect_oauth!
+      stub_rpc("tools/call", result: { content: [ { text: "ok" } ] })
+      stub_initialize
+
+      expect(described_class.call_tool(server, tool_name: "t")).to be_success
+      expect(a_request(:post, url).with(headers: { "Authorization" => "Bearer old" })).to have_been_made.at_least_once
+    end
+
+    it "refreshes once on a 401 and retries the request" do
+      connect_oauth!
+      refresh = stub_request(:post, "https://auth.example.com/token")
+        .to_return(status: 200, body: { access_token: "new", expires_in: 3600 }.to_json)
+      stub_request(:post, url).with(headers: { "Authorization" => "Bearer old" }).to_return(status: 401, body: "no")
+      stub_request(:post, url).with(headers: { "Authorization" => "Bearer new" }).to_return do |req|
+        message = rpc_body(req)
+        { status: message["id"] ? 200 : 202, headers: json_headers,
+          body: message["id"] ? { jsonrpc: "2.0", id: message["id"], result: { protocolVersion: "2025-03-26", content: [ { text: "ok" } ] } }.to_json : "" }
+      end
+
+      expect(described_class.call_tool(server, tool_name: "t")).to be_success
+      expect(refresh).to have_been_requested.once
+    end
+
+    it "gives up after one refresh when the retry is still unauthorized" do
+      connect_oauth!
+      refresh = stub_request(:post, "https://auth.example.com/token")
+        .to_return(status: 200, body: { access_token: "new", expires_in: 3600 }.to_json)
+      stub_request(:post, url).to_return(status: 401, body: "no")
+
+      result = described_class.call_tool(server, tool_name: "t")
+
+      expect(result).not_to be_success
+      expect(result.error).to include("HTTP 401")
+      expect(refresh).to have_been_requested.once
+    end
+
+    it "does not try to refresh a server without OAuth tokens" do
+      stub_request(:post, url).to_return(status: 401, body: "no")
+
+      expect(described_class.call_tool(server, tool_name: "t")).not_to be_success
+      expect(a_request(:post, url)).to have_been_made.times(1)
+    end
+  end
   end
 end
