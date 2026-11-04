@@ -7,7 +7,7 @@ import { classifyError, toErrorBody } from "./error-classifier.js";
 import { credentialKey } from "./circuit-breaker.js";
 import { createGuard } from "./guard.js";
 import { createPartialStreamTracker } from "./partial-stream.js";
-import { createWarmPool, configKey } from "./warm-pool.js";
+import { createWarmPool, configKey, splitDynamic } from "./warm-pool.js";
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
@@ -97,6 +97,7 @@ app.post("/v1/chat", async (req, res) => {
     session_id,
     tool_definitions,
     effort,
+    system_dynamic,
   } = req.body;
 
   const isOAuth = token.startsWith("sk-ant-oat");
@@ -108,7 +109,7 @@ app.post("/v1/chat", async (req, res) => {
       credential,
       invoke: async () => {
         if (isOAuth) {
-          return handleOAuth(req, res, token, { messages, tools, model, max_tokens, temperature, thinking, systemPrompt, stream, agent_id, session_id, tool_definitions });
+          return handleOAuth(req, res, token, { messages, tools, model, max_tokens, temperature, thinking, systemPrompt, stream, agent_id, session_id, tool_definitions, system_dynamic });
         }
         const client = new Anthropic({ apiKey: token });
         const params = buildApiParams({ messages, tools, model, max_tokens, temperature, thinking, systemPrompt, effort });
@@ -161,11 +162,14 @@ async function handleOAuth(_req, res, token, params) {
 }
 
 async function runOAuth(res, token, params, stderrCapture) {
-  const { messages, systemPrompt, model, stream, agent_id, session_id, tool_definitions } = params;
+  const { messages, systemPrompt, model, stream, agent_id, session_id, tool_definitions, system_dynamic } = params;
 
   // Extract system prompt text for structured passing
   let systemText = extractSystemPrompt(systemPrompt);
-  const baseSystemText = systemText;
+  // Warm processes are keyed on the stable system text only; Rails flags the
+  // per-turn block it appends last so it can be re-sent as prompt context.
+  const dynamicSplit = splitDynamic(systemPrompt, system_dynamic);
+  const baseSystemText = dynamicSplit ? dynamicSplit.staticText : systemText;
 
   // Build conversation transcript for context (SDK spawns fresh process each call)
   const conversationMessages = (messages || []).filter(m => m.role !== "system");
@@ -290,6 +294,7 @@ async function runOAuth(res, token, params, stderrCapture) {
       options: { ...options, includePartialMessages: !!includePartialMessages },
       sink,
       cold,
+      dynamicText: dynamicSplit?.dynamicText ?? null,
     });
   };
 

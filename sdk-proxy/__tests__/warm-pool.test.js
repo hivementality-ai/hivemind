@@ -4,7 +4,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createWarmPool, configKey } from "../warm-pool.js";
+import { createWarmPool, configKey, splitDynamic, withTurnContext } from "../warm-pool.js";
 
 const silent = { log() {}, error() {}, warn() {} };
 
@@ -307,4 +307,76 @@ test("closeAll shuts down every process", async () => {
 
   assert.equal(pool.size(), 0);
   assert.deepEqual(spawned.map((s) => s.aborted), [true, true]);
+});
+
+async function turnResult(turn) {
+  const messages = await drain(turn.messages);
+  turn.finish(true);
+  return messages.at(-1).result;
+}
+
+test("a cold first turn sends the prompt alone", async () => {
+  const { pool } = build();
+
+  const result = await turnResult(open(pool, { prompt: "one", dynamicText: "ctx A" }));
+
+  assert.equal(result, "echo one");
+});
+
+test("reuse with a changed dynamic block carries the new context in the prompt", async () => {
+  const { pool, spawned } = build();
+  await turnResult(open(pool, { prompt: "one", dynamicText: "ctx A" }));
+
+  const second = open(pool, { prompt: "two", messageCount: 3, dynamicText: "ctx B" });
+  const result = await turnResult(second);
+
+  assert.equal(second.warm, true);
+  assert.equal(spawned.length, 1);
+  assert.equal(result, "echo <turn_context>\nctx B\n</turn_context>\n\ntwo");
+});
+
+test("reuse with an unchanged dynamic block sends the prompt alone", async () => {
+  const { pool } = build();
+  await turnResult(open(pool, { prompt: "one", dynamicText: "ctx A" }));
+
+  const result = await turnResult(open(pool, { prompt: "two", messageCount: 3, dynamicText: "ctx A" }));
+
+  assert.equal(result, "echo two");
+});
+
+test("the last seen context is tracked per turn, so returning to an old one re-sends it", async () => {
+  const { pool } = build();
+  await turnResult(open(pool, { prompt: "one", dynamicText: "ctx A" }));
+  await turnResult(open(pool, { prompt: "two", messageCount: 3, dynamicText: "ctx B" }));
+
+  const result = await turnResult(open(pool, { prompt: "three", messageCount: 5, dynamicText: "ctx A" }));
+
+  assert.equal(result, "echo <turn_context>\nctx A\n</turn_context>\n\nthree");
+});
+
+test("reuse without any dynamic block sends the prompt alone", async () => {
+  const { pool } = build();
+  await turnResult(open(pool, { prompt: "one", dynamicText: "ctx A" }));
+
+  const result = await turnResult(open(pool, { prompt: "two", messageCount: 3 }));
+
+  assert.equal(result, "echo two");
+});
+
+test("splitDynamic separates a matching trailing block from the static text", () => {
+  const blocks = [{ text: "core" }, { text: "rules" }, { text: "ctx" }];
+
+  assert.deepEqual(splitDynamic(blocks, "ctx"), { staticText: "core\n\nrules", dynamicText: "ctx" });
+});
+
+test("splitDynamic declines when the last block differs, the text is empty, or the prompt is a string", () => {
+  assert.equal(splitDynamic([{ text: "core" }, { text: "other" }], "ctx"), null);
+  assert.equal(splitDynamic([{ text: "core" }], ""), null);
+  assert.equal(splitDynamic("core ctx", "ctx"), null);
+  assert.equal(splitDynamic([], "ctx"), null);
+  assert.equal(splitDynamic([{ text: "core" }, {}], undefined), null);
+});
+
+test("withTurnContext wraps the context ahead of the prompt", () => {
+  assert.equal(withTurnContext("hi", "ctx"), "<turn_context>\nctx\n</turn_context>\n\nhi");
 });

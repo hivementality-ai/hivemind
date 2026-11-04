@@ -40,6 +40,16 @@ RSpec.describe Providers::OpenaiAdapter, type: :service do
       )
     end
 
+    it "flattens system blocks to text without the dynamic flag" do
+      sent = nil
+      allow(client).to receive(:chat) { |parameters:| sent = parameters }
+      system = { role: "system", content: [ { type: "text", text: "Core" }, { type: "text", text: "Memories", dynamic: true } ] }
+
+      adapter.chat(messages: [ system, { role: "user", content: "hi" } ]) { |_| }
+
+      expect(sent[:messages].first).to eq({ role: "system", content: "Core\n\nMemories" })
+    end
+
     it "returns no tool calls when the stream carries none" do
       allow(client).to receive(:chat) do |parameters:|
         parameters[:stream].call({ "choices" => [ { "delta" => { "content" => "Just text" } } ] })

@@ -18,7 +18,7 @@ module Providers
         begin
           result = if oauth_token? && sdk_proxy_enabled?
             sync_memories_for_oauth(messages, options)
-            proxy_client.chat(params:, options:, &block)
+            proxy_client.chat(params:, options: options.merge(system_dynamic: dynamic_system_text(messages)), &block)
           else
             faraday_client.chat(params:, options:, &block)
           end
@@ -82,6 +82,17 @@ module Providers
 
     def faraday_client
       @faraday_client ||= Anthropic::FaradayClient.new(api_key:)
+    end
+
+    # Text of the per-turn system block Rails flags as dynamic, so the proxy can
+    # keep a warm process across turns. Never sent to the Messages API.
+    def dynamic_system_text(messages)
+      system_msg = messages.find { |m| (m[:role] || m["role"]).to_s == "system" }
+      content = system_msg && (system_msg[:content] || system_msg["content"])
+      return unless content.is_a?(Array)
+
+      block = content.last&.to_h&.with_indifferent_access
+      block[:text].presence if block && block[:dynamic]
     end
 
     def proxy_client

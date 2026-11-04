@@ -15,6 +15,26 @@ RSpec.describe Providers::Anthropic::SdkProxyClient, type: :service do
   end
 
   describe "#chat" do
+    it "forwards the dynamic system text to the proxy" do
+      stub = stub_request(:post, "http://sdk-proxy:3003/v1/chat")
+             .with(body: hash_including(system_dynamic: "Memories"))
+             .to_return(status: 200, body: { content: "ok", usage: {} }.to_json)
+
+      proxy_client.chat(params: base_params, options: { system_dynamic: "Memories" })
+
+      expect(stub).to have_been_requested
+    end
+
+    it "omits system_dynamic when there is none" do
+      stub = stub_request(:post, "http://sdk-proxy:3003/v1/chat")
+             .with { |req| !JSON.parse(req.body).key?("system_dynamic") }
+             .to_return(status: 200, body: { content: "ok", usage: {} }.to_json)
+
+      proxy_client.chat(params: base_params, options: { system_dynamic: nil })
+
+      expect(stub).to have_been_requested
+    end
+
     context "sync (no block)" do
       it "returns content on success" do
         stub_request(:post, "http://sdk-proxy:3003/v1/chat")
