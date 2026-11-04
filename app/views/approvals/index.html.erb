@@ -48,7 +48,7 @@
                   <% end %>
                 </td>
               </tr>
-              <% if %w[create_connector update_connector].include?(req.action) %>
+              <% if %w[create_connector update_connector connector_call].include?(req.action) %>
                 <tr>
                   <td colspan="5" class="px-5 pb-4"><%= render "approvals/connector_details", req: req %></td>
                 </tr>

@@ -86,6 +86,8 @@ module Approvals
         activate_connector(approval)
       when "update_connector"
         apply_connector_fix(approval)
+      when "connector_call"
+        Approvals::RunConnectorCall.call(approval: approval)
       end
     end
 

@@ -37,4 +37,13 @@
       <% end %>
     </dd>
   </dl>
+<% elsif req.action == "connector_call" %>
+  <dl class="text-xs grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1" data-connector-call>
+    <dt class="text-text-faint">Connector</dt><dd class="text-white"><%= params_hash["connector_name"] %></dd>
+    <dt class="text-text-faint">Operation</dt><dd class="text-white font-mono"><%= params_hash["operation"] %></dd>
+    <dt class="text-text-faint">Request</dt>
+    <dd class="text-white font-mono"><%= params_hash["method"] %> <%= params_hash["path"] %></dd>
+    <dt class="text-text-faint">Arguments</dt>
+    <dd class="text-white font-mono whitespace-pre-wrap break-all"><%= JSON.pretty_generate(params_hash["arguments"] || {}) %></dd>
+  </dl>
 <% end %>

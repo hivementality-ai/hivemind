@@ -138,6 +138,7 @@ module Tools
     def call
       executor_class = self.class.all_executors[@tool.executor_type]
       return ServiceResponse.failure(error: "Unknown executor: #{@tool.executor_type}") unless executor_class
+      return Connectors::WriteGate.call(tool: @tool, input: @input, agent: @agent) if Connectors::WriteGate.hold?(@tool)
 
       # System tools (e.g. load_skill) skip execution tracking
       if @tool.is_a?(SystemTool)

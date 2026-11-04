@@ -55,4 +55,18 @@ RSpec.describe "Approvals page for connectors", type: :request do
     expect(response.body).not_to include("/<b>x</b>")
     expect(response.body).to include("&lt;script&gt;")
   end
+
+  it "shows a held write with its connector, request and arguments but no secret" do
+    create(:vault_entry, namespace: "widgets", key: "token", value: "sk-super-secret-value")
+    connector = create(:connector, :bearer, name: "Widget Shop")
+    proxy = Connectors::ToolResolver.proxies(agent).find { |tool| tool.name.end_with?("__create_widget") }
+    Tools::Executor.call(tool: proxy, input: { "title" => "Sprocket", "key" => "vault:widgets/token" },
+                         agent: agent, session: create(:session, agent: agent, session_key: "ap-#{SecureRandom.hex(4)}"))
+
+    get approvals_path
+
+    expect(connector).to be_persisted
+    expect(response.body).to include("Widget Shop", "create_widget", "POST /widgets", "Sprocket", "vault:widgets/token")
+    expect(response.body).not_to include("sk-super-secret-value")
+  end
 end
