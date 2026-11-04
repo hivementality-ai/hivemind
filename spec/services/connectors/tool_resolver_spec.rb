@@ -20,6 +20,16 @@ RSpec.describe Connectors::ToolResolver do
       expect(described_class.proxies(agent)).to be_empty
     end
 
+    it "hides a connector excluded for the agent and leaves other agents alone" do
+      create(:connector, slug: "widgets")
+      hidden = create(:connector, slug: "secret")
+      create(:agent_connector_exclusion, agent: agent, connector: hidden)
+      other = create(:agent, llm_model: "gpt-4o-mini", model_provider: "openai")
+
+      expect(described_class.proxies(agent).map(&:name)).to all(start_with("connector__widgets__"))
+      expect(described_class.proxies(other).map(&:name)).to include("connector__secret__get_widget")
+    end
+
     it "shapes the LLM tool from the operation and carries the call target" do
       connector = create(:connector, slug: "widgets")
 

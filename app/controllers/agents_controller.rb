@@ -187,7 +187,8 @@ class AgentsController < ApplicationController
       :system_prompt, :custom_instructions, :enabled, :avatar,
       :thinking_enabled, :thinking_budget_tokens, :thinking_visibility,
       tool_ids: [],
-      skill_ids: []
+      skill_ids: [],
+      visible_connector_ids: []
     )
   end
 

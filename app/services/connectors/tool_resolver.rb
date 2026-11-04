@@ -6,9 +6,11 @@ module Connectors
   class ToolResolver
     MAX_TOOL_NAME_LENGTH = 64
 
+    # @param agent [Agent, nil] when given, connectors excluded for that agent are left out
     # @return [Array<Connectors::ToolProxy>] connector tools, ready to join an agent's tool list
-    def self.proxies(_agent = nil)
-      Connector.enabled.order(:slug).flat_map do |connector|
+    def self.proxies(agent = nil)
+      scope = agent ? agent.visible_connectors : Connector.all
+      scope.enabled.order(:slug).flat_map do |connector|
         connector.operations.map do |operation|
           ToolProxy.new(name: tool_name(connector.slug, operation["name"]), connector: connector, operation: operation)
         end

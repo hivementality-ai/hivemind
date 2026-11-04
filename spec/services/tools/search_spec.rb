@@ -22,6 +22,14 @@ RSpec.describe "Tool search" do
              ])
     end
 
+    describe ".pool" do
+      it "leaves out connectors excluded for the agent" do
+        create(:agent_connector_exclusion, agent: agent, connector: crm)
+
+        expect(described_class.pool(agent).map(&:name)).to all(start_with("connector__billing__"))
+      end
+    end
+
     describe ".offered" do
       it "lists every connector tool when the count is at the threshold" do
         Setting.set(described_class::THRESHOLD_KEY, "4")
@@ -116,6 +124,18 @@ RSpec.describe "Tool search" do
 
         expect(result).to be_success
         expect(result.data[:output]).to eq(expected.data[:output])
+      end
+
+      it "refuses a tool from a connector excluded for the agent" do
+        create(:agent_connector_exclusion, agent: agent, connector: crm)
+        expect(Tools::Executor).not_to receive(:call)
+
+        result = described_class.new(
+          input: { "name" => "connector__crm__find_contact", "arguments" => {} }, config: { session: session }, agent: agent
+        ).call
+
+        expect(result).not_to be_success
+        expect(result.error).to include("Unknown tool")
       end
 
       it "returns the executor's failure unchanged" do
