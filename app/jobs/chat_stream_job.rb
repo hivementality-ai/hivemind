@@ -27,6 +27,14 @@ class ChatStreamJob < ApplicationJob
     return 0
   LUA
 
+  # Releases a session turn lock, but only if +token+ still owns it.
+  #
+  # @param lock_key [String]
+  # @param token [String] value the lock was taken with
+  def self.release_lock(lock_key, token)
+    Redis.current.eval(RELEASE_LOCK_SCRIPT, keys: [ lock_key ], argv: [ token ])
+  end
+
   # Runs one turn at a time per session. A turn that arrives while another is
   # running is requeued behind it, on the same queue, rather than dropped.
   def perform(session_id, user_message, attachment_ids = [])
@@ -45,7 +53,7 @@ class ChatStreamJob < ApplicationJob
       stop << true
       heartbeat.join
       set_processing(session_id, false)
-      Redis.current.eval(RELEASE_LOCK_SCRIPT, keys: [ lock_key ], argv: [ token ])
+      self.class.release_lock(lock_key, token)
     end
   end
 
