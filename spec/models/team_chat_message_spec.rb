@@ -124,6 +124,14 @@ RSpec.describe TeamChatMessage, type: :model do
       end
     end
 
+    context 'when the mention is wrapped in markdown' do
+      it 'matches bold and punctuation prefixes but not email addresses' do
+        expect(TeamChatMessage.extract_mentions("**@Alice** take this", team.reload)[:agents]).to eq([ agent1 ])
+        expect(TeamChatMessage.extract_mentions("(@Charlie)", team.reload)[:agents]).to eq([ agent3 ])
+        expect(TeamChatMessage.extract_mentions("mail me at x@Alice.com", team.reload)[:agents]).to be_empty
+      end
+    end
+
     context 'when text has no mentions' do
       it 'returns empty agents array' do
         result = TeamChatMessage.extract_mentions("Just a regular message", team.reload)

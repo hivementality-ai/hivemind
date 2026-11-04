@@ -662,4 +662,76 @@ RSpec.describe TeamChatJob, type: :job do
       expect(tool_names_seen).not_to include("delegation_status")
     end
   end
+
+  describe "agent @mentions wake teammates" do
+    let!(:author) { create(:agent, team: team, name: "Alice", enabled: true) }
+    let!(:teammate) { create(:agent, team: team, name: "Vida", enabled: true) }
+    let(:reply) { "**@Vida** can you take this?" }
+    let(:trigger) do
+      session.team_chat_messages.create!(sender_type: "user", sender_id: user.id, content: "go", target_agent_id: author.id)
+    end
+
+    before do
+      allow(HashtagActions::Processor).to receive(:call).and_return(
+        HashtagActions::Processor::ProcessResult.new(
+          bypass_llm: false, response: nil, clean_message: "go", prompt_addons: [], side_effects: []
+        )
+      )
+      adapter = double("adapter", chat: double(success?: true, data: { content: reply, usage: {} }))
+      allow(Providers::Resolver).to receive(:call).and_return(double(success?: true, data: { adapter: adapter }))
+      allow(Agents::ToolLoop).to receive(:call).and_return(double(success?: true, data: { content: reply, usage: {} }))
+      allow(TeamChatJob).to receive(:perform_later)
+    end
+
+    def run_job(**opts)
+      TeamChatJob.perform_now(session.id, trigger.id, responding_agent_id: author.id, **opts)
+    end
+
+    it "enqueues the mentioned teammate" do
+      run_job
+
+      saved = session.team_chat_messages.where(sender_type: "agent", sender_id: author.id).last
+      expect(TeamChatJob).to have_received(:perform_later)
+        .with(session.id, saved.id, responding_agent_id: teammate.id, chain_depth: 1)
+    end
+
+    context "when the agent mentions itself" do
+      let(:reply) { "Note to **@Alice**: done" }
+
+      it "does not wake anyone" do
+        run_job
+
+        expect(TeamChatJob).not_to have_received(:perform_later)
+      end
+    end
+
+    context "when the hop cap is reached" do
+      it "stops the chain" do
+        run_job(chain_depth: TeamChatJob::MAX_MENTION_HOPS)
+
+        expect(TeamChatJob).not_to have_received(:perform_later)
+      end
+
+      it "still wakes one hop below the cap" do
+        run_job(chain_depth: TeamChatJob::MAX_MENTION_HOPS - 1)
+
+        expect(TeamChatJob).to have_received(:perform_later)
+          .with(anything, anything, responding_agent_id: teammate.id, chain_depth: TeamChatJob::MAX_MENTION_HOPS)
+      end
+    end
+
+    it "ends a ping-pong between two agents at the cap" do
+      allow(TeamChatJob).to receive(:perform_later) do |sid, mid, responding_agent_id:, chain_depth:|
+        other = responding_agent_id == author.id ? teammate : author
+        reply_text = "@#{other.name} your turn"
+        allow(Agents::ToolLoop).to receive(:call).and_return(double(success?: true, data: { content: reply_text, usage: {} }))
+        session.team_chat_messages.where(sender_type: "agent").update_all(created_at: 1.hour.ago)
+        TeamChatJob.perform_now(sid, mid, responding_agent_id:, chain_depth:)
+      end
+
+      expect { run_job }.not_to raise_error
+
+      expect(session.team_chat_messages.where(sender_type: "agent").count).to eq(TeamChatJob::MAX_MENTION_HOPS + 1)
+    end
+  end
 end
