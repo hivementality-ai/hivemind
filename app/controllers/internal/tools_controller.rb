@@ -11,12 +11,15 @@ module Internal
       # Fall back to system tools (e.g. load_skill) which aren't persisted in DB
       tool ||= resolve_system_tool(params[:tool_name])
 
+      agent = Agent.find_by(id: params[:agent_id])
+      session = Session.find_by(id: params[:session_id])
+
+      # MCP tools are per-agent and not persisted as Tool records
+      tool ||= Mcp::ToolResolver.proxies(agent).find { |t| t.name == params[:tool_name] } if agent
+
       unless tool
         return render json: { success: false, error: "Unknown tool: #{params[:tool_name]}" }, status: :unprocessable_entity
       end
-
-      agent = Agent.find_by(id: params[:agent_id])
-      session = Session.find_by(id: params[:session_id])
 
       unless agent && session
         return render json: { success: false, error: "Agent or session not found" }, status: :unprocessable_entity

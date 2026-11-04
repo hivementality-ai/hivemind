@@ -27,6 +27,21 @@ RSpec.describe McpServer, type: :model do
     end
   end
 
+  describe "http transport" do
+    it "is valid with a url and requires it" do
+      server = build(:mcp_server, transport: "http", command: nil, url: "https://mcp.example.com")
+      expect(server).to be_valid
+      expect(server).to be_http
+      expect(server).to be_remote
+      server.url = nil
+      expect(server).not_to be_valid
+    end
+
+    it "treats legacy sse records as remote too" do
+      expect(build(:mcp_server, :sse)).to be_remote
+    end
+  end
+
   describe "scopes" do
     it "returns enabled servers" do
       enabled = create(:mcp_server, enabled: true)

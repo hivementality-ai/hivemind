@@ -548,6 +548,7 @@ class TeamChatJob < ApplicationJob
 
     # Inject system tools
     tools << SystemTool::LOAD_SKILL if agent.skills.enabled.any?
+    tools.concat(Mcp::ToolResolver.proxies(agent))
 
     # Inject talk_to_teammate when teammates exist
     teammates = @team.agents.enabled.where.not(id: agent.id)

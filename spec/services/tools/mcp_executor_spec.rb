@@ -46,7 +46,7 @@ RSpec.describe Tools::McpExecutor do
 
     it "delegates to SseClient for SSE servers" do
       sse_server = create(:mcp_server, :sse, :connected)
-      expect(Mcp::SseClient).to receive(:call_tool)
+      expect(Mcp::HttpClient).to receive(:call_tool)
         .with(sse_server, tool_name: "test", arguments: {})
         .and_return(ServiceResponse.success(data: { output: "ok" }))
 

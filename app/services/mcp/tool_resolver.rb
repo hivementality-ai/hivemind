@@ -6,6 +6,14 @@ module Mcp
       new(agent).call
     end
 
+    # @return [Array<Mcp::ToolProxy>] the agent's MCP tools, ready to join its tool list
+    def self.proxies(agent)
+      call(agent).data[:tools].map { |tool| ToolProxy.new(tool) }
+    rescue StandardError => e
+      Rails.logger.warn("[Mcp::ToolResolver] MCP tool resolution failed: #{e.message}")
+      []
+    end
+
     def initialize(agent)
       @agent = agent
     end

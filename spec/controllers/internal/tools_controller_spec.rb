@@ -52,6 +52,30 @@ RSpec.describe Internal::ToolsController, type: :controller do
       end
     end
 
+    context "with an MCP tool of the agent" do
+      let(:server) { create(:mcp_server, :sse, :connected, :with_tools, name: "Docs Server") }
+
+      before { create(:agent_mcp_server, agent: agent, mcp_server: server) }
+
+      it "resolves it by name and runs it" do
+        allow(Mcp::HttpClient).to receive(:call_tool)
+          .and_return(ServiceResponse.success(data: { output: "file body" }))
+
+        post :execute, params: { tool_name: "mcp_docs_server_read_file", agent_id: agent.id, session_id: session.id, input: { path: "/a" } }
+
+        expect(response).to have_http_status(:ok)
+        expect(JSON.parse(response.body)["output"]).to eq("file body")
+      end
+
+      it "rejects an MCP tool the agent does not have" do
+        other = create(:agent)
+
+        post :execute, params: { tool_name: "mcp_docs_server_read_file", agent_id: other.id, session_id: session.id, input: {} }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+    end
+
     context "with a system tool (load_skill)" do
       let(:skill) { create(:skill, name: "deep_research") }
 
