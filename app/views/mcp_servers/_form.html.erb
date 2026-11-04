@@ -1,0 +1,67 @@
+<%= form_with model: server, url: (server.new_record? ? mcp_servers_path : mcp_server_path(server)), method: (server.new_record? ? :post : :patch), class: "space-y-5" do |f| %>
+  <% if server.errors.any? %>
+    <div class="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
+      <ul class="list-disc list-inside space-y-1">
+        <% server.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Name</label>
+    <%= f.text_field :name, required: true, placeholder: "Filesystem",
+          class: "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white focus:border-amber-500 focus:outline-none" %>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Transport</label>
+    <%= f.select :transport, [ [ "stdio (runs a command in the workspace)", "stdio" ], [ "http (remote Streamable HTTP server)", "http" ] ],
+          { selected: (server.sse? ? "http" : server.transport) },
+          class: "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white focus:border-amber-500 focus:outline-none" %>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Command</label>
+    <%= f.text_field :command, placeholder: "npx -y @modelcontextprotocol/server-filesystem /workspace",
+          class: "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white font-mono focus:border-amber-500 focus:outline-none" %>
+    <p class="text-text-faint text-xs mt-1">Required for stdio servers.</p>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">URL</label>
+    <%= f.url_field :url, placeholder: "https://mcp.example.com/mcp",
+          class: "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white font-mono focus:border-amber-500 focus:outline-none" %>
+    <p class="text-text-faint text-xs mt-1">Required for http servers.</p>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Environment variables</label>
+    <%= text_area_tag "mcp_server[env_vars_text]", server.env_vars.to_h.map { |k, v| "#{k}=#{v}" }.join("\n"), rows: 3,
+          placeholder: "API_TOKEN=...",
+          class: "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white font-mono text-sm focus:border-amber-500 focus:outline-none" %>
+    <p class="text-text-faint text-xs mt-1">One KEY=value per line. Values for keys that look secret are moved to the vault.</p>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-text-primary mb-1">Request headers</label>
+    <%= text_area_tag "mcp_server[auth_config_text]", server.auth_config.to_h.map { |k, v| "#{k}=#{v}" }.join("\n"), rows: 2,
+          placeholder: "Authorization=Bearer ...",
+          class: "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white font-mono text-sm focus:border-amber-500 focus:outline-none" %>
+    <p class="text-text-faint text-xs mt-1">For http servers. One Name=value per line; values are stored in the vault.</p>
+  </div>
+
+  <div>
+    <label class="flex items-center gap-3 cursor-pointer">
+      <%= f.check_box :enabled, class: "rounded border-border-default bg-surface-raised text-amber-500 focus:ring-amber-500" %>
+      <span class="text-sm font-medium text-text-primary">Enabled</span>
+    </label>
+  </div>
+
+  <div class="flex gap-3 pt-2">
+    <%= f.submit (server.new_record? ? "Add Server" : "Save Changes"),
+          class: "px-4 py-2 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400 transition cursor-pointer" %>
+    <%= link_to "Cancel", mcp_servers_path, class: "px-4 py-2 text-text-muted hover:text-white transition" %>
+  </div>
+<% end %>
