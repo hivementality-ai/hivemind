@@ -126,8 +126,7 @@ module Sessions
       assigned = agent.agent_tools.includes(:tool).map(&:tool).select(&:enabled?)
       tools = assigned.any? ? assigned : Tool.enabled.builtin.to_a
       tools << SystemTool::LOAD_SKILL if agent.skills.enabled.any?
-      tools.concat(Mcp::ToolResolver.proxies(agent))
-      tools.concat(Connectors::ToolResolver.proxies(agent))
+      tools.concat(Tools::Search.offered(agent))
 
       # Sessions at the delegation depth limit lose the delegate tool entirely
       # so the model never sees the option (Delegations::Request would reject

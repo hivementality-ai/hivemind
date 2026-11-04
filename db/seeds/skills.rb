@@ -430,7 +430,7 @@ skills = [
       4. Call `create_connector` with name, slug, base_url, auth_scheme, auth_config and operations. Each operation needs name, description, method, path, params (JSON schema object) and read_only. Every `{placeholder}` in a path must appear in params.
       5. Secrets go in `auth_config` as vault references only, like `vault:notion/api_token`. Never paste a key, token, or password. If the user pasted one in chat, do not repeat it; tell them to store it in the vault instead.
       6. The connector is saved disabled. Tell the user which vault entry to fill (namespace and key) and ask them to approve it.
-      7. After approval, call one read-only operation (`connector__<slug>__<operation>`) to prove it works. Report the result. If it fails, say why and offer to fix the definition; do not retry with guesses.
+      7. After approval, call one read-only operation (`connector__<slug>__<operation>`) to prove it works. Report the result. If it fails, say why and if the error says the connector may be out of date, re-read the API docs and call `propose_connector_fix` with the corrected operations; do not retry with guesses.
 
       ## Auth schemes
       - `bearer`: auth_config `{ "secret": "vault:ns/key" }`
@@ -459,7 +459,7 @@ SKILL_TOOL_MAP = {
   "git" => [ "shell", "file_read", "file_write", "file_edit" ],
   "ticket-planning" => [ "ask_user", "file_read", "web_fetch" ],
   "deep_research" => [ "deep_research", "deep_research_status", "web_search", "web_fetch" ],
-  "connector-builder" => [ "create_connector", "web_search", "web_fetch" ]
+  "connector-builder" => [ "create_connector", "propose_connector_fix", "web_search", "web_fetch" ]
 }.freeze
 
 SKILL_TIER_METADATA = {

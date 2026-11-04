@@ -18,6 +18,9 @@ module Agents
       shell bash execute_command
     ].freeze
 
+    # Meta tools that are the only way to reach connector and MCP tools.
+    ALWAYS_KEEP = %w[find_tools use_tool].freeze
+
     # Keywords per task context. A tool matches if its name OR description
     # contains any of the keywords (case-insensitive, word boundary).
     TASK_PATTERNS = {
@@ -70,7 +73,7 @@ module Agents
           description = tool.respond_to?(:description) ? tool.description.to_s : tool[:description].to_s
           haystack = "#{name} #{description}".downcase
 
-          discovered_set.include?(name) ||
+          ALWAYS_KEEP.include?(name) || discovered_set.include?(name) ||
             (base_regex && haystack.match?(base_regex)) ||
             (keyword_regex && haystack.match?(keyword_regex))
         end
