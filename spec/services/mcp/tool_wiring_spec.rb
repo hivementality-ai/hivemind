@@ -32,6 +32,33 @@ RSpec.describe "MCP tools in the agent tool list" do
     end
   end
 
+  describe ChatStreamJob do
+    it "offers an enabled server's tools and not a disabled server's" do
+      names = described_class.new.send(:resolve_tools, agent).map(&:name)
+
+      expect(names).to include("mcp_docs_server_read_file", "mcp_docs_server_list_files")
+      expect(names.grep(/off_server/)).to be_empty
+    end
+  end
+
+  describe "tool names" do
+    it "keeps every name within the model API's 64-character, safe-character limit" do
+      server = create(:mcp_server, :sse, :connected, name: "A Very Long Server Name For Testing Limits",
+                                                     discovered_tools: [
+                                                       { "name" => "fetch.page", "description" => "dot" },
+                                                       { "name" => "#{'x' * 60}_one", "description" => "long one" },
+                                                       { "name" => "#{'x' * 60}_two", "description" => "long two" }
+                                                     ])
+      create(:agent_mcp_server, agent: agent, mcp_server: server)
+
+      names = Mcp::ToolResolver.proxies(agent).map(&:name).grep(/very_long/)
+
+      expect(names.size).to eq(3)
+      expect(names).to all(match(/\A[a-zA-Z0-9_-]{1,64}\z/))
+      expect(names.uniq.size).to eq(3)
+    end
+  end
+
   describe TeamChatJob do
     it "offers an enabled server's tools and not a disabled server's" do
       team = create(:team)
