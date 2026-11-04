@@ -475,8 +475,7 @@ class ChatStreamJob < ApplicationJob
     tools = assigned.any? ? assigned : Tool.enabled.builtin.to_a
 
     tools << SystemTool::LOAD_SKILL if agent.skills.enabled.any?
-    tools.concat(Mcp::ToolResolver.proxies(agent))
-    tools.concat(Connectors::ToolResolver.proxies(agent))
+    tools.concat(Tools::Search.offered(agent))
 
     tools
   end

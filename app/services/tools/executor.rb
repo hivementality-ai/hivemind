@@ -60,6 +60,7 @@ module Tools
       "create_skill" => Tools::CreateSkillExecutor,
       "create_tool" => Tools::CreateToolExecutor,
       "create_connector" => Tools::CreateConnectorExecutor,
+      "propose_connector_fix" => Tools::ProposeConnectorFixExecutor,
       "google_drive" => Tools::GoogleDriveExecutor,
       "google_calendar" => Tools::GoogleCalendarExecutor,
       "google_gmail" => Tools::GoogleGmailExecutor,
@@ -73,6 +74,8 @@ module Tools
       "grep" => Tools::GrepExecutor,
       "mcp" => Tools::McpExecutor,
       "connector" => Tools::ConnectorExecutor,
+      "find_tools" => Tools::FindToolsExecutor,
+      "use_tool" => Tools::UseToolExecutor,
       "task_manager" => Tools::TaskManagerExecutor,
       "propose_skill_update" => Tools::ProposeSkillUpdateExecutor,
       "flag_skill_unhelpful" => Tools::FlagSkillUnhelpfulExecutor

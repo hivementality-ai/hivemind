@@ -74,4 +74,30 @@ class SystemTool
       "required" => [ "name" ]
     }
   ).freeze
+
+  FIND_TOOLS = SystemTool.new(
+    name: "find_tools",
+    description: "Search your connector and MCP tools by keyword. Returns matching tool names, descriptions and input schemas; call a match with use_tool.",
+    executor_type: "find_tools",
+    parameters_schema: {
+      "properties" => {
+        "query" => { "type" => "string", "description" => "Keywords describing what you want to do" },
+        "limit" => { "type" => "integer", "description" => "Maximum matches to return (default 8)" }
+      },
+      "required" => [ "query" ]
+    }
+  ).freeze
+
+  USE_TOOL = SystemTool.new(
+    name: "use_tool",
+    description: "Run a tool found with find_tools. Pass its exact name and its arguments.",
+    executor_type: "use_tool",
+    parameters_schema: {
+      "properties" => {
+        "name" => { "type" => "string", "description" => "Exact tool name from find_tools" },
+        "arguments" => { "type" => "object", "description" => "Arguments matching the tool's input schema" }
+      },
+      "required" => [ "name" ]
+    }
+  ).freeze
 end

@@ -63,8 +63,7 @@ module Approvals
         actor_type: "Agent",
         actor_id: @agent.id,
         action: "approval_requested",
-        resource_type: "ApprovalRequest",
-        resource_id: approval.id,
+        resource: "ApprovalRequest##{approval.id}",
         metadata: {
           action: @action,
           resource: @resource,
