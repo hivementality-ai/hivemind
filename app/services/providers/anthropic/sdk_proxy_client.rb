@@ -39,6 +39,7 @@ module Providers
         # proxy. The OAuth/Claude-Code path does not consume it yet.
         payload[:effort] = params.dig(:output_config, :effort) if params.dig(:output_config, :effort)
 
+        payload[:system_dynamic] = options[:system_dynamic] if options[:system_dynamic].present?
         payload[:agent_id] = options[:agent_id] if options[:agent_id]
         payload[:session_id] = options[:session_id] if options[:session_id]
         payload[:tool_definitions] = options[:tool_definitions] if options[:tool_definitions]

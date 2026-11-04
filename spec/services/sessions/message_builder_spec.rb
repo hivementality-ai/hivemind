@@ -78,6 +78,21 @@ RSpec.describe Sessions::MessageBuilder do
         dynamic_block = system_blocks.find { |b| b[:text]&.include?("Your Memories") }
         expect(dynamic_block).to be_present
       end
+
+      it "flags the per-turn block as dynamic and nothing else" do
+        system_blocks = result.data[:messages].first[:content]
+
+        expect(system_blocks.last[:dynamic]).to be true
+        expect(system_blocks[0...-1].map { |b| b[:dynamic] }).to all(be_nil)
+      end
+    end
+
+    context "without any per-turn context" do
+      it "adds no dynamic block" do
+        system_blocks = result.data[:messages].first[:content]
+
+        expect(system_blocks.map { |b| b[:dynamic] }).to all(be_nil)
+      end
     end
 
     context "with mood override" do

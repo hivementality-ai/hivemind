@@ -60,7 +60,7 @@ module Sessions
       end
 
       if dynamic_parts.any?
-        system_blocks << { type: "text", text: dynamic_parts.join("\n\n") }
+        system_blocks << { type: "text", text: dynamic_parts.join("\n\n"), dynamic: true }
       end
 
       { role: "system", content: system_blocks }

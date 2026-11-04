@@ -33,6 +33,25 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
         expect(result.data[:content]).to eq("proxy response")
         expect(proxy_client).to have_received(:chat)
       end
+
+      it "hands the proxy the text of the dynamic system block" do
+        messages = [
+          { role: "system", content: [ { type: "text", text: "Core" }, { type: "text", text: "Memories", dynamic: true } ] },
+          { role: "user", content: "Hi" }
+        ]
+
+        adapter.chat(messages: messages)
+
+        expect(proxy_client).to have_received(:chat)
+          .with(hash_including(options: hash_including(system_dynamic: "Memories")))
+      end
+
+      it "sends no dynamic text when no block is flagged" do
+        adapter.chat(messages: [ { role: "system", content: [ { type: "text", text: "Core" } ] }, { role: "user", content: "Hi" } ])
+
+        expect(proxy_client).to have_received(:chat)
+          .with(hash_including(options: hash_including(system_dynamic: nil)))
+      end
     end
 
     context "with OAuth token but proxy explicitly disabled" do
@@ -128,6 +147,18 @@ RSpec.describe Providers::AnthropicAdapter, type: :service do
         { type: "text", text: "Be helpful", cache_control: { type: "ephemeral" } }
       ])
       expect(params[:messages].none? { |m| m[:role] == "system" }).to be true
+    end
+
+    it "never sends the dynamic flag to the Messages API" do
+      messages = [
+        { role: "system", content: [ { type: "text", text: "Core" }, { type: "text", text: "Memories", dynamic: true } ] },
+        { role: "user", content: "Hello" }
+      ]
+
+      params = adapter.send(:build_chat_params, messages: messages, tools: [], options: {})
+
+      expect(params[:system].map(&:keys).flatten).not_to include(:dynamic)
+      expect(params[:system].map { |b| b[:text] }).to eq(%w[Core Memories])
     end
 
     it "formats tool messages as tool_result" do
