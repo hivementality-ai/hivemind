@@ -130,7 +130,8 @@ class ChatStreamJob < ApplicationJob
     end
 
     # Resolve provider
-    resolver = Providers::Resolver.call(provider_name: agent.model_provider, agent:)
+    brain = Sessions::BrainResolver.call(session:, agent:)
+    resolver = Providers::Resolver.call(provider_name: brain.provider_name, agent:, provider_config: brain.provider_config)
     unless resolver.success?
       ActionCable.server.broadcast(channel, { type: "error", content: resolver.error })
       return
@@ -151,7 +152,7 @@ class ChatStreamJob < ApplicationJob
     messages = message_result.data[:messages]
 
     # Prune messages to fit within context budget
-    context_manager = Agents::ContextManager.new(agent.llm_model, 8192, provider: agent.model_provider, agent: agent)
+    context_manager = Agents::ContextManager.new(brain.model, 8192, provider: brain.provider_name, agent: agent)
     messages = context_manager.prune_messages(messages)
 
     # If there's a hashtag response to prepend (non-bypass actions), broadcast it
@@ -164,7 +165,7 @@ class ChatStreamJob < ApplicationJob
 
     begin
       # Build LLM options (with thinking if enabled)
-      resolved_model = resolve_model(agent, effective_message)
+      resolved_model = resolve_model(brain, agent, effective_message)
       llm_options = { model: resolved_model, max_tokens: agent.max_output_tokens || 8192 }
       llm_options.merge!(agent.inference_options)
       if agent.thinking_enabled?
@@ -441,21 +442,20 @@ class ChatStreamJob < ApplicationJob
     tools
   end
 
-  # Resolves the agent's llm_model. If the agent is pinned to "auto" and
-  # its provider supports routing (anthropic or openai), delegate to
-  # Agents::ModelRouter and log the picked model. Otherwise use the
-  # pinned model verbatim.
-  def resolve_model(agent, user_message)
-    return agent.llm_model unless agent.llm_model.to_s == "auto"
-    return agent.llm_model unless Agents::ModelRouter.auto_supported?(agent.model_provider)
+  # Resolves the chat brain's model. If it is "auto" and its provider supports
+  # routing (anthropic or openai), delegate to Agents::ModelRouter and log the
+  # picked model. Otherwise use the chosen model verbatim.
+  def resolve_model(brain, agent, user_message)
+    return brain.model unless brain.model.to_s == "auto"
+    return brain.model unless Agents::ModelRouter.auto_supported?(brain.provider_name)
 
     picked = Agents::ModelRouter.route(
-      provider: agent.model_provider,
+      provider: brain.provider_name,
       message_text: user_message.to_s,
       recent_tools: recent_tool_names(agent)
     )
-    Rails.logger.info("[ModelRouter] agent=#{agent.id} provider=#{agent.model_provider} picked=#{picked}")
-    picked || Agents::ModelRouter::DEFAULT_RULES.dig(agent.model_provider, "tiers", "mid")
+    Rails.logger.info("[ModelRouter] agent=#{agent.id} provider=#{brain.provider_name} picked=#{picked}")
+    picked || Agents::ModelRouter::DEFAULT_RULES.dig(brain.provider_name, "tiers", "mid")
   end
 
   # Peek at the last few tool executions on this agent so ModelRouter can

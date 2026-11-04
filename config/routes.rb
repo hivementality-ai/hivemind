@@ -56,6 +56,7 @@ Rails.application.routes.draw do
   # Chat Sessions
   resources :sessions, only: [ :index, :show, :create, :update ] do
     member do
+      patch :brain
       post :message
       post :interrupt
       get :canvas
