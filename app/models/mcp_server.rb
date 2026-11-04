@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class McpServer < ApplicationRecord
-  TRANSPORTS = %w[stdio sse].freeze
+  TRANSPORTS = %w[stdio sse http].freeze
   STATUSES = %w[disconnected connected error].freeze
 
   has_many :agent_mcp_servers, dependent: :destroy
@@ -10,7 +10,7 @@ class McpServer < ApplicationRecord
   validates :name, presence: true, uniqueness: true
   validates :transport, presence: true, inclusion: { in: TRANSPORTS }
   validates :command, presence: true, if: :stdio?
-  validates :url, presence: true, if: :sse?
+  validates :url, presence: true, if: :remote?
 
   scope :enabled, -> { where(enabled: true) }
   scope :preset, -> { where(preset: true) }
@@ -24,6 +24,15 @@ class McpServer < ApplicationRecord
 
   def sse?
     transport == "sse"
+  end
+
+  def http?
+    transport == "http"
+  end
+
+  # Remote servers reached over Streamable HTTP; "sse" is the legacy name for the same transport.
+  def remote?
+    sse? || http?
   end
 
   def connected?

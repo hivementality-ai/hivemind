@@ -257,7 +257,7 @@ module Tools
     end
 
     def execute_system_tool(executor_class)
-      system_config = { session: @session }.merge(@extra_config || {})
+      system_config = @tool.effective_config.merge(session: @session).merge(@extra_config || {})
       result = executor_class.new(input: @input, config: system_config, agent: @agent).call
       if result.success?
         ServiceResponse.success(data: { output: result.data[:output].to_s.truncate(50_000) })
