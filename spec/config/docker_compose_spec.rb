@@ -4,7 +4,7 @@ require "yaml"
 RSpec.describe "docker-compose.yml" do
   let(:services) { YAML.load_file(Rails.root.join("docker-compose.yml")).fetch("services") }
 
-  %w[app worker-system worker-agents].each do |name|
+  %w[app worker-system worker-agents worker-interactive].each do |name|
     describe name do
       it "defines a healthcheck" do
         expect(services.dig(name, "healthcheck", "test")).to be_present
@@ -21,13 +21,13 @@ RSpec.describe "docker-compose.yml" do
   end
 
   it "probes for a live sidekiq process on both workers" do
-    %w[worker-system worker-agents].each do |name|
+    %w[worker-system worker-agents worker-interactive].each do |name|
       expect(services.dig(name, "healthcheck", "test").join(" ")).to include("[s]idekiq")
     end
   end
 
   it "holds the workers until the app is healthy" do
-    %w[worker-system worker-agents].each do |name|
+    %w[worker-system worker-agents worker-interactive].each do |name|
       expect(services.dig(name, "depends_on", "app", "condition")).to eq("service_healthy")
     end
   end

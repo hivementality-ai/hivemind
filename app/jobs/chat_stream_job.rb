@@ -280,7 +280,7 @@ class ChatStreamJob < ApplicationJob
       end
       ActionCable.server.broadcast(channel, { type: "redirected", content: e.redirect_message })
       Rails.logger.info("ChatStreamJob: redirected for session #{session.id}")
-      ChatStreamJob.perform_later(session.id, e.redirect_message, [])
+      ChatStreamJob.set(queue: :interactive).perform_later(session.id, e.redirect_message, [])
 
     rescue StandardError => e
       ActionCable.server.broadcast(channel, { type: "error", content: "Error: #{e.message}" })

@@ -33,6 +33,15 @@ services:
           memory: 512m
           cpus: "0.75"
 
+  worker-interactive:
+    environment:
+      - SIDEKIQ_INTERACTIVE_CONCURRENCY=1
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+
   db:
     deploy:
       resources:
