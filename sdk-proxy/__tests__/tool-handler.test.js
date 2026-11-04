@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { makeToolHandler, toolTimeoutMs } from "../mcp-tool-bridge.js";
+import { makeToolHandler, toolTimeoutMs } from "../tool-handler.js";
 
 const realFetch = globalThis.fetch;
 const realTimeout = process.env.SDK_PROXY_TOOL_TIMEOUT_MS;
