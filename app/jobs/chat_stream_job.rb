@@ -34,11 +34,13 @@ class ChatStreamJob < ApplicationJob
       return
     end
 
-    heartbeat = start_heartbeat(lock_key, "#{PROCESSING_KEY_PREFIX}#{session_id}", token)
+    stop = Thread::Queue.new
+    heartbeat = start_heartbeat(lock_key, "#{PROCESSING_KEY_PREFIX}#{session_id}", token, stop)
     begin
       run_turn(session_id, user_message, attachment_ids)
     ensure
-      heartbeat.kill.join
+      stop << true
+      heartbeat.join
       set_processing(session_id, false)
       Redis.current.eval(RELEASE_LOCK_SCRIPT, keys: [ lock_key ], argv: [ token ])
     end
@@ -315,10 +317,12 @@ class ChatStreamJob < ApplicationJob
 
   # Renews the turn lock (and the processing flag) while the turn runs; stops
   # once the lock is no longer ours.
-  def start_heartbeat(lock_key, flag_key, token)
+  # Renews the lock every HEARTBEAT_INTERVAL until +stop+ receives a value.
+  # Stopping through the queue, not Thread#kill, never interrupts a Redis call.
+  def start_heartbeat(lock_key, flag_key, token, stop)
     Thread.new do
       loop do
-        sleep HEARTBEAT_INTERVAL
+        break if stop.pop(timeout: HEARTBEAT_INTERVAL)
         renewed = Redis.current.eval(RENEW_LOCK_SCRIPT, keys: [ lock_key, flag_key ], argv: [ token, LOCK_TTL, PROCESSING_TTL ])
         break if renewed.to_i.zero?
       end

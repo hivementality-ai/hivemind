@@ -84,6 +84,16 @@ RSpec.describe ChatStreamJob, type: :job do
         expect(ttls.last).to be > 30
       end
 
+      it "stops the heartbeat as soon as the turn ends instead of waiting out the interval" do
+        stub_const("ChatStreamJob::HEARTBEAT_INTERVAL", 5)
+        allow_any_instance_of(described_class).to receive(:run_turn)
+
+        started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        described_class.new.perform(session.id, "quick")
+
+        expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 1
+      end
+
       it "stops renewing once the lock holds a different token" do
         ttl = nil
         allow_any_instance_of(described_class).to receive(:run_turn) do
