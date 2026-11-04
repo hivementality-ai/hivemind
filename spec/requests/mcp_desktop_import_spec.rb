@@ -55,6 +55,17 @@ RSpec.describe "Claude Desktop import", type: :request do
     expect(remote.resolved_auth_headers["Authorization"]).to eq("Bearer #{secret}")
   end
 
+  it "moves secret command arguments into the vault" do
+    config = { mcpServers: { "linear" => { command: "npx", args: [ "linear-server", "--api-key", "lin_api_abc", "--port", "3000" ] } } }.to_json
+    post preview_mcp_import_path, params: { config_json: config }
+    post mcp_import_path, params: { token: token_from(response.body), names: %w[linear] }
+
+    linear = McpServer.find_by!(name: "linear")
+    expect(linear.command).to eq("npx linear-server --api-key vault:mcp_import_linear/arg_api_key --port 3000")
+    expect(VaultEntry.find_by(namespace: "mcp_import_linear", key: "arg_api_key").value).to eq("lin_api_abc")
+    expect(linear.resolved_command_args).to include("lin_api_abc")
+  end
+
   it "assigns imported servers to every visible agent" do
     agent = create(:agent)
     post preview_mcp_import_path, params: { config_json: config_json }
