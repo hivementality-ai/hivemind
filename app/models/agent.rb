@@ -21,6 +21,7 @@ class Agent < ApplicationRecord
   has_one_attached :avatar
 
   belongs_to :team, optional: true
+  belongs_to :provider_config, optional: true
   belongs_to :manager, class_name: "Agent", foreign_key: :reports_to_id, optional: true, inverse_of: :direct_reports
 
   has_many :direct_reports, class_name: "Agent", foreign_key: :reports_to_id, dependent: :nullify, inverse_of: :manager
@@ -72,6 +73,7 @@ class Agent < ApplicationRecord
   attr_accessor :egress_policy_mode, :egress_policy_rules, :egress_policy_log_blocked
 
   before_validation :generate_slug
+  before_validation :sync_model_provider_from_config
   before_validation :compose_egress_policy_from_virtual_attrs
 
   scope :active, -> { where.not(status: :error) }
@@ -181,6 +183,13 @@ class Agent < ApplicationRecord
   end
 
   private
+
+  # Keeps the legacy model_provider adapter type in step with the pinned config.
+  def sync_model_provider_from_config
+    return unless provider_config
+
+    self.model_provider = provider_config.adapter_type
+  end
 
   def generate_slug
     self.slug = name.parameterize(separator: "_") if name.present? && slug.blank?

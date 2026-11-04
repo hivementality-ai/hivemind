@@ -18,7 +18,7 @@ export default class extends Controller {
     if (!provider) return
 
     try {
-      const response = await fetch(`${this.urlValue}?provider=${provider}`, {
+      const response = await fetch(`${this.urlValue}?provider_config_id=${provider}`, {
         headers: { "Accept": "application/json" }
       })
       const data = await response.json()
@@ -37,9 +37,7 @@ export default class extends Controller {
     if (models.length === 0) {
       const opt = document.createElement("option")
       opt.value = ""
-      opt.textContent = provider === "ollama"
-        ? "No models found — is Ollama running?"
-        : "No models available"
+      opt.textContent = "No models available"
       select.appendChild(opt)
       return
     }

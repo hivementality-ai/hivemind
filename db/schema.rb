@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_04_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -137,6 +137,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
     t.string "model_provider", default: "openai"
     t.decimal "monthly_budget_limit", precision: 10, scale: 4, default: "100.0"
     t.string "name"
+    t.bigint "provider_config_id"
     t.bigint "reports_to_id"
     t.string "role"
     t.citext "slug", null: false
@@ -154,6 +155,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
     t.string "workspace_path"
     t.index ["enabled"], name: "index_agents_on_enabled"
     t.index ["name"], name: "index_agents_on_name", unique: true
+    t.index ["provider_config_id"], name: "index_agents_on_provider_config_id"
     t.index ["reports_to_id"], name: "index_agents_on_reports_to_id"
     t.index ["slug"], name: "index_agents_on_slug", unique: true
     t.index ["status"], name: "index_agents_on_status"
@@ -1033,6 +1035,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_220907) do
   add_foreign_key "agent_tools", "agents"
   add_foreign_key "agent_tools", "tools"
   add_foreign_key "agents", "agents", column: "reports_to_id", on_delete: :nullify
+  add_foreign_key "agents", "provider_configs", on_delete: :nullify
   add_foreign_key "agents", "teams"
   add_foreign_key "api_integrations", "users"
   add_foreign_key "api_tokens", "users"
