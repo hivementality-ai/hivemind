@@ -16,6 +16,13 @@ class ProviderConfig < ApplicationRecord
     entry&.encrypted_value
   end
 
+  # Model names this provider offers.
+  #
+  # @return [Array<String>]
+  def model_names
+    model_definitions.filter_map { |m| m["id"].presence || m["name"].presence }
+  end
+
   private
 
   def set_defaults

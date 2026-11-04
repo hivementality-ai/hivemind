@@ -18,3 +18,9 @@ budget_reset:
   class: "BudgetResetJob"
   queue: "default"
   description: "Reset daily agent budgets"
+
+stuck_turn_sweep:
+  cron: "*/5 * * * *"
+  class: "StuckTurnSweepJob"
+  queue: "system"
+  description: "Clear chat turns interrupted by a worker restart"

@@ -44,8 +44,6 @@ module Tools
       "pdf_read" => Tools::PdfReadExecutor,
       "jira" => Tools::JiraExecutor,
       "trello" => Tools::TrelloExecutor,
-      "composio" => Tools::ComposioExecutor,
-      "nango" => Tools::NangoExecutor,
       "email" => Tools::EmailExecutor,
       "custom_script" => Tools::CustomScriptExecutor,
       "coding_agent" => Tools::CodingAgentExecutor,
@@ -61,6 +59,8 @@ module Tools
       "stt" => Tools::SttExecutor,
       "create_skill" => Tools::CreateSkillExecutor,
       "create_tool" => Tools::CreateToolExecutor,
+      "create_connector" => Tools::CreateConnectorExecutor,
+      "propose_connector_fix" => Tools::ProposeConnectorFixExecutor,
       "google_drive" => Tools::GoogleDriveExecutor,
       "google_calendar" => Tools::GoogleCalendarExecutor,
       "google_gmail" => Tools::GoogleGmailExecutor,
@@ -73,6 +73,9 @@ module Tools
       "chat_attachments" => Tools::ChatAttachmentsExecutor,
       "grep" => Tools::GrepExecutor,
       "mcp" => Tools::McpExecutor,
+      "connector" => Tools::ConnectorExecutor,
+      "find_tools" => Tools::FindToolsExecutor,
+      "use_tool" => Tools::UseToolExecutor,
       "task_manager" => Tools::TaskManagerExecutor,
       "propose_skill_update" => Tools::ProposeSkillUpdateExecutor,
       "flag_skill_unhelpful" => Tools::FlagSkillUnhelpfulExecutor
@@ -135,6 +138,7 @@ module Tools
     def call
       executor_class = self.class.all_executors[@tool.executor_type]
       return ServiceResponse.failure(error: "Unknown executor: #{@tool.executor_type}") unless executor_class
+      return Connectors::WriteGate.call(tool: @tool, input: @input, agent: @agent, session: @session) if Connectors::WriteGate.hold?(@tool)
 
       # System tools (e.g. load_skill) skip execution tracking
       if @tool.is_a?(SystemTool)
@@ -259,7 +263,7 @@ module Tools
     end
 
     def execute_system_tool(executor_class)
-      system_config = { session: @session }.merge(@extra_config || {})
+      system_config = @tool.effective_config.merge(session: @session).merge(@extra_config || {})
       result = executor_class.new(input: @input, config: system_config, agent: @agent).call
       if result.success?
         ServiceResponse.success(data: { output: result.data[:output].to_s.truncate(50_000) })

@@ -9,8 +9,6 @@ class IntegrationsController < ApplicationController
     @email_configured = VaultEntry.exists?(namespace: "email", key: "smtp_host")
     @jira_configured = VaultEntry.exists?(namespace: "jira", key: "base_url")
     @trello_configured = VaultEntry.exists?(namespace: "trello", key: "api_key")
-    @composio_configured = VaultEntry.exists?(namespace: "composio", key: "api_key")
-    @nango_configured = VaultEntry.exists?(namespace: "nango", key: "secret_key")
     @gws_oauth_configured = GoogleWorkspace::OAuthClient.new.configured?
     @gws_connected = GoogleWorkspace::CredentialBridge.configured?
     @gws_email = GoogleWorkspace::CredentialBridge.connected_email if @gws_connected
@@ -32,6 +30,7 @@ class IntegrationsController < ApplicationController
     @mcp_servers = McpServer.order(:name)
     @mcp_presets = @mcp_servers.where(preset: true)
     @mcp_custom = @mcp_servers.where(preset: false)
+    @mcp_catalog = Mcp::Catalog.entries
     @agents = Agent.visible.order(:name)
   end
 
@@ -72,18 +71,6 @@ class IntegrationsController < ApplicationController
       api_key: params[:trello_api_key],
       token: params[:trello_api_token]
     }, required: %i[api_key token], notice: "Trello credentials saved")
-  end
-
-  def update_composio
-    save_credentials("composio", { api_key: params[:composio_api_key] },
-      required: %i[api_key], notice: "Composio connected")
-  end
-
-  def update_nango
-    save_credentials("nango", {
-      secret_key: params[:nango_secret_key],
-      host: params[:nango_host].to_s.strip.chomp("/")
-    }, required: %i[secret_key], notice: "Nango connected")
   end
 
   def update_google_workspace
@@ -236,7 +223,7 @@ class IntegrationsController < ApplicationController
 
   def connect_mcp_server
     server = McpServer.find(params[:id])
-    result = server.stdio? ? Mcp::ProcessManager.new(server).start : Mcp::SseClient.discover_tools(server)
+    result = server.stdio? ? Mcp::ProcessManager.new(server).start : Mcp::HttpClient.discover_tools(server)
 
     if result.success?
       redirect_to integrations_path, notice: "Connected to '#{server.name}'"
@@ -253,7 +240,7 @@ class IntegrationsController < ApplicationController
 
   def refresh_mcp_tools
     server = McpServer.find(params[:id])
-    result = server.stdio? ? Mcp::StdioClient.discover_tools(server) : Mcp::SseClient.discover_tools(server)
+    result = server.stdio? ? Mcp::StdioClient.discover_tools(server) : Mcp::HttpClient.discover_tools(server)
 
     if result.success?
       tools = result.data.is_a?(Hash) ? (result.data[:tools] || result.data["tools"] || []) : []

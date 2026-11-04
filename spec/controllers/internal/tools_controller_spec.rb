@@ -52,6 +52,45 @@ RSpec.describe Internal::ToolsController, type: :controller do
       end
     end
 
+    context "with an MCP tool of the agent" do
+      let(:server) { create(:mcp_server, :sse, :connected, :with_tools, name: "Docs Server") }
+
+      before { create(:agent_mcp_server, agent: agent, mcp_server: server) }
+
+      it "resolves it by name and runs it" do
+        allow(Mcp::HttpClient).to receive(:call_tool)
+          .and_return(ServiceResponse.success(data: { output: "file body" }))
+
+        post :execute, params: { tool_name: "mcp_docs_server_read_file", agent_id: agent.id, session_id: session.id, input: { path: "/a" } }
+
+        expect(response).to have_http_status(:ok)
+        expect(JSON.parse(response.body)["output"]).to eq("file body")
+      end
+
+      it "rejects an MCP tool the agent does not have" do
+        other = create(:agent)
+
+        post :execute, params: { tool_name: "mcp_docs_server_read_file", agent_id: other.id, session_id: session.id, input: {} }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+    end
+
+    context "with a connector operation" do
+      before do
+        create(:connector, slug: "widgets")
+        allow(Connectors::AddressGuard).to receive(:lookup).and_return([ "93.184.216.34" ])
+        stub_request(:get, "https://api.widgets.test/v1/widgets/5").to_return(status: 200, body: "widget five")
+      end
+
+      it "resolves it by name and runs it" do
+        post :execute, params: { tool_name: "connector__widgets__get_widget", agent_id: agent.id, session_id: session.id, input: { id: "5" } }
+
+        expect(response).to have_http_status(:ok)
+        expect(JSON.parse(response.body)["output"]).to eq("widget five")
+      end
+    end
+
     context "with a system tool (load_skill)" do
       let(:skill) { create(:skill, name: "deep_research") }
 

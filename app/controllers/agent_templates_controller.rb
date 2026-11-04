@@ -9,6 +9,7 @@ class AgentTemplatesController < ApplicationController
     @templates = @templates.by_category(params[:category]) if params[:category].present?
     @templates = @templates.featured if params[:featured] == "true"
     @categories = AgentTemplate::CATEGORIES
+    @grouped_templates = AgentTemplate.grouped_by_category(@templates)
   end
 
   def show

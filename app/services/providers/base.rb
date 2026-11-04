@@ -31,9 +31,70 @@ module Providers
       raise NotImplementedError, "#{self.class}#embed must be implemented"
     end
 
+    # Provider label used for circuit-breaker keying and error reporting.
+    # Subclasses named FooAdapter get "foo" for free.
+    def provider_name
+      self.class.name.to_s.demodulize.sub(/Adapter\z/, "").underscore
+    end
+
     private
 
     attr_reader :config, :api_key
+
+    # Wrap one provider call in the per-credential circuit breaker.
+    #
+    # Failing fast here rather than in the caller is the whole point: an open
+    # circuit must not open a socket. On macOS, container egress consumes the
+    # host's shared ~16k ephemeral port pool, so an unbounded retry loop in
+    # one stack takes down networking for every process on the box.
+    #
+    # Adapters return ServiceResponse rather than raising, so the failure is
+    # inspected here and the typed verdict is attached to the response payload
+    # for callers (FailoverAdapter, jobs, the UI) to act on.
+    def with_circuit_breaker(credential: api_key, provider: provider_name)
+      breaker = CircuitBreaker.new(provider: provider, credential: credential)
+      breaker.check!
+
+      result = yield
+
+      if result.is_a?(ServiceResponse) && result.failure?
+        error = provider_error_for(result, provider)
+        breaker.record_failure(error)
+        return with_provider_error(result, error)
+      end
+
+      breaker.record_success
+      result
+    rescue ProviderCircuitOpenError => e
+      # Never reached the network. Surface the real reason, not a generic 500.
+      Rails.logger.warn("[CircuitBreaker] short-circuited #{provider} call: #{e.reason}")
+      with_provider_error(ServiceResponse.failure(error: e.message), e)
+    end
+
+    # Prefer a verdict a downstream client already produced (the sdk-proxy
+    # sends a structured one) over re-deriving a weaker one from the string.
+    def provider_error_for(result, provider)
+      existing = result.payload.is_a?(Hash) ? (result.payload[:provider_error] || result.payload["provider_error"]) : nil
+
+      if existing.is_a?(Hash)
+        attrs = existing.symbolize_keys
+        klass = attrs[:retryable] ? TransientProviderError : PermanentProviderError
+        return klass.new(
+          attrs[:message].presence || result.error.to_s,
+          status: attrs[:status], reason: attrs[:reason], provider: attrs[:provider] || provider
+        )
+      end
+
+      ErrorClassifier.from_error_string(result.error, provider: provider)
+    end
+
+    def with_provider_error(result, error)
+      ServiceResponse.failure(
+        error: result.error,
+        message: result.message,
+        payload: (result.payload || {}).merge(provider_error: error.to_h)
+      )
+    end
 
     def base_url
       @config.base_url

@@ -85,7 +85,6 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a2 2 0 01-2-2v-1m0-3V4a2 2 0 012-2h6a2 2 0 012 2v4a2 2 0 01-2 2H9l-4 4V8z" />
                   </svg>
                   <span>Team Chat</span>
-                  <span class="ml-auto text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400">Beta</span>
                 <% end %>
 
                 <%= link_to agents_path, class: nav_item_class.(request.path.start_with?('/agents')) do %>
@@ -213,19 +212,40 @@
                     <span>Integrations</span>
                   <% end %>
 
-                  <%= link_to api_integrations_path, class: nav_item_class.(request.path.start_with?('/api_integrations')) do %>
-                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                    </svg>
-                    <span>APIs</span>
+                  <% if current_user.admin? || current_user.owner? %>
+                    <%= link_to mcp_servers_path, class: nav_item_class.(request.path.start_with?('/mcp_servers')) do %>
+                      <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+                      </svg>
+                      <span>MCP Servers</span>
+                    <% end %>
                   <% end %>
 
-                  <%= link_to api_tokens_path, class: nav_item_class.(request.path.start_with?('/api_tokens')) do %>
-                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                    </svg>
-                    <span>API Tokens</span>
+                  <% if current_user.admin? || current_user.owner? %>
+                    <%= link_to connectors_path, class: nav_item_class.(request.path.start_with?('/connectors')) do %>
+                      <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>Connectors</span>
+                    <% end %>
+                    <%= link_to vault_entries_path, class: nav_item_class.(request.path.start_with?('/vault_entries')) do %>
+                      <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      <span>Vault</span>
+                    <% end %>
                   <% end %>
+
+                  <% if current_user.admin? || current_user.owner? %>
+                    <%= link_to remote_access_path, class: nav_item_class.(request.path.start_with?('/remote_access')) do %>
+                      <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0" />
+                      </svg>
+                      <span>Remote Access</span>
+                    <% end %>
+                  <% end %>
+
+
 
                   <%= link_to channels_path, class: nav_item_class.(request.path.start_with?('/channels')) do %>
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -234,12 +254,6 @@
                     <span>Channels</span>
                   <% end %>
 
-                  <%= link_to webhook_endpoints_path, class: nav_item_class.(request.path.start_with?('/webhooks_out')) do %>
-                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                    </svg>
-                    <span>Webhooks</span>
-                  <% end %>
 
                   <%= link_to agent_templates_path, class: nav_item_class.(request.path.start_with?('/agent_templates')) do %>
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -273,18 +287,71 @@
                     <% end %>
                   <% end %>
 
-                  <%= link_to migration_path, class: nav_item_class.(request.path.start_with?('/migration')) do %>
-                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
-                    <span>Migration</span>
-                  <% end %>
 
                   <%= link_to audit_logs_path, class: nav_item_class.(request.path.start_with?('/audit_logs')) do %>
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                     </svg>
                     <span>Audit Log</span>
+                  <% end %>
+                </div>
+              </div>
+
+              <%# ── Advanced collapsible group ── %>
+              <div class="mt-2" data-controller="nav-group" data-nav-group-name-value="advanced">
+                <button type="button"
+                        class="w-full flex items-center justify-between px-4 py-2 text-xs font-semibold uppercase tracking-wider text-text-muted hover:text-text-primary transition"
+                        data-action="click->nav-group#toggle">
+                  <span>Advanced</span>
+                  <svg class="w-3.5 h-3.5 transition-transform duration-200"
+                       data-nav-group-target="chevron"
+                       fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                <div class="space-y-1 overflow-hidden transition-all duration-200 ease-in-out"
+                     style="max-height: 0; opacity: 0;"
+                     data-nav-group-target="content">
+                  <%= link_to platform_status_path, class: nav_item_class.(request.path.start_with?('/platform/status')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                    <span>Health</span>
+                  <% end %>
+
+                  <%= link_to platform_doctor_path, class: nav_item_class.(request.path.start_with?('/platform/doctor')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    <span>Doctor</span>
+                  <% end %>
+
+                  <%= link_to api_integrations_path, class: nav_item_class.(request.path.start_with?('/api_integrations')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
+                    <span>APIs</span>
+                  <% end %>
+
+                  <%= link_to api_tokens_path, class: nav_item_class.(request.path.start_with?('/api_tokens')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                    <span>API Tokens</span>
+                  <% end %>
+
+                  <%= link_to webhook_endpoints_path, class: nav_item_class.(request.path.start_with?('/webhooks_out')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                    </svg>
+                    <span>Webhooks</span>
+                  <% end %>
+
+                  <%= link_to migration_path, class: nav_item_class.(request.path.start_with?('/migration')) do %>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    <span>Migration</span>
                   <% end %>
                 </div>
               </div>
@@ -355,6 +422,8 @@
               <%= alert %>
             </div>
           <% end %>
+
+          <%= render "layouts/provider_circuit_banner" %>
 
           <%= render "layouts/update_banner" %>
           
