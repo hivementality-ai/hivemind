@@ -270,6 +270,17 @@ Rails.application.routes.draw do
     end
   end
 
+  # Vault: shared secrets; values are write-only in the UI
+  resources :vault_entries, only: [ :index, :new, :create, :edit, :update, :destroy ]
+
+  # Connectors: HTTP APIs described as data
+  resources :connectors, except: :show do
+    member do
+      patch :toggle_enabled
+      post "operations/:operation/try", action: :try_operation, as: :try_operation
+    end
+  end
+
   # Plugins
   resources :plugins, only: [ :index, :show ] do
     member do
