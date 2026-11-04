@@ -27,6 +27,7 @@ class TeamChatMessage < ApplicationRecord
   # Extract @mentions from content
   # Returns { agents: [Agent, ...], broadcast: bool, god: bool }
   def self.extract_mentions(text, team)
+    text = strip_emphasis(text)
     agents = team.agents.to_a
     mentioned = []
     broadcast = text.match?(/(?<![\w@])@team\b/i)
@@ -44,4 +45,10 @@ class TeamChatMessage < ApplicationRecord
 
     { agents: mentioned, broadcast: broadcast, god: god }
   end
+
+  # Removes markdown emphasis around mentions so "**@Name**" and "_@Name_" match.
+  def self.strip_emphasis(text)
+    text.to_s.gsub(/[*~`]/, "").gsub(/(?<!\w)_+(@[^\s_]+)_+/, '\1').gsub(/(?<!\w)_+(?=@)/, "")
+  end
+  private_class_method :strip_emphasis
 end

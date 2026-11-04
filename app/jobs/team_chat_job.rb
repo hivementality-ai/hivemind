@@ -49,6 +49,12 @@ class TeamChatJob < ApplicationJob
   private
 
   def respond_as_agent(agent:, trigger_message:)
+    TeamChats::AgentActivity.track(agent, channel: @channel) do
+      run_agent_turn(agent:, trigger_message:)
+    end
+  end
+
+  def run_agent_turn(agent:, trigger_message:)
     # Get or create persistent session for this agent in this team chat
     @agent_session = @session.session_for(agent)
 
