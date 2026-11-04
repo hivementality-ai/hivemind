@@ -18,6 +18,8 @@ module Providers
         full_thinking = +""
         current_block_type = nil
         usage = {}
+        tool_calls = []
+        current_tool = nil
 
         stream = client.messages.stream(**params)
 
@@ -27,9 +29,14 @@ module Providers
             if event.respond_to?(:content_block)
               current_block_type = event.content_block.type.to_s
               block.call({ type: "thinking_start" }) if current_block_type == "thinking"
+              if current_block_type == "tool_use"
+                current_tool = { id: event.content_block.id, name: event.content_block.name, json: +"" }
+              end
             end
           when "content_block_delta"
-            if current_block_type == "thinking" && event.delta.respond_to?(:thinking) && event.delta.thinking
+            if current_block_type == "tool_use"
+              current_tool[:json] << event.delta.partial_json.to_s if current_tool && event.delta.respond_to?(:partial_json)
+            elsif current_block_type == "thinking" && event.delta.respond_to?(:thinking) && event.delta.thinking
               full_thinking << event.delta.thinking
               block.call({ type: "thinking", content: event.delta.thinking })
             elsif event.delta.respond_to?(:text) && event.delta.text
@@ -38,6 +45,10 @@ module Providers
             end
           when "content_block_stop"
             block.call({ type: "thinking_stop" }) if current_block_type == "thinking"
+            if current_block_type == "tool_use" && current_tool
+              tool_calls << { "id" => current_tool[:id], "name" => current_tool[:name], "input" => parse_tool_input(current_tool[:json]) }
+              current_tool = nil
+            end
             current_block_type = nil
           when "message_start"
             if event.message.respond_to?(:usage) && event.message.usage
@@ -54,7 +65,15 @@ module Providers
         end
 
         thinking = full_thinking.present? ? full_thinking : nil
-        ServiceResponse.success(data: { content: full_content, thinking:, usage: })
+        ServiceResponse.success(data: { content: full_content, thinking:, tool_calls: tool_calls.presence, usage: })
+      end
+
+      def parse_tool_input(json)
+        return {} if json.blank?
+
+        JSON.parse(json)
+      rescue JSON::ParserError
+        {}
       end
 
       def sync_chat(client:, params:)
