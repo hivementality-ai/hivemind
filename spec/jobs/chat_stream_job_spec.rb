@@ -89,6 +89,24 @@ RSpec.describe ChatStreamJob, type: :job do
       end
     end
 
+    context "with a session brain override" do
+      let(:override_config) { create(:provider_config, :openai) }
+
+      before do
+        session.update!(provider_config: override_config, llm_model: "gpt-session")
+        allow(adapter).to receive(:chat).and_return(double(success?: true, data: { content: "Hi", usage: {} }))
+      end
+
+      it "resolves the override provider and sends the override model" do
+        described_class.perform_now(session.id, "Hello")
+
+        expect(Providers::Resolver).to have_received(:call)
+          .with(hash_including(provider_name: "openai", provider_config: override_config))
+        expect(adapter).to have_received(:chat)
+          .with(hash_including(options: hash_including(model: "gpt-session")))
+      end
+    end
+
     context "done broadcast always includes content for UI fallback" do
       it "includes full content in done broadcast after streaming" do
         allow(adapter).to receive(:chat) do |**_opts, &block|

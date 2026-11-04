@@ -171,7 +171,7 @@ class ProjectsController < ApplicationController
 
   def project_params
     params.require(:project).permit(:title, :description, :team_id, :lead_agent_id, :priority, :deadline,
-      notification_prefs: {})
+      :provider_config_id, :llm_model, notification_prefs: {})
   end
 
   def save_uploaded_files(files)

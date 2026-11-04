@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_04_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_04_130500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -520,9 +520,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_04_120000) do
     t.datetime "deadline"
     t.text "description"
     t.bigint "lead_agent_id"
+    t.string "llm_model"
     t.jsonb "metadata", default: {}, null: false
     t.jsonb "notification_prefs", default: {}, null: false
     t.string "priority", default: "normal", null: false
+    t.bigint "provider_config_id"
     t.datetime "started_at"
     t.string "status", default: "planning", null: false
     t.bigint "team_id", null: false
@@ -530,6 +532,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_04_120000) do
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["lead_agent_id"], name: "index_projects_on_lead_agent_id"
+    t.index ["provider_config_id"], name: "index_projects_on_provider_config_id"
     t.index ["status"], name: "index_projects_on_status"
     t.index ["team_id", "status"], name: "index_projects_on_team_id_and_status"
     t.index ["team_id"], name: "index_projects_on_team_id"
@@ -613,11 +616,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_04_120000) do
     t.tsvector "fts_vector"
     t.bigint "input_tokens"
     t.datetime "last_activity_at"
+    t.string "llm_model"
     t.jsonb "metadata"
     t.bigint "origin_channel_id"
     t.string "origin_channel_type"
     t.string "origin_sender"
     t.bigint "output_tokens"
+    t.bigint "project_id"
+    t.bigint "provider_config_id"
     t.string "session_key"
     t.integer "status"
     t.integer "summary_through_index", default: 0
@@ -632,6 +638,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_04_120000) do
     t.index ["last_activity_at"], name: "index_sessions_on_last_activity_at"
     t.index ["origin_channel_type", "origin_sender"], name: "index_sessions_on_origin_channel_type_and_origin_sender"
     t.index ["origin_channel_type"], name: "index_sessions_on_origin_channel_type"
+    t.index ["project_id"], name: "index_sessions_on_project_id"
+    t.index ["provider_config_id"], name: "index_sessions_on_provider_config_id"
     t.index ["session_key"], name: "index_sessions_on_session_key", unique: true
     t.index ["team_chat_session_id"], name: "index_sessions_on_team_chat_session_id"
   end
@@ -1066,6 +1074,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_04_120000) do
   add_foreign_key "project_milestones", "projects"
   add_foreign_key "project_milestones", "sessions"
   add_foreign_key "projects", "agents", column: "lead_agent_id"
+  add_foreign_key "projects", "provider_configs", on_delete: :nullify
   add_foreign_key "projects", "teams"
   add_foreign_key "projects", "users"
   add_foreign_key "push_subscriptions", "users"
@@ -1073,6 +1082,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_04_120000) do
   add_foreign_key "research_sessions", "sessions"
   add_foreign_key "scheduled_tasks", "agents"
   add_foreign_key "sessions", "agents"
+  add_foreign_key "sessions", "projects", on_delete: :nullify
+  add_foreign_key "sessions", "provider_configs", on_delete: :nullify
   add_foreign_key "sessions", "team_chat_sessions"
   add_foreign_key "skill_load_events", "agents"
   add_foreign_key "skill_load_events", "sessions"

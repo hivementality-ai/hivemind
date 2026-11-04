@@ -21,7 +21,8 @@ module Agents
       @total_usage = { input_tokens: 0, output_tokens: 0 }
       @tool_history = []
       @loop_config = @agent.effective_tool_loop_config
-      @context_manager = Agents::ContextManager.new(@agent.llm_model, @agent.max_output_tokens || 8192, provider: @agent.model_provider, agent: @agent)
+      brain = Sessions::BrainResolver.call(session: @session, agent: @agent)
+      @context_manager = Agents::ContextManager.new(brain.model, @agent.max_output_tokens || 8192, provider: brain.provider_name, agent: @agent)
       @decision_compactor = Agents::DecisionCompactor.new(context_manager: @context_manager, threshold: @context_manager.instance_variable_get(:@budget))
     end
 

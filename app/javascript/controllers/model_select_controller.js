@@ -34,6 +34,14 @@ export default class extends Controller {
 
     select.innerHTML = ""
 
+    const blankLabel = select.dataset.blankLabel
+    if (blankLabel) {
+      const blank = document.createElement("option")
+      blank.value = ""
+      blank.textContent = blankLabel
+      select.appendChild(blank)
+    }
+
     if (models.length === 0) {
       const opt = document.createElement("option")
       opt.value = ""

@@ -197,6 +197,7 @@
     <div class="bg-surface-card border border-border-default rounded-xl p-6">
       <h2 class="text-white font-semibold text-lg mb-4">Settings</h2>
       <%= form_with model: @project, url: project_path(@project), method: :patch, class: "space-y-4" do |f| %>
+        <%= render "projects/brain", form: f, project: @project %>
         <%= render "projects/notification_prefs", form: f, project: @project %>
         <div class="pt-2">
           <%= f.submit "Save Settings", class: "px-4 py-2 rounded-lg bg-brand text-black font-medium text-sm hover:bg-amber-400 transition-colors cursor-pointer" %>
