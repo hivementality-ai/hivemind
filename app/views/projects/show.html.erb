@@ -64,6 +64,11 @@
         </span>
 
         <%# Action buttons %>
+        <% if @project.lead_agent %>
+          <%= button_to sessions_path(agent_id: @project.lead_agent.id, project_id: @project.id), method: :post, class: "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-400 text-sm hover:bg-amber-500/30 transition-all" do %>
+            Chat in this project
+          <% end %>
+        <% end %>
         <% if @project.status == "active" %>
           <%= button_to pause_project_path(@project), method: :post, class: "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-card border border-border-default text-text-muted text-sm hover:text-white hover:border-amber-500/40 transition-all" do %>
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

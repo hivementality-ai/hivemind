@@ -13,7 +13,7 @@ class SessionsController < ApplicationController
     if params[:agent_id].present? && request.get?
       agent = resolve_agent(params[:agent_id])
       if agent
-        session = create_chat_session(agent: agent, user: current_user)
+        session = create_chat_session(agent: agent, user: current_user, project: requested_project)
         redirect_to session_path(session) and return
       end
     end
@@ -54,7 +54,7 @@ class SessionsController < ApplicationController
 
   # POST /sessions — start a new chat with an agent
   def create
-    @session = create_chat_session(agent: @agent, user: current_user)
+    @session = create_chat_session(agent: @agent, user: current_user, project: requested_project)
 
     redirect_to session_path(@session)
   end
@@ -175,6 +175,11 @@ class SessionsController < ApplicationController
   def set_agent
     @agent = resolve_agent(params[:agent_id])
     render file: "public/404.html", status: :not_found unless @agent
+  end
+
+  # The project a chat is started from, when the request names one.
+  def requested_project
+    Project.find_by(id: params[:project_id]) if params[:project_id].present?
   end
 
   def set_session
