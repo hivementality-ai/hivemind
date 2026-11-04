@@ -23,6 +23,36 @@ RSpec.describe RemoteAccess::ConnectorManager, type: :service do
     end
   end
 
+  describe "profile merging" do
+    around do |example|
+      original = ENV["COMPOSE_PROFILES"]
+      ENV["COMPOSE_PROFILES"] = "channels,signal"
+      example.run
+    ensure
+      ENV["COMPOSE_PROFILES"] = original
+    end
+
+    it "keeps profiles already configured instead of replacing them with tunnel" do
+      expect(Open3).to receive(:capture3).with(
+        hash_including("COMPOSE_PROFILES" => "channels,signal,tunnel"), "docker", "compose", "up", "-d", "cloudflared",
+        chdir: described_class::HOST_DIR
+      ).and_return([ "", "", instance_double(Process::Status, success?: true) ])
+
+      expect(manager.start).to be_success
+    end
+  end
+
+  describe "#up" do
+    it "starts the given services with their profiles enabled" do
+      expect(Open3).to receive(:capture3).with(
+        hash_including("COMPOSE_PROFILES" => "tunnel,channels"), "docker", "compose", "up", "-d", "connector",
+        chdir: described_class::HOST_DIR
+      ).and_return([ "", "", instance_double(Process::Status, success?: true) ])
+
+      expect(manager.up(%w[connector], profiles: %w[channels])).to be_success
+    end
+  end
+
   describe "#stop" do
     it "runs docker compose stop for the cloudflared service" do
       expect(Open3).to receive(:capture3).with(

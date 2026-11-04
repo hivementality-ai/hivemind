@@ -25,6 +25,9 @@ RSpec.describe "bin/hivemind update" do
         "compose ps"*) [ "${SHIM_DB_RUNNING:-1}" = 1 ] && echo db; exit 0 ;;
         *"pg_dump"*) [ "${SHIM_DUMP_OK:-1}" = 1 ] && echo "-- dump" ; [ "${SHIM_DUMP_OK:-1}" = 1 ]; exit $? ;;
         *"db:migrate"*) [ "${SHIM_MIGRATE_OK:-1}" = 1 ] || echo "PG::UndefinedTable boom" >&2; [ "${SHIM_MIGRATE_OK:-1}" = 1 ]; exit $? ;;
+        *"hivemind:compose_profiles"*)
+          [ "${SHIM_PROFILES_OK:-1}" = 1 ] || exit 1
+          echo "noise line"; echo "COMPOSE_PROFILES=${SHIM_PROFILES-}"; exit 0 ;;
         *) exit 0 ;;
       esac
     SH
@@ -127,6 +130,48 @@ RSpec.describe "bin/hivemind update" do
       expect(out).to include("skipping backup")
       expect(out).to include("rc=0")
       expect(backups).to be_empty
+    end
+  end
+
+  describe "channel service profiles" do
+    let(:env_file) { File.join(dir, ".env") }
+
+    before { File.write(env_file, "APP_PORT=3000\n") }
+
+    def profiles_line
+      File.read(env_file)[/^COMPOSE_PROFILES=.*$/]
+    end
+
+    it "persists the profiles an existing channel user needs before recreating the stack" do
+      out, status = run_cli("cmd_update", "SHIM_PROFILES" => "channels,signal")
+
+      expect(status).to be_success
+      expect(profiles_line).to eq("COMPOSE_PROFILES=channels,signal")
+      expect(docker_calls.index("hivemind:compose_profiles")).to be < docker_calls.index("up -d --force-recreate")
+      expect(out).to include("and healthy")
+    end
+
+    it "merges with profiles already in .env without duplicating, and is idempotent" do
+      File.write(env_file, "COMPOSE_PROFILES=tunnel,channels\n")
+
+      2.times { run_cli("cmd_update", "SHIM_PROFILES" => "channels,signal") }
+
+      expect(File.read(env_file).scan("COMPOSE_PROFILES=").size).to eq(1)
+      expect(profiles_line).to eq("COMPOSE_PROFILES=tunnel,channels,signal")
+    end
+
+    it "leaves .env alone when no channel needs a service" do
+      run_cli("cmd_update", "SHIM_PROFILES" => "")
+
+      expect(profiles_line).to be_nil
+    end
+
+    it "keeps both services enabled when the app cannot answer" do
+      out, status = run_cli("cmd_update", "SHIM_PROFILES_OK" => "0")
+
+      expect(status).to be_success
+      expect(out).to include("keeping channel services enabled")
+      expect(profiles_line).to eq("COMPOSE_PROFILES=channels,signal")
     end
   end
 end

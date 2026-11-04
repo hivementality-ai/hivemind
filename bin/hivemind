@@ -114,6 +114,35 @@ migrate_env() {
   fi
 }
 
+# Persist COMPOSE_PROFILES in .env for the channel services (connector,
+# signal-cli) that installs with channels already rely on. Asks the freshly
+# built app which profiles the enabled channels need and merges them into
+# whatever .env already has. Idempotent; if the app cannot answer, falls back
+# to enabling both so an existing channel user never loses a service.
+persist_channel_profiles() {
+  local env_file="$HIVEMIND_DIR/.env" version="$1" out needed current merged
+  [ -f "$env_file" ] || return 0
+
+  if out="$(HIVEMIND_VERSION="$version" docker compose run --rm -T -e RAILS_ENV=production app bin/rails hivemind:compose_profiles 2>/dev/null)"; then
+    needed="$(printf '%s\n' "$out" | grep -E '^COMPOSE_PROFILES=' | tail -1 | cut -d'=' -f2- | tr -d '\r' || true)"
+  else
+    warn "Could not read channel settings; keeping channel services enabled."
+    needed="channels,signal"
+  fi
+  [ -n "$needed" ] || return 0
+
+  current="$(grep -E '^COMPOSE_PROFILES=' "$env_file" | tail -1 | cut -d'=' -f2- | tr -d '"' || true)"
+  merged="$(printf '%s,%s' "$current" "$needed" | tr ',' '\n' | awk 'NF && !seen[$0]++' | paste -sd, -)"
+  [ "$merged" = "$current" ] && return 0
+
+  if grep -q '^COMPOSE_PROFILES=' "$env_file"; then
+    sed -i.bak "s|^COMPOSE_PROFILES=.*|COMPOSE_PROFILES=$merged|" "$env_file" && rm -f "$env_file.bak"
+  else
+    printf '\n# Optional compose services in use (managed by hivemind)\nCOMPOSE_PROFILES=%s\n' "$merged" >> "$env_file"
+  fi
+  ok "Channel services enabled in .env (COMPOSE_PROFILES=$merged)"
+}
+
 # ----------------------------------------------------------
 # Commands
 # ----------------------------------------------------------
@@ -315,6 +344,9 @@ cmd_update() {
     fi
     fail "Update aborted. Fix the error above and rerun 'hivemind update'."
   fi
+
+  # Keep connector/signal-cli running for installs that use channels
+  persist_channel_profiles "$version"
 
   # Restart with new images
   info "Restarting..."

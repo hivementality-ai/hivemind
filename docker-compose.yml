@@ -326,6 +326,10 @@ services:
       dockerfile: Dockerfile
     depends_on:
       - app
+    # Started on demand (profile "channels") once a channel that needs it exists;
+    # `hivemind update` persists COMPOSE_PROFILES in .env for installs that have one.
+    profiles:
+      - channels
     environment:
       - HIVEMIND_URL=http://app:3000
       - CONNECTOR_PORT=3002
@@ -371,6 +375,8 @@ services:
 
   signal-cli:
     image: bbernhard/signal-cli-rest-api:latest
+    profiles:
+      - signal
     environment:
       - MODE=normal
     volumes:

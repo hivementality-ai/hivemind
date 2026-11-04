@@ -34,6 +34,12 @@ module RemoteAccess
       run("up", "-d", SERVICE)
     end
 
+    # Brings up compose services, enabling the given profiles on top of the
+    # ones already configured.
+    def up(services, profiles:)
+      run("up", "-d", *services, profiles: profiles)
+    end
+
     def stop
       run("stop", SERVICE)
     end
@@ -59,12 +65,12 @@ module RemoteAccess
 
     private
 
-    def run(*args)
+    def run(*args, profiles: [])
       unless File.directory?(HOST_DIR)
         return ServiceResponse.failure(error: "Host directory not mounted at #{HOST_DIR}. Ensure the volume mount exists in docker-compose.yml.")
       end
 
-      output, _stderr, process_status = run_compose(*args)
+      output, _stderr, process_status = run_compose(*args, profiles: profiles)
       if process_status&.success?
         ServiceResponse.success(data: { output: output.to_s })
       else
@@ -72,8 +78,9 @@ module RemoteAccess
       end
     end
 
-    def run_compose(*args)
-      full_env = ENV.to_h.merge("COMPOSE_PROFILES" => PROFILE)
+    def run_compose(*args, profiles: [])
+      composed = Channels::ComposeProfiles.merge(ENV["COMPOSE_PROFILES"], PROFILE, profiles.join(","))
+      full_env = ENV.to_h.merge("COMPOSE_PROFILES" => composed)
       cmd = [ "docker", "compose", *args ]
       Open3.capture3(full_env, *cmd, chdir: HOST_DIR)
     rescue StandardError => e
