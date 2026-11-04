@@ -2,11 +2,15 @@
 
 module Agents
   class ToolLoop
-    def self.call(adapter:, agent:, session:, messages:, tools:, channel:, options: {}, broadcast_extras: {}, extra_config: {})
-      new(adapter:, agent:, session:, messages:, tools:, channel:, options:, broadcast_extras:, extra_config:).call
+    # @yield [String] each text delta as the model streams it; when a block is
+    #   given the loop streams every model round and broadcasts deltas live
+    def self.call(adapter:, agent:, session:, messages:, tools:, channel:, options: {}, broadcast_extras: {}, extra_config: {}, &on_delta)
+      new(adapter:, agent:, session:, messages:, tools:, channel:, options:, broadcast_extras:, extra_config:, &on_delta).call
     end
 
-    def initialize(adapter:, agent:, session:, messages:, tools:, channel:, options: {}, broadcast_extras: {}, extra_config: {})
+    def initialize(adapter:, agent:, session:, messages:, tools:, channel:, options: {}, broadcast_extras: {}, extra_config: {}, &on_delta)
+      @on_delta = on_delta
+      @round_streamed = false
       @adapter = adapter
       @agent = agent
       @session = session
@@ -67,7 +71,7 @@ module Agents
 
         if tool_calls.present?
           # Stream any text content before tool calls (narration — shown live but not stored)
-          if data[:content].present?
+          if data[:content].present? && !@round_streamed
             broadcast(type: "token", content: data[:content])
           end
 
@@ -122,7 +126,7 @@ module Agents
         Rails.logger.info("ToolLoop: final response content length=#{content.length}, content=#{content.first(200)}")
         if content.present?
           @full_content << content
-          broadcast(type: "token", content: content)
+          broadcast(type: "token", content: content) unless @round_streamed
         else
           Rails.logger.warn("ToolLoop: empty final response from LLM. Data keys: #{data.keys}")
         end
@@ -144,12 +148,23 @@ module Agents
 
     private
 
+    def chat_once(llm_tools)
+      @round_streamed = false
+      return @adapter.chat(messages: @messages, tools: llm_tools, options: @options) unless @on_delta
+
+      @adapter.chat(messages: @messages, tools: llm_tools, options: @options) do |chunk|
+        forward_delta(chunk[:content]) if chunk[:type] == "content" && chunk[:content].present?
+      end
+    end
+
+    def forward_delta(text)
+      @round_streamed = true
+      broadcast(type: "token", content: text)
+      @on_delta.call(text)
+    end
+
     def call_llm(llm_tools)
-      result = @adapter.chat(
-        messages: @messages,
-        tools: llm_tools,
-        options: @options
-      )
+      result = chat_once(llm_tools)
       if result && !result.success?
         Rails.logger.error("[ToolLoop] LLM call returned failure: #{result.error}")
       end
@@ -169,7 +184,7 @@ module Agents
     def recover_from_prompt_too_long(original_error, llm_tools)
       Rails.logger.warn("[ToolLoop] Prompt too long, auto-compacting and retrying: #{original_error.message}")
       @messages = @context_manager.force_auto_compact!(@messages)
-      @adapter.chat(messages: @messages, tools: llm_tools, options: @options)
+      chat_once(llm_tools)
     rescue PromptTooLongError => e
       Rails.logger.error("[ToolLoop] Prompt still too long after auto-compact — giving up: #{e.message}")
       ServiceResponse.failure(error: "LLM call failed: prompt too long even after auto-compact")
