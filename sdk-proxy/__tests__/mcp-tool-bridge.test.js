@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { makeToolHandler } from "../mcp-tool-bridge.js";
+import { makeToolHandler, toolTimeoutMs } from "../mcp-tool-bridge.js";
 
 const realFetch = globalThis.fetch;
 const realTimeout = process.env.SDK_PROXY_TOOL_TIMEOUT_MS;
@@ -68,4 +68,9 @@ test("emits a failed tool_result event on timeout", async () => {
   await h({});
   assert.equal(events[1][0], "tool_result");
   assert.equal(events[1][1].success, false);
+});
+
+test("default timeout exceeds the longest Rails-side tool timeout", () => {
+  delete process.env.SDK_PROXY_TOOL_TIMEOUT_MS;
+  assert.ok(toolTimeoutMs() > 1_800_000);
 });

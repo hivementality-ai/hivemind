@@ -3,13 +3,13 @@ import { jsonSchemaToZod } from "./json-schema-to-zod.js";
 
 const RAILS_INTERNAL_URL = process.env.RAILS_INTERNAL_URL || "http://app:3000";
 const INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET;
-const DEFAULT_TOOL_TIMEOUT_MS = 120_000;
+const DEFAULT_TOOL_TIMEOUT_MS = 1_860_000;
 
 /**
  * Per-callback timeout, read on each call so tests and operators can change it.
  * @returns {number} milliseconds
  */
-function toolTimeoutMs() {
+export function toolTimeoutMs() {
   const parsed = Number.parseInt(process.env.SDK_PROXY_TOOL_TIMEOUT_MS, 10);
   return parsed > 0 ? parsed : DEFAULT_TOOL_TIMEOUT_MS;
 }
