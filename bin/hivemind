@@ -175,6 +175,58 @@ tune_host() {
   fi
 }
 
+# Dump the production database to $HIVEMIND_DIR/backups before an update.
+# Sets BACKUP_FILE on success. Skips (returns 0) when no db container is
+# running; returns 1 when a running database could not be dumped.
+backup_database_before_update() {
+  BACKUP_FILE=""
+  local backup_dir="$HIVEMIND_DIR/backups"
+  mkdir -p "$backup_dir"
+
+  if [ -z "$(docker compose ps --status running --services db 2>/dev/null)" ]; then
+    warn "Database container is not running, skipping backup"
+    return 0
+  fi
+
+  local file="$backup_dir/pre-update-$(date +%Y%m%d-%H%M%S).sql"
+  info "Backing up database..."
+  if docker compose exec -T db pg_dump -U hivemind --clean --if-exists hivemind_production > "$file"; then
+    BACKUP_FILE="$file"
+    ok "Database backed up: $file"
+    prune_backups "$backup_dir"
+    return 0
+  fi
+  rm -f "$file"
+  return 1
+}
+
+# Keep the newest HIVEMIND_BACKUPS_KEEP (default 5) pre-update backups.
+prune_backups() {
+  local backup_dir="$1" keep="${HIVEMIND_BACKUPS_KEEP:-5}"
+  ls -1t "$backup_dir"/pre-update-*.sql 2>/dev/null | tail -n +"$((keep + 1))" | while IFS= read -r old; do
+    rm -f "$old"
+  done
+}
+
+# Poll the app's /up endpoint until it answers 200 or the timeout passes.
+# Timeout and interval come from HIVEMIND_HEALTH_TIMEOUT (120s) and
+# HIVEMIND_HEALTH_INTERVAL (3s).
+wait_for_healthy() {
+  local timeout="${HIVEMIND_HEALTH_TIMEOUT:-120}" interval="${HIVEMIND_HEALTH_INTERVAL:-3}"
+  local port
+  port="$(grep -E '^APP_PORT=' "$HIVEMIND_DIR/.env" 2>/dev/null | head -1 | cut -d'=' -f2- || true)"
+  local url="http://localhost:${port:-8080}/up"
+  local waited=0
+  while [ "$waited" -lt "$timeout" ]; do
+    if curl -sf "$url" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep "$interval"
+    waited=$((waited + interval))
+  done
+  return 1
+}
+
 cmd_update() {
   require_dir
   echo -e "${BOLD}🐝 Updating Hivemind${NC}"
@@ -240,25 +292,46 @@ cmd_update() {
   # Backfill .env with any new keys added in later versions
   migrate_env
 
+  # Back up before anything can touch the schema
+  backup_database_before_update || fail "Database backup failed; aborting update. Nothing was changed."
+
   # Pull prebuilt images first, fall back to building from source
   info "Pulling prebuilt images (version: $version)..."
-  if HIVEMIND_VERSION="$version" docker compose pull app workspace connector 2>/dev/null; then
+  if HIVEMIND_VERSION="$version" docker compose pull app workspace connector sdk-proxy browser-sidecar 2>/dev/null; then
     ok "Prebuilt images pulled successfully"
   else
     warn "Prebuilt images not available, building from source..."
     HIVEMIND_VERSION="$version" docker compose build --build-arg HIVEMIND_VERSION="$version"
   fi
 
-  # Migrate
+  # Migrate; never recreate the stack on top of a half-migrated database
   info "Running migrations..."
-  HIVEMIND_VERSION="$version" docker compose run --rm -e RAILS_ENV=production app bin/rails db:migrate 2>/dev/null || warn "Migration skipped (app not running?)"
+  if ! HIVEMIND_VERSION="$version" docker compose run --rm -e RAILS_ENV=production app bin/rails db:migrate; then
+    echo ""
+    warn "Migration failed. The running containers were left untouched."
+    if [ -n "$BACKUP_FILE" ]; then
+      warn "Your pre-update backup is at: $BACKUP_FILE"
+      warn "To restore it: docker compose exec -T db psql -U hivemind -d hivemind_production < $BACKUP_FILE"
+    fi
+    fail "Update aborted. Fix the error above and rerun 'hivemind update'."
+  fi
 
   # Restart with new images
   info "Restarting..."
   HIVEMIND_VERSION="$version" docker compose up -d --force-recreate
 
+  info "Waiting for the app to become healthy..."
+  if wait_for_healthy; then
+    echo ""
+    ok "Hivemind updated to $version and healthy!"
+    if [ -n "$BACKUP_FILE" ]; then info "Pre-update backup: $BACKUP_FILE"; fi
+    return 0
+  fi
   echo ""
-  ok "Hivemind updated to $version!"
+  warn "Hivemind $version was started but the app did not answer /up within ${HIVEMIND_HEALTH_TIMEOUT:-120}s."
+  warn "Check 'hivemind logs app' for errors."
+  if [ -n "$BACKUP_FILE" ]; then warn "Pre-update backup: $BACKUP_FILE"; fi
+  return 1
 }
 
 cmd_restart() {
@@ -578,6 +651,11 @@ EOF
 # ----------------------------------------------------------
 # Router
 # ----------------------------------------------------------
+# Allow tests to source this file for its functions.
+if [ "${BASH_SOURCE[0]}" != "$0" ]; then
+  return 0
+fi
+
 case "${1:-}" in
   status)   cmd_status ;;
   start)    cmd_start ;;
