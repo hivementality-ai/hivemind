@@ -97,6 +97,11 @@ class McpServer < ApplicationRecord
     end
   end
 
+  # @return [Array<String>] the command's arguments with "vault:" references replaced by the vaulted values; never log it
+  def resolved_command_args
+    Mcp::CommandSecrets.resolve(command)
+  end
+
   def resolved_auth_headers
     return {} unless auth_config.present?
 

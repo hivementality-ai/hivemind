@@ -2,8 +2,8 @@
 
 module Mcp
   # Reads the +mcpServers+ section of a Claude Desktop config and turns the
-  # entries into McpServer rows. Env values and header values go to the vault
-  # (namespace +mcp_import_<server>+); the row keeps only "vault:" references.
+  # entries into McpServer rows. Env values, header values and secret command
+  # arguments go to the vault (namespace +mcp_import_<server>+); the row keeps only "vault:" references.
   class DesktopImport
     class Error < StandardError; end
 
@@ -73,15 +73,16 @@ module Mcp
       return false if McpServer.exists?(name: entry.name)
 
       namespace = "mcp_import_#{entry.name.parameterize(separator: '_')}"
+      secrets = CommandSecrets.extract(Shellwords.join([ entry.command, *entry.args ]), namespace: namespace) if entry.stdio?
       server = McpServer.new(name: entry.name, transport: entry.transport, enabled: true,
-                             command: entry.stdio? ? Shellwords.join([ entry.command, *entry.args ]) : nil,
-                             url: entry.url)
+                             command: secrets&.command, url: entry.url)
       return false unless server.valid?
 
       McpServer.transaction do
         server.env_vars = vault_all(namespace, "env", entry.env)
         server.auth_config = vault_all(namespace, "auth", entry.headers)
         server.save!
+        secrets&.writes&.each { |ns, key, value| VaultEntry.find_or_initialize_by(namespace: ns, key: key).tap { |e| e.value = value }.save! }
         server.assign_to_visible_agents!
       end
       true

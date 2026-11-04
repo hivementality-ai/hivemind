@@ -74,7 +74,7 @@ module Mcp
     private
 
     def refresh(slot, server)
-      fingerprint = [ server.command, server.resolved_env_vars ].hash
+      fingerprint = [ server.resolved_command_args, server.resolved_env_vars ].hash
       return if slot.session&.alive? && slot.fingerprint == fingerprint
 
       discard(slot)

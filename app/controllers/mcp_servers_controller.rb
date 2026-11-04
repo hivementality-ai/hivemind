@@ -157,10 +157,18 @@ class McpServersController < ApplicationController
     permitted = params.require(:mcp_server).permit(:name, :transport, :command, :url, :npm_package, :enabled)
     env_text = params.dig(:mcp_server, :env_vars_text)
     auth_text = params.dig(:mcp_server, :auth_config_text)
+    permitted[:command] = vaulted_command(permitted[:command], permitted[:name] || @server&.name) if permitted[:command].present?
     permitted[:metadata] = oauth_client_metadata(permitted[:name] || @server&.name)
     permitted[:env_vars] = vaulted_pairs(env_text, permitted[:name] || @server&.name, "env") { |k, v| secret_looking?(k) && !vault_ref?(v) } unless env_text.nil?
     permitted[:auth_config] = vaulted_pairs(auth_text, permitted[:name] || @server&.name, "auth") { |_k, v| !vault_ref?(v) } unless auth_text.nil?
     permitted
+  end
+
+  # The command with secret-looking arguments queued for the vault and replaced by references.
+  def vaulted_command(command, server_name)
+    result = Mcp::CommandSecrets.extract(command, namespace: "mcp_#{server_name.to_s.parameterize(separator: '_')}")
+    (@vault_writes ||= []).concat(result.writes)
+    result.command
   end
 
   # The row's metadata with the manual OAuth client merged in: the id as given, the secret as a vault reference.

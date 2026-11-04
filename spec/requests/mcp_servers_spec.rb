@@ -44,6 +44,31 @@ RSpec.describe "MCP servers", type: :request do
       expect(server.resolved_auth_headers).to eq("Authorization" => "Bearer xyz")
     end
 
+    it "stores a reference for a secret command argument and keeps it on an unchanged edit" do
+      post mcp_servers_path, params: { mcp_server: { name: "Files", transport: "stdio", command: "npx files --api-key sk-abc123" } }
+
+      server = McpServer.find_by!(name: "Files")
+      expect(server.command).to eq("npx files --api-key vault:mcp_files/arg_api_key")
+      expect(server.resolved_command_args).to eq(%w[npx files --api-key sk-abc123])
+
+      get edit_mcp_server_path(server)
+      expect(response.body).to include("vault:mcp_files/arg_api_key")
+      expect(response.body).not_to include("sk-abc123")
+
+      patch mcp_server_path(server), params: { mcp_server: { name: "Files", command: server.command } }
+      expect(server.reload.command).to eq("npx files --api-key vault:mcp_files/arg_api_key")
+      expect(server.resolved_command_args.last).to eq("sk-abc123")
+    end
+
+    it "vaults a secret argument added on update" do
+      server = create(:mcp_server, :stdio, name: "Files", command: "npx files")
+
+      patch mcp_server_path(server), params: { mcp_server: { name: "Files", command: "npx files --token=abc123" } }
+
+      expect(server.reload.command).to eq("npx files --token=vault:mcp_files/arg_token")
+      expect(VaultEntry.find_by(namespace: "mcp_files", key: "arg_token").value).to eq("abc123")
+    end
+
     it "leaves no vault entry behind when the create fails validation" do
       expect do
         post mcp_servers_path, params: { mcp_server: { name: "Bad", transport: "stdio", command: "", env_vars_text: "API_TOKEN=abc" } }

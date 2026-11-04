@@ -55,3 +55,15 @@ RSpec.describe Mcp::StdioClient do
     end
   end
 end
+
+RSpec.describe Mcp::StdioSession, ".command_for" do
+  it "hands the child the real value behind a command reference" do
+    VaultEntry.create!(namespace: "mcp_x", key: "arg_api_key", value: "sk-real")
+    server = create(:mcp_server, :stdio, command: "npx srv --api-key vault:mcp_x/arg_api_key")
+
+    argv = described_class.command_for(server)
+
+    expect(argv.last(4)).to eq(%w[npx srv --api-key sk-real])
+    expect(argv).not_to include("vault:mcp_x/arg_api_key")
+  end
+end

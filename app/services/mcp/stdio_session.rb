@@ -24,7 +24,7 @@ module Mcp
     # @return [Array<String>] argv that runs the server's command inside the workspace container
     def self.command_for(server)
       env_args = server.resolved_env_vars.flat_map { |k, v| [ "--env", "#{k}=#{v}" ] }
-      [ "docker", "exec", "-i", *env_args, WORKSPACE_CONTAINER, *Shellwords.shellsplit(server.command) ]
+      [ "docker", "exec", "-i", *env_args, WORKSPACE_CONTAINER, *server.resolved_command_args ]
     end
 
     attr_reader :last_used_at
