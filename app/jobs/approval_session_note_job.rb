@@ -22,7 +22,7 @@ class ApprovalSessionNoteJob < ApplicationJob
       begin
         write_note(session_id, content)
       ensure
-        Redis.current.eval(ChatStreamJob::RELEASE_LOCK_SCRIPT, keys: [ lock_key ], argv: [ token ])
+        ChatStreamJob.release_lock(lock_key, token)
       end
     elsif Time.current.to_i < deadline
       self.class.set(wait: RETRY_DELAY).perform_later(session_id, content, deadline)
