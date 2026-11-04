@@ -18,11 +18,11 @@
     },
     {
       "fingerprint": "092f702183c28e851d3a02eb708b2b1fcf52e888adf06e5a1b41c8f400e2988f",
-      "note": "Mail gem from() method, not SQL \u2014 false positive"
+      "note": "Mail gem from() method, not SQL — false positive"
     },
     {
       "fingerprint": "3ffe28640defd3facc9b5d70e774579199b4ca9a1373c934fb2943bfa73217e3",
-      "note": "Net::HTTP to admin-configured API base URL \u2014 not user input"
+      "note": "Net::HTTP to admin-configured API base URL — not user input"
     },
     {
       "fingerprint": "b93ae9ee4700f171a5446ba998686f8ed4e63d69e29df0da50b8d63ecba18792",
@@ -87,6 +87,10 @@
     {
       "fingerprint": "c2a25b4040db81c8028aa376fd53908747f2f09f6b12822ccbf773fecf752f66",
       "note": "workspace_files_controller: set_root mkdir_p uses allowlisted ROOTS config, not user input"
+    },
+    {
+      "fingerprint": "7be1fd4a95f52e93e5301b6a3670c787617c65a5f6646f1f82f5fb6b81c26d09",
+      "note": "Redis EVAL of a constant Lua script (RENEW_LOCK_SCRIPT) that renews the session turn lock; no user input reaches the script."
     }
   ],
   "updated": "2026-04-01",

@@ -3,19 +3,75 @@ import Anthropic from "@anthropic-ai/sdk";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { buildMcpServer } from "./mcp-tool-bridge.js";
 import { existsSync, mkdirSync } from "fs";
+import { classifyError, toErrorBody } from "./error-classifier.js";
+import { credentialKey } from "./circuit-breaker.js";
+import { createGuard } from "./guard.js";
+import { createPartialStreamTracker } from "./partial-stream.js";
+import { createWarmPool, configKey, systemForTurn, withTurnContext } from "./warm-pool.js";
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 
 const PORT = process.env.PORT || 3003;
 
-// Prevent MaxListenersExceededWarning from concurrent query() calls
-// Each query() spawns a subprocess that adds exit listeners
-process.setMaxListeners(30);
+const intEnv = (name, fallback) => {
+  const parsed = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+};
 
-// Health check
+// ─── Resource discipline ──────────────────────────────────────────────
+// Every in-flight OAuth request spawns a Claude Code subprocess that opens
+// its own TCP connections. On macOS, container egress consumes the *host's*
+// ~16k ephemeral port pool, shared by every stack on the box. These ceilings
+// are this stack's declared share of that pool — see MULTI-STACK.md.
+const MAX_CONCURRENCY = Math.max(1, intEnv("SDK_PROXY_MAX_CONCURRENCY", 4));
+const MAX_QUEUE = intEnv("SDK_PROXY_MAX_QUEUE", 16);
+const CIRCUIT_FAILURE_THRESHOLD = Math.max(1, intEnv("SDK_PROXY_CIRCUIT_THRESHOLD", 3));
+// Backstop for failures that never classify as permanent. A credential
+// failing every call with a transient-looking error still has to stop dialling.
+const CIRCUIT_ANY_FAILURE_THRESHOLD = Math.max(1, intEnv("SDK_PROXY_CIRCUIT_ANY_THRESHOLD", 10));
+const CIRCUIT_OPEN_MS = Math.max(1000, intEnv("SDK_PROXY_CIRCUIT_OPEN_MS", 15 * 60 * 1000));
+const STDERR_CAPTURE_BYTES = 16 * 1024;
+
+// Warm Claude processes: one live subprocess per Hivemind session between
+// turns. On by default; SDK_PROXY_WARM=off restores a fresh process per turn.
+const WARM_ENABLED = !["0", "off", "false"].includes((process.env.SDK_PROXY_WARM || "").toLowerCase());
+const WARM_MAX = Math.max(1, intEnv("SDK_PROXY_WARM_MAX", 4));
+const WARM_IDLE_MS = Math.max(1000, intEnv("SDK_PROXY_WARM_IDLE_MS", 10 * 60 * 1000));
+const warmPool = WARM_ENABLED
+  ? createWarmPool({ queryFn: query, maxWarm: WARM_MAX, idleMs: WARM_IDLE_MS })
+  : null;
+
+const guard = createGuard({
+  maxConcurrent: MAX_CONCURRENCY,
+  maxQueue: MAX_QUEUE,
+  failureThreshold: CIRCUIT_FAILURE_THRESHOLD,
+  anyFailureThreshold: CIRCUIT_ANY_FAILURE_THRESHOLD,
+  openMs: CIRCUIT_OPEN_MS,
+});
+
+// query() adds an exit listener per subprocess; the semaphore is the real
+// bound, this just keeps the ceiling above it so no spurious warning fires.
+process.setMaxListeners(MAX_CONCURRENCY + WARM_MAX + 20);
+
+// Health check. Reports liveness (200 whenever the HTTP server answers) plus
+// the two things that were invisible during the 40-hour silent outage: the
+// per-credential circuit state and how much outbound work is in flight.
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok", service: "sdk-proxy" });
+  res.json(guard.health());
+});
+
+// Clear a credential's circuit — called by Rails when a human updates the
+// token or tops the account up, so recovery does not wait out the cooldown.
+app.post("/admin/circuit/reset", (req, res) => {
+  const secret = process.env.INTERNAL_API_SECRET;
+  if (secret && req.headers["x-internal-secret"] !== secret) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const token = req.body?.token;
+  guard.breaker.reset(token ? credentialKey(token) : null);
+  console.log(`[circuit] reset ${token ? credentialKey(token) : "ALL"}`);
+  res.json({ ok: true, circuits: guard.breaker.snapshot() });
 });
 
 // Chat endpoint — proxies requests to Anthropic API
@@ -40,38 +96,82 @@ app.post("/v1/chat", async (req, res) => {
     agent_id,
     session_id,
     tool_definitions,
+    effort,
+    system_dynamic,
   } = req.body;
 
   const isOAuth = token.startsWith("sk-ant-oat");
-  console.log(`[chat] token=${token.slice(0, 15)}... isOAuth=${isOAuth} stream=${stream} tools=${tool_definitions?.length || 0} agent=${agent_id} session=${session_id}`);
+  const credential = credentialKey(token);
+  console.log(`[chat] cred=${credential} isOAuth=${isOAuth} stream=${stream} tools=${tool_definitions?.length || 0} agent=${agent_id} session=${session_id}`);
 
   try {
-    if (isOAuth) {
-      await handleOAuth(req, res, token, { messages, tools, model, max_tokens, temperature, thinking, systemPrompt, stream, agent_id, session_id, tool_definitions });
-    } else {
-      const client = new Anthropic({ apiKey: token });
-      const params = buildApiParams({ messages, tools, model, max_tokens, temperature, thinking, systemPrompt });
-      if (stream) {
-        await handleApiStream(res, client, params);
-      } else {
-        await handleApiSync(res, client, params);
-      }
-    }
+    await guard.run({
+      credential,
+      invoke: async () => {
+        if (isOAuth) {
+          return handleOAuth(req, res, token, { messages, tools, model, max_tokens, temperature, thinking, systemPrompt, stream, agent_id, session_id, tool_definitions, system_dynamic });
+        }
+        const client = new Anthropic({ apiKey: token });
+        const params = buildApiParams({ messages, tools, model, max_tokens, temperature, thinking, systemPrompt, effort });
+        return stream ? handleApiStream(res, client, params) : handleApiSync(res, client, params);
+      },
+    });
   } catch (err) {
-    console.error("SDK proxy error:", err.message);
-    if (!res.headersSent) {
-      res.status(err.status || 500).json({ error: err.message });
-    }
+    respondWithError(res, err, credential);
   }
 });
 
+// ─── Error handling ───
+
+// guard.run has already classified and recorded the failure; this only turns
+// the verdict into a response the Rails side can act on without string-matching.
+function respondWithError(res, err, credential) {
+  const info = err.classification || classifyError(err, { stderr: err.subprocessStderr });
+  console.error(
+    `[error] cred=${credential} reason=${info.reason} ` +
+    `retryable=${info.retryable} status=${info.status}: ${info.message}`,
+  );
+
+  if (res.headersSent) {
+    // Stream already open — the SSE error frame carried the verdict.
+    if (!res.writableEnded) res.end();
+    return;
+  }
+
+  if (info.retryAfterMs != null) res.set("Retry-After", String(Math.ceil(info.retryAfterMs / 1000)));
+  res.status(info.status).json(toErrorBody(info));
+}
+
 // ─── OAuth path: Claude Code via Agent SDK ───
 
+// The Agent SDK surfaces every failure as `Claude Code process exited with
+// code 1`, which erases the underlying HTTP status — a quota 400 and a
+// transient socket error look identical. The subprocess does print the real
+// cause on stderr, so capture it and attach it to the thrown error before it
+// reaches the classifier.
 async function handleOAuth(_req, res, token, params) {
-  const { messages, systemPrompt, model, stream, agent_id, session_id, tool_definitions } = params;
+  const stderrCapture = { text: "" };
+  try {
+    return await runOAuth(res, token, params, stderrCapture);
+  } catch (err) {
+    if (stderrCapture.text && !err.subprocessStderr) {
+      err.subprocessStderr = stderrCapture.text;
+    }
+    throw err;
+  }
+}
+
+async function runOAuth(res, token, params, stderrCapture) {
+  const { messages, systemPrompt, model, stream, agent_id, session_id, tool_definitions, system_dynamic } = params;
 
   // Extract system prompt text for structured passing
-  let systemText = extractSystemPrompt(systemPrompt);
+  // Warm processes run on the stable system text only; Rails flags the
+  // per-turn block it appends last so it travels as prompt context instead.
+  const warmEligible = !!(warmPool && session_id);
+  const turnSystem = systemForTurn(systemPrompt, system_dynamic, warmEligible, extractSystemPrompt(systemPrompt));
+  let systemText = turnSystem.systemText;
+  const baseSystemText = systemText;
+  const turnContext = turnSystem.dynamicText;
 
   // Build conversation transcript for context (SDK spawns fresh process each call)
   const conversationMessages = (messages || []).filter(m => m.role !== "system");
@@ -96,17 +196,29 @@ async function handleOAuth(_req, res, token, params) {
   const lastUserMsg = conversationMessages
     .filter(m => m.role === "user")
     .pop();
-  const prompt = typeof lastUserMsg?.content === "string"
+  const rawPrompt = typeof lastUserMsg?.content === "string"
     ? lastUserMsg.content
     : Array.isArray(lastUserMsg?.content)
       ? lastUserMsg.content.filter(b => b.type === "text").map(b => b.text).join("\n")
       : "Continue";
+  const prompt = turnContext ? withTurnContext(rawPrompt, turnContext) : rawPrompt;
 
   const options = {};
   if (systemText) options.systemPrompt = systemText;
   if (model) options.model = model;
   options.env = { CLAUDE_CODE_OAUTH_TOKEN: token };
-  options.stderr = (data) => console.error(`[claude-code stderr] ${data}`);
+  // A warm process outlives this request, so its callbacks reach the current
+  // turn through this sink rather than closing over this request directly.
+  const sink = { stderrCapture, toolEvent: null };
+  options.stderr = (data) => {
+    const text = String(data);
+    console.error(`[claude-code stderr] ${text}`);
+    const capture = sink.stderrCapture;
+    // Ring-capped so a chatty subprocess cannot grow this without bound.
+    if (capture.text.length < STDERR_CAPTURE_BYTES) {
+      capture.text = (capture.text + text).slice(-STDERR_CAPTURE_BYTES);
+    }
+  };
 
   // Log what's being sent to the SDK for debugging
   const systemLines = (systemText || "").split("\n").length;
@@ -138,6 +250,7 @@ async function handleOAuth(_req, res, token, params) {
         sendSSE(res, type, data);
       }
     : null;
+  sink.toolEvent = sseForToolEvents;
 
   if (tool_definitions?.length && agent_id && session_id) {
     for (const def of tool_definitions) mcpToolNames.add(def.name);
@@ -147,7 +260,7 @@ async function handleOAuth(_req, res, token, params) {
         tools: tool_definitions,
         agentId: agent_id,
         sessionId: session_id,
-        onToolEvent: sseForToolEvents,
+        onToolEvent: (type, data) => sink.toolEvent?.(type, data),
       });
       options.mcpServers = mcpServers;
       options.permissionMode = "bypassPermissions";
@@ -162,6 +275,32 @@ async function handleOAuth(_req, res, token, params) {
     }
   }
 
+  // Opens one turn on a warm process when one is available, otherwise a fresh
+  // query exactly as before. finish(ok) must be called once the turn is over.
+  const convoCount = conversationMessages.length;
+  const warmKey = warmPool && session_id
+    ? configKey({ cred: credentialKey(token), model, systemText: baseSystemText, tool_definitions, agent_id, stream: !!stream })
+    : null;
+  const startTurn = ({ includePartialMessages }) => {
+    const cold = () => ({
+      messages: query({ prompt, options: includePartialMessages ? { ...options, includePartialMessages } : options }),
+      warm: false,
+      finish() {},
+      abort() {},
+    });
+    if (!warmKey) return cold();
+    return warmPool.openTurn({
+      sessionId: session_id,
+      key: warmKey,
+      messageCount: convoCount,
+      prompt: rawPrompt,
+      options: { ...options, includePartialMessages: !!includePartialMessages },
+      sink,
+      cold,
+      dynamicText: turnContext,
+    });
+  };
+
   if (stream) {
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
@@ -169,100 +308,262 @@ async function handleOAuth(_req, res, token, params) {
       Connection: "keep-alive",
     });
 
-    const activeTools = new Set();
-    let isThinking = false;
-    // Snapshot listeners before query() so we can clean up after
-    const listenersBefore = process.listeners("exit").length;
-    try {
-      for await (const message of query({ prompt, options })) {
-        console.log(`[query] message type=${message.type}`, JSON.stringify(message).substring(0, 300));
+    // Claude Code surfaces upstream drops as a result with is_error/"API Error:
+    // Connection error." Those are transient, so retry the whole turn — but ONLY
+    // while nothing has been streamed to the client yet. Once any content, tool,
+    // or thinking event has gone out, re-running would duplicate output (and
+    // re-fire side-effecting tools), so we surface the error instead.
+    const MAX_ATTEMPTS = 3;
+    let producedOutput = false;
+    let lastError = null;
+    let classification = null;
+    let turn = null;
+    let clientGone = false;
 
-        if (message.type === "text") {
-          if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
-          sendSSE(res, "content", { content: message.text });
-        } else if (message.type === "thinking") {
-          if (!isThinking) { sendSSE(res, "thinking_start", {}); isThinking = true; }
-          sendSSE(res, "thinking", { thinking: message.thinking });
-        } else if (message.type === "assistant") {
-          if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
-          for (const block of message.message?.content || []) {
-            if (block.type === "text" && block.text) {
-              // When an assistant message arrives with text, any previously
-              // active tools are done — emit tool_result for them
+    // A client that hangs up mid-turn discards its warm process so nothing
+    // keeps working, or stays wedged, for a reader that is no longer there.
+    res.on("close", () => {
+      if (res.writableEnded) return;
+      clientGone = true;
+      turn?.abort();
+    });
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      turn = null;
+      const activeTools = new Set();
+      let isThinking = false;
+      let errored = false;
+      const partials = createPartialStreamTracker();
+      // Snapshot listeners before query() so we can clean up after
+      const listenersBefore = process.listeners("exit").length;
+      try {
+        turn = startTurn({ includePartialMessages: true });
+        for await (const message of turn.messages) {
+          if (message.type === "stream_event") {
+            const delta = partials.textDelta(message);
+            if (delta) {
+              if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
               for (const toolName of activeTools) {
                 sendSSE(res, "tool_result", { tool: toolName, output: "", success: true });
               }
               activeTools.clear();
-              sendSSE(res, "content", { content: block.text });
-            } else if (block.type === "thinking" && block.thinking) {
-              if (!isThinking) { sendSSE(res, "thinking_start", {}); isThinking = true; }
-              sendSSE(res, "thinking", { thinking: block.thinking });
-            } else if (block.type === "tool_use") {
-              // MCP tools are handled by the bridge callbacks — only emit
-              // tool_start here for Claude Code's own built-in tools
-              if (!mcpToolNames.has(block.name)) {
-                sendSSE(res, "tool_start", { tool: block.name, input: block.input || {} });
-                activeTools.add(block.name);
+              producedOutput = true;
+              sendSSE(res, "content", { content: delta });
+            }
+            continue;
+          }
+          console.log(`[query] message type=${message.type}`, JSON.stringify(message).substring(0, 300));
+
+          if (message.type === "text") {
+            if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
+            producedOutput = true;
+            sendSSE(res, "content", { content: message.text });
+          } else if (message.type === "thinking") {
+            if (!isThinking) { sendSSE(res, "thinking_start", {}); isThinking = true; }
+            producedOutput = true;
+            sendSSE(res, "thinking", { thinking: message.thinking });
+          } else if (message.type === "assistant") {
+            if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
+            for (const block of message.message?.content || []) {
+              if (block.type === "text" && block.text) {
+                // When an assistant message arrives with text, any previously
+                // active tools are done — emit tool_result for them
+                for (const toolName of activeTools) {
+                  sendSSE(res, "tool_result", { tool: toolName, output: "", success: true });
+                }
+                activeTools.clear();
+                const unsent = partials.remainder(block.text);
+                if (unsent) {
+                  producedOutput = true;
+                  sendSSE(res, "content", { content: unsent });
+                }
+              } else if (block.type === "thinking" && block.thinking) {
+                if (!isThinking) { sendSSE(res, "thinking_start", {}); isThinking = true; }
+                producedOutput = true;
+                sendSSE(res, "thinking", { thinking: block.thinking });
+              } else if (block.type === "tool_use") {
+                // MCP tools are handled by the bridge callbacks — only emit
+                // tool_start here for Claude Code's own built-in tools
+                if (!mcpToolNames.has(block.name)) {
+                  producedOutput = true;
+                  sendSSE(res, "tool_start", { tool: block.name, input: block.input || {} });
+                  activeTools.add(block.name);
+                }
               }
             }
+          } else if (message.type === "tool_progress") {
+            if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
+            // Claude Code's own tool is actively running
+            if (!activeTools.has(message.tool_name)) {
+              producedOutput = true;
+              sendSSE(res, "tool_start", { tool: message.tool_name, input: {} });
+              activeTools.add(message.tool_name);
+            }
+          } else if (message.type === "result") {
+            if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
+            const isErr = message.is_error === true ||
+              (typeof message.subtype === "string" && message.subtype.startsWith("error"));
+            if (isErr) {
+              // Don't emit result yet — let the retry logic below decide.
+              errored = true;
+              lastError = message.result || message.subtype || "API Error";
+              break;
+            }
+            // Close any remaining active tools
+            for (const toolName of activeTools) {
+              sendSSE(res, "tool_result", { tool: toolName, output: "", success: true });
+            }
+            activeTools.clear();
+            const usage = message.usage || {};
+            sendSSE(res, "result", { content: message.result, usage });
           }
-        } else if (message.type === "tool_progress") {
-          if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
-          // Claude Code's own tool is actively running
-          if (!activeTools.has(message.tool_name)) {
-            sendSSE(res, "tool_start", { tool: message.tool_name, input: {} });
-            activeTools.add(message.tool_name);
-          }
-        } else if (message.type === "result") {
-          if (isThinking) { sendSSE(res, "thinking_stop", {}); isThinking = false; }
-          // Close any remaining active tools
-          for (const toolName of activeTools) {
-            sendSSE(res, "tool_result", { tool: toolName, output: "", success: true });
-          }
-          activeTools.clear();
-          const usage = message.usage || {};
-          sendSSE(res, "result", { content: message.result, usage });
+        }
+      } catch (err) {
+        errored = true;
+        // The SDK wrapper throws `Claude Code process exited with code 1`, which
+        // erases the provider message the result stream already gave us
+        // ("API Error: Connection error."). Overwriting it left the classifier
+        // nothing to match and every such failure landed as `unknown`. Keep the
+        // specific message and append the wrapper's, so both are classifiable.
+        lastError = lastError ? `${lastError} (${err.message})` : err.message;
+      } finally {
+        turn?.finish(!errored);
+        // Clean up exit listeners added by query() subprocess. A warm process
+        // keeps its listener until the SDK removes it on close.
+        const listenersAfter = process.listeners("exit");
+        if (!turn?.warm && listenersAfter.length > listenersBefore) {
+          const toRemove = listenersAfter.slice(listenersBefore);
+          toRemove.forEach(fn => process.removeListener("exit", fn));
         }
       }
-    } finally {
-      sendSSE(res, "done", {});
-      res.end();
-      // Clean up exit listeners added by query() subprocess
-      const listenersAfter = process.listeners("exit");
-      if (listenersAfter.length > listenersBefore) {
-        const toRemove = listenersAfter.slice(listenersBefore);
-        toRemove.forEach(fn => process.removeListener("exit", fn));
+
+      if (!errored || clientGone) break;
+
+      // Classify BEFORE deciding to retry. Retrying a permanent failure is
+      // exactly what consumed the host's port pool: a quota 400 will fail
+      // identically on every attempt, and retrying local port exhaustion
+      // makes the exhaustion worse.
+      classification = classifyError(
+        lastError instanceof Error ? lastError : new Error(String(lastError || "API Error")),
+        { stderr: stderrCapture.text },
+      );
+
+      const canRetry = classification.retryable && !producedOutput && attempt < MAX_ATTEMPTS;
+      if (canRetry) {
+        const backoffMs = 1000 * attempt;
+        console.warn(`[oauth] attempt ${attempt}/${MAX_ATTEMPTS} failed before any output (${lastError}); retrying in ${backoffMs}ms`);
+        await new Promise((r) => setTimeout(r, backoffMs));
+        continue;
       }
+
+      // Permanent, out of retries, or output already streamed — surface as an
+      // error so Hivemind shows a failure and lets the user retry, rather than
+      // silently persisting "API Error: Connection error." as the reply.
+      console.error(`[oauth] giving up after attempt ${attempt} (producedOutput=${producedOutput}, retryable=${classification.retryable}): ${lastError}`);
+      // Headers are already flushed, so the verdict has to travel as an SSE
+      // frame rather than an HTTP status.
+      sendSSE(res, "error", toErrorBody(classification));
+      break;
+    }
+
+    if (clientGone) return;
+    sendSSE(res, "done", {});
+    res.end();
+
+    // Rethrow after closing the stream cleanly, so the credential's circuit
+    // still records the failure. respondWithError sees headersSent and stops.
+    if (classification && !classification.retryable) {
+      throw errorFromClassification(classification);
     }
   } else {
+    // Non-streaming: nothing is sent until the turn finishes, so we can safely
+    // retry a transient connection error (is_error result) up to MAX_ATTEMPTS.
+    const MAX_ATTEMPTS = 3;
     let fullContent = "";
     let usage = {};
-    const listenersBefore = process.listeners("exit").length;
+    let lastError = null;
 
-    for await (const message of query({ prompt, options })) {
-      if (message.type === "text") {
-        fullContent += message.text || "";
-      } else if (message.type === "assistant") {
-        for (const block of message.message?.content || []) {
-          if (block.type === "text" && block.text) {
-            fullContent += block.text;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      fullContent = "";
+      let errored = false;
+      let turn = null;
+      const listenersBefore = process.listeners("exit").length;
+
+      try {
+        turn = startTurn({ includePartialMessages: false });
+        for await (const message of turn.messages) {
+          if (message.type === "text") {
+            fullContent += message.text || "";
+          } else if (message.type === "assistant") {
+            for (const block of message.message?.content || []) {
+              if (block.type === "text" && block.text) {
+                fullContent += block.text;
+              }
+            }
+          } else if (message.type === "result") {
+            const isErr = message.is_error === true ||
+              (typeof message.subtype === "string" && message.subtype.startsWith("error"));
+            if (isErr) {
+              errored = true;
+              lastError = message.result || message.subtype || "API Error";
+            } else {
+              fullContent = message.result || fullContent;
+            }
+            if (message.usage) usage = message.usage;
           }
         }
-      } else if (message.type === "result") {
-        fullContent = message.result || fullContent;
-        if (message.usage) usage = message.usage;
+      } catch (err) {
+        errored = true;
+        // The SDK wrapper throws `Claude Code process exited with code 1`, which
+        // erases the provider message the result stream already gave us
+        // ("API Error: Connection error."). Overwriting it left the classifier
+        // nothing to match and every such failure landed as `unknown`. Keep the
+        // specific message and append the wrapper's, so both are classifiable.
+        lastError = lastError ? `${lastError} (${err.message})` : err.message;
+      } finally {
+        turn?.finish(!errored);
+        // Clean up exit listeners added by query() subprocess. A warm process
+        // keeps its listener until the SDK removes it on close.
+        const listenersAfter = process.listeners("exit");
+        if (!turn?.warm && listenersAfter.length > listenersBefore) {
+          const toRemove = listenersAfter.slice(listenersBefore);
+          toRemove.forEach(fn => process.removeListener("exit", fn));
+        }
       }
-    }
 
-    // Clean up exit listeners added by query() subprocess
-    const listenersAfter = process.listeners("exit");
-    if (listenersAfter.length > listenersBefore) {
-      const toRemove = listenersAfter.slice(listenersBefore);
-      toRemove.forEach(fn => process.removeListener("exit", fn));
-    }
+      if (!errored) {
+        return res.json({ content: fullContent || null, thinking: null, tool_calls: null, usage });
+      }
 
-    res.json({ content: fullContent || null, thinking: null, tool_calls: null, usage });
+      const classification = classifyError(
+        lastError instanceof Error ? lastError : new Error(String(lastError || "API Error")),
+        { stderr: stderrCapture.text },
+      );
+
+      if (classification.retryable && attempt < MAX_ATTEMPTS) {
+        const backoffMs = 1000 * attempt;
+        console.warn(`[oauth-sync] attempt ${attempt}/${MAX_ATTEMPTS} failed (${lastError}); retrying in ${backoffMs}ms`);
+        await new Promise((r) => setTimeout(r, backoffMs));
+        continue;
+      }
+
+      console.error(`[oauth-sync] giving up after ${attempt} attempts (retryable=${classification.retryable}): ${lastError}`);
+      // Thrown, not returned: guard.run must see the failure to record it
+      // against this credential's circuit. respondWithError renders it.
+      throw errorFromClassification(classification);
+    }
   }
+}
+
+// Rebuild an Error carrying an already-settled verdict, so the classifier
+// honours it verbatim instead of re-deriving one from the message text.
+function errorFromClassification(classification) {
+  const err = new Error(classification.message);
+  err.status = classification.status;
+  err.reason = classification.reason;
+  err.retryable = classification.retryable;
+  err.classification = classification;
+  return err;
 }
 
 function extractSystemPrompt(systemPrompt) {
@@ -276,7 +577,7 @@ function extractSystemPrompt(systemPrompt) {
 
 // ─── API key path: direct Anthropic SDK ───
 
-function buildApiParams({ messages, tools, model, max_tokens, temperature, thinking, systemPrompt }) {
+function buildApiParams({ messages, tools, model, max_tokens, temperature, thinking, systemPrompt, effort }) {
   const params = {
     model: model || "claude-sonnet-4-5-20250929",
     messages: messages || [],
@@ -291,6 +592,10 @@ function buildApiParams({ messages, tools, model, max_tokens, temperature, think
     params.thinking = thinking;
     delete params.temperature;
   }
+
+  // Reasoning effort. Hivemind gates this to models that support it, so it's
+  // safe to forward as output_config.effort here.
+  if (effort) params.output_config = { ...(params.output_config || {}), effort };
 
   return params;
 }
@@ -381,6 +686,16 @@ process.on("unhandledRejection", (err) => {
   console.error("[FATAL] Unhandled rejection:", err);
 });
 
-app.listen(PORT, "0.0.0.0", () => {
+const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`SDK proxy listening on port ${PORT}`);
 });
+
+// Warm subprocesses must not outlive the proxy.
+if (warmPool) {
+  process.on("SIGTERM", () => {
+    console.log("[shutdown] SIGTERM, closing warm processes");
+    warmPool.closeAll();
+    server.close();
+    process.exit(0);
+  });
+}

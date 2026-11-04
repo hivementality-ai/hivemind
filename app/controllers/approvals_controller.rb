@@ -27,7 +27,12 @@ class ApprovalsController < ApplicationController
         decision: "approved",
         resolved_by: current_user.id
       )
-      set_flash(result, ok: "Approval request approved.", err: result.error)
+      outcome = result.data&.dig(:outcome)
+      if outcome
+        flash[result.data[:outcome_ok] ? :notice : :alert] = "Approval request approved. #{outcome}"
+      else
+        set_flash(result, ok: "Approval request approved.", err: result.error)
+      end
     when "vault_confirmation"
       pending = retrieve_vault_pending(params[:id])
       if pending

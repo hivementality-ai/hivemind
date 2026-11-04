@@ -1,0 +1,15 @@
+<div class="max-w-3xl mx-auto py-8 px-4">
+  <h1 class="text-2xl font-bold text-white">Import from Claude Desktop</h1>
+  <p class="text-text-muted mt-1 mb-6">Paste your <span class="font-mono text-white">claude_desktop_config.json</span>. You pick which servers to bring over. Keys and tokens go into the vault and are never shown again.</p>
+
+  <%= form_with url: preview_mcp_import_path, method: :post, class: "space-y-4" do %>
+    <%= text_area_tag :config_json, nil, rows: 12, placeholder: '{ "mcpServers": { ... } }',
+          class: "w-full px-3 py-2 bg-surface-raised border border-border-default rounded-lg text-white font-mono text-xs focus:border-amber-500 focus:outline-none" %>
+    <div class="flex gap-3">
+      <%= submit_tag "Preview", class: "px-4 py-2 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400 transition cursor-pointer" %>
+      <% if @local_available %>
+        <%= submit_tag "Read from this Mac", name: "from_mac", class: "px-4 py-2 bg-surface-raised border border-border-default text-white rounded-lg transition cursor-pointer" %>
+      <% end %>
+    </div>
+  <% end %>
+</div>

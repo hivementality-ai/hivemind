@@ -25,6 +25,8 @@ unless ENV['DISABLE_SIMPLECOV']
 end
 
 require 'spec_helper'
+require_relative 'support/test_database_guard'
+TestDatabaseGuard.new(ENV).enforce!
 ENV['RAILS_ENV'] = 'test'
 require_relative '../config/environment'
 
@@ -50,6 +52,8 @@ end
 RSpec.configure do |config|
   # FactoryBot syntax methods
   config.include FactoryBot::Syntax::Methods
+  config.include ActiveSupport::Testing::TimeHelpers
+  config.include ActiveJob::TestHelper, type: :job
 
   # Devise test helpers
   config.include Devise::Test::ControllerHelpers, type: :controller
@@ -95,6 +99,11 @@ RSpec.configure do |config|
   config.before do
     Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
     Rack::Attack.reset!
+  end
+
+  # Setting changes reconcile cron entries in Redis; keep that out of unrelated specs.
+  config.before do
+    allow(Platform::SubsystemSchedule).to receive(:reconcile!)
   end
 
   # Sidekiq test mode

@@ -35,6 +35,16 @@ RSpec.describe Tasks::PostTransitionJob, type: :job do
         expect(session.metadata["pipeline"]["hook_ids"]).to include(hook.id)
       end
 
+      it "records the task's project on the hook session" do
+        project = create(:project)
+        task.update!(project: project)
+        create(:task_hook, :post, task: task, skill: skill, on_status: "in_progress")
+
+        described_class.new.perform(task.id, "in_progress", agent.id, "{}")
+
+        expect(Session.last.project).to eq(project)
+      end
+
       it "resolves the agent from the task's current assignee" do
         queen_bee = create(:agent, :with_team, name: "Queen Bee")
         system_agent = create(:agent, name: "System Assistant")

@@ -34,9 +34,10 @@ module Approvals
         { approval_id: approval.id, status: approval.status, action: approval.action, resource: approval.resource },
         agent: approval.agent, team: approval.agent&.team
       )
+      ran = run_connector_call(approval) if @decision == "approved" && approval.action == "connector_call"
       execute_pending_action(approval) if @decision == "approved"
 
-      ServiceResponse.success(data: { approval: })
+      ServiceResponse.success(data: { approval:, outcome: ran&.dig(:outcome), outcome_ok: ran&.dig(:succeeded) })
     rescue StandardError => e
       ServiceResponse.failure(error: "Resolution failed: #{e.message}")
     end
@@ -64,8 +65,7 @@ module Approvals
         actor_type: "User",
         actor_id: @resolved_by,
         action: "approval_#{@decision}",
-        resource_type: "ApprovalRequest",
-        resource_id: approval.id,
+        resource: "ApprovalRequest##{approval.id}",
         metadata: {
           original_action: approval.action,
           resource: approval.resource,
@@ -83,7 +83,29 @@ module Approvals
         activate_skill(approval)
       when "create_tool"
         activate_tool(approval)
+      when "create_connector"
+        activate_connector(approval)
+      when "update_connector"
+        apply_connector_fix(approval)
       end
+    end
+
+    def run_connector_call(approval)
+      Approvals::RunConnectorCall.call(approval: approval).data
+    end
+
+    def apply_connector_fix(approval)
+      connector = Connector.find_by(id: approval.params["connector_id"])
+      return unless connector
+
+      connector.update!(operations: approval.params["operations"], base_url: approval.params["base_url_after"], health: {})
+    end
+
+    def activate_connector(approval)
+      connector = Connector.find_by(id: approval.params["connector_id"])
+      return unless connector&.pending_approval?
+
+      connector.update!(enabled: true, pending_approval: false)
     end
 
     def activate_skill(approval)

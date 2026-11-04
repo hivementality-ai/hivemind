@@ -16,19 +16,20 @@ module Embeddings
       }
     end
 
-    def embed_text(text, dimensions: nil)
+    def embed_text(text, dimensions: nil, timeouts: nil)
       key = api_key
       return nil unless key
 
       dims = dimensions || configured_dimensions
 
-      response = Faraday.post(
+      response = post_json(
         "https://api.openai.com/v1/embeddings",
         { model: model_name, input: text, dimensions: dims }.to_json,
         {
           "Authorization" => "Bearer #{key}",
           "Content-Type" => "application/json"
-        }
+        },
+        timeouts: timeouts
       )
 
       return nil unless response.success?
