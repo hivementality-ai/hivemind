@@ -238,6 +238,40 @@ RSpec.describe LlmModelRegistry do
       expect(described_class::Anthropic::OPUS_4_8).to eq("claude-opus-4-8")
     end
 
+    it "defines the 5.x constants" do
+      expect(described_class::Anthropic::FABLE_5_1).to eq("claude-fable-5-1")
+      expect(described_class::Anthropic::OPUS_5_5).to eq("claude-opus-5-5")
+      expect(described_class::Anthropic::SONNET_5_5).to eq("claude-sonnet-5-5")
+      expect(described_class::Anthropic::HAIKU_5_5).to eq("claude-haiku-5-5")
+    end
+
+    it "points the mid and top tiers at Sonnet 5.5 and Opus 5.5" do
+      expect(described_class::Anthropic::DEFAULT_MID).to eq("claude-sonnet-5-5")
+      expect(described_class::Anthropic::DEFAULT_TOP).to eq("claude-opus-5-5")
+    end
+
+    {
+      "claude-fable-5-1"  => [ 1000, 5000 ],
+      "claude-opus-5-5"   => [ 400, 2000 ],
+      "claude-sonnet-5-5" => [ 200, 1000 ],
+      "claude-haiku-5-5"  => [ 10, 50 ]
+    }.each do |api_id, (input, output)|
+      it "registers #{api_id} with its rates and 1M context" do
+        model = described_class.find(api_id)
+
+        expect(model).not_to be_nil
+        expect(model.provider).to eq("anthropic")
+        expect(model.active?).to be true
+        expect(model.context_window).to eq(1_000_000)
+        expect(model.cost_rates).to eq(input: input, output: output)
+      end
+    end
+
+    it "points the cheap and summarizer tiers at Haiku 5.5" do
+      expect(described_class::Anthropic::DEFAULT_CHEAP).to eq("claude-haiku-5-5")
+      expect(described_class::Anthropic::DEFAULT_SUMMARIZER).to eq("claude-haiku-5-5")
+    end
+
     it "tier defaults point to registered models" do
       expect(described_class.find(described_class::Anthropic::DEFAULT_CHEAP)).not_to be_nil
       expect(described_class.find(described_class::Anthropic::DEFAULT_MID)).not_to be_nil

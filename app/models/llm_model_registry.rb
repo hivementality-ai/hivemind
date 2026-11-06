@@ -83,6 +83,62 @@ module LlmModelRegistry
     # ── Anthropic Claude ──────────────────────────────────────────────────
 
     Model.new(
+      api_id:               "claude-fable-5-1",
+      display_name:         "Claude Fable 5.1",
+      provider:             "anthropic",
+      family:               "fable",
+      context_window:       1_000_000,
+      input_cost_per_mtok:  1000,
+      output_cost_per_mtok: 5000,
+      status:               :active,
+      sunset_date:          nil,
+      description:          "Most capable — demanding reasoning & long-horizon agents",
+      capabilities:         %i[vision tool_use extended_thinking]
+    ),
+
+    Model.new(
+      api_id:               "claude-opus-5-5",
+      display_name:         "Claude Opus 5.5",
+      provider:             "anthropic",
+      family:               "opus",
+      context_window:       1_000_000,
+      input_cost_per_mtok:  400,
+      output_cost_per_mtok: 2000,
+      status:               :active,
+      sunset_date:          nil,
+      description:          "Long-running agentic coding & knowledge work",
+      capabilities:         %i[vision tool_use extended_thinking]
+    ),
+
+    Model.new(
+      api_id:               "claude-sonnet-5-5",
+      display_name:         "Claude Sonnet 5.5",
+      provider:             "anthropic",
+      family:               "sonnet",
+      context_window:       1_000_000,
+      input_cost_per_mtok:  200,
+      output_cost_per_mtok: 1000,
+      status:               :active,
+      sunset_date:          nil,
+      description:          "Best balance of speed & intelligence",
+      capabilities:         %i[vision tool_use extended_thinking]
+    ),
+
+    Model.new(
+      api_id:               "claude-haiku-5-5",
+      display_name:         "Claude Haiku 5.5",
+      provider:             "anthropic",
+      family:               "haiku",
+      context_window:       1_000_000,
+      input_cost_per_mtok:  10,
+      output_cost_per_mtok: 50,
+      status:               :active,
+      sunset_date:          nil,
+      description:          "Fastest — high-volume, latency-sensitive tasks",
+      capabilities:         %i[vision tool_use extended_thinking]
+    ),
+
+    Model.new(
       api_id:               "claude-fable-5",
       display_name:         "Claude Fable 5",
       provider:             "anthropic",
@@ -92,7 +148,7 @@ module LlmModelRegistry
       output_cost_per_mtok: 5000,
       status:               :active,
       sunset_date:          nil,
-      description:          "Most capable — next-gen intelligence for long-running agents",
+      description:          "Previous Fable — next-gen intelligence for long-running agents",
       capabilities:         %i[vision tool_use extended_thinking]
     ),
 
@@ -106,7 +162,7 @@ module LlmModelRegistry
       output_cost_per_mtok: 2500,
       status:               :active,
       sunset_date:          nil,
-      description:          "Frontier agentic coding & enterprise work",
+      description:          "Previous Opus — frontier agentic coding & enterprise work",
       capabilities:         %i[vision tool_use extended_thinking]
     ),
 
@@ -120,7 +176,7 @@ module LlmModelRegistry
       output_cost_per_mtok: 1000,
       status:               :active,
       sunset_date:          nil,
-      description:          "Best balance of speed & intelligence",
+      description:          "Previous Sonnet — best balance of speed & intelligence",
       capabilities:         %i[vision tool_use extended_thinking]
     ),
 
@@ -616,6 +672,10 @@ module LlmModelRegistry
   # Reference these in application code rather than bare string literals.
 
   module Anthropic
+    HAIKU_5_5  = "claude-haiku-5-5"
+    FABLE_5_1  = "claude-fable-5-1"
+    OPUS_5_5   = "claude-opus-5-5"
+    SONNET_5_5 = "claude-sonnet-5-5"
     FABLE_5    = "claude-fable-5"
     OPUS_5     = "claude-opus-5"
     SONNET_5   = "claude-sonnet-5"
@@ -627,10 +687,10 @@ module LlmModelRegistry
     HAIKU_4_5  = "claude-haiku-4-5"
 
     # Tier defaults — point these to the recommended model per tier.
-    DEFAULT_CHEAP      = HAIKU_4_5
-    DEFAULT_MID        = SONNET_5
-    DEFAULT_TOP        = OPUS_5
-    DEFAULT_SUMMARIZER = HAIKU_4_5
+    DEFAULT_CHEAP      = HAIKU_5_5
+    DEFAULT_MID        = SONNET_5_5
+    DEFAULT_TOP        = OPUS_5_5
+    DEFAULT_SUMMARIZER = HAIKU_5_5
   end
 
   module OpenAI
