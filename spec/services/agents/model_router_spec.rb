@@ -68,7 +68,7 @@ RSpec.describe Agents::ModelRouter do
 
     it "routes bug-fix keyword to openai mid tier" do
       expect(described_class.route(provider: "openai", message_text: "fix this bug in the controller"))
-        .to eq("gpt-5.4-mini")
+        .to eq("gpt-6.1-terra")
     end
 
     context "with custom rules in the Setting" do

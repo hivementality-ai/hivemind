@@ -214,6 +214,23 @@ RSpec.describe LlmModelRegistry do
     end
   end
 
+  describe "GPT-6 models" do
+    {
+      "gpt-6-astra"   => [ 1000, 5000 ],
+      "gpt-6.1-sol"   => [ 200, 1000 ],
+      "gpt-6.1-terra" => [ 100, 500 ],
+      "gpt-6-luna"    => [ 10, 50 ]
+    }.each do |api_id, (input, output)|
+      it "registers #{api_id} with its published rates and context window" do
+        model = described_class.find(api_id)
+        expect(model).not_to be_nil
+        expect(model.provider).to eq("openai")
+        expect(model.context_window).to eq(1_050_000)
+        expect(model.cost_rates).to eq(input: input, output: output)
+      end
+    end
+  end
+
   # ── Deprecated models flagged ────────────────────────────────────────────
 
   describe "deprecated/sunset flagging" do
@@ -285,6 +302,13 @@ RSpec.describe LlmModelRegistry do
       expect(described_class::OpenAI::GPT_5_4).to eq("gpt-5.4")
       expect(described_class::OpenAI::GPT_5_4_NANO).to eq("gpt-5.4-nano")
       expect(described_class::OpenAI::O4_MINI).to eq("o4-mini")
+    end
+
+    it "points tier defaults at the GPT-6 models" do
+      expect(described_class::OpenAI::DEFAULT_CHEAP).to eq("gpt-6-luna")
+      expect(described_class::OpenAI::DEFAULT_MID).to eq("gpt-6.1-terra")
+      expect(described_class::OpenAI::DEFAULT_TOP).to eq("gpt-6.1-sol")
+      expect(described_class::OpenAI::DEFAULT_SUMMARIZER).to eq("gpt-6-luna")
     end
 
     it "tier defaults point to registered models" do
