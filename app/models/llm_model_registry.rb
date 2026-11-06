@@ -267,6 +267,62 @@ module LlmModelRegistry
     # ── OpenAI GPT ────────────────────────────────────────────────────────
 
     Model.new(
+      api_id:               "gpt-6-astra",
+      display_name:         "GPT-6 Astra",
+      provider:             "openai",
+      family:               "gpt",
+      context_window:       1_050_000,
+      input_cost_per_mtok:  1000,
+      output_cost_per_mtok: 5000,
+      status:               :active,
+      sunset_date:          nil,
+      description:          "Most capable GPT — the most demanding work",
+      capabilities:         %i[vision tool_use]
+    ),
+
+    Model.new(
+      api_id:               "gpt-6.1-sol",
+      display_name:         "GPT-6.1 Sol",
+      provider:             "openai",
+      family:               "gpt",
+      context_window:       1_050_000,
+      input_cost_per_mtok:  200,
+      output_cost_per_mtok: 1000,
+      status:               :active,
+      sunset_date:          nil,
+      description:          "Near-Astra performance for complex coding & professional work",
+      capabilities:         %i[vision tool_use]
+    ),
+
+    Model.new(
+      api_id:               "gpt-6.1-terra",
+      display_name:         "GPT-6.1 Terra",
+      provider:             "openai",
+      family:               "gpt",
+      context_window:       1_050_000,
+      input_cost_per_mtok:  100,
+      output_cost_per_mtok: 500,
+      status:               :active,
+      sunset_date:          nil,
+      description:          "Fast & efficient — visual reasoning & computer use",
+      capabilities:         %i[vision tool_use]
+    ),
+
+    Model.new(
+      api_id:               "gpt-6-luna",
+      display_name:         "GPT-6 Luna",
+      provider:             "openai",
+      family:               "gpt",
+      context_window:       1_050_000,
+      input_cost_per_mtok:  10,
+      output_cost_per_mtok: 50,
+      status:               :active,
+      sunset_date:          nil,
+      description:          "Cheapest — focused, high-volume tasks",
+      capabilities:         %i[vision tool_use]
+    ),
+
+    Model.new(
       api_id:               "gpt-5.5-pro",
       display_name:         "GPT-5.5 Pro",
       provider:             "openai",
@@ -694,6 +750,10 @@ module LlmModelRegistry
   end
 
   module OpenAI
+    GPT_6_ASTRA   = "gpt-6-astra"
+    GPT_6_1_SOL   = "gpt-6.1-sol"
+    GPT_6_1_TERRA = "gpt-6.1-terra"
+    GPT_6_LUNA    = "gpt-6-luna"
     GPT_5_5_PRO   = "gpt-5.5-pro"
     GPT_5_5       = "gpt-5.5"
     GPT_5_4       = "gpt-5.4"
@@ -710,10 +770,10 @@ module LlmModelRegistry
     O4_MINI       = "o4-mini"
 
     # Tier defaults
-    DEFAULT_CHEAP      = GPT_5_4_NANO
-    DEFAULT_MID        = GPT_5_4_MINI
-    DEFAULT_TOP        = GPT_5_4
-    DEFAULT_SUMMARIZER = GPT_5_4_NANO
+    DEFAULT_CHEAP      = GPT_6_LUNA
+    DEFAULT_MID        = GPT_6_1_TERRA
+    DEFAULT_TOP        = GPT_6_1_SOL
+    DEFAULT_SUMMARIZER = GPT_6_LUNA
   end
 
   DEFAULT_COST_RATES = { input: 100, output: 400 }.freeze
