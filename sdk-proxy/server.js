@@ -579,7 +579,7 @@ function extractSystemPrompt(systemPrompt) {
 
 function buildApiParams({ messages, tools, model, max_tokens, temperature, thinking, systemPrompt, effort }) {
   const params = {
-    model: model || "claude-sonnet-4-5-20250929",
+    model: model || "claude-sonnet-5-5",
     messages: messages || [],
     max_tokens: max_tokens || 8192,
   };
