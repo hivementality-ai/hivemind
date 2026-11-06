@@ -687,10 +687,10 @@ module LlmModelRegistry
     HAIKU_4_5  = "claude-haiku-4-5"
 
     # Tier defaults — point these to the recommended model per tier.
-    DEFAULT_CHEAP      = HAIKU_4_5
+    DEFAULT_CHEAP      = HAIKU_5_5
     DEFAULT_MID        = SONNET_5_5
     DEFAULT_TOP        = OPUS_5_5
-    DEFAULT_SUMMARIZER = HAIKU_4_5
+    DEFAULT_SUMMARIZER = HAIKU_5_5
   end
 
   module OpenAI

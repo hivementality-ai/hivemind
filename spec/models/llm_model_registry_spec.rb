@@ -267,9 +267,9 @@ RSpec.describe LlmModelRegistry do
       end
     end
 
-    it "keeps the cheap and summarizer tiers on Haiku 4.5" do
-      expect(described_class::Anthropic::DEFAULT_CHEAP).to eq("claude-haiku-4-5")
-      expect(described_class::Anthropic::DEFAULT_SUMMARIZER).to eq("claude-haiku-4-5")
+    it "points the cheap and summarizer tiers at Haiku 5.5" do
+      expect(described_class::Anthropic::DEFAULT_CHEAP).to eq("claude-haiku-5-5")
+      expect(described_class::Anthropic::DEFAULT_SUMMARIZER).to eq("claude-haiku-5-5")
     end
 
     it "tier defaults point to registered models" do

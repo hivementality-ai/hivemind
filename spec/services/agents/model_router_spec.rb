@@ -63,7 +63,7 @@ RSpec.describe Agents::ModelRouter do
     end
 
     it "routes chitchat to anthropic haiku" do
-      expect(described_class.route(provider: "anthropic", message_text: "hey marty you there")).to eq("claude-haiku-4-5")
+      expect(described_class.route(provider: "anthropic", message_text: "hey marty you there")).to eq("claude-haiku-5-5")
     end
 
     it "routes bug-fix keyword to openai mid tier" do
@@ -90,7 +90,7 @@ RSpec.describe Agents::ModelRouter do
       after  { Setting.where(key: "model_router_rules").delete_all }
 
       it "falls back to defaults without crashing" do
-        expect(described_class.route(provider: "anthropic", message_text: "hey")).to eq("claude-haiku-4-5")
+        expect(described_class.route(provider: "anthropic", message_text: "hey")).to eq("claude-haiku-5-5")
       end
     end
   end

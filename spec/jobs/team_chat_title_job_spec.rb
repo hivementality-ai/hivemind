@@ -233,7 +233,7 @@ RSpec.describe TeamChatTitleJob, type: :job do
 
       described_class.perform_now(session.id)
 
-      expect(captured_options[:model]).to eq("claude-haiku-4-5")
+      expect(captured_options[:model]).to eq("claude-haiku-5-5")
     end
 
     it "labels user messages as 'User:' in the LLM conversation excerpt" do
