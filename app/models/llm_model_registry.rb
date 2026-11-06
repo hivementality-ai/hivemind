@@ -125,6 +125,20 @@ module LlmModelRegistry
     ),
 
     Model.new(
+      api_id:               "claude-haiku-5-5",
+      display_name:         "Claude Haiku 5.5",
+      provider:             "anthropic",
+      family:               "haiku",
+      context_window:       1_000_000,
+      input_cost_per_mtok:  10,
+      output_cost_per_mtok: 50,
+      status:               :active,
+      sunset_date:          nil,
+      description:          "Fastest — high-volume, latency-sensitive tasks",
+      capabilities:         %i[vision tool_use extended_thinking]
+    ),
+
+    Model.new(
       api_id:               "claude-fable-5",
       display_name:         "Claude Fable 5",
       provider:             "anthropic",
@@ -658,6 +672,7 @@ module LlmModelRegistry
   # Reference these in application code rather than bare string literals.
 
   module Anthropic
+    HAIKU_5_5  = "claude-haiku-5-5"
     FABLE_5_1  = "claude-fable-5-1"
     OPUS_5_5   = "claude-opus-5-5"
     SONNET_5_5 = "claude-sonnet-5-5"
