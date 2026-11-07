@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe "Approval cards", type: :request do
   let(:owner) { create(:user, :owner) }
   let(:agent) { create(:agent, name: "Sam") }
-  let(:session) { create(:session, agent: agent) }
+  let(:session) { create(:session, agent: agent, metadata: { "started_by" => 1 }) }
   let(:tool) { create(:tool, name: "send_mail", executor_type: "email") }
   let(:email) { { "action" => "send", "to" => "pat@example.com", "subject" => "Hello", "body" => "Hi Pat" } }
   let(:runs) { [] }
@@ -78,6 +78,22 @@ RSpec.describe "Approval cards", type: :request do
 
       expect(response.body).to include("Sam wants to send an email").and include("pat@example.com").and include("Hi Pat")
       expect(response.body).to include("Approve").and include("Edit").and include("Decline")
+    end
+  end
+
+  describe "the approvals inbox" do
+    it "lists a held unattended call with its card, and the card's buttons work" do
+      heartbeat = create(:session, agent: agent, metadata: { "type" => "heartbeat" })
+      Tools::Executor.call(tool: tool, input: email.merge("subject" => "Held"), agent: agent, session: heartbeat)
+      held = ApprovalRequest.pending.where(action: "tool_call").order(:id).last
+
+      allow(Redis).to receive(:current).and_return(instance_double(Redis, keys: [], get: nil, ttl: 900, scan_each: [].each))
+      get approvals_path
+
+      expect(response.body).to include("Sam wants to send an email").and include("Held").and include(approve_approval_card_path(held))
+
+      post approve_approval_card_path(held), headers: stream
+      expect(runs).to eq([ email.merge("subject" => "Held") ])
     end
   end
 

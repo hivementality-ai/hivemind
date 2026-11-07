@@ -6,7 +6,7 @@ RSpec.describe "Approval cards for tool calls" do
   include ActiveJob::TestHelper
 
   let(:agent) { create(:agent, name: "Sam") }
-  let(:session) { create(:session, agent: agent) }
+  let(:session) { create(:session, agent: agent, metadata: { "started_by" => 1 }) }
   let(:tool) { create(:tool, name: "send_mail", executor_type: "email") }
   let(:email) { { "action" => "send", "to" => "pat@example.com", "subject" => "Hello", "body" => "Hi Pat" } }
   let(:runs) { [] }
@@ -173,6 +173,53 @@ RSpec.describe "Approval cards for tool calls" do
     it "leaves requests that are still fresh alone" do
       expect(Approvals::ExpireStale.call).to eq(0)
       expect(approval).to be_pending
+    end
+  end
+
+  describe "who is watching" do
+    let(:waiting_card_words) { "a card is showing in the chat" }
+    let(:unattended_words) { "Nobody is watching" }
+
+    def words_for(session)
+      run_tool(session: session).data[:output]
+    end
+
+    it "tells a person in a web chat that a card is showing" do
+      expect(words_for(session)).to include(waiting_card_words)
+    end
+
+    {
+      "heartbeat" => { "type" => "heartbeat" },
+      "scheduled script" => { "type" => "scheduled_script" },
+      "sub-agent" => { "type" => "sub_agent", "started_by" => 1 },
+      "task hook" => { "type" => "task_hook", "hook_id" => 4 },
+      "milestone runner" => { "type" => "project_milestone" },
+      "bare delegate or handoff" => {}
+    }.each do |name, metadata|
+      it "uses the unattended wording for a #{name} session" do
+        other = create(:session, agent: agent, metadata: metadata)
+
+        words = words_for(other)
+        expect(words).to include(unattended_words)
+        expect(words).not_to include(waiting_card_words)
+      end
+    end
+
+    it "uses the unattended wording for an inbound channel session" do
+      other = create(:session, agent: agent, metadata: {}, origin_channel_type: "whatsapp", origin_sender: "+1555")
+
+      expect(words_for(other)).to include(unattended_words)
+    end
+
+    it "uses the unattended wording when there is no session" do
+      expect(words_for(nil)).to include(unattended_words)
+    end
+
+    it "holds the action for every unattended kind, never running it" do
+      create(:session, agent: agent, metadata: { "type" => "heartbeat" }).then { |s| run_tool(session: s) }
+
+      expect(runs).to be_empty
+      expect(approval.params["unattended"]).to be(true)
     end
   end
 

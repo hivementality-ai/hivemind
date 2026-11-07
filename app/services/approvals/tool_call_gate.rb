@@ -35,10 +35,24 @@ module Approvals
       task_id.present? && ScheduledTask.where(id: task_id, allow_sending: true).exists?
     end
 
+    # Attended is a positive check: only a web chat a person opened (Sessions created by
+    # SessionChatActions carry metadata "started_by" and no "type") can show them a card. Everything
+    # else (scheduled tasks, watches, heartbeats, scripts, sub-agents, task hooks, milestones,
+    # delegate/handoff, inbound channels, team chats, no session) is unattended and fails safe.
     # @param session [Session, nil]
-    # @return [Boolean] true when no person is watching this run (scheduled task, watch, or no chat at all)
+    # @return [Boolean] true when no person is watching this run
     def self.unattended?(session)
-      session.nil? || session.metadata&.dig("type") == "scheduled"
+      !attended?(session)
+    end
+
+    # @param session [Session, nil]
+    # @return [Boolean] true when a person opened this web chat and can see a card in it
+    def self.attended?(session)
+      return false unless session
+
+      meta = session.metadata || {}
+      meta["started_by"].present? && meta["type"].blank? &&
+        session.origin_channel_type.blank? && session.team_chat_session_id.blank?
     end
 
     # @param tool [Tool]
