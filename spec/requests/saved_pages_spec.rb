@@ -200,6 +200,30 @@ RSpec.describe "Saved pages", type: :request do
     end
   end
 
+  describe "when the agent is removed" do
+    let!(:page) { create(:saved_page, title: "Kept work", agent: agent) }
+
+    it "keeps the page and still shows it" do
+      expect { agent.destroy! }.not_to change(SavedPage, :count)
+      sign_in owner
+
+      get saved_page_path(page)
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("a removed agent")
+
+      get saved_pages_path
+      expect(response.body).to include("Kept work", "a removed agent")
+    end
+
+    it "still lets the title be changed" do
+      agent.destroy!
+      sign_in owner
+
+      patch saved_page_path(page), params: { saved_page: { title: "Renamed" } }
+      expect(page.reload.title).to eq("Renamed")
+    end
+  end
+
   describe "sidebar" do
     it "links to Pages" do
       sign_in owner

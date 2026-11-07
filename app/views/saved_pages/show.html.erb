@@ -5,7 +5,7 @@
     <%= link_to "← All pages", saved_pages_path, class: "text-sm text-text-muted hover:text-white transition" %>
     <h1 class="text-2xl sm:text-3xl font-bold mt-1 break-words"><%= @page.title %></h1>
     <p class="text-text-muted text-sm mt-1">
-      <%= @page.kind_label %> · by <%= @page.agent.name %> · <%= l(@page.created_at, format: :long) %>
+      <%= @page.kind_label %> · by <%= @page.agent&.name || "a removed agent" %> · <%= l(@page.created_at, format: :long) %>
       <% if @page.session_id %>
         · <%= link_to "Open the chat", session_path(@page.session_id), class: "text-brand hover:text-brand-dark" %>
       <% end %>
@@ -20,7 +20,7 @@
     <% end %>
 
     <article class="bg-surface-card rounded-lg border border-border-default p-4 sm:p-6 min-w-0">
-      <div class="prose prose-invert prose-sm max-w-none break-words whitespace-pre-wrap [&_pre]:overflow-x-auto [&_table]:block [&_table]:overflow-x-auto [&_img]:max-w-full"
+      <div class="prose prose-invert prose-sm max-w-none break-words [&_pre]:overflow-x-auto [&_table]:block [&_table]:overflow-x-auto [&_img]:max-w-full"
            data-controller="markdown"
            data-markdown-content-value="<%= @page.body %>"><%= @page.body %></div>
     </article>

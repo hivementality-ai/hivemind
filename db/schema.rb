@@ -629,7 +629,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_180000) do
   end
 
   create_table "saved_pages", force: :cascade do |t|
-    t.bigint "agent_id", null: false
+    t.bigint "agent_id"
     t.text "body", null: false
     t.datetime "created_at", null: false
     t.bigint "created_by_id"
@@ -1147,7 +1147,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_180000) do
   add_foreign_key "push_subscriptions", "users"
   add_foreign_key "research_sessions", "agents"
   add_foreign_key "research_sessions", "sessions"
-  add_foreign_key "saved_pages", "agents"
+  add_foreign_key "saved_pages", "agents", on_delete: :nullify
   add_foreign_key "saved_pages", "research_sessions", on_delete: :nullify
   add_foreign_key "saved_pages", "sessions", on_delete: :nullify
   add_foreign_key "saved_pages", "users", column: "created_by_id", on_delete: :nullify

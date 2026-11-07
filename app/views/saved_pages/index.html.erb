@@ -33,7 +33,7 @@
             <%= link_to saved_page_path(page), class: "block px-4 sm:px-6 py-3 hover:bg-surface-raised transition" do %>
               <p class="font-medium break-words"><%= page.title %></p>
               <p class="text-xs text-text-muted mt-1">
-                <%= page.kind_label %> · <%= page.agent.name %> · <%= time_ago_in_words(page.created_at) %> ago
+                <%= page.kind_label %> · <%= page.agent&.name || "a removed agent" %> · <%= time_ago_in_words(page.created_at) %> ago
               </p>
             <% end %>
           </li>

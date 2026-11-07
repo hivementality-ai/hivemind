@@ -7,7 +7,7 @@ class SavedPage < ApplicationRecord
   TITLE_LIMIT = 120
   AUTO_SAVE_MIN_CHARS = 1500
 
-  belongs_to :agent
+  belongs_to :agent, optional: true
   belongs_to :session, optional: true
   belongs_to :research_session, optional: true
   belongs_to :created_by, class_name: "User", optional: true
