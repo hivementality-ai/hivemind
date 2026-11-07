@@ -321,12 +321,37 @@ RSpec.describe Research::Loop do
         expect(mock_adapter).not_to have_received(:chat)
       end
 
-      it "analyzes on the local model" do
-        allow(local_adapter).to receive(:chat).and_return(ServiceResponse.success(data: { content: analyze_response }))
+      it "never analyzes on the local model" do
+        allow(mock_adapter).to receive(:chat).and_return(ServiceResponse.success(data: { content: analyze_response }))
 
         subject.send(:phase_analyze)
 
-        expect(local_adapter).to have_received(:chat)
+        expect(local_adapter).not_to have_received(:chat)
+        expect(mock_adapter).to have_received(:chat)
+      end
+
+      it "retries on the agent's provider when the local plan is not JSON, and uses that plan" do
+        allow(local_adapter).to receive(:chat).and_return(ServiceResponse.success(data: { content: "sure, here you go!" }))
+
+        plan = subject.send(:phase_plan)
+
+        expect(mock_adapter).to have_received(:chat).once
+        expect(plan["search_queries"]).to eq([ "quantum computing advances 2026", "quantum computing breakthroughs" ])
+      end
+
+      it "retries on the agent's provider when the local plan has no search queries" do
+        allow(local_adapter).to receive(:chat)
+          .and_return(ServiceResponse.success(data: { content: { "search_queries" => [] }.to_json }))
+
+        plan = subject.send(:phase_plan)
+
+        expect(mock_adapter).to have_received(:chat).once
+        expect(plan["search_queries"]).to be_present
+      end
+
+      it "does not retry when the local plan is usable" do
+        subject.send(:phase_plan)
+
         expect(mock_adapter).not_to have_received(:chat)
       end
 

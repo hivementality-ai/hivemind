@@ -59,13 +59,18 @@ module Research
       @rs.log_progress("Planning research approach...")
 
       prompt = build_plan_prompt
-      response = llm_call(prompt, max_tokens: 2048, temperature: 0.3, local: true)
-      plan = parse_json(response)
+      local_text = local_call(prompt, max_tokens: 2048, temperature: 0.3)
+      plan = parse_json(local_text) if local_text.present?
+      plan = parse_json(llm_call(prompt, max_tokens: 2048, temperature: 0.3)) unless usable_plan?(plan)
 
-      plan = default_plan if plan.nil? || plan["search_queries"].blank?
+      plan = default_plan unless usable_plan?(plan)
 
       @rs.log_progress("Plan ready: #{plan['sub_questions']&.size || 0} sub-questions, #{plan['search_queries']&.size || 0} searches")
       plan
+    end
+
+    def usable_plan?(plan)
+      plan.present? && plan["search_queries"].present?
     end
 
     # ── Phase 2: SEARCH ──
@@ -121,7 +126,7 @@ module Research
       @rs.log_progress("Analyzing collected information...")
 
       prompt = build_analyze_prompt
-      response = llm_call(prompt, max_tokens: 4096, temperature: 0.2, local: true)
+      response = llm_call(prompt, max_tokens: 4096, temperature: 0.2)
       analysis = parse_json(response)
 
       if analysis.nil?
@@ -193,14 +198,7 @@ module Research
 
     # ── LLM Calls ──
 
-    # Calls the agent's model. With +local+, a healthy local Ollama provider is
-    # tried first and the agent's own provider answers if it errors or is blank.
-    def llm_call(messages, max_tokens: 4096, temperature: 0.3, local: false)
-      if local
-        text = local_call(messages, max_tokens:, temperature:)
-        return text if text.present?
-      end
-
+    def llm_call(messages, max_tokens: 4096, temperature: 0.3)
       agent = @rs.agent
       resolver = Providers::Resolver.call(provider_name: agent.model_provider, agent: agent)
       raise "LLM provider resolution failed: #{resolver.error}" unless resolver.success?
@@ -214,6 +212,8 @@ module Research
       result.data[:content].to_s
     end
 
+    # Asks a healthy local Ollama provider; nil when none is available or it
+    # errors or returns nothing.
     def local_call(messages, max_tokens:, temperature:)
       pick = Agents::ModelRouter.local_provider
       return unless pick
