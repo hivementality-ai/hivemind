@@ -254,6 +254,10 @@
                   <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
                     <div class="whitespace-pre-wrap chat-content"><%= msg["content"] %></div>
                   </div>
+                  <% if !current_user.viewer? && msg["content"].to_s.strip.present? %>
+                    <%= button_to "Save as page", saved_pages_path, params: { session_id: @session.id, message_index: idx },
+                          form_class: "mt-1", class: "text-xs text-text-muted hover:text-white transition cursor-pointer" %>
+                  <% end %>
                   <% if msg["tool_calls"].present? %>
                     <% msg["tool_calls"].each do |tc| %>
                       <div data-tool-block="persisted" style="display: none;" class="mt-1">

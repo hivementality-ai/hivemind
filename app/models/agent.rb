@@ -27,6 +27,7 @@ class Agent < ApplicationRecord
   has_many :direct_reports, class_name: "Agent", foreign_key: :reports_to_id, dependent: :nullify, inverse_of: :manager
 
   has_many :sessions, dependent: :destroy
+  has_many :saved_pages, dependent: :nullify
   has_many :project_milestones, dependent: :destroy
   has_many :project_events, dependent: :destroy
   has_many :vault_entries, dependent: :destroy

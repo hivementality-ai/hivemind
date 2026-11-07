@@ -1006,6 +1006,19 @@ BUILTIN_TOOLS = [
       "required" => %w[skill_name reason]
     }
   },
+  {
+    name: "save_page",
+    description: "Keep a long piece of your work (a report, summary, digest or research result) as a page the person can open, share a link to and come back to later. Returns a link; include it in your reply.",
+    executor_type: "save_page",
+    requires_approval: false,
+    parameters_schema: {
+      "properties" => {
+        "title" => { "type" => "string", "description" => "Short plain title. Optional: taken from the first heading when left out." },
+        "body" => { "type" => "string", "description" => "The full text of the page, in markdown." }
+      },
+      "required" => %w[body]
+    }
+  }
 ].freeze
 
 BUILTIN_TOOLS.each do |tool_attrs|

@@ -17,7 +17,7 @@ module AgentsHelper
     "Communication" => %w[message email google_gmail],
     "Media" => %w[image image_generate tts stt canvas],
     "Integrations" => %w[jira trello google_drive google_calendar cloud_storage gateway],
-    "Agent Orchestration" => %w[delegate delegation_status coding_agent coding_agent_status deep_research deep_research_status agents_list],
+    "Agent Orchestration" => %w[delegate delegation_status coding_agent coding_agent_status deep_research deep_research_status agents_list save_page],
     "Sessions & Memory" => %w[sessions_list sessions_send sessions_history session_status memory_search memory_store memory_update memory_stats],
     "System" => %w[cron cron_script heartbeat_write ask_user plan_mode create_skill create_tool]
   }.freeze

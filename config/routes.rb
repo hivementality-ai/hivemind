@@ -116,6 +116,9 @@ Rails.application.routes.draw do
 
   get "memories", to: "memory_entries#landing", as: :memories
 
+  # Saved pages (kept agent work)
+  resources :saved_pages, path: "pages", only: [ :index, :show, :create, :update, :destroy ]
+
   # Agents (use slug for routes)
   resources :agents, param: :slug do
     resources :memory_entries, only: [ :index, :update, :destroy ], path: "memories" do
