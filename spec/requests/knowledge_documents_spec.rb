@@ -29,6 +29,42 @@ RSpec.describe "KnowledgeDocuments", type: :request do
     end
   end
 
+  describe "library folder" do
+    before { sign_in owner }
+
+    it "shows the folder section with the last scan counts" do
+      Library::FolderSetting.record_scan(Library::FolderScan::Result.new(added: 3, updated: 1, unchanged: 7, removed: 2, skipped: 0, errors: 0))
+
+      get knowledge_documents_path
+
+      expect(response.body).to include("Library folder")
+      expect(response.body).to include("3 new, 1 changed")
+    end
+
+    it "marks documents whose file left the folder" do
+      doc.update!(library_path: "a.txt", removed_at: Time.current)
+
+      get knowledge_documents_path
+
+      expect(response.body).to include("removed from folder")
+    end
+
+    it "lets an owner switch watching off" do
+      patch library_folder_path, params: { enabled: "false" }
+
+      expect(Library::FolderSetting.enabled?(root: Pathname.new(Dir.tmpdir))).to be(false)
+      expect(response).to redirect_to(knowledge_documents_path)
+    end
+
+    it "keeps viewers from changing it" do
+      sign_in viewer
+
+      patch library_folder_path, params: { enabled: "false" }
+
+      expect(Setting.get(Library::FolderSetting::ENABLED_KEY)).to be_nil
+    end
+  end
+
   describe "GET /knowledge/:id" do
     before { sign_in owner }
 

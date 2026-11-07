@@ -27,6 +27,7 @@ services:
       - ${AGENTS_SHARED_DIR:-/hivemind-agents-shared-unset}:/app/agents-shared
       - ./plugins:/rails/plugins
       - .:/host-hivemind
+      - "${HIVEMIND_LIBRARY_DIR:-/hivemind-library-unset}:/library:ro"
     env_file: .env
     environment:
       - DATABASE_URL=postgres://hivemind:hivemind@db:5432/hivemind_production
@@ -37,6 +38,7 @@ services:
       - RAILS_SERVE_STATIC_FILES=true
       - DOCKER_HOST=tcp://docker-proxy:2375
       - HIVEMIND_HOST_DIR=/host-hivemind
+      - HIVEMIND_LIBRARY_HOST_DIR=${HIVEMIND_LIBRARY_DIR:-}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - MEMORY_EMBEDDINGS_ENABLED=${MEMORY_EMBEDDINGS_ENABLED:-true}
       - MEMORY_EMBEDDINGS_PROVIDER=${MEMORY_EMBEDDINGS_PROVIDER:-ollama}
@@ -78,6 +80,7 @@ services:
       - rclone_config:/rails/storage/rclone
       - ${AGENTS_SHARED_DIR:-/hivemind-agents-shared-unset}:/app/agents-shared
       - ./plugins:/rails/plugins
+      - "${HIVEMIND_LIBRARY_DIR:-/hivemind-library-unset}:/library:ro"
     env_file: .env
     environment:
       - DATABASE_URL=postgres://hivemind:hivemind@db:5432/hivemind_production

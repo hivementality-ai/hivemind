@@ -9,6 +9,33 @@
             class: "px-4 py-2 bg-brand hover:bg-brand-dark rounded-lg text-white transition" %>
     </div>
 
+    <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6" id="library-folder">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-semibold text-white">Library folder</h2>
+          <p class="text-text-muted text-sm mt-1">
+            Drop PDFs, text and Markdown files into your <strong class="text-white"><%= Library::FolderSetting.folder_name %></strong>
+            folder and they appear here on their own, a few minutes later.
+          </p>
+        </div>
+        <%= button_to library_folder_path, method: :patch,
+              params: { enabled: !@library_enabled },
+              class: "px-4 py-2 rounded-lg text-white transition #{@library_enabled ? 'bg-green-700 hover:bg-green-600' : 'bg-surface-overlay hover:bg-border-default'}" do %>
+          <%= @library_enabled ? "On" : "Off" %>
+        <% end %>
+      </div>
+      <p class="text-text-faint text-sm mt-4">
+        <% if @library_scan %>
+          Last checked <%= time_ago_in_words(Time.zone.parse(@library_scan["at"])) %> ago:
+          <%= @library_scan["added"] %> new, <%= @library_scan["updated"] %> changed,
+          <%= @library_scan["removed"] %> removed, <%= @library_scan["unchanged"] %> unchanged.
+        <% else %>
+          Not checked yet.
+        <% end %>
+        <%= pluralize(@library_count, "file") %> in the folder right now.
+      </p>
+    </div>
+
     <div class="bg-surface-card rounded-xl border border-border-default">
       <% if @documents.empty? %>
         <div class="px-6 py-12 text-center text-text-muted">
@@ -42,6 +69,9 @@
                                "ready" => "bg-green-900/50 text-green-300",
                                "failed" => "bg-red-900/50 text-red-300" }[doc.status] || "bg-surface-overlay text-text-muted" %>
                   <span class="text-xs px-2 py-0.5 rounded-full <%= color %>"><%= doc.status %></span>
+                  <% if doc.removed? %>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-surface-overlay text-text-muted">removed from folder</span>
+                  <% end %>
                 </td>
                 <td class="px-6 py-4 text-text-muted text-sm"><%= doc.chunks.size %></td>
                 <td class="px-6 py-4 text-text-faint text-sm"><%= time_ago_in_words(doc.created_at) %> ago</td>

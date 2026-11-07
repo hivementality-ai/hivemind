@@ -6,6 +6,9 @@ class KnowledgeDocumentsController < ApplicationController
 
   def index
     @documents = KnowledgeDocument.includes(:chunks).order(created_at: :desc)
+    @library_enabled = Library::FolderSetting.enabled?
+    @library_scan = Library::FolderSetting.last_scan
+    @library_count = KnowledgeDocument.where(removed_at: nil).where.not(library_path: nil).count
   end
 
   def show

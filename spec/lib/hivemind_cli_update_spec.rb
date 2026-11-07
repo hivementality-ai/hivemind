@@ -174,4 +174,33 @@ RSpec.describe "bin/hivemind update" do
       expect(profiles_line).to eq("COMPOSE_PROFILES=channels,signal")
     end
   end
+
+  describe "library folder" do
+    let(:env_file) { File.join(dir, ".env") }
+    let(:home) { File.join(dir, "home") }
+
+    before do
+      FileUtils.mkdir_p(home)
+      File.write(env_file, "INTERNAL_API_SECRET=abc\nAGENTS_SHARED_DIR=#{home}/shared\n")
+    end
+
+    it "creates the default folder and backfills .env on update" do
+      out, status = run_cli("cmd_update", "HOME" => home)
+
+      expect(status).to be_success
+      expect(File.directory?(File.join(home, "Hivemind Library"))).to be(true)
+      expect(File.read(env_file)).to include("HIVEMIND_LIBRARY_DIR=#{home}/Hivemind Library")
+      expect(out).to include("Backfilled HIVEMIND_LIBRARY_DIR")
+    end
+
+    it "keeps a folder the owner already chose" do
+      File.open(env_file, "a") { |f| f.puts "HIVEMIND_LIBRARY_DIR=#{home}/Papers" }
+
+      run_cli("cmd_update", "HOME" => home)
+
+      expect(File.directory?(File.join(home, "Papers"))).to be(true)
+      expect(File.directory?(File.join(home, "Hivemind Library"))).to be(false)
+      expect(File.read(env_file).scan("HIVEMIND_LIBRARY_DIR=").size).to eq(1)
+    end
+  end
 end

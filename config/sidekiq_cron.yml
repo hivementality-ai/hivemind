@@ -24,3 +24,9 @@ stuck_turn_sweep:
   class: "StuckTurnSweepJob"
   queue: "system"
   description: "Clear chat turns interrupted by a worker restart"
+
+library_folder_scan:
+  cron: "*/5 * * * *"
+  class: "LibraryFolderScanJob"
+  queue: "system"
+  description: "Ingest new and changed files from the watched library folder"

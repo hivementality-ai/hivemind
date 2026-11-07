@@ -137,6 +137,7 @@ Rails.application.routes.draw do
   end
 
   # Knowledge Base
+  resource :library_folder, path: "knowledge/library_folder", only: :update
   resources :knowledge_documents, path: "knowledge", only: [ :index, :show, :new, :create, :destroy ]
 
   # Providers (admin interface)

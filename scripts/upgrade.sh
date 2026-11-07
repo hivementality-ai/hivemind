@@ -232,6 +232,17 @@ migrate_env() {
     fi
     ok "Generated INTERNAL_API_SECRET"
   fi
+
+  # HIVEMIND_LIBRARY_DIR — host folder watched for documents, mounted at /library.
+  if ! grep -q '^HIVEMIND_LIBRARY_DIR=' .env 2>/dev/null; then
+    {
+      echo ""
+      echo "# Host folder watched for documents (mounted read-only)"
+      echo "HIVEMIND_LIBRARY_DIR=$HOME/Hivemind Library"
+    } >> .env
+    ok "Backfilled HIVEMIND_LIBRARY_DIR"
+  fi
+  mkdir -p "$(grep -E '^HIVEMIND_LIBRARY_DIR=' .env | head -1 | cut -d'=' -f2-)" 2>/dev/null || warn "Could not create the library folder"
 }
 
 # ----------------------------------------------------------

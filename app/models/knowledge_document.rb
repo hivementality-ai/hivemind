@@ -14,10 +14,15 @@ class KnowledgeDocument < ApplicationRecord
   validates :status, inclusion: { in: STATUSES }
 
   scope :for_agent, ->(agent) { where(agent: agent) }
-  scope :ready,     -> { where(status: "ready") }
+  scope :ready,     -> { where(status: "ready", removed_at: nil) }
   scope :pending,   -> { where(status: "pending") }
 
   def ready?
     status == "ready"
+  end
+
+  # True when the file this document came from has left the watched folder.
+  def removed?
+    removed_at.present?
   end
 end

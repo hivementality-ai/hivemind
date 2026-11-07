@@ -342,6 +342,7 @@ COMPOSE_PROJECT_NAME=hivemind
 APP_PORT=8080
 CONNECTOR_PORT=3002
 AGENTS_SHARED_DIR=$HOME/hivemind-agents-shared
+HIVEMIND_LIBRARY_DIR=$HOME/Hivemind Library
 
 # Active Record Encryption (required for Vault)
 ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=$ar_primary
@@ -377,6 +378,12 @@ setup_shared_workspace() {
     ok "Created shared workspace: $shared_dir"
   else
     ok "Shared workspace exists: $shared_dir"
+  fi
+
+  local library_dir="$HOME/Hivemind Library"
+  if [ ! -d "$library_dir" ]; then
+    mkdir -p "$library_dir"
+    ok "Created library folder: $library_dir"
   fi
 }
 
