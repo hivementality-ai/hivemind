@@ -1,0 +1,32 @@
+<div class="max-w-xl mx-auto py-8 px-4">
+  <div class="mb-6">
+    <%= link_to integrations_path, class: "inline-flex items-center min-h-[44px] text-text-faint hover:text-white text-sm" do %>&larr; Back to Integrations<% end %>
+    <h1 class="text-2xl font-bold text-white mt-2">Add <%= @entry.name %></h1>
+    <p class="text-text-muted text-sm mt-1"><%= @entry.summary %></p>
+  </div>
+
+  <% if @error %>
+    <div class="mb-4 p-3 bg-red-900/30 border border-red-800 rounded-lg text-red-300 text-sm" role="alert"><%= @error %></div>
+  <% end %>
+
+  <%= form_with url: add_from_catalog_mcp_servers_path(key: @entry.key), method: :post, class: "space-y-4", data: { catalog_form: @entry.key } do %>
+    <% @entry.input_list.each do |input| %>
+      <div>
+        <%= label_tag "inputs_#{input.key}", input.label, class: "block text-text-muted text-sm mb-1" %>
+        <%= text_field_tag "inputs[#{input.key}]", (input.secret? ? nil : @values[input.key]),
+              id: "inputs_#{input.key}", required: input.required?, autocomplete: "off",
+              placeholder: input.placeholder, spellcheck: false, autocapitalize: "off",
+              class: "w-full min-h-[44px] px-4 py-3 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand" %>
+        <% if input.secret? %>
+          <p class="text-text-faint text-xs mt-1">Kept in the vault and never shown again.<%= " #{input.help}" if input.help %></p>
+        <% elsif input.help %>
+          <p class="text-text-faint text-xs mt-1"><%= input.help %></p>
+        <% end %>
+      </div>
+    <% end %>
+    <div class="flex flex-wrap items-center gap-3">
+      <%= submit_tag "Add #{@entry.name}", class: "min-h-[44px] px-5 py-2 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition cursor-pointer" %>
+      <%= link_to "Docs", @entry.docs, target: "_blank", rel: "noopener", class: "inline-flex items-center min-h-[44px] text-brand-light text-sm" %>
+    </div>
+  <% end %>
+</div>

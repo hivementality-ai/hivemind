@@ -293,6 +293,7 @@ Rails.application.routes.draw do
   # MCP server settings
   resources :mcp_servers, except: :show do
     collection do
+      get "catalog/:key", action: :catalog_form, as: :catalog_form
       post "catalog/:key", action: :add_from_catalog, as: :add_from_catalog
     end
     member do
