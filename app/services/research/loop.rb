@@ -97,7 +97,8 @@ module Research
             title: result.title,
             url: result.url,
             snippet: result.snippet,
-            content: content.truncate(SOURCE_TRUNCATE)
+            content: content.truncate(SOURCE_TRUNCATE),
+            text: content.first(Research::QuoteChecker::MAX_SOURCE_CHARS)
           }
           @sources_collected << source
           @rs.add_source({ title: result.title, url: result.url, snippet: result.snippet })
@@ -164,7 +165,8 @@ module Research
             title: result.title,
             url: result.url,
             snippet: result.snippet,
-            content: content.truncate(SOURCE_TRUNCATE)
+            content: content.truncate(SOURCE_TRUNCATE),
+            text: content.first(Research::QuoteChecker::MAX_SOURCE_CHARS)
           }
           @sources_collected << source
           @rs.add_source({ title: result.title, url: result.url, snippet: result.snippet })
@@ -182,6 +184,7 @@ module Research
       prompt = build_synthesize_prompt
       report = llm_call(prompt, max_tokens: 8192, temperature: 0.3)
 
+      @rs.update!(quote_checks: Research::QuoteChecker.call(report: report, sources: @sources_collected))
       @rs.complete!(report)
       @rs.log_progress("Research complete!")
 
@@ -262,7 +265,8 @@ module Research
             title: File.basename(doc.path),
             url: "local://#{doc.path}",
             snippet: "Local document",
-            content: stdout.truncate(SOURCE_TRUNCATE)
+            content: stdout.truncate(SOURCE_TRUNCATE),
+            text: stdout.first(Research::QuoteChecker::MAX_SOURCE_CHARS)
           }
           @sources_collected << source
           @rs.add_source({ title: source[:title], url: source[:url], snippet: source[:snippet] })

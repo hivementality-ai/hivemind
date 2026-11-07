@@ -184,4 +184,31 @@ RSpec.describe ResearchSession, type: :model do
       expect(build(:research_session, :completed).active?).to be false
     end
   end
+
+  describe "#quote_check_summary" do
+    def summary_for(summary)
+      build(:research_session, quote_checks: { "summary" => summary }).quote_check_summary
+    end
+
+    it "uses the singular for a single quote" do
+      expect(summary_for("total" => 1, "verified" => 0, "other_source" => 0, "unverified" => 1))
+        .to eq("1 of 1 quote could not be found in their sources")
+    end
+
+    it "uses the plural for several quotes" do
+      expect(summary_for("total" => 9, "verified" => 7, "other_source" => 0, "unverified" => 2))
+        .to eq("2 of 9 quotes could not be found in their sources")
+    end
+
+    it "covers misattributed quotes alone and alongside missing ones" do
+      expect(summary_for("total" => 9, "verified" => 8, "other_source" => 1, "unverified" => 0))
+        .to eq("1 of 9 quotes was in a different source than cited")
+      expect(summary_for("total" => 9, "verified" => 5, "other_source" => 2, "unverified" => 2))
+        .to eq("2 of 9 quotes could not be found, 2 were in a different source than cited")
+    end
+
+    it "is nil when nothing is flagged" do
+      expect(summary_for("total" => 4, "verified" => 4, "other_source" => 0, "unverified" => 0)).to be_nil
+    end
+  end
 end

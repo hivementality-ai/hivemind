@@ -68,6 +68,40 @@ class ResearchSession < ApplicationRecord
     )
   end
 
+  # @return [Array<Hash>] quoted passages not found in any source, or found only in a source other than the cited one
+  def flagged_quotes
+    Array(quote_checks["results"]).select { |check| %w[unverified other_source].include?(check["status"]) }
+  end
+
+  # @return [String] marker text for a flagged quote, naming the host where it was actually found
+  def quote_flag_label(check)
+    return "(not found in source)" unless check["status"] == "other_source"
+
+    host = URI.parse(check["source_url"].to_s).host.presence || check["source_url"]
+    "(found in a different source: #{host})"
+  rescue URI::InvalidURIError
+    "(found in a different source: #{check['source_url']})"
+  end
+
+  # @return [String, nil] e.g. "1 of 9 quotes could not be found, 1 was in a different source than cited"
+  def quote_check_summary
+    summary = quote_checks["summary"] || {}
+    missing = summary["unverified"].to_i
+    misattributed = summary["other_source"].to_i
+    return if missing.zero? && misattributed.zero?
+
+    total = summary["total"].to_i
+    noun = "quote".pluralize(total)
+    different = "#{misattributed == 1 ? 'was' : 'were'} in a different source than cited"
+    if misattributed.zero?
+      "#{missing} of #{total} #{noun} could not be found in their sources"
+    elsif missing.zero?
+      "#{misattributed} of #{total} #{noun} #{different}"
+    else
+      "#{missing} of #{total} #{noun} could not be found, #{misattributed} #{different}"
+    end
+  end
+
   def cancelled?
     reload
     status == "cancelled"
