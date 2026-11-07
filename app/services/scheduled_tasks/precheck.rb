@@ -13,10 +13,10 @@ module ScheduledTasks
     MAX_ITEMS = 10
     MAX_SEEN_IDS = 200
 
-    Result = Struct.new(:status, :items, :state, keyword_init: true)
+    Result = Struct.new(:status, :items, :state, :extra, keyword_init: true)
 
     # @param task [ScheduledTask]
-    # @return [Result] status is :changed, :unchanged or :failed
+    # @return [Result] status is :changed, :unchanged or :failed; extra counts new items beyond MAX_ITEMS
     def self.call(task)
       new(task).call
     end
@@ -72,7 +72,8 @@ module ScheduledTasks
       seen = Array(@task.precheck_state["ids"])
       fresh = items.reject { |item| seen.include?(item[:id]) }
       state = { "ids" => (items.map { |item| item[:id] } + seen).uniq.first(MAX_SEEN_IDS) }
-      Result.new(status: fresh.empty? ? :unchanged : :changed, items: fresh.first(MAX_ITEMS), state: state)
+      Result.new(status: fresh.empty? ? :unchanged : :changed, items: fresh.first(MAX_ITEMS), state: state,
+                   extra: [ fresh.size - MAX_ITEMS, 0 ].max)
     end
 
     def feed_item(node)
