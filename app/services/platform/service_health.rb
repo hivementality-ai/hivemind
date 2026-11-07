@@ -36,22 +36,24 @@ module Platform
       ServiceResponse.failure(error: e.message)
     end
 
-    private
-
-    def db_connected?
-      ActiveRecord::Base.connection.active?
-    rescue StandardError
-      false
-    end
-
+    # @return [Boolean] true when Redis answers PING
     def redis_connected?
       Redis.new(url: ENV["REDIS_URL"] || "redis://localhost:6379").ping == "PONG"
     rescue StandardError
       false
     end
 
+    # @return [Boolean] true when at least one Sidekiq process is registered
     def sidekiq_running?
       Sidekiq::ProcessSet.new.size > 0
+    rescue StandardError
+      false
+    end
+
+    private
+
+    def db_connected?
+      ActiveRecord::Base.connection.active?
     rescue StandardError
       false
     end
