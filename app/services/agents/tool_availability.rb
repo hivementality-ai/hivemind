@@ -118,7 +118,7 @@ module Agents
     # Useful for system prompt injection so agents know their limitations upfront
     def self.limitations_summary(agent:)
       available_names = agent.agent_tools.includes(:tool).map { |at| at.tool.name }
-      all_tools = Tool.enabled.pluck(:name)
+      all_tools = SimpleMode.offered_tools(Tool.enabled.to_a).map(&:name)
       unavailable = all_tools - available_names
 
       return nil if unavailable.empty?

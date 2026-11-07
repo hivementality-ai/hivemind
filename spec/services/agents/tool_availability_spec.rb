@@ -156,5 +156,22 @@ RSpec.describe Agents::ToolAvailability do
       expect(result).to include("image_generate")
       expect(result).to include("NOT available")
     end
+
+    it "leaves out tools Simple mode hides" do
+      create(:tool, name: "jira", executor_type: "jira", enabled: true)
+      create(:tool, name: "image_generate", executor_type: "image_generate", enabled: true)
+      SimpleMode.enabled = true
+
+      result = described_class.limitations_summary(agent: agent)
+
+      expect(result).to include("image_generate")
+      expect(result).not_to include("jira")
+    end
+
+    it "lists them when Simple mode is off" do
+      create(:tool, name: "jira", executor_type: "jira", enabled: true)
+
+      expect(described_class.limitations_summary(agent: agent)).to include("jira")
+    end
   end
 end

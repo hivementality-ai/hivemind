@@ -49,6 +49,14 @@ RSpec.describe "Simple mode", type: :request do
   end
 
   describe "channel platforms" do
+    it "keeps an existing channel of a hidden type in the list" do
+      create(:channel, name: "Old Discord", channel_type: "discord")
+      SimpleMode.enabled = true
+      get channels_path
+
+      expect(response.body).to include("Old Discord")
+    end
+
     it "offers only iMessage, email and Slack when on" do
       SimpleMode.enabled = true
       get new_channel_path
