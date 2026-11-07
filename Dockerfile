@@ -18,7 +18,7 @@ WORKDIR /rails
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y curl libjemalloc2 libvips postgresql-client unzip python3 python3-pip nodejs npm && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
-    pip3 install --no-cache-dir --break-system-packages pymupdf && \
+    pip3 install --no-cache-dir --break-system-packages pymupdf uv && \
     npm install -g @googleworkspace/cli || true && \
     curl -fsSL https://rclone.org/install.sh | bash && \
     curl -fsSL https://get.docker.com | sh && \

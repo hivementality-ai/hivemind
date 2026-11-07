@@ -46,6 +46,19 @@ RSpec.describe "MCP starter catalog", type: :request do
       end
     end
 
+    it "runs every local entry through a launcher the image installs" do
+      launchers = %w[npx uvx]
+      entries.select(&:local?).each do |entry|
+        expect(launchers).to include(entry.command), "#{entry.key} uses #{entry.command}, which the image may lack"
+      end
+    end
+
+    it "installs npm and uv in the Dockerfile so npx and uvx exist" do
+      dockerfile = Rails.root.join("Dockerfile").read
+      expect(dockerfile).to match(/apt-get install[^&]*\bnpm\b/)
+      expect(dockerfile).to match(/pip3 install[^&]*\buv\b/)
+    end
+
     it "gives every input a key, a label and a known type" do
       entries.flat_map(&:input_list).each do |input|
         expect(input.key).to be_present
