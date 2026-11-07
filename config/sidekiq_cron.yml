@@ -30,3 +30,9 @@ library_folder_scan:
   class: "LibraryFolderScanJob"
   queue: "system"
   description: "Ingest new and changed files from the watched library folder"
+
+expire_approvals:
+  cron: "*/15 * * * *"
+  class: "ExpireApprovalsJob"
+  queue: "low"
+  description: "Expire approval requests nobody answered in 24 hours"

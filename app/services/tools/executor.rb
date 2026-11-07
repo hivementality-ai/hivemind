@@ -85,8 +85,8 @@ module Tools
     EXECUTORS = BUILTIN_EXECUTORS
 
     class << self
-      def call(tool:, input:, agent:, session:, extra_config: {})
-        new(tool:, input:, agent:, session:, extra_config:).call
+      def call(tool:, input:, agent:, session:, extra_config: {}, approved: false)
+        new(tool:, input:, agent:, session:, extra_config:, approved:).call
       end
 
       # Registers a plugin-provided executor type at runtime.
@@ -127,7 +127,9 @@ module Tools
       end
     end
 
-    def initialize(tool:, input:, agent:, session:, extra_config: {})
+    # @param approved [Boolean] true when a person already approved this exact call (replay of a held approval)
+    def initialize(tool:, input:, agent:, session:, extra_config: {}, approved: false)
+      @approved = approved
       @tool = tool
       @input = input
       @agent = agent
@@ -139,6 +141,9 @@ module Tools
       executor_class = self.class.all_executors[@tool.executor_type]
       return ServiceResponse.failure(error: "Unknown executor: #{@tool.executor_type}") unless executor_class
       return Connectors::WriteGate.call(tool: @tool, input: @input, agent: @agent, session: @session) if Connectors::WriteGate.hold?(@tool)
+
+      held_category = hold_category
+      return Approvals::ToolCallGate.call(tool: @tool, input: @input, agent: @agent, session: @session, category: held_category) if held_category
 
       # System tools (e.g. load_skill) skip execution tracking
       if @tool.is_a?(SystemTool)
@@ -223,6 +228,12 @@ module Tools
     end
 
     private
+
+    def hold_category
+      return if @approved
+
+      Approvals::ToolCallGate.category_to_hold(tool: @tool, input: @input, agent: @agent, session: @session)
+    end
 
     FILE_READ_EXECUTORS = %w[file_read].freeze
     FILE_WRITE_EXECUTORS = %w[file_write file_edit].freeze

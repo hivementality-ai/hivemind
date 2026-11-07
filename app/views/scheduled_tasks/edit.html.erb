@@ -77,6 +77,14 @@
     </div>
 
     <div>
+      <label class="flex items-center gap-3 cursor-pointer">
+        <%= f.check_box :allow_sending, class: "w-4 h-4 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay" %>
+        <span class="text-text-primary text-sm font-medium">Let it send without asking me</span>
+      </label>
+      <p class="text-text-faint text-xs mt-1">Off: when this task wants to send an email, post a message, delete a file or change something on another service, it is held for your approval and the run finishes with a note that something is waiting. On: it goes ahead on its own.</p>
+    </div>
+
+    <div>
       <%= f.label :description, class: "block text-text-primary text-sm font-medium mb-1" %>
       <%= f.text_field :description,
           placeholder: "Optional description",

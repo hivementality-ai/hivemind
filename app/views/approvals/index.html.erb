@@ -35,6 +35,9 @@
                 <td class="px-5 py-3 text-text-muted"><%= req.agent&.name || "—" %></td>
                 <td class="px-5 py-3 text-text-faint text-xs"><%= req.requested_at.strftime("%b %d %H:%M") %></td>
                 <td class="px-5 py-3 text-right flex gap-2 justify-end">
+                  <% if req.action == Approvals::ToolCallGate::ACTION %>
+                    <span class="text-xs text-text-faint">Decide on the card below</span>
+                  <% else %>
                   <%= button_to approve_approval_path(req, approval_type: "approval_request"),
                         method: :post,
                         class: "px-3 py-1 text-xs font-semibold rounded bg-green-700/80 text-green-100 hover:bg-green-600/80 transition" do %>
@@ -46,8 +49,14 @@
                         class: "px-3 py-1 text-xs font-semibold rounded bg-red-900/60 text-red-300 hover:bg-red-800/60 transition" do %>
                     Reject
                   <% end %>
+                  <% end %>
                 </td>
               </tr>
+              <% if req.action == Approvals::ToolCallGate::ACTION %>
+                <tr>
+                  <td colspan="5" class="px-5 pb-4"><%= render "approvals/card", approval: req %></td>
+                </tr>
+              <% end %>
               <% if %w[create_connector update_connector connector_call].include?(req.action) %>
                 <tr>
                   <td colspan="5" class="px-5 pb-4"><%= render "approvals/connector_details", req: req %></td>

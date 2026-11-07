@@ -329,6 +329,14 @@
       </div>
     </div>
 
+    <!-- Approval cards: actions waiting for a yes before they leave the house -->
+    <%= turbo_stream_from Approvals::CardStream.stream_name(@session) %>
+    <div id="<%= Approvals::CardStream.container_id(@session) %>" class="px-6 space-y-3 flex-shrink-0 max-h-80 overflow-y-auto">
+      <% ApprovalRequest.pending.not_expired.where(action: Approvals::ToolCallGate::ACTION).for_session(@session).includes(:agent).order(:requested_at).each do |approval| %>
+        <%= render "approvals/card", approval: approval %>
+      <% end %>
+    </div>
+
     <!-- Input -->
     <div class="px-6 py-4 border-t border-border-default bg-surface-card/50 flex-shrink-0"
          data-action="dragover->chat#dragOver dragdrop->chat#drop dragleave->chat#dragLeave">

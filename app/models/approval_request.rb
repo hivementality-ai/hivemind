@@ -16,6 +16,7 @@ class ApprovalRequest < ApplicationRecord
   scope :pending, -> { where(status: "pending") }
   scope :resolved, -> { where(status: %w[approved rejected]) }
   scope :expired, -> { where(status: "expired") }
+  scope :for_session, ->(session) { where("params->>'session_id' = ?", session.id.to_s) }
   scope :not_expired, -> { where("expires_at IS NULL OR expires_at > ?", Time.current) }
 
   def pending?

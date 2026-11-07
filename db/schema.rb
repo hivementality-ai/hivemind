@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_07_160000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_07_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -132,6 +132,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_160000) do
   end
 
   create_table "agents", force: :cascade do |t|
+    t.jsonb "ask_first_overrides", default: {}, null: false
     t.datetime "created_at", null: false
     t.text "current_task"
     t.text "custom_instructions"
@@ -629,6 +630,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_160000) do
 
   create_table "scheduled_tasks", force: :cascade do |t|
     t.bigint "agent_id", null: false
+    t.boolean "allow_sending", default: false, null: false
     t.string "confirmation_status", default: "active"
     t.datetime "created_at", null: false
     t.text "description"
