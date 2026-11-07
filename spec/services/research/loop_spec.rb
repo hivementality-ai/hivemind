@@ -291,4 +291,85 @@ RSpec.describe Research::Loop do
       expect { subject.call }.to raise_error(RuntimeError, /LLM call failed/)
     end
   end
+
+  describe "local provider for light phases" do
+    let(:local_adapter) { instance_double("Providers::OllamaAdapter") }
+    let(:ollama) { create(:provider_config, name: "studio", adapter_type: "ollama", model_definitions: [ { "id" => "qwen3:8b" } ]) }
+    let(:local) { { config: ollama, model: "qwen3:8b" } }
+
+    before do
+      allow(Providers::Resolver).to receive(:call).with(hash_including(provider_name: "ollama"))
+        .and_return(ServiceResponse.success(data: { adapter: local_adapter }))
+      allow(Providers::Resolver).to receive(:call).with(hash_including(provider_name: agent.model_provider))
+        .and_return(ServiceResponse.success(data: { adapter: mock_adapter }))
+      allow(mock_adapter).to receive(:chat).and_return(ServiceResponse.success(data: { content: plan_response }))
+      allow(Research::QuoteChecker).to receive(:call).and_return([])
+      allow(research_session).to receive(:complete!)
+      allow(subject).to receive(:inject_into_session)
+    end
+
+    context "when the local provider is available" do
+      before do
+        allow(Agents::ModelRouter).to receive(:local_provider).and_return(local)
+        allow(local_adapter).to receive(:chat).and_return(ServiceResponse.success(data: { content: plan_response }))
+      end
+
+      it "plans on the local model" do
+        subject.send(:phase_plan)
+
+        expect(local_adapter).to have_received(:chat).with(hash_including(options: hash_including(model: "qwen3:8b")))
+        expect(mock_adapter).not_to have_received(:chat)
+      end
+
+      it "analyzes on the local model" do
+        allow(local_adapter).to receive(:chat).and_return(ServiceResponse.success(data: { content: analyze_response }))
+
+        subject.send(:phase_analyze)
+
+        expect(local_adapter).to have_received(:chat)
+        expect(mock_adapter).not_to have_received(:chat)
+      end
+
+      it "never synthesizes on the local model" do
+        subject.send(:phase_synthesize)
+
+        expect(local_adapter).not_to have_received(:chat)
+        expect(mock_adapter).to have_received(:chat)
+      end
+
+      it "falls back to the agent's provider when the local call fails" do
+        allow(local_adapter).to receive(:chat).and_return(ServiceResponse.failure(error: "boom"))
+
+        subject.send(:phase_plan)
+
+        expect(mock_adapter).to have_received(:chat)
+      end
+
+      it "falls back to the agent's provider when the local call raises" do
+        allow(local_adapter).to receive(:chat).and_raise(Errno::ECONNREFUSED)
+
+        subject.send(:phase_plan)
+
+        expect(mock_adapter).to have_received(:chat)
+      end
+
+      it "falls back to the agent's provider when the local answer is blank" do
+        allow(local_adapter).to receive(:chat).and_return(ServiceResponse.success(data: { content: "  " }))
+
+        subject.send(:phase_plan)
+
+        expect(mock_adapter).to have_received(:chat)
+      end
+    end
+
+    it "uses the agent's provider when no local provider is available" do
+      allow(Agents::ModelRouter).to receive(:local_provider).and_return(nil)
+      allow(local_adapter).to receive(:chat)
+
+      subject.send(:phase_plan)
+
+      expect(local_adapter).not_to have_received(:chat)
+      expect(mock_adapter).to have_received(:chat)
+    end
+  end
 end

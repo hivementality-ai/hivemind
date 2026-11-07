@@ -131,8 +131,14 @@ module Memory
     end
 
     # Find the cheapest available provider for background work.
-    # Priority: Anthropic Haiku > OpenAI Nano > Ollama > agent's own provider
+    # Priority: healthy local Ollama > Anthropic Haiku > OpenAI Nano > Ollama > agent's own provider
     def resolve_cheap_provider
+      local = Agents::ModelRouter.local_provider
+      if local
+        resolver = Providers::Resolver.call(provider_name: "ollama", provider_config: local[:config], failover: false)
+        return [ resolver.data[:adapter], local[:model] ] if resolver.success?
+      end
+
       # Try Anthropic with Haiku
       anthropic = ProviderConfig.find_by(adapter_type: "anthropic", enabled: true)
       if anthropic
@@ -151,7 +157,7 @@ module Memory
       ollama = ProviderConfig.find_by(adapter_type: "ollama", enabled: true)
       if ollama
         resolver = Providers::Resolver.call(provider_name: "ollama")
-        return [ resolver.data[:adapter], "llama3.2:3b" ] if resolver.success?
+        return [ resolver.data[:adapter], ollama.model_names.first || "llama3.2:3b" ] if resolver.success?
       end
 
       # Last resort: agent's own provider with cheapest model

@@ -176,9 +176,7 @@ class ChatStreamJob < ApplicationJob
 
     begin
       # Build LLM options (with thinking if enabled)
-      local = local_pick(brain, agent, effective_message, tools, image_attachments)
-      adapter = local[:adapter] if local
-      resolved_model = local ? local[:model] : resolve_model(brain, agent, effective_message)
+      resolved_model = resolve_model(brain, agent, effective_message)
       llm_options = { model: resolved_model, max_tokens: agent.max_output_tokens || 8192 }
       llm_options.merge!(agent.inference_options)
       if agent.thinking_enabled?
@@ -503,26 +501,6 @@ class ChatStreamJob < ApplicationJob
     )
     Rails.logger.info("[ModelRouter] agent=#{agent.id} provider=#{brain.provider_name} picked=#{picked}")
     picked || Agents::ModelRouter::DEFAULT_RULES.dig(brain.provider_name, "tiers", "mid")
-  end
-
-  # On an auto brain, sends a light turn to the local Ollama provider when the
-  # router allows it.
-  #
-  # @return [Hash, nil] +{ adapter:, model: }+ or nil to stay on the chosen brain
-  def local_pick(brain, agent, user_message, tools, image_attachments)
-    return unless brain.model.to_s == "auto" && Agents::ModelRouter.auto_supported?(brain.provider_name)
-
-    pick = Agents::ModelRouter.local_pick(
-      message_text: user_message.to_s, recent_tools: recent_tool_names(agent),
-      tools: tools, images: image_attachments.any?
-    )
-    return unless pick
-
-    resolved = Providers::Resolver.call(provider_name: "ollama", agent:, provider_config: pick[:config], failover: false)
-    return unless resolved.success?
-
-    Rails.logger.info("[ModelRouter] agent=#{agent.id} provider=ollama picked=#{pick[:model]}")
-    { adapter: resolved.data[:adapter], model: pick[:model] }
   end
 
   # Peek at the last few tool executions on this agent so ModelRouter can

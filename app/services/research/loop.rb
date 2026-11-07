@@ -59,7 +59,7 @@ module Research
       @rs.log_progress("Planning research approach...")
 
       prompt = build_plan_prompt
-      response = llm_call(prompt, max_tokens: 2048, temperature: 0.3)
+      response = llm_call(prompt, max_tokens: 2048, temperature: 0.3, local: true)
       plan = parse_json(response)
 
       plan = default_plan if plan.nil? || plan["search_queries"].blank?
@@ -121,7 +121,7 @@ module Research
       @rs.log_progress("Analyzing collected information...")
 
       prompt = build_analyze_prompt
-      response = llm_call(prompt, max_tokens: 4096, temperature: 0.2)
+      response = llm_call(prompt, max_tokens: 4096, temperature: 0.2, local: true)
       analysis = parse_json(response)
 
       if analysis.nil?
@@ -193,7 +193,14 @@ module Research
 
     # ── LLM Calls ──
 
-    def llm_call(messages, max_tokens: 4096, temperature: 0.3)
+    # Calls the agent's model. With +local+, a healthy local Ollama provider is
+    # tried first and the agent's own provider answers if it errors or is blank.
+    def llm_call(messages, max_tokens: 4096, temperature: 0.3, local: false)
+      if local
+        text = local_call(messages, max_tokens:, temperature:)
+        return text if text.present?
+      end
+
       agent = @rs.agent
       resolver = Providers::Resolver.call(provider_name: agent.model_provider, agent: agent)
       raise "LLM provider resolution failed: #{resolver.error}" unless resolver.success?
@@ -205,6 +212,20 @@ module Research
       raise "LLM call failed: #{result.error}" unless result.success?
 
       result.data[:content].to_s
+    end
+
+    def local_call(messages, max_tokens:, temperature:)
+      pick = Agents::ModelRouter.local_provider
+      return unless pick
+
+      resolver = Providers::Resolver.call(provider_name: "ollama", provider_config: pick[:config], failover: false)
+      return unless resolver.success?
+
+      result = resolver.data[:adapter].chat(messages: messages, options: { model: pick[:model], max_tokens: max_tokens, temperature: temperature })
+      result.success? ? result.data[:content].to_s : nil
+    rescue StandardError => e
+      Rails.logger.warn("[Research::Loop] local call failed, using agent provider: #{e.message}")
+      nil
     end
 
     # ── Search & Fetch ──

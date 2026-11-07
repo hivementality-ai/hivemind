@@ -95,7 +95,7 @@ RSpec.describe Agents::ModelRouter do
     end
   end
 
-  describe ".local_pick" do
+  describe ".local_provider" do
     let(:studio_ok) { { status: :green, checks: [ { key: "studio", ok: true } ], checked_at: Time.current } }
     let(:studio_down) { { status: :amber, checks: [ { key: "studio", ok: false } ], checked_at: Time.current } }
     let!(:ollama) do
@@ -105,47 +105,32 @@ RSpec.describe Agents::ModelRouter do
 
     before { allow(Platform::HealthLight).to receive(:snapshot).and_return(studio_ok) }
 
-    it "routes a cheap task to the enabled, healthy Ollama provider" do
-      pick = described_class.local_pick(message_text: "hey there")
-
-      expect(pick).to eq(config: ollama, model: "qwen3:8b")
+    it "returns the enabled, healthy Ollama provider and its configured model" do
+      expect(described_class.local_provider).to eq(config: ollama, model: "qwen3:8b")
     end
 
-    it "stays on Claude when Ollama is disabled" do
+    it "is nil when Ollama is disabled" do
       ollama.update!(enabled: false)
 
-      expect(described_class.local_pick(message_text: "hey there")).to be_nil
+      expect(described_class.local_provider).to be_nil
     end
 
-    it "stays on Claude when Ollama's last health check failed" do
+    it "is nil when the last health check failed" do
       allow(Platform::HealthLight).to receive(:snapshot).and_return(studio_down)
 
-      expect(described_class.local_pick(message_text: "hey there")).to be_nil
+      expect(described_class.local_provider).to be_nil
     end
 
-    it "stays on Claude when no health snapshot exists yet" do
+    it "is nil when no health snapshot exists yet" do
       allow(Platform::HealthLight).to receive(:snapshot).and_return(nil)
 
-      expect(described_class.local_pick(message_text: "hey there")).to be_nil
+      expect(described_class.local_provider).to be_nil
     end
 
-    it "keeps heavier tiers on Claude" do
-      expect(described_class.local_pick(message_text: "fix this bug")).to be_nil
-      expect(described_class.local_pick(message_text: "design the system")).to be_nil
-    end
+    it "is nil when the provider has no model" do
+      ollama.update!(model_definitions: [])
 
-    it "keeps turns with tools on Claude" do
-      expect(described_class.local_pick(message_text: "hey there", tools: [ :a_tool ])).to be_nil
-    end
-
-    it "keeps turns with images on Claude" do
-      expect(described_class.local_pick(message_text: "hey there", images: true)).to be_nil
-    end
-
-    it "keeps long messages on Claude" do
-      long = "hey " * described_class::LOCAL_MAX_CHARS
-
-      expect(described_class.local_pick(message_text: long)).to be_nil
+      expect(described_class.local_provider).to be_nil
     end
   end
 end
