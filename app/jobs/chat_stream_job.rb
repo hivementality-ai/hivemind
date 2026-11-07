@@ -278,6 +278,7 @@ class ChatStreamJob < ApplicationJob
 
       # Append assistant response (thinking stored as metadata, not visible content)
       session.reload
+      full_content = SavedPages::AutoSave.scheduled(session, full_content)
       transcript_entry = { "role" => "assistant", "content" => full_content, "timestamp" => Time.current.iso8601 }
       transcript_entry["thinking"] = thinking_content if thinking_content.present?
       transcript_entry["tool_calls"] = tool_history if tool_history.present?

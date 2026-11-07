@@ -229,6 +229,31 @@ RSpec.describe Research::Loop do
     end
   end
 
+  describe "saving long reports as pages" do
+    let(:synthesize_response) { "# Quantum report\n\n#{'Findings go here. ' * 120}" }
+
+    it "saves the report as a page and tells the chat to link it" do
+      subject.call
+
+      page = SavedPage.last
+      expect(page).to have_attributes(source_kind: "research", research_session: research_session, body: synthesize_response)
+      expect(ChatStreamJob).to have_received(:perform_later).with(
+        session.id,
+        a_string_including("saved as a page", "(/pages/#{page.id})"),
+        []
+      )
+    end
+
+    context "when the report is short" do
+      let(:synthesize_response) { "Short answer." }
+
+      it "keeps it in the chat only" do
+        expect { subject.call }.not_to change(SavedPage, :count)
+        expect(ChatStreamJob).to have_received(:perform_later).with(session.id, a_string_matching(/\A(?!.*saved as a page)/m), [])
+      end
+    end
+  end
+
   describe "quote checking" do
     let(:page_body) do
       "<html><body><p>Researchers reported that the new error correction scheme reduces logical error " \

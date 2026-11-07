@@ -1,0 +1,45 @@
+<% can_edit = !current_user.viewer? %>
+<% can_delete = current_user.admin? || current_user.owner? || @page.created_by_id == current_user.id %>
+<div class="min-h-screen bg-surface-base text-white overflow-x-hidden">
+  <div class="bg-surface-card border-b border-border-default px-4 sm:px-6 py-4">
+    <%= link_to "← All pages", saved_pages_path, class: "text-sm text-text-muted hover:text-white transition" %>
+    <h1 class="text-2xl sm:text-3xl font-bold mt-1 break-words"><%= @page.title %></h1>
+    <p class="text-text-muted text-sm mt-1">
+      <%= @page.kind_label %> · by <%= @page.agent.name %> · <%= l(@page.created_at, format: :long) %>
+      <% if @page.session_id %>
+        · <%= link_to "Open the chat", session_path(@page.session_id), class: "text-brand hover:text-brand-dark" %>
+      <% end %>
+    </p>
+  </div>
+
+  <div class="container mx-auto px-4 sm:px-6 py-6 space-y-6">
+    <% if flash[:notice].present? || flash[:alert].present? %>
+      <div class="rounded-lg border px-4 py-3 text-sm <%= flash[:alert].present? ? 'border-red-500/40 text-red-300' : 'border-border-default text-gray-200' %> bg-surface-card">
+        <%= flash[:alert].presence || flash[:notice] %>
+      </div>
+    <% end %>
+
+    <article class="bg-surface-card rounded-lg border border-border-default p-4 sm:p-6 min-w-0">
+      <div class="prose prose-invert prose-sm max-w-none break-words whitespace-pre-wrap [&_pre]:overflow-x-auto [&_table]:block [&_table]:overflow-x-auto [&_img]:max-w-full"
+           data-controller="markdown"
+           data-markdown-content-value="<%= @page.body %>"><%= @page.body %></div>
+    </article>
+
+    <% if can_edit || can_delete %>
+      <div class="flex flex-col sm:flex-row gap-4">
+        <% if can_edit %>
+          <%= form_with model: @page, url: saved_page_path(@page), method: :patch, class: "flex flex-1 flex-col sm:flex-row gap-3" do |f| %>
+            <%= f.text_field :title, value: @page.title, maxlength: SavedPage::TITLE_LIMIT, "aria-label": "Page title",
+                  class: "flex-1 min-w-0 bg-surface-card border border-border-default rounded-lg px-4 py-2 text-white focus:outline-none focus:border-brand" %>
+            <%= f.submit "Change title", class: "px-4 py-2 bg-surface-raised hover:bg-surface-card border border-border-default rounded-lg transition cursor-pointer" %>
+          <% end %>
+        <% end %>
+        <% if can_delete %>
+          <%= button_to "Delete page", saved_page_path(@page), method: :delete,
+                form: { data: { turbo_confirm: "Delete this page for good? It can't be undone." } },
+                class: "px-4 py-2 text-red-400 hover:text-red-300 border border-border-default rounded-lg transition cursor-pointer" %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>

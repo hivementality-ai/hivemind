@@ -178,6 +178,35 @@ RSpec.describe ChatStreamJob, type: :job do
         expect { described_class.perform_now(session.id, "Hi") }.not_to have_enqueued_job(MemoryExtractionJob)
       end
 
+      context "when a scheduled run gives a long answer" do
+        let(:long_answer) { "# Digest\n\n#{'Something happened. ' * 100}" }
+        let(:session) { create(:session, agent: agent, transcript: [], metadata: { "type" => "scheduled" }) }
+
+        before do
+          allow(adapter).to receive(:chat) do |**_opts, &block|
+            block.call(type: "content", content: long_answer)
+            double(success?: true, data: { content: long_answer, usage: { input_tokens: 10, output_tokens: 5 } })
+          end
+        end
+
+        it "saves a page and ends the answer with a link to it" do
+          described_class.perform_now(session.id, "Run the digest")
+
+          page = SavedPage.last
+          expect(page).to have_attributes(source_kind: "scheduled", session: session)
+          expect(session.reload.transcript.last["content"]).to end_with("[Open the saved page](/pages/#{page.id})")
+        end
+
+        it "does not save short answers from a scheduled run" do
+          allow(adapter).to receive(:chat) do |**_opts, &block|
+            block.call(type: "content", content: "Nothing new.")
+            double(success?: true, data: { content: "Nothing new.", usage: { input_tokens: 1, output_tokens: 1 } })
+          end
+
+          expect { described_class.perform_now(session.id, "Run the digest") }.not_to change(SavedPage, :count)
+        end
+      end
+
       it "prunes messages via ContextManager" do
         described_class.perform_now(session.id, "Hello")
         expect(context_manager).to have_received(:prune_messages)

@@ -193,7 +193,7 @@ module Research
       @rs.complete!(report)
       @rs.log_progress("Research complete!")
 
-      inject_into_session(report)
+      inject_into_session(report, SavedPages::AutoSave.research(@rs, report))
     end
 
     # ── LLM Calls ──
@@ -401,7 +401,7 @@ module Research
       end
     end
 
-    def inject_into_session(report)
+    def inject_into_session(report, page = nil)
       callback_message = <<~MSG.strip
         [Deep Research Complete] #{@rs.query.truncate(100)}
 
@@ -409,6 +409,10 @@ module Research
 
         (Task ID: #{@rs.task_key} | #{@rs.sources_count} sources analyzed | Use deep_research_status for full report)
       MSG
+      if page
+        link = "[#{page.title}](#{Rails.application.routes.url_helpers.saved_page_path(page)})"
+        callback_message += "\n\nThe full report is saved as a page. Link it in your reply: #{link}"
+      end
 
       ChatStreamJob.perform_later(
         @rs.session.id,

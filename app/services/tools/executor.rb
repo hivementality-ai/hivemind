@@ -78,7 +78,8 @@ module Tools
       "use_tool" => Tools::UseToolExecutor,
       "task_manager" => Tools::TaskManagerExecutor,
       "propose_skill_update" => Tools::ProposeSkillUpdateExecutor,
-      "flag_skill_unhelpful" => Tools::FlagSkillUnhelpfulExecutor
+      "flag_skill_unhelpful" => Tools::FlagSkillUnhelpfulExecutor,
+      "save_page" => Tools::SavePageExecutor
     }.freeze
 
     # Backwards compatibility alias

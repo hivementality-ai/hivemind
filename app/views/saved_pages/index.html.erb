@@ -1,0 +1,44 @@
+<div class="min-h-screen bg-surface-base text-white overflow-x-hidden">
+  <div class="bg-surface-card border-b border-border-default px-4 sm:px-6 py-4">
+    <h1 class="text-2xl sm:text-3xl font-bold">Pages</h1>
+    <p class="text-text-muted text-sm mt-1">Reports, summaries and digests worth keeping. Save one from any reply in a chat.</p>
+  </div>
+
+  <div class="container mx-auto px-4 sm:px-6 py-6 space-y-6">
+    <% if flash[:notice].present? || flash[:alert].present? %>
+      <div class="rounded-lg border px-4 py-3 text-sm <%= flash[:alert].present? ? 'border-red-500/40 text-red-300' : 'border-border-default text-gray-200' %> bg-surface-card">
+        <%= flash[:alert].presence || flash[:notice] %>
+      </div>
+    <% end %>
+
+    <%= form_with url: saved_pages_path, method: :get, class: "flex flex-col sm:flex-row gap-3" do |f| %>
+      <%= f.search_field :q, value: @query, placeholder: "Search by title…", "aria-label": "Search pages",
+            class: "flex-1 min-w-0 bg-surface-card border border-border-default rounded-lg px-4 py-2 text-white placeholder-text-faint focus:outline-none focus:border-brand" %>
+      <div class="flex gap-3">
+        <%= f.submit "Search", class: "flex-1 sm:flex-none px-4 py-2 bg-brand hover:bg-brand-dark rounded-lg transition cursor-pointer" %>
+        <% if @query.present? %>
+          <%= link_to "Clear", saved_pages_path, class: "px-4 py-2 bg-surface-raised hover:bg-surface-card border border-border-default rounded-lg transition" %>
+        <% end %>
+      </div>
+    <% end %>
+
+    <% if @pages.empty? %>
+      <div class="bg-surface-card rounded-lg border border-border-default text-text-muted text-center py-12 px-4">
+        <%= @query.present? ? "No pages match that." : "Nothing saved yet. Use Save as page under any reply in a chat, or ask an agent to keep its work as a page." %>
+      </div>
+    <% else %>
+      <ul class="bg-surface-card rounded-lg border border-border-default divide-y divide-border-default">
+        <% @pages.each do |page| %>
+          <li>
+            <%= link_to saved_page_path(page), class: "block px-4 sm:px-6 py-3 hover:bg-surface-raised transition" do %>
+              <p class="font-medium break-words"><%= page.title %></p>
+              <p class="text-xs text-text-muted mt-1">
+                <%= page.kind_label %> · <%= page.agent.name %> · <%= time_ago_in_words(page.created_at) %> ago
+              </p>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+</div>

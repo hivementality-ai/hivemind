@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_07_170000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_07_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -628,6 +628,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_170000) do
     t.index ["task_key"], name: "index_research_sessions_on_task_key", unique: true
   end
 
+  create_table "saved_pages", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.bigint "created_by_id"
+    t.bigint "research_session_id"
+    t.bigint "session_id"
+    t.string "source_kind", default: "chat", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id"], name: "index_saved_pages_on_agent_id"
+    t.index ["created_at"], name: "index_saved_pages_on_created_at"
+    t.index ["created_by_id"], name: "index_saved_pages_on_created_by_id"
+    t.index ["research_session_id"], name: "index_saved_pages_on_unique_research_session", unique: true, where: "(research_session_id IS NOT NULL)"
+    t.index ["session_id"], name: "index_saved_pages_on_session_id"
+  end
+
   create_table "scheduled_tasks", force: :cascade do |t|
     t.bigint "agent_id", null: false
     t.boolean "allow_sending", default: false, null: false
@@ -1130,6 +1147,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_170000) do
   add_foreign_key "push_subscriptions", "users"
   add_foreign_key "research_sessions", "agents"
   add_foreign_key "research_sessions", "sessions"
+  add_foreign_key "saved_pages", "agents"
+  add_foreign_key "saved_pages", "research_sessions", on_delete: :nullify
+  add_foreign_key "saved_pages", "sessions", on_delete: :nullify
+  add_foreign_key "saved_pages", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "scheduled_tasks", "agents"
   add_foreign_key "sessions", "agents"
   add_foreign_key "sessions", "projects", on_delete: :nullify
