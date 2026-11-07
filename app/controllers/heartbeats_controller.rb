@@ -8,7 +8,7 @@ class HeartbeatsController < ApplicationController
     @runs = HeartbeatRun.includes(:agent, :session).recent
     @provider_models = enabled_provider_models
     @soul_agent = Agent.system_assistant
-    @heartbeat_memory = @soul_agent.memory_entries.order(updated_at: :desc).first
+    @heartbeat_memory = @soul_agent.memory_entries.active.order(updated_at: :desc).first
   end
 
   def update

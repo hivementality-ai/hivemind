@@ -101,7 +101,7 @@ class MemoryEntry < ApplicationRecord
 
   # Find near-duplicates for a given embedding.
   def self.find_duplicate(embedding:, agent:, threshold: 0.92)
-    candidates = search_similar(embedding: embedding, agent: agent, limit: 3, status: nil)
+    candidates = search_similar(embedding: embedding, agent: agent, limit: 3)
     candidates.find { |entry| (1 - entry.neighbor_distance) >= threshold }
   end
 

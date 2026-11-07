@@ -6,7 +6,7 @@ module HashtagActions
       def execute
         return { response: "What should I forget? Use: #forget <keyword>", status: "no_payload" } if payload.blank?
 
-        matches = MemoryEntry.where(agent: agent)
+        matches = MemoryEntry.active.where(agent: agent)
                              .where("content ILIKE ?", "%#{MemoryEntry.sanitize_sql_like(payload)}%")
                              .order(created_at: :desc)
                              .limit(5)
