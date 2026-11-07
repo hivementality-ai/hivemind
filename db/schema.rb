@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_07_140000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_07_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -414,12 +414,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_140000) do
     t.bigint "agent_id", null: false
     t.datetime "created_at", null: false
     t.text "error"
+    t.string "library_path"
+    t.string "library_signature"
     t.jsonb "metadata", default: {}, null: false
+    t.datetime "removed_at"
     t.string "source_type", default: "text", null: false
     t.string "source_url"
     t.string "status", default: "pending", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
+    t.index ["agent_id", "library_path"], name: "index_knowledge_documents_on_agent_and_library_path", unique: true, where: "(library_path IS NOT NULL)"
     t.index ["agent_id", "status"], name: "index_knowledge_documents_on_agent_id_and_status"
     t.index ["agent_id"], name: "index_knowledge_documents_on_agent_id"
   end

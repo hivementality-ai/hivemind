@@ -36,10 +36,31 @@ resolve_agents_shared_dir() {
   [ -n "$v" ] && echo "$v" || echo "$HOME/hivemind-agents-shared"
 }
 
+# Resolve the host folder mounted read-only at /library, from this instance's
+# .env, falling back to ~/Hivemind Library.
+resolve_library_dir() {
+  local v=""
+  v="$(grep -E '^HIVEMIND_LIBRARY_DIR=' "$HIVEMIND_DIR/.env" 2>/dev/null | head -1 | cut -d'=' -f2- || true)"
+  [ -n "$v" ] && echo "$v" || echo "$HOME/Hivemind Library"
+}
+
+# Create the library folder if missing so Docker never creates it root-owned.
+ensure_library_dir() {
+  local dir
+  dir="$(resolve_library_dir)"
+  [ -d "$dir" ] && return 0
+  if mkdir -p "$dir" 2>/dev/null; then
+    ok "Created library folder: $dir"
+  else
+    warn "Could not create library folder: $dir"
+  fi
+}
+
 require_dir() {
   [ -f "$HIVEMIND_DIR/docker-compose.yml" ] || fail "Hivemind not found at $HIVEMIND_DIR. Set HIVEMIND_DIR or run the installer."
   cd "$HIVEMIND_DIR"
   export AGENTS_SHARED_DIR="$(resolve_agents_shared_dir)"
+  export HIVEMIND_LIBRARY_DIR="$(resolve_library_dir)"
 }
 
 # Secret generators — mirror install.sh
@@ -111,6 +132,16 @@ migrate_env() {
       echo "AGENTS_SHARED_DIR=$HOME/hivemind-agents-shared"
     } >> "$HIVEMIND_DIR/.env"
     ok "Backfilled AGENTS_SHARED_DIR"
+  fi
+
+  # HIVEMIND_LIBRARY_DIR — host folder watched for documents, mounted at /library.
+  if ! grep -q '^HIVEMIND_LIBRARY_DIR=' "$HIVEMIND_DIR/.env" 2>/dev/null; then
+    {
+      echo ""
+      echo "# Host folder watched for documents (mounted read-only)"
+      echo "HIVEMIND_LIBRARY_DIR=$HOME/Hivemind Library"
+    } >> "$HIVEMIND_DIR/.env"
+    ok "Backfilled HIVEMIND_LIBRARY_DIR"
   fi
 }
 
@@ -320,6 +351,7 @@ cmd_update() {
 
   # Backfill .env with any new keys added in later versions
   migrate_env
+  ensure_library_dir
 
   # Back up before anything can touch the schema
   backup_database_before_update || fail "Database backup failed; aborting update. Nothing was changed."

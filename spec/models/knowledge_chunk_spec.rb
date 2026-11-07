@@ -60,5 +60,12 @@ RSpec.describe KnowledgeChunk, type: :model do
       results = KnowledgeChunk.search_similar(embedding: embedding1, agent: agent)
       expect(results).not_to include(hidden)
     end
+
+    it "excludes chunks from documents removed from the library folder" do
+      removed_doc = create(:knowledge_document, agent: agent, status: "ready", removed_at: Time.current)
+      gone = create(:knowledge_chunk, knowledge_document: removed_doc, agent: agent, embedding: embedding1)
+      results = KnowledgeChunk.search_similar(embedding: embedding1, agent: agent)
+      expect(results).not_to include(gone)
+    end
   end
 end
