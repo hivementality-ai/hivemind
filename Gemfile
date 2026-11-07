@@ -49,7 +49,7 @@ gem "thruster", require: false
 gem "neighbor", "~> 1.2"
 
 # Image processing
-gem "image_processing", "~> 2.0"
+gem "image_processing", "~> 2.2"
 
 # Timezone data
 gem "tzinfo-data", platforms: %i[ windows jruby ]
