@@ -53,6 +53,16 @@ RSpec.describe MemoryExtractionJob, type: :job do
       )
     end
 
+    it "leaves a pinned memory alone when new information contradicts it" do
+      pinned = create(:memory_entry, agent: agent, content: "Lives in Berlin", pinned: true, embedding: Array.new(768, 0.1))
+      allow(Memory::Embedding).to receive(:generate).and_return(Array.new(768, 0.1))
+      stub_llm('[{"content": "Lives in Paris", "type": "semantic", "importance": 0.9, "supersedes": "Lives in Berlin"}]')
+
+      described_class.perform_now(agent.id, "I moved to Paris last month, so update that", "Noted, you live in Paris now.")
+
+      expect(pinned.reload.content).to eq("Lives in Berlin")
+    end
+
     it "stores nothing when the LLM returns an empty array" do
       stub_llm("[]")
 

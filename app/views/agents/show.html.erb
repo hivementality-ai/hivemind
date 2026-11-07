@@ -182,7 +182,7 @@
         <div class="bg-surface-card rounded-lg border border-border-default">
           <div class="px-6 py-4 border-b border-border-default flex items-center justify-between">
             <h2 class="text-xl font-semibold">Memories (<%= @memory_total %>)</h2>
-            <%= link_to "View all →", agent_memory_entries_path(@agent),
+            <%= link_to "What #{@agent.name} remembers about you →", agent_memory_entries_path(@agent),
                   class: "text-sm text-brand hover:text-brand-dark transition" %>
           </div>
           <div class="p-6">

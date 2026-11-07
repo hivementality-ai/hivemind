@@ -27,6 +27,18 @@ class MemoryEntry < ApplicationRecord
     "general"          => "Uncategorized (default)"
   }.freeze
 
+  # Plain-language groups for the "What I remember" page, in display order.
+  KINDS = {
+    "preferences" => "Things you like",
+    "projects"    => "Your projects",
+    "decisions"   => "Decisions",
+    "habits"      => "How you work",
+    "facts"       => "Facts"
+  }.freeze
+
+  # Raw conversation logs and archived transcripts are never durable memories.
+  TRANSCRIPT_SOURCE_TYPES = %w[TranscriptArchive].freeze
+
   before_save :sanitize_content_encoding
   validates :content, presence: true
   validates :memory_type, inclusion: { in: %w[episodic semantic procedural preference] }
@@ -49,6 +61,8 @@ class MemoryEntry < ApplicationRecord
   scope :consolidated,    -> { where(consolidated: true) }
   scope :by_importance,   -> { order(importance: :desc) }
   scope :by_source_type,  ->(type) { where(source_type: type) }
+  scope :durable,         -> { where.not(memory_type: "episodic").where("source_type IS NULL OR source_type NOT IN (?)", TRANSCRIPT_SOURCE_TYPES) }
+  scope :forgotten,       -> { archived.where("metadata ? 'forgotten_at'") }
   scope :multimodal,      -> { where(modality: "multimodal") }
   scope :text_only,       -> { where(modality: "text") }
 
@@ -94,7 +108,10 @@ class MemoryEntry < ApplicationRecord
   # --- Lifecycle helpers ---
 
   # Marks this memory as superseded by another and archives it.
+  # Pinned memories are never superseded.
   def supersede_with!(replacement)
+    return self if pinned?
+
     update!(status: "superseded", superseded_by: replacement)
   end
 
@@ -106,6 +123,26 @@ class MemoryEntry < ApplicationRecord
   # Reactivates an archived/superseded memory.
   def reactivate!
     update!(status: "active", superseded_by: nil)
+  end
+
+  # Soft-deletes a memory the user asked to forget; {#restore!} undoes it.
+  def forget!
+    update!(status: "archived", metadata: metadata.merge("forgotten_at" => Time.current.iso8601))
+  end
+
+  # Brings back a memory forgotten with {#forget!}.
+  def restore!
+    update!(status: "active", metadata: metadata.except("forgotten_at"))
+  end
+
+  # @return [String] key into {KINDS} for the page grouping
+  def kind
+    return "preferences" if category == "user_preference" || memory_type == "preference"
+    return "projects" if category == "project_context"
+    return "decisions" if category == "decision"
+    return "habits" if memory_type == "procedural" || category == "learned_behavior"
+
+    "facts"
   end
 
   # --- Helpers ---
