@@ -55,6 +55,7 @@ Rails.application.routes.draw do
 
   # Chat Sessions
   resources :sessions, only: [ :index, :show, :create, :update ] do
+    resources :audio_notes, only: [ :create ]
     member do
       patch :brain
       post :message

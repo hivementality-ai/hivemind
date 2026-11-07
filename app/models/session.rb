@@ -10,6 +10,7 @@ class Session < ApplicationRecord
   has_many :transcript_archives, dependent: :destroy
   has_many :usage_records, dependent: :destroy
   has_many :chat_attachments, dependent: :destroy
+  has_many :audio_notes, dependent: :destroy
   has_many :tool_executions, dependent: :destroy
   has_many :coding_agent_tasks, dependent: :destroy
   has_many :research_sessions, dependent: :destroy
