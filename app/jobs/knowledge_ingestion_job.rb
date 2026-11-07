@@ -9,6 +9,7 @@ class KnowledgeIngestionJob < ApplicationJob
   # sentence/semantic splitter (e.g. token-aware) if retrieval quality matters.
   CHUNK_WORDS   = 800
   CHUNK_OVERLAP = 100
+  PAGE_MARKER   = /\A--- Page (\d+) ---\z/
 
   def perform(document_id)
     document = KnowledgeDocument.find_by(id: document_id)
@@ -20,14 +21,13 @@ class KnowledgeIngestionJob < ApplicationJob
     text = extract_text(document)
     raise "No text extracted" if text.blank?
 
-    chunks = chunk_text(text)
-    chunks.each_with_index do |content, position|
-      embedding = Memory::Embedding.generate(content)
+    chunks = document.source_type == "pdf" ? chunk_pages(text) : chunk_text(text).map { |content| { content: } }
+    chunks.each_with_index do |chunk, position|
       document.chunks.create!(
         agent: document.agent,
-        content: content,
         position: position,
-        embedding: embedding
+        embedding: Memory::Embedding.generate(chunk[:content]),
+        **chunk
       )
     end
 
@@ -57,5 +57,29 @@ class KnowledgeIngestionJob < ApplicationJob
     words = text.split(/\s+/)
     step  = CHUNK_WORDS - CHUNK_OVERLAP
     (0...words.length).step(step).map { |i| words[i, CHUNK_WORDS].join(" ") }
+  end
+
+  # Chunks PDF text carrying "--- Page N ---" markers, returning each chunk's
+  # content with the first and last page its words came from.
+  def chunk_pages(text)
+    words = []
+    pages = []
+    page = 1
+    text.split("\n").each do |line|
+      if (marker = line.match(PAGE_MARKER))
+        page = marker[1].to_i
+      else
+        line.split.each do |word|
+          words << word
+          pages << page
+        end
+      end
+    end
+
+    step = CHUNK_WORDS - CHUNK_OVERLAP
+    (0...words.length).step(step).map do |i|
+      last = [ i + CHUNK_WORDS, words.length ].min - 1
+      { content: words[i..last].join(" "), page_start: pages[i], page_end: pages[last] }
+    end
   end
 end
