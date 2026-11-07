@@ -48,4 +48,37 @@ RSpec.describe KnowledgeIngestionJob, type: :job do
 
     expect(doc.reload.chunks.pluck(:content)).not_to include("stale")
   end
+
+  describe "page numbers" do
+    let(:pdf_text) do
+      "\n--- Page 1 ---\none two three four five\n\n--- Page 2 ---\nsix seven eight nine ten\n\n--- Page 3 ---\neleven twelve thirteen fourteen fifteen\n"
+    end
+
+    before do
+      stub_const("#{described_class}::CHUNK_WORDS", 6)
+      stub_const("#{described_class}::CHUNK_OVERLAP", 2)
+      allow(Tools::PdfReadExecutor).to receive(:new).and_return(
+        instance_double(Tools::PdfReadExecutor, call: ServiceResponse.success(data: { output: pdf_text, exit_code: 0 }))
+      )
+    end
+
+    it "records the pages each PDF chunk came from" do
+      doc = create(:knowledge_document, agent: agent, source_type: "pdf", source_url: "/workspace/a.pdf", status: "pending")
+
+      described_class.perform_now(doc.id)
+
+      chunks = doc.reload.chunks.order(:position)
+      expect(chunks.map { |c| [ c.page_start, c.page_end ] }).to eq([ [ 1, 2 ], [ 1, 2 ], [ 2, 3 ], [ 3, 3 ] ])
+      expect(chunks.first.content).to eq("one two three four five six")
+      expect(chunks.map(&:content).join).not_to include("Page")
+    end
+
+    it "leaves pages nil for text documents" do
+      doc = write_text_doc("alpha beta gamma delta epsilon zeta eta theta")
+
+      described_class.perform_now(doc.id)
+
+      expect(doc.reload.chunks.pluck(:page_start, :page_end).uniq).to eq([ [ nil, nil ] ])
+    end
+  end
 end

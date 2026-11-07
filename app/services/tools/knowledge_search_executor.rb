@@ -20,8 +20,7 @@ module Tools
           else
             ""
           end
-          title = chunk.knowledge_document.title
-          "#{i + 1}.#{match} [#{title} ##{chunk.position}] #{chunk.content.truncate(500)}"
+          "#{i + 1}.#{match} [#{chunk.citation}] #{chunk.content.truncate(500)}"
         end.join("\n\n")
 
         ServiceResponse.success(data: { output: "Found #{chunks.size} chunks:\n\n#{output}", exit_code: 0 })

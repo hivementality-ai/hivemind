@@ -21,6 +21,19 @@ class KnowledgeChunk < ApplicationRecord
       .limit(limit)
   end
 
+  # Citation label for the model, e.g. "Handbook, p. 4" or "Handbook, pp. 4-5".
+  # Chunks without page data (text documents, older rows) cite the title only.
+  def citation
+    title = knowledge_document.title
+    return title unless page_start
+
+    if page_end && page_end != page_start
+      "#{title}, pp. #{page_start}-#{page_end}"
+    else
+      "#{title}, p. #{page_start}"
+    end
+  end
+
   def embedded?
     embedding.present?
   end

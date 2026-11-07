@@ -31,6 +31,20 @@ RSpec.describe Tools::KnowledgeSearchExecutor, type: :service do
       expect(output).to match(/% match/)
     end
 
+    it "labels chunks without pages by title only" do
+      expect(executor.call.data[:output]).to include("[Handbook]")
+    end
+
+    it "labels a single-page chunk with its page" do
+      near.update!(page_start: 4, page_end: 4)
+      expect(executor.call.data[:output]).to include("[Handbook, p. 4]")
+    end
+
+    it "labels a multi-page chunk with its page range" do
+      near.update!(page_start: 4, page_end: 5)
+      expect(executor.call.data[:output]).to include("[Handbook, pp. 4-5]")
+    end
+
     it "respects the limit" do
       result = described_class.new(input: { "query" => "x", "limit" => 1 }, agent: agent).call
       expect(result.data[:output].scan(/% match/).size).to eq(1)
