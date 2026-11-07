@@ -54,14 +54,14 @@ module Memory
       lines << "# #{@agent.name} — Memory"
       lines << ""
 
-      prefs = MemoryEntry.where(agent: @agent).preferences.by_importance.limit(15)
+      prefs = MemoryEntry.active.where(agent: @agent).preferences.by_importance.limit(15)
       if prefs.any?
         lines << "## Preferences"
         prefs.each { |p| lines << "- #{p.content}" }
         lines << ""
       end
 
-      facts = MemoryEntry.where(agent: @agent, memory_type: "semantic")
+      facts = MemoryEntry.active.where(agent: @agent, memory_type: "semantic")
                          .where("importance >= ?", 0.7)
                          .order(importance: :desc)
                          .limit(10)
@@ -71,7 +71,7 @@ module Memory
         lines << ""
       end
 
-      procedures = MemoryEntry.where(agent: @agent, memory_type: "procedural")
+      procedures = MemoryEntry.active.where(agent: @agent, memory_type: "procedural")
                               .where("importance >= ?", 0.6)
                               .order(importance: :desc)
                               .limit(5)
@@ -84,7 +84,7 @@ module Memory
     end
 
     def write_recent_context(dir)
-      recent = MemoryEntry.where(agent: @agent, memory_type: %w[semantic procedural])
+      recent = MemoryEntry.active.where(agent: @agent, memory_type: %w[semantic procedural])
                           .where("importance >= ?", 0.5)
                           .order(created_at: :desc)
                           .limit(5)

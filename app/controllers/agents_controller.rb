@@ -18,8 +18,8 @@ class AgentsController < ApplicationController
                                        .order(requested_at: :desc)
 
     @usage_today = @agent.usage_today
-    @memories = @agent.memory_entries.order(created_at: :desc).limit(5)
-    @memory_total = @agent.memory_entries.count
+    @memories = @agent.memory_entries.durable.active.order(created_at: :desc).limit(5)
+    @memory_total = @agent.memory_entries.durable.active.count
   end
 
   def new

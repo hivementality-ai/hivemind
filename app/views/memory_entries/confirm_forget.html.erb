@@ -1,0 +1,35 @@
+<div class="min-h-screen bg-surface-base text-white">
+  <div class="bg-surface-card border-b border-border-default px-4 sm:px-6 py-4">
+    <%= link_to "← Back to what #{@agent.name} remembers", agent_memory_entries_path(@agent), class: "text-sm text-text-muted hover:text-white transition" %>
+    <h1 class="text-2xl sm:text-3xl font-bold mt-1">Forget everything about "<%= @topic %>"?</h1>
+  </div>
+
+  <div class="container mx-auto px-4 sm:px-6 py-6 space-y-6">
+    <% if @doomed.empty? %>
+      <div class="bg-surface-card rounded-lg border border-border-default text-text-muted text-center py-12 px-4">
+        Nothing to forget. I don't remember anything that mentions "<%= @topic %>".
+      </div>
+    <% else %>
+      <p class="text-sm text-gray-200">
+        These <%= @doomed.size %> <%= "memory".pluralize(@doomed.size) %> will be deleted for good. This can't be undone.
+      </p>
+      <ul class="bg-surface-card rounded-lg border border-border-default divide-y divide-border-default">
+        <% @doomed.each do |memory| %>
+          <li class="px-4 sm:px-6 py-3 text-sm text-gray-200 whitespace-pre-wrap break-words"><%= memory.content %></li>
+        <% end %>
+      </ul>
+      <% if @pinned_count.positive? %>
+        <p class="text-sm text-text-muted"><%= @pinned_count %> pinned <%= "memory".pluralize(@pinned_count) %> will be kept.</p>
+      <% end %>
+
+      <%= form_with url: forget_agent_memory_entries_path(@agent), method: :delete, class: "flex flex-col sm:flex-row gap-3" do |f| %>
+        <%= f.hidden_field :topic, value: @topic %>
+        <% @doomed.each do |memory| %>
+          <%= hidden_field_tag "ids[]", memory.id, id: nil %>
+        <% end %>
+        <%= f.submit "Yes, forget these #{@doomed.size}", class: "px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg transition cursor-pointer" %>
+        <%= link_to "Cancel", agent_memory_entries_path(@agent), class: "px-4 py-2 text-center bg-surface-raised hover:bg-surface-card border border-border-default rounded-lg transition" %>
+      <% end %>
+    <% end %>
+  </div>
+</div>

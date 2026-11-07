@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_07_150000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_07_160000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -466,6 +466,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_150000) do
     t.string "memory_type", default: "episodic", null: false
     t.jsonb "metadata", default: {}, null: false
     t.string "modality", default: "text", null: false
+    t.boolean "pinned", default: false, null: false
     t.vector "shadow_embedding", limit: 768
     t.bigint "source_id"
     t.string "source_type"

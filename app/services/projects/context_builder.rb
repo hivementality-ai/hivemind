@@ -149,7 +149,7 @@ module Projects
       agent = @milestone.agent
       return [] unless agent
 
-      MemoryEntry.where(agent: agent)
+      MemoryEntry.active.where(agent: agent)
                  .where("metadata->>'project_id' = ?", @milestone.project_id.to_s)
                  .order(importance: :desc)
                  .limit(5)

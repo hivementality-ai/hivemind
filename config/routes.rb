@@ -114,9 +114,20 @@ Rails.application.routes.draw do
     end
   end
 
+  get "memories", to: "memory_entries#landing", as: :memories
+
   # Agents (use slug for routes)
   resources :agents, param: :slug do
-    resources :memory_entries, only: [ :index, :destroy ], path: "memories"
+    resources :memory_entries, only: [ :index, :update, :destroy ], path: "memories" do
+      collection do
+        get :forget, action: :confirm_forget
+        delete :forget, action: :bulk_forget
+      end
+      member do
+        post :restore
+        patch :pin
+      end
+    end
     member do
       get :files
       post :upload_files

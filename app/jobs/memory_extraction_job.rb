@@ -116,7 +116,7 @@ class MemoryExtractionJob < ApplicationJob
 
     # Find the old memory that's being corrected
     candidates = MemoryEntry.search_similar(embedding: embedding, agent: agent, limit: 3)
-    match = candidates.find { |e| (1 - e.neighbor_distance) > 0.75 }
+    match = candidates.find { |e| !e.pinned? && (1 - e.neighbor_distance) > 0.75 }
 
     if match
       Rails.logger.info("[MemoryExtraction] Superseding memory ##{match.id}: '#{match.content.truncate(50)}' → '#{new_content.truncate(50)}'")

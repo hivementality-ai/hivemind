@@ -67,7 +67,7 @@ module Memory
       sections = []
 
       # Explicit #remember entries (highest priority — marked by hashtag action)
-      remembers = MemoryEntry.where(agent: @agent)
+      remembers = MemoryEntry.active.where(agent: @agent)
                              .where("metadata->>'source' = ?", "hashtag_action")
                              .order(created_at: :desc)
                              .limit(30)
@@ -78,7 +78,7 @@ module Memory
       end
 
       # Preferences
-      prefs = MemoryEntry.where(agent: @agent).preferences.by_importance.limit(20)
+      prefs = MemoryEntry.active.where(agent: @agent).preferences.by_importance.limit(20)
       if prefs.any?
         sections << "## Preferences"
         prefs.each { |p| sections << "- #{p.content}" }
@@ -86,7 +86,7 @@ module Memory
       end
 
       # Semantic facts
-      facts = MemoryEntry.where(agent: @agent, memory_type: "semantic")
+      facts = MemoryEntry.active.where(agent: @agent, memory_type: "semantic")
                          .order(importance: :desc, created_at: :desc)
                          .limit(30)
       if facts.any?
@@ -96,7 +96,7 @@ module Memory
       end
 
       # Procedural
-      procedures = MemoryEntry.where(agent: @agent, memory_type: "procedural")
+      procedures = MemoryEntry.active.where(agent: @agent, memory_type: "procedural")
                               .order(importance: :desc)
                               .limit(15)
       if procedures.any?

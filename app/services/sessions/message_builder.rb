@@ -178,7 +178,7 @@ module Sessions
         result[:context]
       else
         # Only preferences after initial turns — they're cheap (no embedding search)
-        prefs = MemoryEntry.where(agent: @agent).preferences.by_importance.limit(15)
+        prefs = MemoryEntry.active.where(agent: @agent).preferences.by_importance.limit(15)
         return nil unless prefs.any?
 
         lines = prefs.map { |p| "- #{p.content}" }

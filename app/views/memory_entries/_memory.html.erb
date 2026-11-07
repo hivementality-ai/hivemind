@@ -1,0 +1,33 @@
+<li id="<%= dom_id(memory) %>" class="px-4 sm:px-6 py-3" data-controller="memory-edit">
+  <div data-memory-edit-target="display" class="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4">
+    <div class="flex-1 min-w-0">
+      <p class="text-sm text-gray-200 whitespace-pre-wrap break-words">
+        <% if memory.pinned? %><span class="text-xs px-1.5 py-0.5 rounded bg-surface-raised text-brand mr-1">Pinned</span><% end %>
+        <%= memory.content %>
+      </p>
+      <span class="text-xs text-text-faint mt-1 block">Learned <%= time_ago_in_words(memory.created_at) %> ago</span>
+    </div>
+    <% if can_edit %>
+      <div class="flex flex-wrap items-center gap-4 text-xs">
+        <button type="button" data-action="memory-edit#edit" class="text-brand hover:text-brand-dark transition cursor-pointer">Edit</button>
+        <%= button_to (memory.pinned? ? "Unpin" : "Pin"), pin_agent_memory_entry_path(agent, memory),
+              method: :patch, params: { pinned: !memory.pinned? },
+              class: "text-text-muted hover:text-white transition cursor-pointer" %>
+        <%= button_to "Forget", agent_memory_entry_path(agent, memory), method: :delete,
+              class: "text-red-400 hover:text-red-300 transition cursor-pointer" %>
+      </div>
+    <% end %>
+  </div>
+
+  <% if can_edit %>
+    <%= form_with model: memory, url: agent_memory_entry_path(agent, memory), method: :patch, scope: :memory_entry,
+          class: "hidden flex-col gap-2", data: { memory_edit_target: "form" } do |f| %>
+      <%= f.text_area :content, rows: 3, "aria-label": "Edit memory", data: { memory_edit_target: "field" },
+            class: "w-full bg-surface-base border border-border-default rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand" %>
+      <div class="flex gap-3">
+        <%= f.submit "Save", class: "px-4 py-1.5 bg-brand hover:bg-brand-dark rounded-lg text-sm transition cursor-pointer" %>
+        <button type="button" data-action="memory-edit#cancel" class="px-4 py-1.5 text-sm text-text-muted hover:text-white transition cursor-pointer">Cancel</button>
+      </div>
+    <% end %>
+  <% end %>
+</li>

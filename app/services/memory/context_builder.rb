@@ -77,7 +77,7 @@ module Memory
 
     # All preferences for this agent (they're always relevant)
     def preference_memories
-      MemoryEntry.where(agent: @agent)
+      MemoryEntry.active.where(agent: @agent)
                  .preferences
                  .by_importance
                  .limit(15)
@@ -108,7 +108,7 @@ module Memory
 
     # Recent structured memories (facts, procedures — not raw conversation transcripts)
     def recent_structured
-      MemoryEntry.where(agent: @agent)
+      MemoryEntry.active.where(agent: @agent)
                  .where(memory_type: %w[semantic procedural])
                  .where("importance >= ?", 0.5)
                  .order(created_at: :desc)
@@ -123,7 +123,7 @@ module Memory
       conditions = keywords.map { "LOWER(content) LIKE ?" }
       values = keywords.map { |kw| "%#{MemoryEntry.sanitize_sql_like(kw)}%" }
 
-      MemoryEntry.where(agent: @agent)
+      MemoryEntry.active.where(agent: @agent)
                  .where(memory_type: %w[semantic procedural])
                  .where(conditions.join(" OR "), *values)
                  .order(created_at: :desc)
