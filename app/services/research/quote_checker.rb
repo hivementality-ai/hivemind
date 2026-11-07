@@ -12,7 +12,7 @@ module Research
 
     # @param report [String] the synthesized report text
     # @param sources [Array<Hash>] entries with :url and :text (the fetched source text)
-    # @return [Hash] "results" (passage, source_url, status per quote) and "summary" counts
+    # @return [Hash] "results" (passage, source_url, status per quote; status is verified, other_source or unverified) and "summary" counts
     def self.call(report:, sources:)
       new(report: report, sources: sources).call
     end
@@ -40,9 +40,10 @@ module Research
 
     def call
       results = paragraphs.flat_map { |paragraph| check_paragraph(paragraph) }
-      verified = results.count { |r| r["status"] == "verified" }
+      counts = results.map { |r| r["status"] }.tally
       { "results" => results,
-        "summary" => { "total" => results.size, "verified" => verified, "unverified" => results.size - verified } }
+        "summary" => { "total" => results.size, "verified" => counts.fetch("verified", 0),
+                       "other_source" => counts.fetch("other_source", 0), "unverified" => counts.fetch("unverified", 0) } }
     end
 
     private
@@ -56,10 +57,18 @@ module Research
       paragraph.scan(/"([^"]+)"/).flatten.filter_map do |passage|
         next if passage.split.size < MIN_WORDS
 
-        source = find_source(passage_key(passage), cited)
+        needle = passage_key(passage)
+        source = find_source(needle, cited)
         { "passage" => passage.strip, "source_url" => source&.dig(:url) || cited.first,
-          "status" => source ? "verified" : "unverified" }
+          "status" => status_for(source, cited) }
       end
+    end
+
+    def status_for(source, cited_urls)
+      return "unverified" unless source
+      return "verified" if cited_urls.empty? || cited_urls.include?(source[:url])
+
+      "other_source"
     end
 
     def find_source(needle, cited_urls)

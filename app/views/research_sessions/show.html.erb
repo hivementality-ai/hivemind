@@ -15,8 +15,8 @@
             <div class="mb-4 rounded-lg bg-yellow-900/20 border border-yellow-500/30 p-4" data-testid="quote-check-summary">
               <p class="text-yellow-400 text-sm font-medium mb-2"><%= @research_session.quote_check_summary %></p>
               <ul class="space-y-1 text-xs text-text-muted">
-                <% @research_session.unverified_quotes.each do |quote| %>
-                  <li>"<%= quote["passage"] %>" <span class="text-yellow-400">(not found in source)</span></li>
+                <% @research_session.flagged_quotes.each do |quote| %>
+                  <li>"<%= quote["passage"] %>" <span class="text-yellow-400"><%= @research_session.quote_flag_label(quote) %></span></li>
                 <% end %>
               </ul>
             </div>

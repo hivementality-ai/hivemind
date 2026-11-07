@@ -249,7 +249,7 @@ RSpec.describe Research::Loop do
       subject.call
 
       checks = research_session.reload.quote_checks
-      expect(checks["summary"]).to eq("total" => 2, "verified" => 1, "unverified" => 1)
+      expect(checks["summary"]).to eq("total" => 2, "verified" => 1, "other_source" => 0, "unverified" => 1)
       expect(checks["results"].map { |r| [ r["passage"], r["status"] ] }).to eq(
         [ [ real_quote, "verified" ], [ fake_quote, "unverified" ] ]
       )

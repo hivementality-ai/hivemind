@@ -23,7 +23,7 @@ RSpec.describe Research::QuoteChecker do
 
     expect(statuses(result)).to eq([ "verified" ])
     expect(result["results"].first).to include("passage" => quote, "source_url" => "https://example.com/a")
-    expect(result["summary"]).to eq("total" => 1, "verified" => 1, "unverified" => 0)
+    expect(result["summary"]).to eq("total" => 1, "verified" => 1, "other_source" => 0, "unverified" => 0)
   end
 
   it "marks a long quote with a single changed word as unverified" do
@@ -31,7 +31,7 @@ RSpec.describe Research::QuoteChecker do
     result = check(%(They said "#{changed}" in the paper.))
 
     expect(statuses(result)).to eq([ "unverified" ])
-    expect(result["summary"]).to eq("total" => 1, "verified" => 0, "unverified" => 1)
+    expect(result["summary"]).to eq("total" => 1, "verified" => 0, "other_source" => 0, "unverified" => 1)
   end
 
   it "ignores case and whitespace differences" do
@@ -62,7 +62,7 @@ RSpec.describe Research::QuoteChecker do
     result = check(%(He called it "a significant result" in the paper and "the new error correction scheme".))
 
     expect(result["results"]).to eq([])
-    expect(result["summary"]).to eq("total" => 0, "verified" => 0, "unverified" => 0)
+    expect(result["summary"]).to eq("total" => 0, "verified" => 0, "other_source" => 0, "unverified" => 0)
   end
 
   it "counts a quote of exactly eight words" do
@@ -71,9 +71,23 @@ RSpec.describe Research::QuoteChecker do
     expect(statuses(check(%("one two three four five six seven eight"), srcs))).to eq([ "verified" ])
   end
 
-  it "verifies against any source when the cited one lacks the passage" do
+  it "flags a quote found only in a source other than the one cited" do
     srcs = [ { url: "https://example.com/b", text: "unrelated" }, sources.first ]
     result = check(%("#{quote}" [B](https://example.com/b)), srcs)
+
+    expect(result["results"].first).to include("status" => "other_source", "source_url" => "https://example.com/a")
+    expect(result["summary"]).to eq("total" => 1, "verified" => 0, "other_source" => 1, "unverified" => 0)
+  end
+
+  it "verifies a quote found in the cited source even when another source has it too" do
+    srcs = [ { url: "https://example.com/b", text: source_text }, sources.first ]
+    result = check(%("#{quote}" [A](https://example.com/a)), srcs)
+
+    expect(result["results"].first).to include("status" => "verified", "source_url" => "https://example.com/a")
+  end
+
+  it "verifies a quote found in any source when the paragraph cites nothing" do
+    result = check(%("#{quote}"))
 
     expect(result["results"].first).to include("status" => "verified", "source_url" => "https://example.com/a")
   end
@@ -95,6 +109,6 @@ RSpec.describe Research::QuoteChecker do
   end
 
   it "returns an empty result for a report without quotes" do
-    expect(check("No quotes here.")).to eq("results" => [], "summary" => { "total" => 0, "verified" => 0, "unverified" => 0 })
+    expect(check("No quotes here.")).to eq("results" => [], "summary" => { "total" => 0, "verified" => 0, "other_source" => 0, "unverified" => 0 })
   end
 end
