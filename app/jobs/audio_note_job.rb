@@ -53,7 +53,7 @@ class AudioNoteJob < ApplicationJob
   def finish(note)
     note.session.append_transcript({ "role" => "assistant", "content" => note.notes })
     advance(note, "done", broadcast: false)
-    broadcast(note.session, { type: "done", content: note.notes })
+    broadcast(note.session, { type: "audio_notes", content: note.notes })
   end
 
   def save_to_library(note)
@@ -77,7 +77,7 @@ class AudioNoteJob < ApplicationJob
   def fail_note(note, reason)
     note.update!(status: "failed", error: reason)
     note.file.purge if note.file.attached? && !note.keep_recording
-    broadcast(note.session, { type: "error", content: note.progress_text })
+    broadcast(note.session, { type: "audio_error", content: note.progress_text })
   end
 
   def broadcast(session, payload)

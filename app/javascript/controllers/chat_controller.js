@@ -318,6 +318,13 @@ export default class extends Controller {
       case "notice":
         this.appendSystemNotice(data.content)
         break
+      case "audio_notes":
+        // Notes from an audio upload: own bubble, never touches a live reply stream
+        this.appendAudioNotes(data.content)
+        break
+      case "audio_error":
+        this.showError(data.content)
+        break
       case "title_update":
         this.updateTitle(data.title)
         break
@@ -998,6 +1005,19 @@ export default class extends Controller {
             <div class="bg-purple-900/20 border border-purple-500/30 rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
               <div class="prose prose-invert prose-sm max-w-none">${this.renderMarkdown(content)}</div>
             </div>
+          </div>
+        </div>
+      </div>`
+    this.messagesTarget.insertAdjacentHTML("beforeend", html)
+    this.scrollToBottom()
+  }
+
+  appendAudioNotes(content) {
+    const html = `
+      <div class="flex justify-start">
+        <div class="max-w-2xl">
+          <div class="bg-surface-raised rounded-2xl rounded-bl-md px-4 py-3 text-gray-100">
+            <div class="prose prose-invert prose-sm max-w-none chat-content">${this.renderMarkdown(content)}</div>
           </div>
         </div>
       </div>`

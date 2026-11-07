@@ -38,7 +38,7 @@ RSpec.describe AudioNoteJob, type: :job do
     expect(payloads.pluck(:content)).to eq([
       "Listening to the recording and typing it out.", "Writing up the notes.", "## Summary\nShip it."
     ])
-    expect(payloads.pluck(:type)).to eq(%w[notice notice done])
+    expect(payloads.pluck(:type)).to eq(%w[notice notice audio_notes])
     expect(broadcasts.map(&:first).uniq).to eq([ "session_#{note.session_id}" ])
   end
 
@@ -69,6 +69,14 @@ RSpec.describe AudioNoteJob, type: :job do
     expect(note.reload.transcript).to eq("First half.\n\nSecond half.")
   end
 
+  it "sends the finished notes as their own message type so a live reply stream is not touched" do
+    described_class.perform_now(note.id)
+
+    payloads = broadcasts.map(&:last)
+    expect(payloads.last).to eq(type: "audio_notes", content: "## Summary\nShip it.")
+    expect(payloads.pluck(:type)).not_to include("done", "error")
+  end
+
   it "fails with a settings pointer when no speech-to-text is set up, and still deletes the audio" do
     allow(Audio::SpeechToText).to receive(:adapter).and_return(nil)
 
@@ -78,7 +86,7 @@ RSpec.describe AudioNoteJob, type: :job do
     expect(note.status).to eq("failed")
     expect(note.error).to eq(Audio::SpeechToText::NOT_SET_UP)
     expect(note.file).not_to be_attached
-    expect(broadcasts.last.last).to include(type: "error", content: include("No speech-to-text is set up"))
+    expect(broadcasts.last.last).to include(type: "audio_error", content: include("No speech-to-text is set up"))
   end
 
   it "fails in plain words when the speech service fails" do
