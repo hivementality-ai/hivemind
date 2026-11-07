@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_07_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_07_190000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -224,6 +224,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_180000) do
     t.index ["agent_id"], name: "index_approval_requests_on_agent_id"
     t.index ["expires_at"], name: "index_approval_requests_on_expires_at"
     t.index ["status"], name: "index_approval_requests_on_status"
+  end
+
+  create_table "audio_notes", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.integer "byte_size"
+    t.string "content_type"
+    t.datetime "created_at", null: false
+    t.text "error"
+    t.string "filename"
+    t.boolean "keep_recording", default: false, null: false
+    t.bigint "knowledge_document_id"
+    t.text "notes"
+    t.bigint "session_id", null: false
+    t.string "status", default: "queued", null: false
+    t.text "transcript"
+    t.datetime "updated_at", null: false
+    t.index ["agent_id"], name: "index_audio_notes_on_agent_id"
+    t.index ["knowledge_document_id"], name: "index_audio_notes_on_knowledge_document_id"
+    t.index ["session_id"], name: "index_audio_notes_on_session_id"
   end
 
   create_table "audit_logs", force: :cascade do |t|
@@ -1115,6 +1134,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_180000) do
   add_foreign_key "api_integrations", "users"
   add_foreign_key "api_tokens", "users"
   add_foreign_key "approval_requests", "agents"
+  add_foreign_key "audio_notes", "agents"
+  add_foreign_key "audio_notes", "knowledge_documents", on_delete: :nullify
+  add_foreign_key "audio_notes", "sessions"
   add_foreign_key "channel_threads", "agents"
   add_foreign_key "channel_threads", "channels"
   add_foreign_key "chat_attachments", "sessions"

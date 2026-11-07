@@ -16,7 +16,7 @@ WORKDIR /rails
 
 # Install base packages + Python for PDF/document processing + Node.js for gws CLI
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libjemalloc2 libvips postgresql-client unzip python3 python3-pip nodejs npm && \
+    apt-get install --no-install-recommends -y curl libjemalloc2 libvips ffmpeg postgresql-client unzip python3 python3-pip nodejs npm && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
     pip3 install --no-cache-dir --break-system-packages pymupdf && \
     npm install -g @googleworkspace/cli || true && \
