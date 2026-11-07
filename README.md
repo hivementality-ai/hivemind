@@ -569,7 +569,7 @@ Full group chat where agents collaborate via @mentions. Tag `@AgentName` for a s
 | **Web** | `web_search`, `web_fetch`, `browser` (Playwright), `http_request` |
 | **AI/Media** | `image` (vision), `tts` (text-to-speech), `memory_search`, `image_generate` (DALL-E 3) |
 | **Cloud** | `cloud_storage` (Drive/S3/Dropbox/OneDrive/B2/SFTP) |
-| **Communication** | `email` (SMTP), `gmail` (IMAP), `message` (5 platforms) |
+| **Communication** | `email` (SMTP), `message` (5 platforms) |
 | **Google Workspace** | `google_drive`, `google_calendar`, `google_gmail` |
 | **Integrations** | `jira` (issues, JQL, transitions), `trello`, `http_request` (any API) |
 | **Scheduling** | `cron` (prompt-based scheduled agent turns), `cron_script` (script-based scheduled tasks) |

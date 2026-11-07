@@ -10,7 +10,7 @@ module Agents
         description: "image generation (DALL-E)",
         config_hint: "OpenAI API key must be configured in provider settings"
       },
-      "gmail" => {
+      "google_gmail" => {
         provider: "google",
         description: "Gmail access",
         config_hint: "Google OAuth credentials must be configured"

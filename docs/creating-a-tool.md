@@ -338,7 +338,7 @@ req["X-API-Key"] = api_key
 |------|-------------|------------|-----------|
 | Jira | Basic (email:token) | `jira/base_url`, `jira/email`, `jira/api_token` | `jira_executor.rb` |
 | Trello | Query params (key+token) | `trello/api_key`, `trello/token` | `trello_executor.rb` |
-| Gmail | IMAP/SMTP credentials | `google/gmail_address`, `google/gmail_app_password` | `gmail_executor.rb` |
+| Email | SMTP credentials | `email/smtp_host`, `email/smtp_username`, `email/smtp_password` | `email_executor.rb` |
 | Image Generate | Bearer token | `openai/api_key` | `image_generate_executor.rb` |
 
 ---

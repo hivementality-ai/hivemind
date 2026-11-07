@@ -198,6 +198,112 @@ RSpec.describe Tools::GoogleGmailExecutor, type: :service do
     end
   end
 
+  describe "inbox action (carried over from the retired gmail tool)" do
+    it "lists the INBOX label with the requested limit" do
+      seen = []
+      allow_any_instance_of(described_class).to receive(:gws) do |_instance, *args|
+        seen << args
+        { "messages" => [] }.to_json
+      end
+
+      response = execute("action" => "inbox", "limit" => 5)
+
+      expect(response.success?).to be true
+      params = JSON.parse(seen.first[seen.first.index("--params") + 1])
+      expect(params).to include("labelIds" => "INBOX", "maxResults" => 5)
+    end
+
+    it "accepts read as an alias for inbox" do
+      seen = []
+      allow_any_instance_of(described_class).to receive(:gws) do |_instance, *args|
+        seen << args
+        { "messages" => [] }.to_json
+      end
+
+      execute("action" => "read")
+
+      params = JSON.parse(seen.first[seen.first.index("--params") + 1])
+      expect(params["labelIds"]).to eq("INBOX")
+    end
+
+    it "does not restrict a plain list to the inbox" do
+      seen = []
+      allow_any_instance_of(described_class).to receive(:gws) do |_instance, *args|
+        seen << args
+        { "messages" => [] }.to_json
+      end
+
+      execute("action" => "list")
+
+      params = JSON.parse(seen.first[seen.first.index("--params") + 1])
+      expect(params).not_to have_key("labelIds")
+    end
+  end
+
+  describe "reply action (carried over from the retired gmail tool)" do
+    let(:original) do
+      {
+        "id" => "msg001",
+        "threadId" => "thread9",
+        "payload" => { "headers" => [
+          { "name" => "From", "value" => "alice@example.com" },
+          { "name" => "Subject", "value" => "Project update" },
+          { "name" => "Message-ID", "value" => "<abc@mail.example.com>" }
+        ] }
+      }
+    end
+
+    it "requires message_id and body" do
+      response = execute("action" => "reply", "message_id" => "msg001", "body" => "")
+      expect(response.success?).to be false
+      expect(response.error).to include("message_id and body required")
+    end
+
+    it "fails when the original message cannot be found" do
+      allow_any_instance_of(described_class).to receive(:gws).and_return(ServiceResponse.failure(error: "gws: 404"))
+
+      response = execute("action" => "reply", "message_id" => "nope", "body" => "Thanks")
+      expect(response.success?).to be false
+      expect(response.error).to include("Original email not found")
+    end
+
+    it "sends on the original thread to the sender with a Re: subject and reply headers" do
+      calls = []
+      allow_any_instance_of(described_class).to receive(:gws) do |_instance, *args|
+        calls << args
+        args.include?("get") ? original.to_json : "{}"
+      end
+
+      response = execute("action" => "reply", "message_id" => "msg001", "body" => "Thanks!")
+
+      expect(response.success?).to be true
+      expect(response.data[:output]).to include("Reply sent to alice@example.com: Re: Project update")
+      send_call = calls.find { |c| c.include?("send") }
+      payload = JSON.parse(send_call[send_call.index("--json") + 1])
+      expect(payload["threadId"]).to eq("thread9")
+      raw = Base64.urlsafe_decode64(payload["raw"])
+      expect(raw).to include("To: alice@example.com")
+      expect(raw).to include("Subject: Re: Project update")
+      expect(raw).to include("In-Reply-To: <abc@mail.example.com>")
+      expect(raw).to include("References: <abc@mail.example.com>")
+    end
+
+    it "prefers Reply-To and does not double the Re: prefix" do
+      original["payload"]["headers"] << { "name" => "Reply-To", "value" => "team@example.com" }
+      original["payload"]["headers"].find { |h| h["name"] == "Subject" }["value"] = "Re: Project update"
+      calls = []
+      allow_any_instance_of(described_class).to receive(:gws) do |_instance, *args|
+        calls << args
+        args.include?("get") ? original.to_json : "{}"
+      end
+
+      response = execute("action" => "reply", "message_id" => "msg001", "body" => "Thanks!")
+
+      expect(response.data[:output]).to include("Reply sent to team@example.com: Re: Project update")
+      expect(response.data[:output]).not_to include("Re: Re:")
+    end
+  end
+
   describe "error handling" do
     it "wraps unexpected errors" do
       allow_any_instance_of(described_class).to receive(:gws).and_raise(StandardError, "API limit exceeded")
