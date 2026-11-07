@@ -257,7 +257,7 @@ BUILTIN_TOOLS = [
   },
   {
     name: "cron",
-    description: "Manage scheduled tasks. When a task fires, a new agent session is created and the agent receives the prompt with full access to all its tools (gmail, web_search, etc.). This is NOT a shell cron — it's an agent turn.",
+    description: "Manage scheduled tasks. When a task fires, a new agent session is created and the agent receives the prompt with full access to all its tools (google_gmail, web_search, etc.). This is NOT a shell cron — it's an agent turn.",
     executor_type: "cron",
     requires_approval: false,
     parameters_schema: {
@@ -265,7 +265,7 @@ BUILTIN_TOOLS = [
         "action" => { "type" => "string", "description" => "Action: list, create, confirm_create, delete, run", "enum" => %w[list create confirm_create delete run] },
         "name" => { "type" => "string", "description" => "Task name (for create)" },
         "schedule" => { "type" => "string", "description" => "Cron expression, e.g. '0 13 * * *' for 8am CT (for create)" },
-        "prompt" => { "type" => "string", "description" => "Instructions for the agent to execute when the task fires. The agent wakes up in a new session with this prompt and can use all its tools (gmail, web_search, etc.)." },
+        "prompt" => { "type" => "string", "description" => "Instructions for the agent to execute when the task fires. The agent wakes up in a new session with this prompt and can use all its tools (google_gmail, web_search, etc.)." },
         "confirmation_id" => { "type" => "string", "description" => "Confirmation ID returned by create action (for confirm_create)" },
         "task_id" => { "type" => "string", "description" => "Task ID (for delete/run)" }
       },
@@ -447,25 +447,6 @@ BUILTIN_TOOLS = [
         "voice" => { "type" => "string", "description" => "Voice: alloy, echo, fable, onyx, nova, shimmer", "enum" => %w[alloy echo fable onyx nova shimmer] }
       },
       "required" => [ "text" ]
-    }
-  },
-  {
-    name: "gmail",
-    description: "Read, search, and send Gmail emails. Uses IMAP/SMTP with App Password — no API setup needed.",
-    executor_type: "gmail",
-    requires_approval: false,
-    parameters_schema: {
-      "properties" => {
-        "action" => { "type" => "string", "description" => "Action: inbox, search, get, send, reply", "enum" => %w[inbox search get send reply] },
-        "query" => { "type" => "string", "description" => "Search query (for search)" },
-        "uid" => { "type" => "string", "description" => "Email UID (for get/reply)" },
-        "to" => { "type" => "string", "description" => "Recipient email (for send)" },
-        "subject" => { "type" => "string", "description" => "Email subject (for send)" },
-        "body" => { "type" => "string", "description" => "Email body (for send/reply)" },
-        "folder" => { "type" => "string", "description" => "IMAP folder (default: INBOX)" },
-        "limit" => { "type" => "integer", "description" => "Max results (default: 10)" }
-      },
-      "required" => [ "action" ]
     }
   },
   {
@@ -819,20 +800,23 @@ BUILTIN_TOOLS = [
   },
   {
     name: "google_gmail",
-    description: "Read, search, send, and draft emails via Google Gmail using the gws CLI. Requires Google Workspace connection with Gmail scope at /integrations.",
+    description: "Read the inbox, search, read, reply to, send, and draft Gmail emails. Uses the Google Workspace connection when it has Gmail access, otherwise a Gmail address and app password; both are set up at /integrations (drafts need the Google connection).",
     executor_type: "google_gmail",
     requires_approval: false,
     parameters_schema: {
       "properties" => {
-        "action" => { "type" => "string", "description" => "Action: list, get, search, send, draft", "enum" => %w[list get search send draft] },
-        "message_id" => { "type" => "string", "description" => "Message ID (for get)" },
+        "action" => { "type" => "string", "description" => "Action: inbox, list, get, search, send, reply, draft", "enum" => %w[inbox list get search send reply draft] },
+        "message_id" => { "type" => "string", "description" => "Message ID (for get/reply)" },
+        "uid" => { "type" => "string", "description" => "Same as message_id; the number shown in inbox listings on an app-password connection" },
+        "folder" => { "type" => "string", "description" => "Mail folder (default: INBOX; app-password connection only)" },
         "query" => { "type" => "string", "description" => "Gmail search query (for search)" },
         "to" => { "type" => "string", "description" => "Recipient email address (for send/draft)" },
         "subject" => { "type" => "string", "description" => "Email subject (for send/draft)" },
-        "body" => { "type" => "string", "description" => "Email body text (for send/draft)" },
+        "body" => { "type" => "string", "description" => "Email body text (for send/reply/draft)" },
         "cc" => { "type" => "string", "description" => "CC recipients (for send/draft)" },
         "bcc" => { "type" => "string", "description" => "BCC recipients (for send/draft)" },
         "max_results" => { "type" => "integer", "description" => "Max messages to return (default: 20)" },
+        "limit" => { "type" => "integer", "description" => "Alias for max_results (for inbox/list)" },
         "params" => { "type" => "object", "description" => "Additional gws parameters" }
       },
       "required" => [ "action" ]
@@ -1030,5 +1014,7 @@ BUILTIN_TOOLS.each do |tool_attrs|
   tool.save!
   puts "  ✓ #{tool.name}"
 end
+
+Tools::GmailRetirement.call
 
 puts "Built-in Tools seeded!"

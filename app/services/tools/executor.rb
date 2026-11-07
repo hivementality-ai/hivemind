@@ -37,7 +37,7 @@ module Tools
       "agents_list" => Tools::AgentsListExecutor,
       "gateway" => Tools::GatewayExecutor,
       "tts" => Tools::TtsExecutor,
-      "gmail" => Tools::GmailExecutor,
+      "gmail" => Tools::GoogleGmailExecutor, # retired tool name; keeps old rows valid
       "drive" => Tools::CloudStorageExecutor,
       "cloud_storage" => Tools::CloudStorageExecutor,
       "http_request" => Tools::HttpRequestExecutor,

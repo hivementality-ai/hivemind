@@ -12,13 +12,16 @@ module Tools
     REQUIRED_SCOPE = "https://www.googleapis.com/auth/gmail.modify"
     USER_ID = "me"
 
+    # Uses the Google Workspace connection when it grants Gmail, else the
+    # app-password IMAP/SMTP backend, else explains how to connect.
     def call
-      return scope_error unless scope_granted?
+      return imap_backend.call if !oauth_usable? && imap_backend.configured?
+      return scope_error unless oauth_usable?
 
       action = input["action"].to_s.strip
 
       case action
-      when "list"
+      when "list", "inbox", "read"
         list_messages
       when "get"
         get_message
@@ -28,8 +31,10 @@ module Tools
         send_message
       when "draft"
         create_draft
+      when "reply"
+        reply_to_message
       else
-        ServiceResponse.failure(error: "Unknown action: #{action}. Supported: list, get, search, send, draft")
+        ServiceResponse.failure(error: "Unknown action: #{action}. Supported: list, inbox, get, search, send, reply, draft")
       end
     rescue StandardError => e
       ServiceResponse.failure(error: "Google Gmail error: #{e.message}")
@@ -38,8 +43,9 @@ module Tools
     private
 
     def list_messages
-      params = input["params"] || {}
-      params["maxResults"] ||= 20
+      params = (input["params"] || {}).dup
+      params["maxResults"] ||= (input["limit"] || input["max_results"] || 20).to_i.clamp(1, 50)
+      params["labelIds"] ||= "INBOX" if %w[inbox read].include?(input["action"].to_s.strip)
 
       result = gws("gmail", "users", "messages", "list", "--params", params.merge("userId" => USER_ID).to_json)
       return result if result.is_a?(ServiceResponse) && !result.success?
@@ -57,7 +63,7 @@ module Tools
     end
 
     def get_message
-      message_id = input["message_id"].to_s.strip
+      message_id = (input["message_id"].presence || input["uid"]).to_s.strip
       return ServiceResponse.failure(error: "No message_id provided") if message_id.empty?
 
       result = gws("gmail", "users", "messages", "get", "--params", { "userId" => USER_ID, "id" => message_id }.to_json)
@@ -107,6 +113,30 @@ module Tools
       ServiceResponse.success(data: { output: "Sent message to #{to}.", exit_code: 0 })
     end
 
+    # Replies on the original message's thread, addressed to its Reply-To (else From).
+    def reply_to_message
+      message_id = (input["message_id"].presence || input["uid"]).to_s.strip
+      body = input["body"].to_s.strip
+      return ServiceResponse.failure(error: "message_id and body required") if message_id.empty? || body.empty?
+
+      original = fetch_reply_headers(message_id)
+      return ServiceResponse.failure(error: "Original email not found") unless original
+
+      headers = header_map(original)
+      recipient = headers["Reply-To"].presence || headers["From"]
+      return ServiceResponse.failure(error: "Original email has no sender to reply to") if recipient.blank?
+
+      subject = headers["Subject"].to_s
+      subject = "Re: #{subject}" unless subject.match?(/\Are:/i)
+      raw = build_raw_message(to: recipient, subject: subject, body: body, in_reply_to: headers["Message-ID"])
+      payload = { "raw" => raw, "threadId" => original["threadId"] }.compact
+
+      result = gws("gmail", "users", "messages", "send", "--params", { "userId" => USER_ID }.to_json, "--json", payload.to_json)
+      return result if result.is_a?(ServiceResponse) && !result.success?
+
+      ServiceResponse.success(data: { output: "Reply sent to #{recipient}: #{subject}", exit_code: 0 })
+    end
+
     def create_draft
       to = input["to"].to_s.strip
       subject = input["subject"].to_s.strip
@@ -148,6 +178,14 @@ module Tools
       end
     end
 
+    def oauth_usable?
+      GoogleWorkspace::CredentialBridge.configured? && scope_granted?
+    end
+
+    def imap_backend
+      @imap_backend ||= Tools::Gmail::ImapBackend.new(input: input)
+    end
+
     def scope_granted?
       scopes = GoogleWorkspace::CredentialBridge.granted_scopes.to_s
       scopes.include?(REQUIRED_SCOPE)
@@ -155,7 +193,8 @@ module Tools
 
     def scope_error
       ServiceResponse.failure(
-        error: "Gmail access not authorized. Please grant Gmail permissions at /integrations."
+        error: "Gmail access not authorized. Connect Google Workspace at /integrations, " \
+               "or enter a Gmail address and app password there."
       )
     end
 
@@ -166,10 +205,22 @@ module Tools
       JSON.parse(result) rescue nil
     end
 
-    def format_message_summary(msg)
-      headers = (msg.dig("payload", "headers") || []).each_with_object({}) do |h, map|
+    def fetch_reply_headers(message_id)
+      params = { "userId" => USER_ID, "id" => message_id, "format" => "metadata", "metadataHeaders" => "From,Reply-To,Subject,Message-ID" }
+      result = gws("gmail", "users", "messages", "get", "--params", params.to_json)
+      return nil if result.is_a?(ServiceResponse) && !result.success?
+
+      JSON.parse(result) rescue nil
+    end
+
+    def header_map(msg)
+      (msg.dig("payload", "headers") || []).each_with_object({}) do |h, map|
         map[h["name"]] = h["value"]
       end
+    end
+
+    def format_message_summary(msg)
+      headers = header_map(msg)
 
       [
         "ID: #{msg["id"]}",
@@ -180,9 +231,7 @@ module Tools
     end
 
     def format_message_detail(msg)
-      headers = (msg.dig("payload", "headers") || []).each_with_object({}) do |h, map|
-        map[h["name"]] = h["value"]
-      end
+      headers = header_map(msg)
 
       body = extract_body(msg["payload"])
 
@@ -222,9 +271,11 @@ module Tools
       "(No body content)"
     end
 
-    def build_raw_message(to:, subject:, body:, cc: nil, bcc: nil)
+    def build_raw_message(to:, subject:, body:, cc: nil, bcc: nil, in_reply_to: nil)
       lines = []
       lines << "To: #{to}"
+      lines << "In-Reply-To: #{in_reply_to}" if in_reply_to.present?
+      lines << "References: #{in_reply_to}" if in_reply_to.present?
       lines << "Cc: #{cc}" if cc.present?
       lines << "Bcc: #{bcc}" if bcc.present?
       lines << "Subject: #{subject}"

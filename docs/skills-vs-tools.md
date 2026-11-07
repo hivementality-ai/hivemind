@@ -41,7 +41,7 @@ Tools are **server-side executors** that run Ruby code on behalf of the agent. T
 **Examples:**
 - `jira` — Jira Cloud API with Basic auth
 - `trello` — Trello API with key/token auth
-- `gmail` — IMAP/SMTP with app passwords
+- `email` — SMTP with a username and password
 - `image_generate` — OpenAI DALL-E with Bearer token
 
 **Tools require 4 things:**

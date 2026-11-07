@@ -582,7 +582,7 @@ templates = [
     model_config: { provider: "anthropic", model: LlmModelRegistry::Anthropic::SONNET_5_5, temperature: 0.3 },
     tools_config: { enabled: [
       "web_search", "web_fetch", "browser",
-      "gmail", "email", "message",
+      "google_gmail", "email", "message",
       "file_read", "file_write", "file_edit", "file_send", "glob", "grep", "pdf_read",
       "memory_search", "memory_store", "memory_update", "memory_stats",
       "cron", "heartbeat_write",

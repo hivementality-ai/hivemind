@@ -14,7 +14,7 @@ module AgentsHelper
   TOOL_CATEGORIES = {
     "Files & Code" => %w[file_read file_write file_edit file_send glob grep pdf_read shell],
     "Web & Network" => %w[web_search web_fetch http_request browser],
-    "Communication" => %w[message email gmail google_gmail],
+    "Communication" => %w[message email google_gmail],
     "Media" => %w[image image_generate tts stt canvas],
     "Integrations" => %w[jira trello google_drive google_calendar cloud_storage gateway],
     "Agent Orchestration" => %w[delegate delegation_status coding_agent coding_agent_status deep_research deep_research_status agents_list],

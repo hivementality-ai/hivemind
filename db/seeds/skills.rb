@@ -174,9 +174,9 @@ skills = [
       - `{ "action": "delete", "event_id": "evt123" }` — delete event
 
       ### google_gmail
-      Read, search, send, and draft emails.
+      Read the inbox, search, read, reply to, send, and draft emails.
 
-      **Actions:** list, get, search, send, draft
+      **Actions:** inbox, list, get, search, send, reply, draft
 
       - **Never send emails without explicit user confirmation** — always draft first or ask before sending
       - Draft emails first, let the user review before sending
@@ -188,6 +188,7 @@ skills = [
       - `{ "action": "get", "message_id": "msg123" }` — read full message
       - `{ "action": "draft", "to": "alice@example.com", "subject": "Re: Project", "body": "..." }` — create draft
       - `{ "action": "send", "to": "alice@example.com", "subject": "Update", "body": "..." }` — send email
+      - `{ "action": "reply", "message_id": "msg123", "body": "..." }` — reply on the original thread
 
       ## Scope Awareness
 
