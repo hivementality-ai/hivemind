@@ -84,3 +84,11 @@ Closest rivals for this exact user are Khoj (personal, research, AGPL) and GPT R
 - **HTTP:** fold `http_request` into the OpenAPI integration path so there is one way to call an API.
 - **Hide in a Simple mode (do not delete):** Teams, team chat, swarm import/export, task hooks, webhook endpoints, agent channels beyond iMessage, email and one chat app, Jira, Trello, the coding agent, API tokens, budgets and analytics. Move Jira and Trello into the plugin folder.
 - **Rename:** `image_executor` (reads images) and `image_generate_executor` look alike; call them `see_image` and `make_image`.
+
+## Decisions (2026-11-07)
+
+- First build: quote-checked research (item 1).
+- Clutter: one Simple mode setting hides power-user screens and tools. Nothing is deleted. Off by default for existing installs.
+- Ideas from other products are rebuilt from scratch here. No code is copied in.
+- Install: keep Docker. Add a health light in the header instead of a desktop app.
+- Build order after these: research library with page citations, watches, Claude and Studio router, one Google tool, then the rest of the top 10.
