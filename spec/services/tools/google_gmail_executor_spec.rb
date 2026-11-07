@@ -27,6 +27,64 @@ RSpec.describe Tools::GoogleGmailExecutor, type: :service do
     end
   end
 
+  describe "backend selection" do
+    let(:imap_result) { ServiceResponse.success(data: { output: "from imap", exit_code: 0 }) }
+
+    def add_app_password
+      create(:vault_entry, namespace: "google", key: "gmail_address", value: "me@gmail.com")
+      create(:vault_entry, namespace: "google", key: "gmail_app_password", value: "app password")
+    end
+
+    before { allow_any_instance_of(Tools::Gmail::ImapBackend).to receive(:call).and_return(imap_result) }
+
+    it "uses the Google connection when it grants Gmail, even with an app password saved" do
+      add_app_password
+      allow_any_instance_of(described_class).to receive(:gws).and_return({ "messages" => [] }.to_json)
+
+      response = execute("action" => "list")
+
+      expect(response.data[:output]).to include("No messages found")
+    end
+
+    it "falls back to the app password when Google is not connected" do
+      VaultEntry.where(namespace: namespace).destroy_all
+      add_app_password
+
+      expect(execute("action" => "list").data[:output]).to eq("from imap")
+    end
+
+    it "falls back to the app password when Google tokens were removed but the scope record remains" do
+      VaultEntry.where(namespace: namespace, key: %w[access_token refresh_token]).destroy_all
+      add_app_password
+
+      expect(execute("action" => "list").data[:output]).to eq("from imap")
+    end
+
+    it "falls back to the app password when Google lacks the Gmail scope" do
+      VaultEntry.find_by(namespace: namespace, key: "scopes").update!(value: "https://www.googleapis.com/auth/drive")
+      add_app_password
+
+      expect(execute("action" => "list").data[:output]).to eq("from imap")
+    end
+
+    it "tells the user how to connect Gmail when neither is set up" do
+      VaultEntry.where(namespace: namespace).destroy_all
+
+      response = execute("action" => "list")
+
+      expect(response.success?).to be false
+      expect(response.error).to include("Gmail access not authorized")
+      expect(response.error).to include("Google Workspace")
+      expect(response.error).to include("app password")
+    end
+
+    it "accepts uid in place of message_id on the Google backend" do
+      allow_any_instance_of(described_class).to receive(:gws).and_return({ "id" => "m1", "payload" => { "headers" => [] } }.to_json)
+
+      expect(execute("action" => "get", "uid" => "m1").success?).to be true
+    end
+  end
+
   describe "unknown action" do
     it "returns failure with supported actions" do
       response = execute("action" => "nope")

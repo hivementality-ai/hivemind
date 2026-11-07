@@ -800,13 +800,15 @@ BUILTIN_TOOLS = [
   },
   {
     name: "google_gmail",
-    description: "Read the inbox, search, read, reply to, send, and draft Gmail emails. Requires Google Workspace connection with Gmail scope at /integrations.",
+    description: "Read the inbox, search, read, reply to, send, and draft Gmail emails. Uses the Google Workspace connection when it has Gmail access, otherwise a Gmail address and app password; both are set up at /integrations (drafts need the Google connection).",
     executor_type: "google_gmail",
     requires_approval: false,
     parameters_schema: {
       "properties" => {
         "action" => { "type" => "string", "description" => "Action: inbox, list, get, search, send, reply, draft", "enum" => %w[inbox list get search send reply draft] },
         "message_id" => { "type" => "string", "description" => "Message ID (for get/reply)" },
+        "uid" => { "type" => "string", "description" => "Same as message_id; the number shown in inbox listings on an app-password connection" },
+        "folder" => { "type" => "string", "description" => "Mail folder (default: INBOX; app-password connection only)" },
         "query" => { "type" => "string", "description" => "Gmail search query (for search)" },
         "to" => { "type" => "string", "description" => "Recipient email address (for send/draft)" },
         "subject" => { "type" => "string", "description" => "Email subject (for send/draft)" },

@@ -12,8 +12,11 @@ module Tools
     REQUIRED_SCOPE = "https://www.googleapis.com/auth/gmail.modify"
     USER_ID = "me"
 
+    # Uses the Google Workspace connection when it grants Gmail, else the
+    # app-password IMAP/SMTP backend, else explains how to connect.
     def call
-      return scope_error unless scope_granted?
+      return imap_backend.call if !oauth_usable? && imap_backend.configured?
+      return scope_error unless oauth_usable?
 
       action = input["action"].to_s.strip
 
@@ -60,7 +63,7 @@ module Tools
     end
 
     def get_message
-      message_id = input["message_id"].to_s.strip
+      message_id = (input["message_id"].presence || input["uid"]).to_s.strip
       return ServiceResponse.failure(error: "No message_id provided") if message_id.empty?
 
       result = gws("gmail", "users", "messages", "get", "--params", { "userId" => USER_ID, "id" => message_id }.to_json)
@@ -112,7 +115,7 @@ module Tools
 
     # Replies on the original message's thread, addressed to its Reply-To (else From).
     def reply_to_message
-      message_id = input["message_id"].to_s.strip
+      message_id = (input["message_id"].presence || input["uid"]).to_s.strip
       body = input["body"].to_s.strip
       return ServiceResponse.failure(error: "message_id and body required") if message_id.empty? || body.empty?
 
@@ -175,6 +178,14 @@ module Tools
       end
     end
 
+    def oauth_usable?
+      GoogleWorkspace::CredentialBridge.configured? && scope_granted?
+    end
+
+    def imap_backend
+      @imap_backend ||= Tools::Gmail::ImapBackend.new(input: input)
+    end
+
     def scope_granted?
       scopes = GoogleWorkspace::CredentialBridge.granted_scopes.to_s
       scopes.include?(REQUIRED_SCOPE)
@@ -182,7 +193,8 @@ module Tools
 
     def scope_error
       ServiceResponse.failure(
-        error: "Gmail access not authorized. Please grant Gmail permissions at /integrations."
+        error: "Gmail access not authorized. Connect Google Workspace at /integrations, " \
+               "or enter a Gmail address and app password there."
       )
     end
 
