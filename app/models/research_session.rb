@@ -68,6 +68,20 @@ class ResearchSession < ApplicationRecord
     )
   end
 
+  # @return [Array<Hash>] quoted passages that were not found in any fetched source
+  def unverified_quotes
+    Array(quote_checks["results"]).select { |check| check["status"] == "unverified" }
+  end
+
+  # @return [String, nil] e.g. "2 of 9 quotes could not be found in their sources"
+  def quote_check_summary
+    missing = unverified_quotes.size
+    return if missing.zero?
+
+    total = quote_checks.dig("summary", "total").to_i
+    "#{missing} of #{total} quotes could not be found in their sources"
+  end
+
   def cancelled?
     reload
     status == "cancelled"

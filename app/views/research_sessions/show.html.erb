@@ -11,6 +11,16 @@
         </div>
 
         <% if @research_session.completed? && @research_session.report.present? %>
+          <% if @research_session.quote_check_summary %>
+            <div class="mb-4 rounded-lg bg-yellow-900/20 border border-yellow-500/30 p-4" data-testid="quote-check-summary">
+              <p class="text-yellow-400 text-sm font-medium mb-2"><%= @research_session.quote_check_summary %></p>
+              <ul class="space-y-1 text-xs text-text-muted">
+                <% @research_session.unverified_quotes.each do |quote| %>
+                  <li>"<%= quote["passage"] %>" <span class="text-yellow-400">(not found in source)</span></li>
+                <% end %>
+              </ul>
+            </div>
+          <% end %>
           <div class="prose prose-invert prose-sm max-w-none"
                data-controller="markdown"
                data-markdown-content-value="<%= @research_session.report %>">

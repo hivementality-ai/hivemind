@@ -38,6 +38,21 @@ RSpec.describe "ResearchSessions", type: :request do
       expect(response.body).to include(ERB::Util.html_escape(rs.report))
     end
 
+    it "flags quotes that were not found in their sources" do
+      checks = { "results" => [ { "passage" => "a made up line of eight or more words", "source_url" => "u", "status" => "unverified" } ],
+                 "summary" => { "total" => 3, "verified" => 2, "unverified" => 1 } }
+      rs = create(:research_session, :completed, agent: agent, session: session_record, quote_checks: checks)
+      get research_session_path(rs)
+      expect(response.body).to include("1 of 3 quotes could not be found in their sources")
+      expect(response.body).to include("a made up line of eight or more words")
+    end
+
+    it "shows no quote warning when every quote was verified" do
+      rs = create(:research_session, :completed, agent: agent, session: session_record)
+      get research_session_path(rs)
+      expect(response.body).not_to include("could not be found in their sources")
+    end
+
     it "shows a running session with phase info" do
       rs = create(:research_session, :running, agent: agent, session: session_record)
       get research_session_path(rs)

@@ -229,6 +229,51 @@ RSpec.describe Research::Loop do
     end
   end
 
+  describe "quote checking" do
+    let(:page_body) do
+      "<html><body><p>Researchers reported that the new error correction scheme reduces logical error " \
+        "rates by a factor of ten across every tested configuration.</p></body></html>"
+    end
+    let(:real_quote) { "the new error correction scheme reduces logical error rates by a factor of ten" }
+    let(:fake_quote) { "the new error correction scheme reduces logical error rates by a factor of nine" }
+    let(:synthesize_response) do
+      %(Per [Quantum Advances](https://example.com/quantum): "#{real_quote}".\n\n) +
+        %(Elsewhere [Quantum News](https://example.com/news) claims "#{fake_quote}".)
+    end
+
+    before do
+      stub_request(:get, /example\.com/).to_return(status: 200, body: page_body, headers: { "content-type" => "text/html" })
+    end
+
+    it "stores verified and unverified quote results on the session" do
+      subject.call
+
+      checks = research_session.reload.quote_checks
+      expect(checks["summary"]).to eq("total" => 2, "verified" => 1, "unverified" => 1)
+      expect(checks["results"].map { |r| [ r["passage"], r["status"] ] }).to eq(
+        [ [ real_quote, "verified" ], [ fake_quote, "unverified" ] ]
+      )
+      expect(research_session.quote_check_summary).to eq("1 of 2 quotes could not be found in their sources")
+    end
+
+    it "checks text beyond the 4000 characters shown to the model" do
+      padding = "filler words " * 600
+      stub_request(:get, /example\.com/).to_return(
+        status: 200, body: "<html><body>#{padding} #{real_quote}</body></html>", headers: { "content-type" => "text/html" }
+      )
+
+      subject.call
+
+      expect(research_session.reload.quote_checks.dig("summary", "verified")).to eq(1)
+    end
+
+    it "makes no fetches beyond those that collected the sources" do
+      subject.call
+
+      expect(a_request(:get, /example\.com/)).to have_been_made.times(research_session.reload.sources_count)
+    end
+  end
+
   describe "LLM failure" do
     it "raises when LLM provider resolution fails" do
       allow(Providers::Resolver).to receive(:call).and_return(
