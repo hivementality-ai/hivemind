@@ -337,6 +337,7 @@
     </div>
   </div>
 
+  <% if SimpleMode.show_section?(:jira) %>
   <!-- Jira -->
   <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
     <div class="flex items-center justify-between mb-4">
@@ -399,7 +400,9 @@
       </div>
     <% end %>
   </div>
+  <% end %>
 
+  <% if SimpleMode.show_section?(:trello) %>
   <!-- Trello -->
   <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">
     <div class="flex items-center justify-between mb-4">
@@ -465,6 +468,7 @@
       </div>
     <% end %>
   </div>
+  <% end %>
 
   <!-- Web Search -->
   <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6">

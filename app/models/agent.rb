@@ -354,6 +354,15 @@ class Agent < ApplicationRecord
     (model_config || {})["effort"].presence
   end
 
+  # Enabled tools this agent offers the model: its assignments, else the enabled
+  # builtins, minus anything Simple mode hides.
+  #
+  # @return [Array<Tool>]
+  def assigned_tools
+    assigned = agent_tools.includes(:tool).map(&:tool).select(&:enabled?)
+    SimpleMode.offered_tools(assigned.any? ? assigned : Tool.enabled.builtin.to_a)
+  end
+
   # Resolved effort: the agent's override, else the provider-level default
   # Setting, else nil (the API's own default — "high" on current models).
   def effective_effort

@@ -219,6 +219,7 @@ Rails.application.routes.draw do
 
   # Budgets
   get "budgets", to: "budgets#index", as: :budgets
+  patch "simple_mode", to: "simple_modes#update", as: :simple_mode
   patch "budgets/:agent_id", to: "budgets#update", as: :update_budget
 
   # Heartbeat

@@ -5,7 +5,7 @@ class ChannelsController < ApplicationController
   before_action :set_channel, only: %i[edit update destroy connect connector_health connector_qr connector_logout]
 
   def index
-    @channels = Channel.order(:name)
+    @channels = Channel.order(:name).select { |channel| SimpleMode.show_channel_type?(channel.channel_type) }
   end
 
   def new

@@ -561,8 +561,7 @@ class TeamChatJob < ApplicationJob
   end
 
   def resolve_tools(agent)
-    assigned = agent.agent_tools.includes(:tool).map(&:tool).select(&:enabled?)
-    tools = assigned.any? ? assigned : Tool.enabled.builtin.to_a
+    tools = agent.assigned_tools
 
     # Remove delegate/delegation_status — these spawn separate sessions and lose
     # team chat context. talk_to_teammate is the correct tool for agent-to-agent
