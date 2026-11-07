@@ -80,7 +80,12 @@
                 <% when "never_run" %>
                   <span>Never run</span>
                 <% end %>
-                <% if task.last_check_result == "unchanged" && task.last_checked_at.present? %>
+                <% if task.holding? %>
+                  <span><%= task.held_items.any? ? "Holding #{pluralize(task.held_count, 'new item')}" : "Holding a page change" %> until <%= task.release_hour ? "#{task.release_hour}:00" : "later" %></span>
+                <% elsif task.digest_hour.present? %>
+                  <span>Nothing new today</span>
+                <% end %>
+                <% if task.last_check_result == "unchanged" && task.last_checked_at.present? && !task.digest_hour.present? %>
                   <span>Checked <%= time_ago_in_words(task.last_checked_at) %> ago, nothing new</span>
                 <% end %>
                 <% if task.next_run_at.present? %>

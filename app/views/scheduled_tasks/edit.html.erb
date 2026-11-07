@@ -57,6 +57,25 @@
       <p class="text-text-faint text-xs mt-1">Checked without the model. If nothing is new, the run is skipped and costs nothing.</p>
     </div>
 
+    <% hour_options = (0..23).map { |h| [ Time.zone.local(2000, 1, 1, h).strftime("%-l:00 %p"), h ] } %>
+    <% select_class = "px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-brand" %>
+
+    <div>
+      <span class="block text-text-primary text-sm font-medium mb-1">Don't disturb me between</span>
+      <div class="flex items-center gap-3">
+        <%= f.select :quiet_start_hour, hour_options, { include_blank: "Anytime" }, class: select_class, "aria-label": "Quiet hours start" %>
+        <span class="text-text-muted text-sm">and</span>
+        <%= f.select :quiet_end_hour, hour_options, { include_blank: "Anytime" }, class: select_class, "aria-label": "Quiet hours end" %>
+      </div>
+      <p class="text-text-faint text-xs mt-1">New things found in that window are held and sent once when it ends (<%= Time.zone.name %> time).</p>
+    </div>
+
+    <div>
+      <%= f.label :digest_hour, "Bundle into one morning summary at", class: "block text-text-primary text-sm font-medium mb-1" %>
+      <%= f.select :digest_hour, hour_options, { include_blank: "Off, send as they come" }, class: select_class %>
+      <p class="text-text-faint text-xs mt-1">Everything new is gathered through the day and sent together at this time.</p>
+    </div>
+
     <div>
       <%= f.label :description, class: "block text-text-primary text-sm font-medium mb-1" %>
       <%= f.text_field :description,

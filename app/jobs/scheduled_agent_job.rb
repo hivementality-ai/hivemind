@@ -16,12 +16,20 @@ class ScheduledAgentJob < ApplicationJob
 
     if task.precheck_url.present?
       check = ScheduledTasks::Precheck.call(task)
-      if check.status == :unchanged
-        task.update!(last_checked_at: Time.current, last_check_result: "unchanged", next_run_at: calculate_next_run(task.schedule))
+      task.precheck_state = check.state if check.state
+      closed = task.hold_closed?
+      task.hold(check.items, extra: check.extra, page_changed: check.items.empty?) if check.status == :changed
+
+      if check.status != :failed && (!task.holding? || closed)
+        task.update!(precheck_state: task.precheck_state, held_changes: task.held_changes,
+                     last_checked_at: Time.current, last_check_result: task.holding? ? "held" : "unchanged",
+                     next_run_at: calculate_next_run(task.schedule))
         return
       end
-      prompt = with_new_items(prompt, check.items)
-      task.update!(precheck_state: check.state) if check.state
+
+      released = task.release_held
+      prompt = with_new_items(prompt, released["items"], released["extra"])
+      task.update!(precheck_state: task.precheck_state, held_changes: task.held_changes)
       task.assign_attributes(last_checked_at: Time.current, last_check_result: check.status.to_s)
     end
 
@@ -47,10 +55,11 @@ class ScheduledAgentJob < ApplicationJob
 
   private
 
-  def with_new_items(prompt, items)
+  def with_new_items(prompt, items, extra = 0)
     return prompt if items.empty?
 
-    lines = items.map { |item| "- #{item[:title]} #{item[:link]}".strip }
+    lines = items.map { |item| "- #{item['title']} #{item['link']}".strip }
+    lines << "...and #{extra} more not listed" if extra.positive?
     "#{prompt}\n\nNew since the last check:\n#{lines.join("\n")}"
   end
 
