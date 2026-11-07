@@ -1,34 +1,257 @@
-# Official remote MCP servers offered as one-click cards on the Integrations page.
-# Each URL was checked against the vendor's own docs (linked in the docs field).
-# Servers listed here must support OAuth with dynamic client registration.
+# Official MCP servers offered as cards on the Integrations page.
+# Each entry was checked against the vendor's own docs (linked in the docs field),
+# or is a reference server from github.com/modelcontextprotocol/servers.
+#
+# Remote entries have a url and must support OAuth with dynamic client registration.
+# Local entries have a stdio command and args; an optional inputs list asks the person
+# for values first. Input types: arg (fills a {key} placeholder in args), env (an
+# environment variable named by key) and secret (an environment variable kept in the vault).
 servers:
   - key: notion
     name: Notion
+    category: Productivity
     summary: Search, read and update your Notion pages and databases.
     url: https://mcp.notion.com/mcp
     docs: https://developers.notion.com/docs/get-started-with-mcp
   - key: linear
     name: Linear
+    category: Dev tools
     summary: Find, create and update Linear issues and projects.
     url: https://mcp.linear.app/mcp
     docs: https://linear.app/docs/mcp
   - key: atlassian
     name: Atlassian
+    category: Productivity
     summary: Work with Jira issues and Confluence pages.
     url: https://mcp.atlassian.com/v2/mcp
     docs: https://support.atlassian.com/atlassian-rovo-mcp-server/docs/getting-started-with-the-atlassian-remote-mcp-server/
   - key: asana
     name: Asana
+    category: Productivity
     summary: Look up and manage Asana tasks and projects.
     url: https://mcp.asana.com/v2/mcp
     docs: https://developers.asana.com/docs/using-asanas-mcp-server
   - key: stripe
     name: Stripe
+    category: Business
     summary: Look up customers, payments and subscriptions in Stripe.
     url: https://mcp.stripe.com
     docs: https://docs.stripe.com/mcp
   - key: sentry
     name: Sentry
+    category: Dev tools
     summary: Investigate errors and issues in your Sentry projects.
     url: https://mcp.sentry.dev/mcp
     docs: https://mcp.sentry.dev/
+  - key: vercel
+    name: Vercel
+    category: Dev tools
+    summary: Search docs, manage projects and inspect deployments on Vercel.
+    url: https://mcp.vercel.com
+    docs: https://vercel.com/docs/agent-resources/vercel-mcp
+  - key: cloudflare
+    name: Cloudflare
+    category: Dev tools
+    summary: Work with your Cloudflare account through the Cloudflare API.
+    url: https://mcp.cloudflare.com/mcp
+    docs: https://developers.cloudflare.com/agents/model-context-protocol/mcp-servers-for-cloudflare/
+  - key: figma
+    name: Figma
+    category: Dev tools
+    summary: Bring Figma designs and design context into your agents.
+    url: https://mcp.figma.com/mcp
+    docs: https://developers.figma.com/docs/figma-mcp-server/remote-server-installation/
+  - key: todoist
+    name: Todoist
+    category: Productivity
+    summary: Read, create and update your Todoist tasks and projects.
+    url: https://ai.todoist.net/mcp
+    docs: https://developer.todoist.com/api/v1/#tag/Todoist-MCP
+  - key: neon
+    name: Neon
+    category: Data
+    summary: Manage Neon Postgres projects, branches and run SQL.
+    url: https://mcp.neon.tech/mcp
+    docs: https://neon.com/docs/ai/neon-mcp-server
+  - key: supabase
+    name: Supabase
+    category: Data
+    summary: Manage Supabase projects, tables and run SQL.
+    url: https://mcp.supabase.com/mcp
+    docs: https://supabase.com/docs/guides/getting-started/mcp
+  - key: intercom
+    name: Intercom
+    category: Communication
+    summary: Work with your Intercom conversations and contacts. US workspaces only.
+    url: https://mcp.intercom.com/mcp
+    docs: https://developers.intercom.com/docs/guides/mcp
+  - key: filesystem
+    name: Files
+    category: Files and code
+    summary: Read and write files in a folder you choose.
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-filesystem", "{folder}"]
+    inputs:
+      - key: folder
+        label: Folder to share
+        type: arg
+        placeholder: /workspace/projects
+        help: The only folder the agent can reach with this server.
+    docs: https://github.com/modelcontextprotocol/servers/blob/main/src/filesystem/README.md
+  - key: git
+    name: Git
+    category: Files and code
+    summary: Read history, diffs and branches of a Git repository.
+    command: uvx
+    args: ["mcp-server-git", "--repository", "{repo}"]
+    inputs:
+      - key: repo
+        label: Repository folder
+        type: arg
+        placeholder: /workspace/my-project
+        help: Any path inside a Git working tree.
+    docs: https://github.com/modelcontextprotocol/servers/blob/main/src/git/README.md
+  - key: memory
+    name: Memory
+    category: Productivity
+    summary: A small knowledge graph the agent can write notes into and recall.
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-memory"]
+    inputs:
+      - key: MEMORY_FILE_PATH
+        label: Memory file
+        type: env
+        required: false
+        placeholder: /workspace/memory.jsonl
+        help: An absolute path you own, so updates do not erase it.
+    docs: https://github.com/modelcontextprotocol/servers/blob/main/src/memory/README.md
+  - key: time
+    name: Time
+    category: Productivity
+    summary: Current time and time zone conversion.
+    command: uvx
+    args: ["mcp-server-time"]
+    docs: https://github.com/modelcontextprotocol/servers/blob/main/src/time/README.md
+  - key: sequential-thinking
+    name: Sequential Thinking
+    category: Dev tools
+    summary: Step-by-step problem solving that can revise earlier thoughts.
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    docs: https://github.com/modelcontextprotocol/servers/blob/main/src/sequentialthinking/README.md
+  - key: grafana
+    name: Grafana
+    category: Dev tools
+    summary: Search dashboards and query data sources in Grafana.
+    command: uvx
+    args: ["mcp-grafana"]
+    inputs:
+      - key: GRAFANA_URL
+        label: Grafana address
+        type: env
+        placeholder: https://myinstance.grafana.net
+      - key: GRAFANA_SERVICE_ACCOUNT_TOKEN
+        label: Service account token
+        type: secret
+        help: Create a service account in Grafana and copy its token.
+    docs: https://github.com/grafana/mcp-grafana
+  - key: mongodb
+    name: MongoDB
+    category: Data
+    summary: Explore MongoDB collections and run read-only queries.
+    command: npx
+    args: ["-y", "mongodb-mcp-server@latest", "--readOnly"]
+    inputs:
+      - key: MDB_MCP_CONNECTION_STRING
+        label: Connection string
+        type: secret
+        placeholder: mongodb://localhost:27017/myDatabase
+    docs: https://github.com/mongodb-js/mongodb-mcp-server
+  - key: motherduck
+    name: DuckDB
+    category: Data
+    summary: Run read-only SQL on a local DuckDB file.
+    command: uvx
+    args: ["mcp-server-motherduck", "--db-path", "{db_path}"]
+    inputs:
+      - key: db_path
+        label: DuckDB file
+        type: arg
+        placeholder: /workspace/data/analytics.duckdb
+    docs: https://github.com/motherduckdb/mcp-server-motherduck
+  - key: fetch
+    name: Fetch
+    category: Web
+    summary: Read a web page and turn it into clean text.
+    command: uvx
+    args: ["mcp-server-fetch"]
+    docs: https://github.com/modelcontextprotocol/servers/blob/main/src/fetch/README.md
+  - key: playwright
+    name: Playwright
+    category: Web
+    summary: Drive a real browser to click, type and read pages.
+    command: npx
+    args: ["-y", "@playwright/mcp@latest"]
+    docs: https://github.com/microsoft/playwright-mcp
+  - key: brave-search
+    name: Brave Search
+    category: Web
+    summary: Search the web with Brave.
+    command: npx
+    args: ["-y", "@brave/brave-search-mcp-server", "--transport", "stdio"]
+    inputs:
+      - key: BRAVE_API_KEY
+        label: Brave Search API key
+        type: secret
+    docs: https://github.com/brave/brave-search-mcp-server
+  - key: firecrawl
+    name: Firecrawl
+    category: Web
+    summary: Scrape and crawl websites into clean text.
+    command: npx
+    args: ["-y", "firecrawl-mcp"]
+    inputs:
+      - key: FIRECRAWL_API_KEY
+        label: Firecrawl API key
+        type: secret
+        placeholder: fc-...
+    docs: https://github.com/firecrawl/firecrawl-mcp-server
+  - key: tavily
+    name: Tavily
+    category: Web
+    summary: Web search and page extraction built for AI agents.
+    command: npx
+    args: ["-y", "tavily-mcp@latest"]
+    inputs:
+      - key: TAVILY_API_KEY
+        label: Tavily API key
+        type: secret
+    docs: https://github.com/tavily-ai/tavily-mcp
+  - key: exa
+    name: Exa
+    category: Web
+    summary: Web search from Exa.
+    command: npx
+    args: ["-y", "exa-mcp-server"]
+    inputs:
+      - key: EXA_API_KEY
+        label: Exa API key
+        type: secret
+    docs: https://github.com/exa-labs/exa-mcp-server
+  - key: resend
+    name: Resend
+    category: Communication
+    summary: Send email through your Resend account.
+    command: npx
+    args: ["-y", "resend-mcp"]
+    inputs:
+      - key: RESEND_API_KEY
+        label: Resend API key
+        type: secret
+      - key: SENDER_EMAIL_ADDRESS
+        label: Sender address
+        type: env
+        required: false
+        placeholder: hello@yourdomain.com
+        help: From a domain you verified in Resend. Left blank, the agent asks each time.
+    docs: https://github.com/resend/mcp-send-email

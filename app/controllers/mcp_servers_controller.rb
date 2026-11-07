@@ -33,10 +33,21 @@ class McpServersController < ApplicationController
 
   def edit; end
 
-  # Adds a starter-catalog server (or reuses the one already added) and goes straight into its OAuth sign-in.
+  # The small form a catalog entry with inputs asks the person to fill in.
+  def catalog_form
+    @entry = Mcp::Catalog.find(params[:key])
+    return redirect_to integrations_path, alert: "Unknown catalog server." unless @entry&.local? && @entry.inputs?
+
+    @values = {}
+  end
+
+  # Adds a starter-catalog server (or reuses the one already added). A remote one goes straight into its OAuth
+  # sign-in; a local one is created from the filled-in inputs.
   def add_from_catalog
     entry = Mcp::Catalog.find(params[:key])
     return redirect_to integrations_path, alert: "Unknown catalog server." unless entry
+
+    return add_local_from_catalog(entry) if entry.local?
 
     @server = Mcp::Catalog.server_for(entry)
     unless @server
@@ -109,6 +120,66 @@ class McpServersController < ApplicationController
   end
 
   private
+
+  # Creates the stdio server for a local catalog entry, or re-renders the form with a plain error.
+  def add_local_from_catalog(entry)
+    existing = Mcp::Catalog.server_for(entry)
+    return redirect_to(mcp_servers_path, notice: "'#{existing.name}' is already added.") if existing
+
+    @entry = entry
+    @values = catalog_input_values(entry)
+    error = catalog_input_error(entry, @values)
+    return render_catalog_form(error) if error
+
+    @server = build_catalog_server(entry, @values)
+    return render_catalog_form(@server.errors.full_messages.to_sentence) unless @server.save
+
+    flush_vault_writes
+    @server.assign_to_visible_agents!
+    redirect_to mcp_servers_path, notice: "MCP server '#{@server.name}' added. Use Test connection to discover its tools."
+  end
+
+  def render_catalog_form(error)
+    @error = error
+    render :catalog_form, status: :unprocessable_entity
+  end
+
+  # @return [Hash{String=>String}] the submitted inputs by key, stripped
+  def catalog_input_values(entry)
+    submitted = params[:inputs].respond_to?(:permit) ? params[:inputs].permit(*entry.input_list.map(&:key)) : {}
+    entry.input_list.to_h { |input| [ input.key, submitted[input.key].to_s.strip ] }
+  end
+
+  # @return [String, nil] a plain sentence naming the first problem with the inputs
+  def catalog_input_error(entry, values)
+    entry.input_list.each do |input|
+      value = values[input.key]
+      return "#{input.label} is required." if input.required? && value.blank?
+      return "#{input.label} cannot contain a line break." if value.match?(/[\r\n]/)
+      return "#{input.label} cannot start with a dash." if input.arg? && value.start_with?("-")
+    end
+    nil
+  end
+
+  # An unsaved stdio server for a local entry. Secret inputs queue for the vault and leave only a "vault:" reference.
+  def build_catalog_server(entry, values)
+    name = free_catalog_name(entry)
+    namespace = "mcp_#{name.parameterize(separator: '_')}"
+    env = {}
+    entry.input_list.reject(&:arg?).each do |input|
+      value = values[input.key]
+      next if value.blank?
+
+      if input.secret?
+        vault_key = "env_#{input.key.downcase.gsub(/[^a-z0-9]+/, '_')}"
+        (@vault_writes ||= []) << [ namespace, vault_key, value ]
+        value = "vault:#{namespace}/#{vault_key}"
+      end
+      env[input.key] = value
+    end
+    McpServer.new(name: name, transport: "stdio", command: entry.command_line(values), env_vars: env,
+                  metadata: { "catalog_key" => entry.key })
+  end
 
   # The catalog name, or "Name (catalog)", "Name (catalog) 2" and so on when a different server already uses it.
   def free_catalog_name(entry)

@@ -293,29 +293,46 @@
   </div>
 
   <!-- Starter catalog -->
-  <div class="bg-surface-card rounded-xl border border-border-default p-6 mb-6" id="mcp-catalog-card">
+  <div class="bg-surface-card rounded-xl border border-border-default p-4 sm:p-6 mb-6" id="mcp-catalog-card" data-controller="catalog-filter">
     <h2 class="text-lg font-semibold text-white">Add an app</h2>
-    <p class="text-text-muted text-sm mb-4">One click adds the app and takes you to its sign-in page.</p>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <% @mcp_catalog.each do |entry| %>
-        <% server = @mcp_servers.find { |s| s.url == entry.url } %>
-        <div class="flex items-center justify-between gap-3 bg-surface-raised border border-border-default rounded-lg p-4" data-catalog="<%= entry.key %>">
-          <div>
-            <p class="text-white font-medium"><%= entry.name %></p>
-            <p class="text-text-faint text-sm"><%= entry.summary %></p>
-          </div>
-          <% if server && (server.connected? || Mcp::OAuth.connected?(server)) %>
-            <span class="px-3 py-1 rounded-full text-xs font-medium bg-green-900 text-green-300 shrink-0">Connected</span>
-          <% elsif server %>
-            <%= button_to "Connect", oauth_connect_mcp_server_path(server), method: :post,
-                  class: "px-3 py-1 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition shrink-0" %>
-          <% else %>
-            <%= button_to "Add", add_from_catalog_mcp_servers_path(key: entry.key), method: :post,
-                  class: "px-3 py-1 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition shrink-0" %>
+    <p class="text-text-muted text-sm mb-4">Remote apps take you to their sign-in page. Local ones run on this machine and may ask for a key or folder first.</p>
+    <%= search_field_tag :catalog_search, nil, placeholder: "Filter apps", "aria-label": "Filter apps", autocomplete: "off",
+          data: { catalog_filter_target: "input", action: "input->catalog-filter#filter" },
+          class: "w-full min-h-[44px] px-4 py-2 mb-4 bg-surface-raised border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand" %>
+    <% @mcp_catalog.group_by(&:category).each do |category, entries| %>
+      <section class="mb-4" data-catalog-filter-target="group" data-category="<%= category.parameterize %>">
+        <h3 class="text-text-muted text-xs font-semibold uppercase tracking-wide mb-2"><%= category %></h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <% entries.each do |entry| %>
+            <% server = @mcp_servers.find { |s| entry.added_as?(s) } %>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-surface-raised border border-border-default rounded-lg p-4 min-w-0"
+                 data-catalog="<%= entry.key %>" data-catalog-filter-target="item"
+                 data-search-text="<%= [ entry.name, entry.summary, entry.category ].join(' ').downcase %>">
+              <div class="min-w-0 break-words">
+                <p class="text-white font-medium"><%= entry.name %><%= tag.span("Runs here", class: "ml-2 text-xs text-text-faint font-normal") if entry.local? %></p>
+                <p class="text-text-faint text-sm"><%= entry.summary %></p>
+                <%= link_to "Docs", entry.docs, target: "_blank", rel: "noopener", class: "inline-flex items-center min-h-[44px] text-brand-light text-xs" %>
+              </div>
+              <% if entry.local? && server %>
+                <%= link_to "Added", mcp_servers_path, class: "inline-flex items-center justify-center min-h-[44px] px-3 rounded-full text-xs font-medium bg-green-900 text-green-300 shrink-0" %>
+              <% elsif entry.local? && entry.inputs? %>
+                <%= link_to "Add", catalog_form_mcp_servers_path(key: entry.key),
+                      class: "inline-flex items-center justify-center min-h-[44px] px-4 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition shrink-0" %>
+              <% elsif server && (server.connected? || Mcp::OAuth.connected?(server)) %>
+                <span class="inline-flex items-center justify-center min-h-[44px] px-3 rounded-full text-xs font-medium bg-green-900 text-green-300 shrink-0">Connected</span>
+              <% elsif server %>
+                <%= button_to "Connect", oauth_connect_mcp_server_path(server), method: :post,
+                      class: "min-h-[44px] px-4 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition shrink-0" %>
+              <% else %>
+                <%= button_to "Add", add_from_catalog_mcp_servers_path(key: entry.key), method: :post,
+                      class: "min-h-[44px] px-4 bg-brand hover:bg-brand-dark text-white text-sm font-medium rounded-lg transition shrink-0" %>
+              <% end %>
+            </div>
           <% end %>
         </div>
-      <% end %>
-    </div>
+      </section>
+    <% end %>
+    <p class="hidden text-text-faint text-sm" data-catalog-filter-target="empty">No apps match that filter.</p>
   </div>
 
   <!-- Connectors and vault -->
