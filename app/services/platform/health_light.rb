@@ -14,7 +14,8 @@ module Platform
     CACHE_KEY = "hivemind:health_light"
     LOCK_KEY = "hivemind:health_light:refreshing"
     FRESH_FOR = 60.seconds
-    KEEP_FOR = 10.minutes
+    STALE_AFTER = FRESH_FOR * 3
+    KEEP_FOR = 1.day
     CHECK_TIMEOUT = 2
 
     Check = Struct.new(:key, :label, :ok, :detail, :critical, keyword_init: true)
@@ -32,15 +33,22 @@ module Platform
       end
 
       # Reads the cached snapshot without running any check, and queues a
-      # refresh when it is missing or older than {FRESH_FOR}.
+      # refresh when it is missing or older than {FRESH_FOR}. A snapshot older
+      # than {STALE_AFTER} means the refresh job has stopped running, and an
+      # unreadable cache means Redis is down; both render red.
       #
       # @return [Hash, nil] +{ status:, checks:, checked_at: }+ or nil before the first refresh
       def snapshot
         cached = Rails.cache.read(CACHE_KEY)
-        refresh_later if cached.nil? || Time.current - cached[:checked_at] > FRESH_FOR
-        cached
+        age = cached && Time.current - cached[:checked_at]
+        refresh_later if cached.nil? || age > FRESH_FOR
+        return cached unless cached && age > STALE_AFTER
+
+        red_snapshot(cached[:checked_at], Check.new(key: "sidekiq", label: "Background jobs", ok: false,
+                                                    detail: "not running (health checks have stopped)", critical: true))
       rescue StandardError
-        nil
+        red_snapshot(Time.current, Check.new(key: "redis", label: "Redis", ok: false,
+                                             detail: "not reachable", critical: true))
       end
 
       # Runs every check and stores the result.
@@ -58,6 +66,10 @@ module Platform
       end
 
       private
+
+      def red_snapshot(checked_at, check)
+        { status: :red, checks: [ check.to_h ], checked_at: checked_at }
+      end
 
       def refresh_later
         return unless Rails.cache.write(LOCK_KEY, true, expires_in: 30.seconds, unless_exist: true)

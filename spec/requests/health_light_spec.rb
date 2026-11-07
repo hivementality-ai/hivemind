@@ -32,4 +32,13 @@ RSpec.describe "Health light", type: :request do
 
     expect(response.body).to include('data-status="unknown"', "First check is running.")
   end
+
+  it "titles the red light as something important being down" do
+    allow(store).to receive(:read).and_call_original
+    allow(store).to receive(:read).with(Platform::HealthLight::CACHE_KEY).and_raise(Redis::CannotConnectError)
+
+    get agents_path
+
+    expect(response.body).to include('data-status="red"', "Something important is down", "Redis: not reachable")
+  end
 end

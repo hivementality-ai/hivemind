@@ -122,5 +122,31 @@ RSpec.describe Platform::HealthLight do
 
       expect { expect(described_class.snapshot[:status]).to eq(:green) }.to have_enqueued_job(HealthLightRefreshJob)
     end
+
+    it "renders red with a stopped-jobs line when the snapshot is too old" do
+      store.write(described_class::CACHE_KEY, { status: :green, checks: [], checked_at: 4.minutes.ago })
+
+      snapshot = described_class.snapshot
+
+      expect(snapshot[:status]).to eq(:red)
+      expect(snapshot[:checks]).to contain_exactly(
+        include(label: "Background jobs", detail: "not running (health checks have stopped)")
+      )
+    end
+
+    it "keeps a snapshot just under the stale limit as is" do
+      store.write(described_class::CACHE_KEY, { status: :green, checks: [], checked_at: 2.minutes.ago })
+
+      expect(described_class.snapshot[:status]).to eq(:green)
+    end
+
+    it "renders red with Redis not reachable when the cache read raises" do
+      allow(store).to receive(:read).and_raise(Redis::CannotConnectError)
+
+      snapshot = described_class.snapshot
+
+      expect(snapshot[:status]).to eq(:red)
+      expect(snapshot[:checks]).to contain_exactly(include(label: "Redis", detail: "not reachable"))
+    end
   end
 end
