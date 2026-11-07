@@ -253,6 +253,23 @@
     <%= hidden_field_tag "agent[tool_ids][]", "" %>
   </div>
 
+  <!-- Ask first -->
+  <div class="bg-surface-card rounded-xl border border-border-default p-6">
+    <h2 class="text-lg font-semibold text-white">Ask me first</h2>
+    <p class="text-text-muted text-sm mt-1">Before this agent does any of these, you see a card with exactly what it wants to do and choose Approve, Edit or Decline.</p>
+    <div class="mt-4 space-y-2">
+      <% Approvals::AskFirst::CATEGORIES.each do |category, label| %>
+        <label class="flex items-center gap-3 cursor-pointer">
+          <%= hidden_field_tag "agent[ask_first][#{category}]", "0", id: nil %>
+          <%= check_box_tag "agent[ask_first][#{category}]", "1", agent.asks_first?(category),
+              id: "agent_ask_first_#{category}",
+              class: "w-4 h-4 rounded border-gray-500 text-brand focus:ring-brand bg-surface-overlay" %>
+          <span class="text-text-primary text-sm"><%= label %></span>
+        </label>
+      <% end %>
+    </div>
+  </div>
+
   <!-- Skills -->
   <% if Skill.enabled.any? %>
   <div class="bg-surface-card rounded-xl border border-border-default p-6">

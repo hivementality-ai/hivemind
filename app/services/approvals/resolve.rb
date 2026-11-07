@@ -2,30 +2,31 @@
 
 module Approvals
   class Resolve
-    def self.call(approval_id:, decision:, resolved_by:, notes: nil)
-      new(approval_id:, decision:, resolved_by:, notes:).call
+    # @param approval_id [Integer]
+    # @param decision [String] "approved" or "rejected"
+    # @param resolved_by [Integer, String] who decided
+    # @param notes [String, nil]
+    # @param edits [Hash{String => String}, nil] changed fields for a held tool call; run instead of the original
+    def self.call(approval_id:, decision:, resolved_by:, notes: nil, edits: nil)
+      new(approval_id:, decision:, resolved_by:, notes:, edits:).call
     end
 
-    def initialize(approval_id:, decision:, resolved_by:, notes: nil)
+    def initialize(approval_id:, decision:, resolved_by:, notes: nil, edits: nil)
       @approval_id = approval_id
       @decision = decision
       @resolved_by = resolved_by
       @notes = notes
+      @edits = edits
     end
 
+    # The decision is recorded under a row lock, so a double click or a second tab sees the request
+    # already resolved and nothing runs twice.
     def call
       approval = ApprovalRequest.find_by(id: @approval_id)
       return ServiceResponse.failure(error: "Approval request not found") unless approval
-      return ServiceResponse.failure(error: "Approval request already resolved") unless approval.pending?
-      return ServiceResponse.failure(error: "Approval request expired") if approval.expired?
-      return ServiceResponse.failure(error: "Invalid decision") unless %w[approved rejected].include?(@decision)
 
-      approval.update!(
-        status: @decision,
-        resolved_at: Time.current,
-        resolved_by: @resolved_by,
-        resolution_notes: @notes
-      )
+      failure = approval.with_lock { record_decision(approval) }
+      return failure if failure
 
       broadcast_resolution(approval)
       log_audit(approval)
@@ -35,6 +36,8 @@ module Approvals
         agent: approval.agent, team: approval.agent&.team
       )
       ran = run_connector_call(approval) if @decision == "approved" && approval.action == "connector_call"
+      ran = run_tool_call(approval) if @decision == "approved" && approval.action == ToolCallGate::ACTION
+      note_decline(approval) if @decision == "rejected" && approval.action == ToolCallGate::ACTION
       execute_pending_action(approval) if @decision == "approved"
 
       ServiceResponse.success(data: { approval:, outcome: ran&.dig(:outcome), outcome_ok: ran&.dig(:succeeded) })
@@ -43,6 +46,48 @@ module Approvals
     end
 
     private
+
+    # @return [ServiceResponse, nil] a failure when the request cannot be decided, else nil once saved
+    def record_decision(approval)
+      return ServiceResponse.failure(error: "Approval request already resolved") unless approval.pending?
+      return ServiceResponse.failure(error: "Approval request expired") if approval.expired?
+      return ServiceResponse.failure(error: "Invalid decision") unless %w[approved rejected].include?(@decision)
+
+      params = edited_params(approval)
+      return ServiceResponse.failure(error: "That change could not be used. Check the fields and try again.") unless params
+
+      approval.update!(
+        status: @decision,
+        params: params,
+        resolved_at: Time.current,
+        resolved_by: @resolved_by,
+        resolution_notes: @notes
+      )
+      nil
+    end
+
+    # @return [Hash, nil] the params to save; nil when the edits are not acceptable
+    def edited_params(approval)
+      return approval.params if @edits.blank? || @decision != "approved" || approval.action != ToolCallGate::ACTION
+
+      arguments = CardFields.new(approval).edited_arguments(@edits)
+      return unless arguments
+
+      approval.params.merge("original_arguments" => approval.params["arguments"], "arguments" => arguments, "edited" => true)
+    end
+
+    def run_tool_call(approval)
+      Approvals::RunToolCall.call(approval: approval).data
+    end
+
+    def note_decline(approval)
+      return if approval.params["session_id"].blank?
+
+      ApprovalSessionNoteJob.perform_later(
+        approval.params["session_id"],
+        "Approval result: The user declined to #{CardFields.new(approval).verb}. It was not done. Carry on without it."
+      )
+    end
 
     def broadcast_resolution(approval)
       ActionCable.server.broadcast(

@@ -1,0 +1,1 @@
+<%= turbo_stream.replace dom_id(@approval, :card), partial: "approvals/card", locals: { approval: @approval, outcome: @outcome, failed: @failed } %>

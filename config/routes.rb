@@ -259,6 +259,15 @@ Rails.application.routes.draw do
     end
   end
 
+  # Approval cards shown in chat
+  resources :approval_cards, only: [] do
+    member do
+      post :approve
+      post :approve_with_edits
+      post :decline
+    end
+  end
+
   # Audit Log
   get "audit_logs", to: "audit_logs#index", as: :audit_logs
 

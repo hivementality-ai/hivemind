@@ -68,6 +68,24 @@ class Agent < ApplicationRecord
   validate :validate_no_reporting_cycle
   validate :validate_effort
 
+  # @param category [String] an Approvals::AskFirst category
+  # @return [Boolean] true unless the owner switched asking off for this agent
+  def asks_first?(category)
+    ask_first_overrides.fetch(category.to_s, true) != false
+  end
+
+  # Sets the ask-first switches from a form.
+  # @param settings [Hash{String => String, Boolean}] category => "1"/"0"/true/false; unknown keys are ignored
+  def ask_first=(settings)
+    merged = ask_first_overrides.dup
+    settings.to_h.each do |category, value|
+      next unless Approvals::AskFirst::CATEGORIES.key?(category.to_s)
+
+      merged[category.to_s] = ActiveModel::Type::Boolean.new.cast(value) != false
+    end
+    self.ask_first_overrides = merged
+  end
+
   # Connectors this agent may use: every connector except the ones excluded for it.
   #
   # @return [ActiveRecord::Relation<Connector>]
