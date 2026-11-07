@@ -87,6 +87,24 @@ module Agents
       DEFAULT_RULES.dig(provider, "tiers", tier)
     end
 
+    # The local Ollama provider for light background work: enabled, with a
+    # configured model, and passing its last cached health check. Reads only
+    # the provider record and the cached snapshot, never the network.
+    #
+    # @return [Hash, nil] +{ config:, model: }+ or nil
+    def self.local_provider
+      config = ProviderConfig.enabled_providers.find_by(adapter_type: "ollama")
+      model = config&.model_names&.first
+      return nil unless model && local_healthy?
+
+      { config: config, model: model }
+    end
+
+    def self.local_healthy?
+      checks = Platform::HealthLight.snapshot&.dig(:checks) || []
+      checks.any? { |check| check[:key] == "studio" && check[:ok] }
+    end
+
     def self.detect_task(message_text, recent_tools: [])
       detect_from_message(message_text) || detect_from_tools(recent_tools) || "chatting"
     end

@@ -94,4 +94,43 @@ RSpec.describe Agents::ModelRouter do
       end
     end
   end
+
+  describe ".local_provider" do
+    let(:studio_ok) { { status: :green, checks: [ { key: "studio", ok: true } ], checked_at: Time.current } }
+    let(:studio_down) { { status: :amber, checks: [ { key: "studio", ok: false } ], checked_at: Time.current } }
+    let!(:ollama) do
+      create(:provider_config, name: "studio", adapter_type: "ollama", enabled: true,
+                               model_definitions: [ { "id" => "qwen3:8b" } ])
+    end
+
+    before { allow(Platform::HealthLight).to receive(:snapshot).and_return(studio_ok) }
+
+    it "returns the enabled, healthy Ollama provider and its configured model" do
+      expect(described_class.local_provider).to eq(config: ollama, model: "qwen3:8b")
+    end
+
+    it "is nil when Ollama is disabled" do
+      ollama.update!(enabled: false)
+
+      expect(described_class.local_provider).to be_nil
+    end
+
+    it "is nil when the last health check failed" do
+      allow(Platform::HealthLight).to receive(:snapshot).and_return(studio_down)
+
+      expect(described_class.local_provider).to be_nil
+    end
+
+    it "is nil when no health snapshot exists yet" do
+      allow(Platform::HealthLight).to receive(:snapshot).and_return(nil)
+
+      expect(described_class.local_provider).to be_nil
+    end
+
+    it "is nil when the provider has no model" do
+      ollama.update!(model_definitions: [])
+
+      expect(described_class.local_provider).to be_nil
+    end
+  end
 end

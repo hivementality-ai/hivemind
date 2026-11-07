@@ -59,13 +59,18 @@ module Research
       @rs.log_progress("Planning research approach...")
 
       prompt = build_plan_prompt
-      response = llm_call(prompt, max_tokens: 2048, temperature: 0.3)
-      plan = parse_json(response)
+      local_text = local_call(prompt, max_tokens: 2048, temperature: 0.3)
+      plan = parse_json(local_text) if local_text.present?
+      plan = parse_json(llm_call(prompt, max_tokens: 2048, temperature: 0.3)) unless usable_plan?(plan)
 
-      plan = default_plan if plan.nil? || plan["search_queries"].blank?
+      plan = default_plan unless usable_plan?(plan)
 
       @rs.log_progress("Plan ready: #{plan['sub_questions']&.size || 0} sub-questions, #{plan['search_queries']&.size || 0} searches")
       plan
+    end
+
+    def usable_plan?(plan)
+      plan.present? && plan["search_queries"].present?
     end
 
     # ── Phase 2: SEARCH ──
@@ -205,6 +210,22 @@ module Research
       raise "LLM call failed: #{result.error}" unless result.success?
 
       result.data[:content].to_s
+    end
+
+    # Asks a healthy local Ollama provider; nil when none is available or it
+    # errors or returns nothing.
+    def local_call(messages, max_tokens:, temperature:)
+      pick = Agents::ModelRouter.local_provider
+      return unless pick
+
+      resolver = Providers::Resolver.call(provider_name: "ollama", provider_config: pick[:config], failover: false)
+      return unless resolver.success?
+
+      result = resolver.data[:adapter].chat(messages: messages, options: { model: pick[:model], max_tokens: max_tokens, temperature: temperature })
+      result.success? ? result.data[:content].to_s : nil
+    rescue StandardError => e
+      Rails.logger.warn("[Research::Loop] local call failed, using agent provider: #{e.message}")
+      nil
     end
 
     # ── Search & Fetch ──
