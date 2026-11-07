@@ -80,6 +80,9 @@
                 <% when "never_run" %>
                   <span>Never run</span>
                 <% end %>
+                <% if task.last_check_result == "unchanged" && task.last_checked_at.present? %>
+                  <span>Checked <%= time_ago_in_words(task.last_checked_at) %> ago, nothing new</span>
+                <% end %>
                 <% if task.next_run_at.present? %>
                   <span>Next: <%= task.next_run_at > Time.current ? "in #{time_ago_in_words(task.next_run_at)}" : "overdue" %></span>
                 <% end %>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_07_110000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_07_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -630,11 +630,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_110000) do
     t.boolean "enabled"
     t.string "job_class"
     t.jsonb "job_params"
+    t.string "last_check_result"
+    t.datetime "last_checked_at"
     t.datetime "last_error_at"
     t.datetime "last_run_at"
     t.string "name"
     t.datetime "next_run_at"
     t.jsonb "params"
+    t.jsonb "precheck_state", default: {}, null: false
+    t.string "precheck_url"
     t.string "schedule"
     t.datetime "updated_at", null: false
     t.index ["agent_id", "confirmation_status"], name: "index_scheduled_tasks_on_agent_id_and_confirmation_status"

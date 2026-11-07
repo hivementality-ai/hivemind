@@ -77,4 +77,82 @@ RSpec.describe ScheduledAgentJob, type: :job do
       expect(task.last_error_at).to be_present
     end
   end
+
+  describe "#perform with a precheck URL" do
+    let(:feed_url) { "https://example.com/feed.xml" }
+    let(:feed) do
+      <<~XML
+        <rss version="2.0"><channel>
+          <item><title>First post</title><link>https://example.com/1</link><guid>g1</guid></item>
+        </channel></rss>
+      XML
+    end
+    let(:watched) { create(:scheduled_task, agent: agent, job_params: { "prompt" => "Summarize" }, precheck_url: feed_url) }
+
+    it "skips the run with no model call when the feed has nothing new" do
+      watched.update!(precheck_state: { "ids" => [ "g1" ] })
+      stub_request(:get, feed_url).to_return(status: 200, body: feed)
+
+      expect { described_class.perform_now(watched.id) }.not_to change(Session, :count)
+      expect(ChatStreamJob).not_to have_been_enqueued
+
+      watched.reload
+      expect(watched.last_check_result).to eq("unchanged")
+      expect(watched.last_checked_at).to be_present
+      expect(watched.last_run_at).to be_nil
+    end
+
+    it "runs and passes new items into the prompt" do
+      watched.update!(precheck_state: { "ids" => [ "g0" ] })
+      stub_request(:get, feed_url).to_return(status: 200, body: feed)
+
+      described_class.perform_now(watched.id)
+
+      expect(ChatStreamJob).to have_been_enqueued.with(
+        anything, a_string_including("Summarize", "First post", "https://example.com/1")
+      )
+      expect(watched.reload.precheck_state["ids"]).to include("g0", "g1")
+    end
+
+    it "skips an unchanged page and runs a changed one" do
+      page_url = "https://example.com/page"
+      watched.update!(precheck_url: page_url)
+      stub_request(:get, page_url).to_return(status: 200, body: "<html><body>v1</body></html>")
+      described_class.perform_now(watched.id)
+      expect(ChatStreamJob).to have_been_enqueued.once
+
+      described_class.perform_now(watched.id)
+      expect(ChatStreamJob).to have_been_enqueued.once
+
+      stub_request(:get, page_url).to_return(status: 200, body: "<html><body>v2</body></html>")
+      described_class.perform_now(watched.id)
+      expect(ChatStreamJob).to have_been_enqueued.twice
+    end
+
+    it "runs the task as usual when the fetch fails" do
+      stub_request(:get, feed_url).to_return(status: 500)
+
+      expect { described_class.perform_now(watched.id) }.to have_enqueued_job(ChatStreamJob)
+      expect(watched.reload.last_check_result).to eq("failed")
+    end
+
+    it "runs the task as usual when the fetch times out" do
+      stub_request(:get, feed_url).to_timeout
+
+      expect { described_class.perform_now(watched.id) }.to have_enqueued_job(ChatStreamJob)
+    end
+
+    it "treats an oversized response as a failed fetch" do
+      stub_request(:get, feed_url).to_return(status: 200, body: "x" * (ScheduledTasks::Precheck::MAX_BYTES + 1))
+
+      expect { described_class.perform_now(watched.id) }.to have_enqueued_job(ChatStreamJob)
+      expect(watched.reload.last_check_result).to eq("failed")
+    end
+
+    it "makes no request and runs as before without a precheck URL" do
+      expect { described_class.perform_now(task.id) }.to have_enqueued_job(ChatStreamJob)
+      expect(task.reload.last_check_result).to be_nil
+      expect(a_request(:any, /.*/)).not_to have_been_made
+    end
+  end
 end
