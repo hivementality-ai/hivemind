@@ -6,7 +6,8 @@ module Agents
   #
   # Auto-routing is only enabled for the two "big" providers (Anthropic,
   # OpenAI). Everything else (Ollama, openai_compatible) keeps the agent's
-  # pinned model. When an agent's llm_model == "auto", ChatStreamJob calls
+  # pinned model, except that {local_pick} may send the lightest tier to an
+  # enabled, healthy Ollama provider. When an agent's llm_model == "auto", ChatStreamJob calls
   # `route` to pick a model for this turn; otherwise the pinned model is
   # used verbatim.
   #
@@ -35,6 +36,9 @@ module Agents
         "fallback_tier" => "mid"
       }
     }.freeze
+
+    # Longest message (characters) that may be answered by the local model.
+    LOCAL_MAX_CHARS = 2000
 
     TASK_TIERS = {
       "cheap" => %w[file_search format_code git_operations memory_retrieval context_summary chatting explore],
@@ -85,6 +89,32 @@ module Agents
 
       # Unknown tier in custom rules — fall back to DEFAULT_RULES for this provider.
       DEFAULT_RULES.dig(provider, "tiers", tier)
+    end
+
+    # Picks the local Ollama provider for a light turn. Reads only the cached
+    # health snapshot and provider records, never the network. Returns nil
+    # (stay on Claude) when the turn is not the cheap tier, is long, has tools
+    # or images, or Ollama is not enabled, has no model, or last failed its check.
+    #
+    # @param message_text [String] the current user message
+    # @param recent_tools [Array<String>] recent tool call names (most recent last)
+    # @param tools [Array] tools offered on this turn
+    # @param images [Boolean] whether the turn carries images
+    # @return [Hash, nil] +{ config:, model: }+ or nil
+    def self.local_pick(message_text:, recent_tools: [], tools: [], images: false)
+      return nil if images || tools.any? || message_text.to_s.length > LOCAL_MAX_CHARS
+      return nil unless tier_for(detect_task(message_text, recent_tools: recent_tools)) == "cheap"
+
+      config = ProviderConfig.enabled_providers.find_by(adapter_type: "ollama")
+      model = config&.model_names&.first
+      return nil unless model && local_healthy?
+
+      { config: config, model: model }
+    end
+
+    def self.local_healthy?
+      checks = Platform::HealthLight.snapshot&.dig(:checks) || []
+      checks.any? { |check| check[:key] == "studio" && check[:ok] }
     end
 
     def self.detect_task(message_text, recent_tools: [])

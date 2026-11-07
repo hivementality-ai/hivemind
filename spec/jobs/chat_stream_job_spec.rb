@@ -30,6 +30,33 @@ RSpec.describe ChatStreamJob, type: :job do
     allow(Channels::OriginDelivery).to receive(:call)
   end
 
+  describe "#local_pick" do
+    let(:brain) { double(model: "auto", provider_name: "anthropic") }
+    let(:ollama_config) { create(:provider_config, name: "studio", adapter_type: "ollama") }
+    let(:job) { described_class.new }
+
+    it "swaps in the Ollama adapter when the router picks the local model" do
+      allow(Agents::ModelRouter).to receive(:local_pick).and_return(config: ollama_config, model: "qwen3:8b")
+
+      expect(job.send(:local_pick, brain, agent, "hey", [], [])).to eq(adapter: adapter, model: "qwen3:8b")
+      expect(Providers::Resolver).to have_received(:call).with(hash_including(provider_name: "ollama", provider_config: ollama_config))
+    end
+
+    it "does nothing when the router declines" do
+      allow(Agents::ModelRouter).to receive(:local_pick).and_return(nil)
+
+      expect(job.send(:local_pick, brain, agent, "hey", [], [])).to be_nil
+    end
+
+    it "does nothing for a pinned model" do
+      allow(Agents::ModelRouter).to receive(:local_pick)
+
+      pinned = double(model: "claude-sonnet-4-5", provider_name: "anthropic")
+      expect(job.send(:local_pick, pinned, agent, "hey", [], [])).to be_nil
+      expect(Agents::ModelRouter).not_to have_received(:local_pick)
+    end
+  end
+
   describe "per-session turn lock" do
     let(:lock_key) { "#{described_class::LOCK_KEY_PREFIX}#{session.id}" }
 
