@@ -1,0 +1,21 @@
+<% light = Platform::HealthLight.snapshot %>
+<% status = light&.dig(:status) %>
+<% dot = { green: "bg-green-500", amber: "bg-amber-400", red: "bg-red-500" }.fetch(status, "bg-gray-500") %>
+<% title = { green: "Everything is working", amber: "Something optional is down", red: "The main brain is down" }.fetch(status, "Checking") %>
+<details class="fixed top-5 right-4 z-40 text-sm" data-testid="health-light" data-status="<%= status || 'unknown' %>">
+  <summary class="list-none cursor-pointer flex justify-end" title="<%= title %>" aria-label="System health: <%= title %>">
+    <span class="block w-3 h-3 rounded-full ring-2 ring-surface-card <%= dot %>"></span>
+  </summary>
+  <div class="mt-2 w-64 rounded-lg border border-border-default bg-surface-card p-3 shadow-lg">
+    <p class="font-semibold text-white mb-2"><%= title %></p>
+    <% if light %>
+      <ul class="space-y-1">
+        <% light[:checks].each do |check| %>
+          <li class="<%= check[:ok] ? 'text-text-muted' : 'text-amber-300' %>"><%= check[:label] %>: <%= check[:detail] %></li>
+        <% end %>
+      </ul>
+    <% else %>
+      <p class="text-text-muted">First check is running.</p>
+    <% end %>
+  </div>
+</details>
