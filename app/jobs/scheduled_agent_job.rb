@@ -14,6 +14,17 @@ class ScheduledAgentJob < ApplicationJob
 
     prompt = task.job_params&.dig("prompt") || task.description || "Run scheduled task: #{task.name}"
 
+    if task.precheck_url.present?
+      check = ScheduledTasks::Precheck.call(task)
+      if check.status == :unchanged
+        task.update!(last_checked_at: Time.current, last_check_result: "unchanged", next_run_at: calculate_next_run(task.schedule))
+        return
+      end
+      prompt = with_new_items(prompt, check.items)
+      task.update!(precheck_state: check.state) if check.state
+      task.assign_attributes(last_checked_at: Time.current, last_check_result: check.status.to_s)
+    end
+
     # Create a new conversation for this scheduled run
     session = agent.sessions.create!(
       session_key: "scheduled-#{task.id}-#{SecureRandom.hex(4)}",
@@ -35,6 +46,13 @@ class ScheduledAgentJob < ApplicationJob
   end
 
   private
+
+  def with_new_items(prompt, items)
+    return prompt if items.empty?
+
+    lines = items.map { |item| "- #{item[:title]} #{item[:link]}".strip }
+    "#{prompt}\n\nNew since the last check:\n#{lines.join("\n")}"
+  end
 
   def calculate_next_run(cron_expression)
     Fugit::Cron.parse(cron_expression)&.next_time&.to_t

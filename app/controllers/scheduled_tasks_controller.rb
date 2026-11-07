@@ -75,7 +75,7 @@ class ScheduledTasksController < ApplicationController
   end
 
   def task_params
-    permitted = params.require(:scheduled_task).permit(:name, :agent_id, :schedule, :description)
+    permitted = params.require(:scheduled_task).permit(:name, :agent_id, :schedule, :description, :precheck_url)
     if params[:scheduled_task][:prompt].present?
       permitted[:job_params] = (@task.job_params || {}).merge("prompt" => params[:scheduled_task][:prompt])
     end

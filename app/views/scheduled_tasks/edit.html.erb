@@ -50,6 +50,14 @@
     </div>
 
     <div>
+      <%= f.label :precheck_url, "Only run when this page or feed changes", class: "block text-text-primary text-sm font-medium mb-1" %>
+      <%= f.url_field :precheck_url,
+          placeholder: "https://example.com/feed.xml (optional)",
+          class: "w-full px-4 py-3 bg-surface-card border border-border-default rounded-lg text-white placeholder-text-faint focus:outline-none focus:ring-2 focus:ring-brand" %>
+      <p class="text-text-faint text-xs mt-1">Checked without the model. If nothing is new, the run is skipped and costs nothing.</p>
+    </div>
+
+    <div>
       <%= f.label :description, class: "block text-text-primary text-sm font-medium mb-1" %>
       <%= f.text_field :description,
           placeholder: "Optional description",
