@@ -479,8 +479,7 @@ class ChatStreamJob < ApplicationJob
   end
 
   def resolve_tools(agent)
-    assigned = agent.agent_tools.includes(:tool).map(&:tool).select(&:enabled?)
-    tools = assigned.any? ? assigned : Tool.enabled.builtin.to_a
+    tools = agent.assigned_tools
 
     tools << SystemTool::LOAD_SKILL if agent.skills.enabled.any?
     tools.concat(Tools::Search.offered(agent))

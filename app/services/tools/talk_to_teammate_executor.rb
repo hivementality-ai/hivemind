@@ -208,8 +208,7 @@ module Tools
     end
 
     def resolve_tools(target, team)
-      assigned = target.agent_tools.includes(:tool).map(&:tool).select(&:enabled?)
-      tools = assigned.any? ? assigned : Tool.enabled.builtin.to_a
+      tools = target.assigned_tools
 
       # Remove delegate/delegation_status — these spawn separate sessions and lose
       # team chat context. talk_to_teammate is the correct tool here.

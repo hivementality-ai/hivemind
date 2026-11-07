@@ -79,12 +79,14 @@
                   <span>Chat</span>
                 <% end %>
 
+                <% if SimpleMode.show_nav?(:team_chat) %>
                 <% team_chat_active = controller_name == "team_chats" %>
                 <%= link_to team_chats_index_path, class: nav_item_class.(team_chat_active) do %>
                   <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a2 2 0 01-2-2v-1m0-3V4a2 2 0 012-2h6a2 2 0 012 2v4a2 2 0 01-2 2H9l-4 4V8z" />
                   </svg>
                   <span>Team Chat</span>
+                <% end %>
                 <% end %>
 
                 <%= link_to agents_path, class: nav_item_class.(request.path.start_with?('/agents')) do %>
@@ -101,11 +103,13 @@
                   <span>Research</span>
                 <% end %>
 
+                <% if SimpleMode.show_nav?(:teams) %>
                 <%= link_to teams_path, class: nav_item_class.(request.path.start_with?('/teams')) do %>
                   <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                   </svg>
                   <span>Teams</span>
+                <% end %>
                 <% end %>
 
                 <%= link_to projects_path, class: nav_item_class.(request.path.start_with?('/projects')) do %>
@@ -174,11 +178,13 @@
                     <span>Skills</span>
                   <% end %>
 
+                  <% if SimpleMode.show_nav?(:hooks) %>
                   <%= link_to hooks_overview_path, class: nav_item_class.(request.path.include?('/hook')) do %>
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
                     <span>Hooks</span>
+                  <% end %>
                   <% end %>
                 </div>
               </div>
@@ -262,11 +268,13 @@
                     <span>Templates</span>
                   <% end %>
 
+                  <% if SimpleMode.show_nav?(:budgets) %>
                   <%= link_to budgets_path, class: nav_item_class.(request.path.start_with?('/budgets')) do %>
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span>Budgets</span>
+                  <% end %>
                   <% end %>
 
                   <%= link_to knowledge_documents_path, class: nav_item_class.(request.path.start_with?('/knowledge')) do %>
@@ -333,18 +341,22 @@
                     <span>APIs</span>
                   <% end %>
 
+                  <% if SimpleMode.show_nav?(:api_tokens) %>
                   <%= link_to api_tokens_path, class: nav_item_class.(request.path.start_with?('/api_tokens')) do %>
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                     </svg>
                     <span>API Tokens</span>
                   <% end %>
+                  <% end %>
 
+                  <% if SimpleMode.show_nav?(:webhooks) %>
                   <%= link_to webhook_endpoints_path, class: nav_item_class.(request.path.start_with?('/webhooks_out')) do %>
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
                     </svg>
                     <span>Webhooks</span>
+                  <% end %>
                   <% end %>
 
                   <%= link_to migration_path, class: nav_item_class.(request.path.start_with?('/migration')) do %>
@@ -358,6 +370,16 @@
 
             </nav>
             
+            <% if current_user.admin? || current_user.owner? %>
+              <div class="px-4 pb-2">
+                <%= button_to simple_mode_path, method: :patch, params: { enabled: !SimpleMode.enabled? },
+                      class: "w-full flex items-center justify-between text-xs text-text-muted hover:text-white" do %>
+                  <span>Simple mode</span>
+                  <span class="font-semibold"><%= SimpleMode.enabled? ? "On" : "Off" %></span>
+                <% end %>
+              </div>
+            <% end %>
+
             <!-- Version -->
             <div class="px-4 py-2 text-center">
               <span class="text-text-faint text-xs">v<%= Hivemind::VERSION %></span>
