@@ -116,6 +116,7 @@ module Swarms
         }
 
         attrs[:team] = @team if @team.present?
+        attrs[:custom_instructions] = agent_hash[:custom_instructions] if agent_hash.key?(:custom_instructions)
 
         model = agent_hash[:model].presence
         attrs[:llm_model] = model if model.present?

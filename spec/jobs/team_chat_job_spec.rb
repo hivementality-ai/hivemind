@@ -13,6 +13,44 @@ RSpec.describe TeamChatJob, type: :job do
     allow(CostEstimator).to receive(:estimate).and_return(0)
   end
 
+  describe "turn execution" do
+    let!(:agent) { create(:agent, team: team) }
+    let(:message) { create(:team_chat_message, team_chat_session: session) }
+    let(:job) { described_class.new }
+
+    before do
+      allow(job).to receive(:respond_as_agent)
+      allow(job).to receive(:maybe_generate_team_chat_title)
+    end
+
+    it "does not execute a delivered job twice" do
+      2.times { job.perform(session.id, message.id) }
+      expect(job).to have_received(:respond_as_agent).once
+    end
+
+    it "does not discard a new request after a recent response" do
+      create(:team_chat_message, team_chat_session: session, sender_type: "agent", sender_id: agent.id)
+      job.perform(session.id, message.id)
+      followup = create(:team_chat_message, team_chat_session: session)
+      job.perform(session.id, followup.id)
+      expect(job).to have_received(:respond_as_agent).twice
+    end
+
+    it "does not run the remaining agents once the turn stops" do
+      create(:agent, team: team)
+      allow(job).to receive(:respond_as_agent) { TeamChats::Turn.stop_active!(session) }
+      job.perform(session.id, message.id)
+      expect(job).to have_received(:respond_as_agent).once
+    end
+
+    it "requeues a contended turn without starting its state" do
+      allow_any_instance_of(TeamChatSession).to receive(:with_execution_lock).and_return(false)
+      expect { job.perform(session.id, message.id) }.to have_enqueued_job(described_class).with(session.id, message.id, responding_agent_id: nil)
+      expect(message.reload.metadata).not_to have_key("team_turn")
+      expect(job).not_to have_received(:respond_as_agent)
+    end
+  end
+
   describe "hashtag action processing" do
     it "processes hashtag actions before sending to LLM" do
       agent = create(:agent, team: team)
@@ -663,75 +701,66 @@ RSpec.describe TeamChatJob, type: :job do
     end
   end
 
-  describe "agent @mentions wake teammates" do
-    let!(:author) { create(:agent, team: team, name: "Alice", enabled: true) }
-    let!(:teammate) { create(:agent, team: team, name: "Vida", enabled: true) }
-    let(:reply) { "**@Vida** can you take this?" }
+  describe "agent mentions share the bounded team turn" do
+    let!(:author) { create(:agent, team: team, name: "Lead", enabled: true) }
+    let!(:teammate) { create(:agent, team: team, name: "Reviewer", enabled: true) }
+    let(:reply) { "**@Reviewer** please verify the source table." }
     let(:trigger) do
-      session.team_chat_messages.create!(sender_type: "user", sender_id: user.id, content: "go", target_agent_id: author.id)
+      session.team_chat_messages.create!(sender_type: "user", sender_id: user.id, content: "Prepare a reviewed source table", target_agent_id: author.id)
     end
 
     before do
       allow(HashtagActions::Processor).to receive(:call).and_return(
         HashtagActions::Processor::ProcessResult.new(
-          bypass_llm: false, response: nil, clean_message: "go", prompt_addons: [], side_effects: []
+          bypass_llm: false, response: nil, clean_message: "Prepare a reviewed source table", prompt_addons: [], side_effects: []
         )
       )
-      adapter = double("adapter", chat: double(success?: true, data: { content: reply, usage: {} }))
-      allow(Providers::Resolver).to receive(:call).and_return(double(success?: true, data: { adapter: adapter }))
-      allow(Agents::ToolLoop).to receive(:call).and_return(double(success?: true, data: { content: reply, usage: {} }))
+      adapter = double("adapter", chat: ServiceResponse.success(data: { content: reply, usage: {} }))
+      allow(Providers::Resolver).to receive(:call).and_return(ServiceResponse.success(data: { adapter: adapter }))
+      allow(Agents::ToolLoop).to receive(:call).and_return(ServiceResponse.success(data: { content: reply, usage: {} }))
       allow(TeamChatJob).to receive(:perform_later)
     end
 
-    def run_job(**opts)
-      TeamChatJob.perform_now(session.id, trigger.id, responding_agent_id: author.id, **opts)
-    end
-
-    it "enqueues the mentioned teammate" do
-      run_job
-
-      saved = session.team_chat_messages.where(sender_type: "agent", sender_id: author.id).last
-      expect(TeamChatJob).to have_received(:perform_later)
-        .with(session.id, saved.id, responding_agent_id: teammate.id, chain_depth: 1)
+    it "delivers an agent mention inside the original root without starting a fresh job" do
+      described_class.perform_now(session.id, trigger.id)
+      handoffs = trigger.reload.metadata.dig("team_turn", "handoffs")
+      expect(handoffs.size).to eq(1)
+      expect(handoffs.first).to include("to" => teammate.id, "status" => "completed")
+      expect(session.team_chat_messages.where(sender_type: "agent", sender_id: teammate.id)).to exist
+      expect(TeamChatJob).not_to have_received(:perform_later)
     end
 
     context "when the agent mentions itself" do
-      let(:reply) { "Note to **@Alice**: done" }
+      let(:reply) { "Note to **@Lead**: done" }
 
       it "does not wake anyone" do
-        run_job
-
-        expect(TeamChatJob).not_to have_received(:perform_later)
+        described_class.perform_now(session.id, trigger.id)
+        expect(trigger.reload.metadata.dig("team_turn", "handoffs")).to be_empty
       end
     end
 
-    context "when the hop cap is reached" do
-      it "stops the chain" do
-        run_job(chain_depth: TeamChatJob::MAX_MENTION_HOPS)
+    context "when the agent mentions the entire team" do
+      let(:reply) { "@team Everyone respond" }
 
-        expect(TeamChatJob).not_to have_received(:perform_later)
-      end
-
-      it "still wakes one hop below the cap" do
-        run_job(chain_depth: TeamChatJob::MAX_MENTION_HOPS - 1)
-
-        expect(TeamChatJob).to have_received(:perform_later)
-          .with(anything, anything, responding_agent_id: teammate.id, chain_depth: TeamChatJob::MAX_MENTION_HOPS)
+      it "does not create a broadcast cascade" do
+        described_class.perform_now(session.id, trigger.id)
+        expect(trigger.reload.metadata.dig("team_turn", "handoffs")).to be_empty
       end
     end
 
-    it "ends a ping-pong between two agents at the cap" do
-      allow(TeamChatJob).to receive(:perform_later) do |sid, mid, responding_agent_id:, chain_depth:|
-        other = responding_agent_id == author.id ? teammate : author
-        reply_text = "@#{other.name} your turn"
-        allow(Agents::ToolLoop).to receive(:call).and_return(double(success?: true, data: { content: reply_text, usage: {} }))
-        session.team_chat_messages.where(sender_type: "agent").update_all(created_at: 1.hour.ago)
-        TeamChatJob.perform_now(sid, mid, responding_agent_id:, chain_depth:)
-      end
+    it "applies the shared handoff budget to a large mention fan-out" do
+      targets = create_list(:agent, 7, team: team)
+      response = targets.map { |target| "@#{target.name}" }.join(" ")
+      allow(Agents::ToolLoop).to receive(:call).and_return(ServiceResponse.success(data: { content: response, usage: {} }))
+      described_class.perform_now(session.id, trigger.id)
+      expect(trigger.reload.metadata.dig("team_turn", "handoffs").size).to eq(TeamChats::Turn::MAX_HANDOFFS)
+      expect(TeamChatJob).not_to have_received(:perform_later)
+    end
 
-      expect { run_job }.not_to raise_error
-
-      expect(session.team_chat_messages.where(sender_type: "agent").count).to eq(TeamChatJob::MAX_MENTION_HOPS + 1)
+    it "does not turn a queued agent response into an independent user goal" do
+      old_reply = session.team_chat_messages.create!(sender_type: "agent", sender_id: author.id, content: reply)
+      described_class.perform_now(session.id, old_reply.id, responding_agent_id: teammate.id, chain_depth: 1)
+      expect(Agents::ToolLoop).not_to have_received(:call)
     end
   end
 

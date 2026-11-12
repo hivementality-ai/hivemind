@@ -132,7 +132,8 @@
             <%= hivemind_logo(size: "w-16 h-16 mx-auto mb-4", css: "text-purple-400/60") %>
             <h2 class="text-xl font-semibold text-white mb-2"><%= @team.name %> Team Chat</h2>
             <p class="text-text-muted max-w-md">
-              Chat with the whole team or @mention a specific agent.<br>
+              Give the team a goal and a clear deliverable. A configured team lead coordinates the response.<br>
+              Use @mentions for specific agents or @team for everyone.<br>
               <span class="text-text-faint text-sm">
                 Try: <% @agents.first(3).each do |a| %>
                   <code class="text-purple-400">@<%= a.name %></code><%= " " %>

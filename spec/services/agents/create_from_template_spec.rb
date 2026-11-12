@@ -5,6 +5,8 @@ require "rails_helper"
 RSpec.describe Agents::CreateFromTemplate do
   let(:team) { create(:team) }
   let(:skills) { create_list(:skill, 2, enabled: true) }
+  let!(:read_tool) { create(:tool, name: "file_read", enabled: true) }
+  let!(:shell_tool) { create(:tool, name: "shell", enabled: true) }
 
   let(:template) do
     create(
@@ -32,6 +34,9 @@ RSpec.describe Agents::CreateFromTemplate do
         expect(agent.name).to eq("Custom Agent Name")
         expect(agent.role).to eq("Tester")
         expect(agent.system_prompt).to eq("You are a test agent")
+        expect(agent.custom_instructions).to eq(template.soul_md)
+        expect(agent.full_system_prompt).to include(template.soul_md)
+        expect(agent.tools).to contain_exactly(read_tool, shell_tool)
         expect(agent.model_config).to eq({ "provider" => "anthropic", "model" => "claude-haiku-4-5" })
         expect(agent.tools_config).to eq({ "enabled" => [ "file_read", "shell" ] })
       end
@@ -130,6 +135,27 @@ RSpec.describe Agents::CreateFromTemplate do
       it "returns failure" do
         expect(result.success?).to be false
         expect(result.error).to include("Name can't be blank")
+      end
+    end
+
+    context "when a required tool is unavailable" do
+      let(:name) { "Restricted Agent" }
+
+      it "fails without creating an agent with an empty all-tools assignment" do
+        shell_tool.update!(enabled: false)
+        expect { result }.not_to change(Agent, :count)
+        expect(result).not_to be_success
+        expect(result.error).to include("unavailable tools: shell")
+      end
+    end
+
+    context "when assigning template tools fails" do
+      let(:name) { "Incomplete Agent" }
+
+      it "rolls back the agent so failure cannot leave unrestricted access" do
+        allow_any_instance_of(Agent).to receive(:tools=).and_raise("Tool assignment failed")
+        expect { result }.not_to change(Agent, :count)
+        expect(result).not_to be_success
       end
     end
 

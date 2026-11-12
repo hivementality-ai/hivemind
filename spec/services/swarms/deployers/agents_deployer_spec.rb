@@ -16,6 +16,26 @@ RSpec.describe Swarms::Deployers::AgentsDeployer do
   # ---------------------------------------------------------------------------
 
   describe "result contract" do
+    it "round trips legacy and current soul fields without conflating them" do
+      source = create(:agent, system_prompt: "Legacy identity.", custom_instructions: "Current soul.", role: "Family Assistant")
+      exported = Swarms::Serializers::AgentSerializer.call(agent: source).merge("name" => "Restored Agent")
+      result = described_class.call(document: build_document(agents: [ exported ]))
+      expect(result).to be_success
+      restored = result.payload[:agents].first.record
+      expect(restored.system_prompt).to eq(source.system_prompt)
+      expect(restored.custom_instructions).to eq(source.custom_instructions)
+      expect(restored.full_system_prompt).to include("Legacy identity.", "Current soul.", AgentTypes.instructions("Family Assistant"))
+    end
+
+    it "preserves a current soul when overwriting from an older manifest, but supports explicit clearing" do
+      existing = create(:agent, custom_instructions: "Keep this soul.")
+      entry = { "name" => existing.name, "role" => "Research Director", "soul" => "Legacy prompt" }
+      described_class.call(document: build_document(agents: [ entry ]), resolutions: { existing.name => :overwrite })
+      expect(existing.reload.custom_instructions).to eq("Keep this soul.")
+      described_class.call(document: build_document(agents: [ entry.merge("custom_instructions" => "") ]), resolutions: { existing.name => :overwrite })
+      expect(existing.reload.custom_instructions).to eq("")
+    end
+
     it "always returns a successful ServiceResponse" do
       result = described_class.call(document: build_document)
       expect(result).to be_success

@@ -3,6 +3,49 @@
 require 'rails_helper'
 
 RSpec.describe TeamChatSession, type: :model do
+  describe "bounded team routing" do
+    let(:chat) { create(:team_chat_session) }
+    let!(:lead) { create(:agent, name: "Director", team: chat.team) }
+    let!(:specialist) { create(:agent, name: "Evidence Reader", team: chat.team, reports_to_id: lead.id) }
+    let!(:personal) { create(:agent, name: "Assistant", team: chat.team) }
+
+    def message(content, **attrs)
+      create(:team_chat_message, team_chat_session: chat, content: content, **attrs)
+    end
+
+    it "routes an unaddressed request to the unique lead and an explicit broadcast to everyone" do
+      expect(chat.responding_agents(message("Review the evidence"))).to eq([ lead ])
+      expect(chat.responding_agents(message("@team Discuss"))).to contain_exactly(lead, specialist, personal)
+    end
+
+    it "routes multiple mentions only to the requested specialists" do
+      expect(chat.responding_agents(message("@Evidence Reader and @Assistant help"))).to contain_exactly(specialist, personal)
+    end
+
+    it "never routes a target from another team or a disabled target" do
+      foreign = create(:agent)
+      expect(chat.responding_agents(message("Help", target_agent: foreign))).to be_empty
+      expect(chat.responding_agents(message("Help"), responding_agent_id: foreign.id)).to be_empty
+      specialist.update!(enabled: false)
+      expect(chat.responding_agents(message("@Evidence Reader help"))).to be_empty
+    end
+
+    it "releases its execution lock after an error" do
+      probe = lambda do
+        Thread.new do
+          ActiveRecord::Base.connection_pool.with_connection do |connection|
+            locked = connection.select_value("SELECT pg_try_advisory_lock(78041, #{chat.id})")
+            connection.execute("SELECT pg_advisory_unlock(78041, #{chat.id})") if locked
+            locked
+          end
+        end.value
+      end
+      chat.with_execution_lock { expect(probe.call).to be false }
+      expect { chat.with_execution_lock { raise "execution failed" } }.to raise_error("execution failed")
+      expect(probe.call).to be true
+    end
+  end
+
   describe 'associations' do
     it { should belong_to(:team) }
     it { should belong_to(:user) }

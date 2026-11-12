@@ -12,10 +12,21 @@ module Tools
       session = config[:session]
       return ServiceResponse.failure(error: "No session context available") unless session
 
-      team_id = session.metadata&.dig("team_id")
-      team_chat_session = TeamChatSession.find_by(id: session.metadata&.dig("team_chat_session_id"))
-      team = team_chat_session&.team || Team.find_by(id: team_id)
+      team_chat_session = session.team_chat_session
+      team = team_chat_session&.team
       return ServiceResponse.failure(error: "No team context available") unless team
+      unless agent&.enabled? && session.agent_id == agent.id && agent.team_id == team.id && team_chat_session.active?
+        return ServiceResponse.failure(error: "Agent is not active in this team chat")
+      end
+
+      # SDK callbacks arrive in a separate request; recover only server-written
+      # execution context, never chain state supplied by the model's tool input.
+      context = session.reload.metadata&.dig(TeamChats::Turn::CONTEXT_KEY) || {}
+      turn_id = config[:team_turn_message_id] || context["turn_message_id"]
+      turn_message = team_chat_session.team_chat_messages.find_by(id: turn_id, sender_type: "user")
+      return ServiceResponse.failure(error: "No active team turn. Respond to the user directly.") unless turn_message
+
+      @turn = TeamChats::Turn.new(turn_message)
 
       # Look up target agent
       target = team.agents.enabled.where("LOWER(name) = ?", teammate_name.downcase).first
@@ -27,16 +38,26 @@ module Tools
       end
 
       # Guard: depth limit
-      depth = config[:team_chat_depth] || 0
+      depth = config[:team_chat_depth] || context["depth"] || 0
       if depth <= 0
         return ServiceResponse.failure(error: "Conversation depth limit reached. Respond directly instead of calling another teammate.")
       end
 
       # Guard: prevent cycles (A→B→A)
-      active_ids = config[:active_agent_ids] || []
+      active_ids = config[:active_agent_ids] || context["active_agent_ids"] || []
       if active_ids.include?(target.id)
         return ServiceResponse.failure(error: "#{target.name} is already in this conversation chain. Respond directly instead.")
       end
+
+      reservation = @turn.reserve!(from: agent, target: target, task: message)
+      return reservation unless reservation.success?
+
+      @handoff_id = reservation.data[:handoff_id]
+      @handoff_status = "failed"
+      @handoff_result = "Handoff did not finish."
+
+      budget = Budgets::Check.call(agent: target)
+      return handoff_failure("#{target.name} has reached its budget limit.") unless budget.success?
 
       channel = config[:team_chat_channel] || "team_chat_#{team_chat_session&.id}"
 
@@ -55,16 +76,16 @@ module Tools
         sender_type: "agent",
         sender_id: agent&.id,
         content: message,
-        metadata: { agent_to_agent: true, to_agent_id: target.id, to_agent_name: target.name }
+        metadata: { agent_to_agent: true, to_agent_id: target.id, to_agent_name: target.name, turn_message_id: turn_id, handoff_id: @handoff_id }
       )
 
       # Get target agent's session in this team chat
       target_session = team_chat_session&.session_for(target)
-      return ServiceResponse.failure(error: "Could not create session for #{target.name}") unless target_session
+      return handoff_failure("Could not create session for #{target.name}") unless target_session
 
       # Resolve provider for target agent
       resolver = Providers::Resolver.call(provider_name: target.model_provider, agent: target)
-      return ServiceResponse.failure(error: "Provider error for #{target.name}: #{resolver.error}") unless resolver.success?
+      return handoff_failure("Provider error for #{target.name}: #{resolver.error}") unless resolver.success?
 
       adapter = resolver.data[:adapter]
 
@@ -76,7 +97,7 @@ module Tools
       })
 
       # Build messages for the target agent
-      target_messages = build_target_messages(target:, team_chat_session:, incoming_message: message)
+      target_messages = build_target_messages(target:, team_chat_session:, incoming_message: message, outgoing_message_id: outgoing_msg.id)
 
       # Append to target's transcript
       target_session.append_transcript({ "role" => "user", "content" => "[#{agent&.name}]: #{message}" })
@@ -92,34 +113,47 @@ module Tools
       # Build LLM options
       llm_options = { model: target.llm_model, max_tokens: target.max_output_tokens || 8192 }
       llm_options.merge!(target.inference_options)
+      base_adapter = Providers::FailoverAdapter.unwrap(adapter)
+      if base_adapter.is_a?(Providers::AnthropicAdapter) && base_adapter.send(:oauth_token?)
+        llm_options.merge!(agent_id: target.id, session_id: target_session.id, tool_definitions: target_tools.map(&:to_llm_tool))
+      end
 
       broadcast_extras = { agent_id: target.id, agent_name: target.name }
 
+      return handoff_failure("This team turn has stopped.") unless @turn.running?
+
       # Execute target agent synchronously via ToolLoop
-      result = TeamChats::AgentActivity.track(target, channel: channel, task: "Answering #{agent&.name}") do
-        Agents::ToolLoop.call(
-          adapter: adapter,
-          agent: target,
-          session: target_session,
-          messages: target_messages,
-          tools: target_tools,
-          channel: channel,
-          options: llm_options,
-          broadcast_extras: broadcast_extras,
-          extra_config: {
-            team_chat_depth: next_depth,
-            active_agent_ids: active_ids + [ agent&.id, target.id ].compact,
-            team_chat_channel: channel,
-            session: target_session
-          }
-        )
+      result = @turn.with_agent_context(target_session, depth: next_depth, active_agent_ids: active_ids + [ agent.id, target.id ]) do
+        TeamChats::AgentActivity.track(target, channel: channel, task: "Answering #{agent&.name}") do
+          Agents::ToolLoop.call(
+            adapter: adapter,
+            agent: target,
+            session: target_session,
+            messages: target_messages,
+            tools: target_tools,
+            channel: channel,
+            options: llm_options,
+            broadcast_extras: broadcast_extras,
+            extra_config: {
+              team_turn_message_id: turn_id,
+              team_chat_depth: next_depth,
+              active_agent_ids: active_ids + [ agent&.id, target.id ].compact,
+              team_chat_channel: channel,
+              session: target_session
+            }
+          )
+        end
       end
 
+      record_usage(target, target_session, result&.data&.dig(:usage))
+      return handoff_failure("#{target.name} could not complete the handoff: #{result&.error || 'No result returned'}") unless result&.success?
+
       response_content = result&.data&.dig(:content).to_s
-      response_content = "_(No response generated)_" if response_content.blank?
+      return handoff_failure("#{target.name} returned no usable response. Report this blocker rather than treating it as completed work.") if response_content.blank?
 
       # Strip self-name prefix
       response_content = response_content.sub(/\A\s*\[[^\]]+\]\s*:?\s*/i, "")
+      return handoff_failure("#{target.name} returned no usable response.") if response_content.blank?
 
       # Persist to target's transcript
       target_session.append_transcript({ "role" => "assistant", "content" => response_content })
@@ -129,7 +163,7 @@ module Tools
         sender_type: "agent",
         sender_id: target.id,
         content: response_content,
-        metadata: { agent_to_agent: true, from_agent_id: agent&.id, from_agent_name: agent&.name }
+        metadata: { agent_to_agent: true, from_agent_id: agent&.id, from_agent_name: agent&.name, turn_message_id: turn_id, handoff_id: @handoff_id }
       )
 
       # Broadcast response
@@ -149,20 +183,47 @@ module Tools
         content: response_content
       })
 
+      @handoff_status = "completed"
+      @handoff_result = response_content
       ServiceResponse.success(data: {
         output: "#{target.name} responded:\n\n#{response_content.truncate(3000)}"
       })
+    rescue AgentInterrupted, AgentRedirected
+      @turn&.finish!("stopped")
+      @handoff_status = "interrupted"
+      @handoff_result = "Interrupted by the user."
+      raise
     rescue StandardError => e
-      ServiceResponse.failure(error: "Failed to talk to teammate: #{e.message}")
+      handoff_failure("Failed to talk to teammate: #{e.message}")
+    ensure
+      @turn.record_result!(@handoff_id, status: @handoff_status, result: @handoff_result) if @handoff_id
+      if @handoff_id && @handoff_status != "completed" && target && channel
+        ActionCable.server.broadcast(channel, { type: "agent_done", agent_id: target.id, agent_name: target.name, content: "" })
+      end
     end
 
     private
+
+    def handoff_failure(error)
+      @handoff_result = error
+      ServiceResponse.failure(error: error)
+    end
+
+    def record_usage(target, session, usage)
+      return if usage.blank?
+
+      input_tokens = usage[:input_tokens] || 0
+      output_tokens = usage[:output_tokens] || 0
+      Budgets::RecordSpend.call(agent: target, session: session, provider: target.model_provider, llm_model: target.llm_model,
+        input_tokens: input_tokens, output_tokens: output_tokens,
+        cost_cents: CostEstimator.estimate(model: target.llm_model, input_tokens: input_tokens, output_tokens: output_tokens))
+    end
 
     def available_teammates(team)
       team.agents.enabled.where.not(id: agent&.id).pluck(:name).join(", ")
     end
 
-    def build_target_messages(target:, team_chat_session:, incoming_message:)
+    def build_target_messages(target:, team_chat_session:, incoming_message:, outgoing_message_id:)
       messages = []
 
       # System prompt
@@ -184,10 +245,12 @@ module Tools
       ].join("\n")
 
       system_blocks << { type: "text", text: team_context }
+      system_blocks << { type: "text", text: team.soul } if team.soul.present?
+      system_blocks << { type: "text", text: @turn.prompt }
       messages << { role: "system", content: system_blocks }
 
       # Recent chat history for context
-      recent = team_chat_session.team_chat_messages.chronological.last(5)
+      recent = team_chat_session.team_chat_messages.where.not(id: outgoing_message_id).chronological.last(5)
       recent.each do |msg|
         if msg.from_agent? && msg.sender_id == target.id
           messages << { role: "assistant", content: msg.content }

@@ -14,30 +14,41 @@ module Agents
     end
 
     def call
+      requested_tools = @template.enabled_tool_names
+      tools = Tool.enabled.where(name: requested_tools).to_a
+      missing_tools = requested_tools - tools.map(&:name)
+      if missing_tools.any?
+        return ServiceResponse.failure(error: "Template requires unavailable tools: #{missing_tools.join(', ')}")
+      end
+
       agent = Agent.new(
         name: @name,
         role: @template.role,
         team: @team,
         model_config: @template.model_config,
         tools_config: @template.tools_config,
-        system_prompt: @template.system_prompt
+        system_prompt: @template.system_prompt,
+        custom_instructions: @template.soul_md
       )
 
-      if agent.save
-        setup_workspace(agent)
-        setup_skills(agent)
+      Agent.transaction do
+        if agent.save
+          agent.tools = tools if requested_tools.any?
+          setup_workspace(agent)
+          setup_skills(agent)
 
-        Audit::Record.call(
-          actor_type: "system",
-          actor_id: "template_deploy",
-          action: "agent.created_from_template",
-          resource: { "type" => "Agent", "id" => agent.id },
-          metadata: { template_id: @template.id, template_name: @template.name }
-        )
+          Audit::Record.call(
+            actor_type: "system",
+            actor_id: "template_deploy",
+            action: "agent.created_from_template",
+            resource: { "type" => "Agent", "id" => agent.id },
+            metadata: { template_id: @template.id, template_name: @template.name }
+          )
 
-        ServiceResponse.success(data: { agent: agent })
-      else
-        ServiceResponse.failure(error: agent.errors.full_messages.join(", "))
+          ServiceResponse.success(data: { agent: agent })
+        else
+          ServiceResponse.failure(error: agent.errors.full_messages.join(", "))
+        end
       end
     rescue => e
       ServiceResponse.failure(error: "Failed to create agent from template: #{e.message}")

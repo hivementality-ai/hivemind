@@ -114,14 +114,14 @@ module RoleInstructions
     parts << base_personality
 
     # Role baseline
-    default = DEFAULTS[role]
+    default = AgentTypes.instructions(role) || DEFAULTS[role]
     if default.present?
       parts << "## Role: #{role}"
       parts << default
     end
 
     # User-provided instructions (sanitized, then trusted)
-    sanitized = sanitize_instructions(custom_instructions)
+    sanitized = creator_instructions
     if sanitized.present?
       parts << <<~INSTRUCTIONS.strip
         ## Your Instructions
@@ -175,13 +175,13 @@ module RoleInstructions
 
     core_parts << base_personality
 
-    default = DEFAULTS[role]
+    default = AgentTypes.instructions(role) || DEFAULTS[role]
     if default.present?
       core_parts << "## Role: #{role}"
       core_parts << default
     end
 
-    sanitized = sanitize_instructions(custom_instructions)
+    sanitized = creator_instructions
     if sanitized.present?
       core_parts << "## Your Instructions\n" \
                     "These are from your creator. They define who you are — your personality, background, " \
@@ -220,6 +220,10 @@ module RoleInstructions
   end
 
   private
+
+  def creator_instructions
+    [ system_prompt, custom_instructions ].filter_map { |text| sanitize_instructions(text).presence }.uniq.join("\n\n")
+  end
 
   # Builds the skills section of the system prompt.
   # Core skills: content injected directly (always active, no load_skill needed).

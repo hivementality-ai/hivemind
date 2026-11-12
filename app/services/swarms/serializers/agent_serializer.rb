@@ -43,6 +43,7 @@ module Swarms
         }
 
         hash["soul"]         = @agent.system_prompt if @agent.system_prompt.present?
+        hash["custom_instructions"] = @agent.custom_instructions if @agent.custom_instructions.present?
         hash["model"]        = @agent.llm_model     if @agent.llm_model.present?
         hash["model_config"] = @agent.model_config  if serialize_model_config?
 
