@@ -1,6 +1,11 @@
 # frozen_string_literal: true
 
 module AgentsHelper
+  def agent_type_options(agent)
+    (RoleInstructions::DEFAULTS.keys + AgentTypes::PROFILES.keys + AgentTemplate.distinct.pluck(:role) + [ agent.role ])
+      .compact_blank.uniq.sort.map { |role| [ role, role ] }
+  end
+
   # Renders an agent avatar (image or fallback initial).
   # Sizes: :xs, :sm, :md, :lg, :xl
   AVATAR_SIZES = {

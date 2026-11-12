@@ -43,7 +43,7 @@ class SystemTool
 
   TALK_TO_TEAMMATE = SystemTool.new(
     name: "talk_to_teammate",
-    description: "Send a message to a specific teammate and get their response. Use this when you need input from a particular team member. You'll send them a message, they'll process it and respond, and you'll receive their answer.",
+    description: "Request one bounded contribution from a teammate and receive their result in this team chat. Include the goal, sources or artifact links, expected output, and return owner. Use existing results; do not repeat requests, send acknowledgment-only messages, or call an agent waiting for you. The whole team shares a handoff limit.",
     executor_type: "talk_to_teammate",
     parameters_schema: {
       "properties" => {

@@ -24,7 +24,7 @@ module Internal
         return render json: { success: false, error: "Unknown tool: #{params[:tool_name]}" }, status: :unprocessable_entity
       end
 
-      unless agent && session
+      unless agent && session && session.agent_id == agent.id
         return render json: { success: false, error: "Agent or session not found" }, status: :unprocessable_entity
       end
 
@@ -50,7 +50,8 @@ module Internal
     SYSTEM_TOOLS = {
       "load_skill" => SystemTool::LOAD_SKILL,
       "find_tools" => SystemTool::FIND_TOOLS,
-      "use_tool" => SystemTool::USE_TOOL
+      "use_tool" => SystemTool::USE_TOOL,
+      "talk_to_teammate" => SystemTool::TALK_TO_TEAMMATE
     }.freeze
 
     def resolve_system_tool(name)

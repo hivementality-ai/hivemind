@@ -258,6 +258,9 @@ module Swarms
       errors << "#{prefix}.role is required" if a[:role].blank?
 
       errors << "#{prefix}.soul must be a string"  if !a[:soul].nil?  && !a[:soul].is_a?(String)
+      if !a[:custom_instructions].nil? && !a[:custom_instructions].is_a?(String)
+        errors << "#{prefix}.custom_instructions must be a string"
+      end
       errors << "#{prefix}.model must be a string" if !a[:model].nil? && !a[:model].is_a?(String)
 
       if a[:thinking_visibility].present? && !VALID_THINKING_VISIBILITY.include?(a[:thinking_visibility].to_s)

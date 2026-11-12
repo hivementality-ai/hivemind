@@ -15,6 +15,21 @@ RSpec.describe Internal::ToolsController, type: :controller do
   end
 
   describe "POST #execute" do
+    it "resolves teammate calls through the SDK callback endpoint" do
+      allow(Tools::Executor).to receive(:call).and_return(ServiceResponse.success(data: { output: "Reviewed" }))
+      post :execute, params: { tool_name: "talk_to_teammate", agent_id: agent.id, session_id: session.id, input: { teammate: "Reviewer", message: "Review" } }
+      expect(response).to have_http_status(:ok)
+      expect(Tools::Executor).to have_received(:call).with(tool: SystemTool::TALK_TO_TEAMMATE, agent: agent, session: session, input: { "teammate" => "Reviewer", "message" => "Review" })
+    end
+
+    it "rejects an agent using another agent's session" do
+      allow(Tools::Executor).to receive(:call)
+      foreign = create(:session)
+      post :execute, params: { tool_name: "talk_to_teammate", agent_id: agent.id, session_id: foreign.id, input: {} }
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(Tools::Executor).not_to have_received(:call)
+    end
+
     context "with a regular DB tool" do
       let(:tool) { create(:tool, enabled: true) }
 

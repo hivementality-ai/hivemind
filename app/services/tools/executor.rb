@@ -282,6 +282,8 @@ module Tools
       else
         ServiceResponse.failure(error: result.error)
       end
+    rescue AgentInterrupted, AgentRedirected
+      raise
     rescue StandardError => e
       ServiceResponse.failure(error: e.message)
     end

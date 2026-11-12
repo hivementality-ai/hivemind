@@ -5,48 +5,51 @@ class TeamChatJob < ApplicationJob
 
   # Process a message in a team chat — route to targeted agent(s), handle responses.
   # Agent-to-agent communication is handled via the talk_to_teammate tool.
-  AGENT_COOLDOWN_SECONDS = 10  # Min seconds between an agent's responses
-  MAX_MENTION_HOPS = 5 # Max agent-to-agent @mention wakes chained from one human message
-
   def perform(team_chat_session_id, message_id, responding_agent_id: nil, chain_depth: 0, broadcast_agent_ids: [])
     @session = TeamChatSession.find(team_chat_session_id)
-    @chain_depth = chain_depth
+    return unless @session.active?
+
+    locked = @session.with_execution_lock do
+      perform_turn(message_id, responding_agent_id: responding_agent_id)
+    end
+    unless locked
+      self.class.set(wait: 10.seconds).perform_later(team_chat_session_id, message_id, responding_agent_id: responding_agent_id)
+    end
+  end
+
+  private
+
+  def perform_turn(message_id, responding_agent_id:)
     @team = @session.team
     @channel = "team_chat_#{@session.id}"
-    message = TeamChatMessage.find(message_id)
+    message = @session.team_chat_messages.find(message_id)
+    return unless message.from_user?
+
+    @turn = TeamChats::Turn.new(message)
+    started = @turn.start!
+    return unless started
+
     @trigger_message_images = message.images.attached? ? message.images.to_a : []
     @trigger_message_docs = message.documents.attached? ? message.documents.to_a : []
 
-    # Determine which agents should respond
-    agents_to_respond = if responding_agent_id
-                          # Specific agent was targeted (e.g. user @mentioned them)
-                          [ Agent.find(responding_agent_id) ]
-    elsif message.target_agent_id
-                          # User @mentioned a specific agent
-                          [ message.target_agent ]
-    else
-                          # No @mention or @team — all enabled team agents respond
-                          @team.agents.enabled.order(:name).to_a
-    end
-
-    # Apply cooldown — skip agents who responded very recently
-    agents_to_respond = agents_to_respond.reject do |agent|
-      last_msg = @session.team_chat_messages.where(sender_type: "agent", sender_id: agent.id).order(:created_at).last
-      last_msg && last_msg.created_at > AGENT_COOLDOWN_SECONDS.seconds.ago
-    end
+    agents_to_respond = @session.responding_agents(message, responding_agent_id: responding_agent_id)
 
     @current_round_trigger_id = message.id
     @current_round_agent_ids_responded = []
 
     agents_to_respond.each do |agent|
-      respond_as_agent(agent:, trigger_message: message)
+      break unless @turn.running?
+
+      @turn.with_agent_context(@session.session_for(agent), depth: TeamChats::Turn::MAX_DEPTH, active_agent_ids: [ agent.id ]) do
+        respond_as_agent(agent:, trigger_message: message)
+      end
       @current_round_agent_ids_responded << agent.id
     end
 
     maybe_generate_team_chat_title
+  ensure
+    @turn&.finish! if started
   end
-
-  private
 
   def respond_as_agent(agent:, trigger_message:)
     TeamChats::AgentActivity.track(agent, channel: @channel) do
@@ -214,7 +217,8 @@ class TeamChatJob < ApplicationJob
           options: llm_options,
           broadcast_extras: broadcast_extras,
           extra_config: {
-            team_chat_depth: 3,
+            team_chat_depth: TeamChats::Turn::MAX_DEPTH,
+            team_turn_message_id: @turn.message_id,
             active_agent_ids: [ agent.id ],
             team_chat_channel: @channel,
             session: @agent_session
@@ -312,6 +316,7 @@ class TeamChatJob < ApplicationJob
       wake_mentioned_teammates(agent_message, agent)
 
     rescue AgentInterrupted
+      @turn&.finish!("stopped")
       if full_content.present?
         @agent_session.append_transcript({ "role" => "assistant", "content" => full_content + "\n\n_[Cancelled by user]_" })
         @session.team_chat_messages.create!(
@@ -328,6 +333,7 @@ class TeamChatJob < ApplicationJob
       Rails.logger.info("TeamChatJob: cancelled by user for agent #{agent.name} in session #{@session.id}")
 
     rescue AgentRedirected => e
+      @turn&.finish!("stopped")
       if full_content.present?
         @agent_session.append_transcript({ "role" => "assistant", "content" => full_content + "\n\n_[Redirected by user]_" })
         @session.team_chat_messages.create!(
@@ -363,16 +369,22 @@ class TeamChatJob < ApplicationJob
     end
   end
 
-  # Enqueue a turn for each teammate @mentioned in an agent's reply. Skips the
-  # author and stops once the hop cap for this chain is reached.
+  # Agent mentions use the same root ledger and limits as explicit tool calls.
+  # Synchronous handoffs keep the original goal and cancellation context alive.
   def wake_mentioned_teammates(agent_message, author)
-    return if @chain_depth >= MAX_MENTION_HOPS
-
     mentions = TeamChatMessage.extract_mentions(agent_message.content.to_s, @team)
     return if mentions[:broadcast]
 
     mentions[:agents].reject { |mentioned| mentioned.id == author.id || !mentioned.enabled? }.each do |mentioned|
-      TeamChatJob.perform_later(@session.id, agent_message.id, responding_agent_id: mentioned.id, chain_depth: @chain_depth + 1)
+      break unless @turn.running?
+
+      result = Tools::TalkToTeammateExecutor.new(
+        agent: author,
+        input: { "teammate" => mentioned.name, "message" => agent_message.content },
+        config: { session: @agent_session, team_turn_message_id: @turn.message_id,
+                  team_chat_depth: TeamChats::Turn::MAX_DEPTH, active_agent_ids: [ author.id ], team_chat_channel: @channel }
+      ).call
+      broadcast_error(agent: author, error: result.error) unless result.success?
     end
   end
 
@@ -521,6 +533,8 @@ class TeamChatJob < ApplicationJob
       parts << ""
       parts << @team.soul
     end
+
+    parts << @turn.prompt if @turn
 
     parts.join("\n")
   end

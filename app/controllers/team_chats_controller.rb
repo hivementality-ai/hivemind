@@ -94,6 +94,7 @@ class TeamChatsController < ApplicationController
     end
 
     # Fan out signal to all active agent sessions within this team chat
+    TeamChats::Turn.stop_active!(@session) if %w[cancel redirect].include?(signal_type)
     agent_sessions = @session.agent_sessions.to_a
     agent_sessions.each do |agent_session|
       SessionSignal.set(agent_session.id, type: signal_type, message: message.presence)
