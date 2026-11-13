@@ -36,7 +36,7 @@ gem "ruby-openai", "~> 7.0"
 gem "anthropic", "~> 2.3"
 
 # HTTP Client (for webhooks, web fetch, etc.)
-gem "faraday", "~> 2.14"
+gem "faraday", "~> 2.15"
 gem "faraday-retry"
 
 # JSON
